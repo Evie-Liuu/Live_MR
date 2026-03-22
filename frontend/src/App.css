@@ -1,184 +1,404 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+/* ===== Global / Dark Theme ===== */
+:root {
+  --bg: #1a1a2e;
+  --bg-card: #16213e;
+  --text: #e0e0e0;
+  --text-h: #ffffff;
+  --accent: #0f3460;
+  --accent-light: #533483;
+  --accent-bright: #e94560;
+  --border: #2a2a4a;
+  --success: #4caf50;
+  --danger: #e94560;
 }
 
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-#center {
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+.app {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
-#next-steps {
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 16px;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== Role Select ===== */
+.role-select {
+  text-align: center;
+}
+
+.role-select h1 {
+  font-size: 48px;
+  color: var(--text-h);
+  margin-bottom: 8px;
+}
+
+.role-select p {
+  margin-bottom: 32px;
+  font-size: 18px;
+}
+
+.role-buttons {
   display: flex;
-  border-top: 1px solid var(--border);
+  gap: 20px;
+  justify-content: center;
+}
+
+.role-btn {
+  padding: 20px 40px;
+  font-size: 20px;
+  font-weight: 600;
+  border-radius: 12px;
+  min-width: 160px;
+}
+
+.host-btn {
+  background: var(--accent);
+  color: var(--text-h);
+}
+
+.student-btn {
+  background: var(--accent-light);
+  color: var(--text-h);
+}
+
+/* ===== Host Lobby ===== */
+.host-lobby {
+  width: 100%;
+  max-width: 600px;
+  text-align: center;
+}
+
+.host-lobby h2 {
+  color: var(--text-h);
+  margin-bottom: 20px;
+}
+
+.qr-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.qr-section svg {
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.room-id {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.join-url {
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.7;
+  word-break: break-all;
+}
+
+.pending-list {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
   text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.pending-list h3 {
+  color: var(--text-h);
+  margin-bottom: 12px;
+  text-align: center;
 }
 
-#next-steps ul {
-  list-style: none;
-  padding: 0;
+.pending-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pending-item:last-child {
+  border-bottom: none;
+}
+
+.pending-actions {
   display: flex;
   gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.approve-btn {
+  background: var(--success);
+  color: #fff;
+  padding: 6px 16px;
+  font-size: 14px;
 }
 
-.ticks {
-  position: relative;
+.reject-btn {
+  background: var(--danger);
+  color: #fff;
+  padding: 6px 16px;
+  font-size: 14px;
+}
+
+.lobby-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.start-btn {
+  background: var(--success);
+  color: #fff;
+  padding: 12px 32px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ===== Student Join ===== */
+.student-join {
+  text-align: center;
   width: 100%;
+  max-width: 400px;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
+.student-join h2 {
+  color: var(--text-h);
+  margin-bottom: 8px;
+}
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+.student-join p {
+  margin-bottom: 20px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.student-join form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.student-join input {
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-h);
+  outline: none;
+}
+
+.student-join input:focus {
+  border-color: var(--accent-light);
+}
+
+.student-join button {
+  background: var(--accent-light);
+  color: var(--text-h);
+  font-size: 16px;
+}
+
+.error-text {
+  color: var(--danger);
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+/* ===== Student Waiting ===== */
+.student-waiting {
+  text-align: center;
+}
+
+.student-waiting h2 {
+  color: var(--text-h);
+  margin: 20px 0 8px;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border);
+  border-top-color: var(--accent-bright);
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
+}
+
+/* ===== Host Session ===== */
+.host-session {
+  width: 100%;
+}
+
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.session-header h2 {
+  color: var(--text-h);
+}
+
+.room-badge,
+.count-badge,
+.name-badge {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+.status-badge.connected {
+  background: var(--success);
+  color: #fff;
+}
+
+.status-badge.disconnected {
+  background: var(--border);
+  color: var(--text);
+}
+
+.student-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* ===== Student Tile ===== */
+.student-tile {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+}
+
+.tile-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.student-name {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text-h);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ===== Student Session ===== */
+.student-session {
+  width: 100%;
+  max-width: 640px;
+}
+
+.self-view {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.self-view video {
+  width: 100%;
+  display: block;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+/* ===== Rejected / Error screens ===== */
+.rejected-screen,
+.error-screen {
+  text-align: center;
+}
+
+.rejected-screen h2,
+.error-screen h2 {
+  color: var(--text-h);
+  margin-bottom: 12px;
+}
+
+.rejected-screen p,
+.error-screen p {
+  margin-bottom: 20px;
+}
+
+.rejected-screen button,
+.error-screen button {
+  background: var(--accent);
+  color: var(--text-h);
 }

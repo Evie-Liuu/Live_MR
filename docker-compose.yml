@@ -1,0 +1,80 @@
+services:
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"
+      - "50000-50020:50000-50020/udp"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7880"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    build: ./backend
+    command: node dist/index.js
+    ports:
+      - "3001:3001"
+    env_file: .env
+    depends_on:
+      livekit:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Dev commands (run with: docker compose run --rm <service> ) ---
+  backend-dev:
+    build: ./backend
+    command: npx tsx watch src/index.ts
+    ports:
+      - "3001:3001"
+    env_file: .env
+    volumes:
+      - ./backend/src:/app/src
+    depends_on:
+      livekit:
+        condition: service_healthy
+    profiles: ["dev"]
+
+  backend-test:
+    build: ./backend
+    command: npm test
+    env_file: .env
+    volumes:
+      - ./backend/src:/app/src
+    profiles: ["dev"]
+
+  frontend-dev:
+    build:
+      context: ./frontend
+      target: build
+    command: npx vite --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+    profiles: ["dev"]
+
+  frontend-build:
+    build: ./frontend
+    command: npm run build
+    volumes:
+      - ./frontend:/app
+    profiles: ["dev"]
