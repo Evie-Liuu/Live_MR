@@ -9,6 +9,42 @@ import {
 } from 'livekit-client';
 import StudentTile from './StudentTile.tsx';
 
+function LocalVideo({ room }: { room: Room }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    const attachCamera = () => {
+      const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
+      if (camPub?.track) {
+        const stream = new MediaStream([camPub.track.mediaStreamTrack]);
+        el.srcObject = stream;
+      }
+    };
+
+    // Attach if already published
+    attachCamera();
+
+    // Listen for future local track publish
+    const handleLocalTrack = () => attachCamera();
+    room.localParticipant.on('localTrackPublished', handleLocalTrack);
+
+    return () => {
+      room.localParticipant.off('localTrackPublished', handleLocalTrack);
+      el.srcObject = null;
+    };
+  }, [room]);
+
+  return (
+    <div className="teacher-tile">
+      <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
+      <div className="teacher-label">老師 (我)</div>
+    </div>
+  );
+}
+
 interface HostSessionProps {
   roomId: string;
   livekitToken: string;
@@ -24,6 +60,7 @@ const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL as string || 'ws://localhos
 
 export default function HostSession({ roomId, livekitToken }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
+  const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
 
   const updateParticipant = useCallback(
@@ -102,6 +139,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
     // Add existing participants
     room.connect(LIVEKIT_URL, livekitToken).then(() => {
+      setConnectedRoom(room);
       for (const [, p] of room.remoteParticipants) {
         handleConnected(p);
         for (const [, pub] of p.trackPublications) {
@@ -113,6 +151,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     });
 
     return () => {
+      setConnectedRoom(null);
       room.disconnect();
     };
   }, [livekitToken, updateParticipant]);
@@ -126,6 +165,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         <span className="room-badge">房間: {roomId}</span>
         <span className="count-badge">{participantList.length} 位學生</span>
       </div>
+      {connectedRoom && <LocalVideo room={connectedRoom} />}
       <div className="student-grid">
         {participantList.map((info) => (
           <StudentTile
