@@ -5,19 +5,21 @@ import { createToken } from './livekit.js'
 export function createRouter(store: RoomStore): Router {
   const router = Router()
 
-  // SSE clients per room
+  // SSE 客户端室
   const sseClients = new Map<string, Set<Response>>()
 
-  function notifyRoom(roomId: string, event: string, data: unknown): void {
+  // 統一發送 SSE 事件的方法，配合前端 source.onmessage
+  function notifyRoom(roomId: string, type: string, data: Record<string, any>): void {
     const clients = sseClients.get(roomId)
     if (!clients) return
+    const payload = JSON.stringify({ type, ...data })
     for (const res of clients) {
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+      res.write(`data: ${payload}\n\n`)
     }
   }
 
-  // POST /rooms/create — create room, return roomId + hostToken + livekitToken
-  router.post('/rooms/create', async (_req: Request, res: Response) => {
+  // POST /api/rooms — 建立房間
+  router.post('/rooms', async (_req: Request, res: Response) => {
     try {
       const { roomId, hostToken } = store.createRoom()
       const livekitToken = await createToken(roomId, 'host', true)
@@ -27,31 +29,44 @@ export function createRouter(store: RoomStore): Router {
     }
   })
 
-  // POST /rooms/join-request — student submits {roomId, name}, returns {requestId}
-  router.post('/rooms/join-request', (req: Request, res: Response) => {
-    const { roomId, name } = req.body as { roomId?: string; name?: string }
-    if (!roomId || !name) {
-      res.status(400).json({ error: 'roomId and name are required' })
+  // POST /api/rooms/:roomId/join — 學生提交申請 { name }
+  router.post('/rooms/:roomId/join', (req: Request, res: Response) => {
+    const roomId = req.params.roomId as string
+    const { name } = req.body as { name?: string }
+
+    if (!name) {
+      res.status(400).json({ error: 'Name is required' })
       return
     }
+
     const room = store.getRoom(roomId)
     if (!room) {
       res.status(404).json({ error: 'Room not found' })
       return
     }
+
     const request = store.addJoinRequest(roomId, name)
-    notifyRoom(roomId, 'join-request', { requestId: request.requestId, name: request.name })
+
+    // 通知老師 (符合 RoomEvent 格式)
+    notifyRoom(roomId, 'join-request', {
+      requestId: request.requestId,
+      name: request.name
+    })
+
     res.json({ requestId: request.requestId })
   })
 
-  // GET /rooms/:roomId/request-status/:requestId — student polls status
-  router.get('/rooms/:roomId/request-status/:requestId', (req: Request, res: Response) => {
-    const { roomId, requestId } = req.params
+  // GET /api/rooms/:roomId/requests/:requestId — 學生輪詢狀態
+  router.get('/rooms/:roomId/requests/:requestId', (req: Request, res: Response) => {
+    const roomId = req.params.roomId as string
+    const requestId = req.params.requestId as string
     const request = store.getRequestStatus(roomId, requestId)
+
     if (!request) {
       res.status(404).json({ error: 'Request not found' })
       return
     }
+
     const response: Record<string, unknown> = { status: request.status }
     if (request.status === 'approved' && request.token) {
       response.token = request.token
@@ -59,29 +74,26 @@ export function createRouter(store: RoomStore): Router {
     res.json(response)
   })
 
-  // POST /rooms/approve — host approves {roomId, requestId, hostToken}
-  router.post('/rooms/approve', async (req: Request, res: Response) => {
-    const { roomId, requestId, hostToken } = req.body as { roomId?: string; requestId?: string; hostToken?: string }
-    if (!roomId || !requestId || !hostToken) {
-      res.status(400).json({ error: 'roomId, requestId, and hostToken are required' })
-      return
-    }
-    if (!store.validateHost(roomId, hostToken)) {
-      res.status(403).json({ error: 'Invalid host token' })
-      return
-    }
+  // POST /api/rooms/:roomId/requests/:requestId/approve — 老師允許
+  router.post('/rooms/:roomId/requests/:requestId/approve', async (req: Request, res: Response) => {
+    const roomId = req.params.roomId as string
+    const requestId = req.params.requestId as string
+
     try {
       const request = store.getRequestStatus(roomId, requestId)
       if (!request) {
         res.status(404).json({ error: 'Request not found' })
         return
       }
+
       const livekitToken = await createToken(roomId, request.name, false)
       const approved = store.approveRequest(roomId, requestId, livekitToken)
+
       if (!approved) {
         res.status(404).json({ error: 'Request not found' })
         return
       }
+
       notifyRoom(roomId, 'request-approved', { requestId })
       res.json({ status: 'approved' })
     } catch (err) {
@@ -89,30 +101,26 @@ export function createRouter(store: RoomStore): Router {
     }
   })
 
-  // POST /rooms/reject — host rejects {roomId, requestId, hostToken}
-  router.post('/rooms/reject', (req: Request, res: Response) => {
-    const { roomId, requestId, hostToken } = req.body as { roomId?: string; requestId?: string; hostToken?: string }
-    if (!roomId || !requestId || !hostToken) {
-      res.status(400).json({ error: 'roomId, requestId, and hostToken are required' })
-      return
-    }
-    if (!store.validateHost(roomId, hostToken)) {
-      res.status(403).json({ error: 'Invalid host token' })
-      return
-    }
+  // POST /api/rooms/:roomId/requests/:requestId/reject — 老師拒絕
+  router.post('/rooms/:roomId/requests/:requestId/reject', (req: Request, res: Response) => {
+    const roomId = req.params.roomId as string
+    const requestId = req.params.requestId as string
+
     const rejected = store.rejectRequest(roomId, requestId)
     if (!rejected) {
       res.status(404).json({ error: 'Request not found' })
       return
     }
+
     notifyRoom(roomId, 'request-rejected', { requestId })
     res.json({ status: 'rejected' })
   })
 
-  // GET /rooms/:roomId/events — SSE stream
+  // GET /api/rooms/:roomId/events — SSE 串流
   router.get('/rooms/:roomId/events', (req: Request, res: Response) => {
-    const { roomId } = req.params
+    const roomId = req.params.roomId as string
     const room = store.getRoom(roomId)
+
     if (!room) {
       res.status(404).json({ error: 'Room not found' })
       return
@@ -125,19 +133,20 @@ export function createRouter(store: RoomStore): Router {
     })
     res.flushHeaders()
 
-    // Send all pending requests on connect (for reconnect support)
+    // 發送現有的待審核請求 (同步狀態)
     const pending = store.getPendingRequests(roomId)
     for (const req of pending) {
-      res.write(`event: join-request\ndata: ${JSON.stringify({ requestId: req.requestId, name: req.name })}\n\n`)
+      const payload = JSON.stringify({ type: 'join-request', requestId: req.requestId, name: req.name })
+      res.write(`data: ${payload}\n\n`)
     }
 
-    // Register SSE client
+    // 註冊客戶端
     if (!sseClients.has(roomId)) {
       sseClients.set(roomId, new Set())
     }
     sseClients.get(roomId)!.add(res)
 
-    // Cleanup on close
+    // 關閉時清理
     req.on('close', () => {
       const clients = sseClients.get(roomId)
       if (clients) {
