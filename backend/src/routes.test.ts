@@ -220,7 +220,7 @@ describe('API Routes', () => {
             res.on('data', (chunk: Buffer) => { data += chunk.toString() })
             // Resolve after getting headers
             setTimeout(() => {
-              res.destroy()
+              (res as any).destroy();
               cb(null, data)
             }, 100)
           })
@@ -247,7 +247,7 @@ describe('API Routes', () => {
             let data = ''
             res.on('data', (chunk: Buffer) => { data += chunk.toString() })
             setTimeout(() => {
-              res.destroy()
+              (res as any).destroy();
               cb(null, data)
             }, 100)
           })

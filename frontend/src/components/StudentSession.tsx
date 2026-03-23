@@ -26,7 +26,13 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
     room.on(RoomEvent.Disconnected, () => setConnected(false));
 
     const connectAndPublish = async () => {
-      await room.connect(LIVEKIT_URL, token);
+      try {
+        await room.connect(LIVEKIT_URL, token);
+        setConnected(true);
+      } catch (e) {
+        console.error("Room connection failed:", e);
+        return;
+      }
 
       // Publish local video
       await room.localParticipant.setCameraEnabled(true);

@@ -1,7 +1,8 @@
 port: 7880
 rtc:
+  node_ip: 127.0.0.1
   port_range_start: 50000
-  port_range_end: 60000
+  port_range_end: 50020
   use_external_ip: false
 keys:
   devkey: devsecret1234567890devsecret1234567890
