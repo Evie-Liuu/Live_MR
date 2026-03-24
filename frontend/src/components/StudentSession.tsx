@@ -96,10 +96,10 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       <div className="self-view" style={{ position: 'relative', display: 'inline-block' }}>
         <video ref={videoRef} autoPlay playsInline muted />
         {landmarks && (
-          <PoseDebugOverlay 
-            landmarks={[landmarks]} 
-            width={videoSize.width} 
-            height={videoSize.height} 
+          <PoseDebugOverlay
+            landmarks={[landmarks]}
+            width={videoSize.width}
+            height={videoSize.height}
           />
         )}
       </div>
