@@ -16,6 +16,7 @@ const encoder = new TextEncoder();
 export function usePoseDetection(
   videoRef: RefObject<HTMLVideoElement | null>,
   roomRef: MutableRefObject<Room | null>,
+  onLandmarksUpdate?: (landmarks: Array<{ x: number; y: number; z: number; visibility: number }>) => void
 ) {
   const poseRef = useRef<PoseLandmarker | null>(null);
   const rafRef = useRef<number>(0);
@@ -92,6 +93,11 @@ export function usePoseDetection(
                     }))
                     : [],
                 };
+
+                // Emit local landmarks for overlay if callback is provided
+                if (onLandmarksUpdate) {
+                  onLandmarksUpdate(frame.landmarks);
+                }
 
                 const data = encoder.encode(JSON.stringify(frame));
                 room.localParticipant.publishData(data, {

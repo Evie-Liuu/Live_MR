@@ -9,11 +9,14 @@ import {
 } from 'livekit-client';
 import StudentTile from './StudentTile.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
-import type { BigScreenMsg } from './BigScreen.tsx';
+import type { BigScreenMsg } from './BigScreen';
+import PoseDebugOverlay from './PoseDebugOverlay';
 
 // ─── LocalVideo: teacher's self-view camera ────────────────────────────────
-function LocalVideo({ room }: { room: Room }) {
+function LocalVideo({ room, poseData }: { room: Room, poseData?: any }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
 
   useEffect(() => {
     const el = videoRef.current;
@@ -27,6 +30,14 @@ function LocalVideo({ room }: { room: Room }) {
       }
     };
 
+    const handleLoadedMetadata = () => {
+      setVideoSize({
+        width: el.clientWidth || 320,
+        height: el.clientHeight || 240,
+      });
+    };
+    el.addEventListener('loadedmetadata', handleLoadedMetadata);
+
     attachCamera();
     const handleLocalTrack = () => attachCamera();
     room.localParticipant.on('localTrackPublished', handleLocalTrack);
@@ -34,13 +45,35 @@ function LocalVideo({ room }: { room: Room }) {
     return () => {
       room.localParticipant.off('localTrackPublished', handleLocalTrack);
       el.srcObject = null;
+      el.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
   }, [room]);
 
+  useEffect(() => {
+    // Update size if it hasn't been set correctly
+    if (poseData && videoRef.current && (videoSize.width !== videoRef.current.clientWidth || videoSize.height !== videoRef.current.clientHeight)) {
+      if (videoRef.current.clientWidth > 0) {
+        setVideoSize({
+          width: videoRef.current.clientWidth,
+          height: videoRef.current.clientHeight,
+        });
+      }
+    }
+  }, [poseData, videoSize.width, videoSize.height]);
+
+  const landmarks = poseData?.landmarks;
+
   return (
-    <div className="teacher-tile">
+    <div className="teacher-tile" style={{ position: 'relative' }}>
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
-      <div className="teacher-label">老師 (我)</div>
+      {landmarks && (
+        <PoseDebugOverlay 
+          landmarks={[landmarks]} 
+          width={videoSize.width} 
+          height={videoSize.height} 
+        />
+      )}
+      <div className="teacher-label" style={{ position: 'absolute', bottom: 5, right: 5, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '2px 5px' }}>老師 (我)</div>
     </div>
   );
 }
@@ -65,6 +98,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
+  const [teacherPoseData, setTeacherPoseData] = useState<any | null>(null);
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
@@ -104,9 +138,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           // Decode and relay to big screen
           try {
             const text = new TextDecoder().decode(_data);
-            const parsed = JSON.parse(text) as unknown;
+            const parsed = JSON.parse(text) as any;
             const identity = connectedRoom?.localParticipant.identity ?? 'host-teacher';
             poseSnapshotRef.current[identity] = parsed;
+            setTeacherPoseData(parsed);
             const msg: BigScreenMsg = { type: 'pose', identity, poseData: parsed };
             channelRef.current?.postMessage(msg);
           } catch {/* ignore */ }
@@ -302,7 +337,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         </button>
       </div>
 
-      {connectedRoom && <LocalVideo room={connectedRoom} />}
+      {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />}
 
       <div className="student-grid">
         {studentList.map((info) => (

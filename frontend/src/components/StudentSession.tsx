@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Room, RoomEvent, Track } from 'livekit-client';
-import { usePoseDetection } from '../hooks/usePoseDetection.ts';
+import { usePoseDetection } from '../hooks/usePoseDetection';
+import PoseDebugOverlay from './PoseDebugOverlay';
 
 interface StudentSessionProps {
   roomId: string;
@@ -14,9 +15,19 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const videoRef = useRef<HTMLVideoElement>(null);
   const [connected, setConnected] = useState(false);
   const roomRef = useRef<Room | null>(null);
+  const [landmarks, setLandmarks] = useState<any[] | null>(null);
+  const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
 
   // Pose detection sends data via the room
-  usePoseDetection(videoRef, roomRef);
+  usePoseDetection(videoRef, roomRef, (lms) => {
+    if (videoRef.current) {
+      setVideoSize({
+        width: videoRef.current.clientWidth,
+        height: videoRef.current.clientHeight,
+      });
+    }
+    setLandmarks(lms);
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -82,8 +93,15 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
           {connected ? '已連線' : '連線中...'}
         </span>
       </div>
-      <div className="self-view">
+      <div className="self-view" style={{ position: 'relative', display: 'inline-block' }}>
         <video ref={videoRef} autoPlay playsInline muted />
+        {landmarks && (
+          <PoseDebugOverlay 
+            landmarks={[landmarks]} 
+            width={videoSize.width} 
+            height={videoSize.height} 
+          />
+        )}
       </div>
     </div>
   );

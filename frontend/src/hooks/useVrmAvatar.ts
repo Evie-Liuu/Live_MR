@@ -16,9 +16,9 @@ interface PoseData {
 }
 
 /** How fast bones follow the target rotation (higher = snappier) */
-const LERP_SPEED = 14
+// const LERP_SPEED = 14
 /** Upper clamp so a large delta spike doesn't teleport the bones */
-const MAX_LERP_T = 0.9
+// const MAX_LERP_T = 0.9
 
 export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
   const vrmRef = useRef<VRM | null>(null);
@@ -95,8 +95,8 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
   }, [canvasRef]);
 
   // Reusable THREE objects (avoid per-frame allocation)
-  const _targetQuat = new THREE.Quaternion()
-  const _euler = new THREE.Euler()
+  // const _targetQuat = new THREE.Quaternion()
+  // const _euler = new THREE.Euler()
 
   const applyPose = useCallback(async (rawData: unknown) => {
     const vrm = vrmRef.current;
@@ -151,8 +151,8 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
       ];
 
       // Frame-rate-independent interpolation factor
-      const delta = clockRef.current.getDelta()
-      const t = Math.min(1 - Math.exp(-LERP_SPEED * delta), MAX_LERP_T)
+      // const delta = clockRef.current.getDelta()
+      // const t = Math.min(1 - Math.exp(-LERP_SPEED * delta), MAX_LERP_T)
 
       for (const [rigKey, boneName] of boneMap) {
         const rigData = poseRig[rigKey as keyof typeof poseRig] as
