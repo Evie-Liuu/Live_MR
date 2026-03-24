@@ -184,6 +184,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         const text = new TextDecoder().decode(payload);
         const data = JSON.parse(text) as unknown;
 
+        console.log('handleDataReceived', data);
+
+
         // Update local React state (for StudentTile per-tile avatars)
         updateParticipant(participant.identity, (info) => ({
           ...info,
@@ -205,14 +208,16 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed as never);
     room.on(RoomEvent.DataReceived, handleDataReceived as never);
 
-    room.connect(LIVEKIT_URL, livekitToken).then(async () => {
+    const connectPromise = room.connect(LIVEKIT_URL, livekitToken);
+    
+    connectPromise.then(async () => {
       if (!isMounted) return;
       setConnectedRoom(room);
 
       try {
         await room.localParticipant.setCameraEnabled(true);
       } catch (err) {
-        console.error('Failed to enable camera:', err);
+        if (isMounted) console.error('Failed to enable camera:', err);
       }
 
       // Attach teacher camera to hidden video element for pose detection
@@ -232,13 +237,17 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         }
       }
     }).catch((err) => {
-      console.error('Failed to connect to room:', err);
+      if (isMounted) {
+        console.error('Failed to connect to room:', err);
+      }
     });
 
     return () => {
       isMounted = false;
       setConnectedRoom(null);
-      room.disconnect();
+      connectPromise.catch(() => {}).finally(() => {
+        room.disconnect();
+      });
     };
   }, [livekitToken, updateParticipant]);
 

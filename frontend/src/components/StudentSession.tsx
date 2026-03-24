@@ -19,38 +19,56 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   usePoseDetection(videoRef, roomRef);
 
   useEffect(() => {
+    let isMounted = true;
     const room = new Room();
     roomRef.current = room;
 
-    room.on(RoomEvent.Connected, () => setConnected(true));
-    room.on(RoomEvent.Disconnected, () => setConnected(false));
+    room.on(RoomEvent.Connected, () => {
+      if (isMounted) setConnected(true);
+    });
+    room.on(RoomEvent.Disconnected, () => {
+      if (isMounted) setConnected(false);
+    });
 
-    const connectAndPublish = async () => {
-      try {
-        await room.connect(LIVEKIT_URL, token);
+    // Capture the promise to handle cleanup safely
+    const connectPromise = room.connect(LIVEKIT_URL, token);
+
+    connectPromise
+      .then(async () => {
+        if (!isMounted) return;
         setConnected(true);
-      } catch (e) {
-        console.error("Room connection failed:", e);
-        return;
-      }
 
-      // Publish local video
-      await room.localParticipant.setCameraEnabled(true);
+        try {
+          await room.localParticipant.setCameraEnabled(true);
+          if (!isMounted) return;
 
-      // Attach local video to self-view
-      const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
-      if (camPub?.track && videoRef.current) {
-        const mediaTrack = camPub.track.mediaStreamTrack;
-        const stream = new MediaStream([mediaTrack]);
-        videoRef.current.srcObject = stream;
-      }
-    };
-
-    connectAndPublish();
+          // Attach local video to self-view
+          const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
+          if (camPub?.track && videoRef.current) {
+            const mediaTrack = camPub.track.mediaStreamTrack;
+            const stream = new MediaStream([mediaTrack]);
+            videoRef.current.srcObject = stream;
+          }
+        } catch (e) {
+          if (isMounted) {
+            console.error("Failed to enable camera:", e);
+          }
+        }
+      })
+      .catch((e) => {
+        if (isMounted) {
+          console.error("Room connection failed:", e);
+        }
+      });
 
     return () => {
-      room.disconnect();
+      isMounted = false;
       roomRef.current = null;
+      // Ensure we only disconnect after the connection attempt has settled
+      // to avoid "WebSocket is closed before the connection is established" warning.
+      connectPromise.catch(() => { }).finally(() => {
+        room.disconnect();
+      });
     };
   }, [token]);
 

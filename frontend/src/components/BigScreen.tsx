@@ -40,7 +40,7 @@ export default function BigScreen() {
     } catch (e) {
       console.warn('[BigScreen] Failed to parse snapshot', e);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once after mount
 
   // Listen for ongoing pose/leave updates via a single BroadcastChannel
@@ -51,6 +51,7 @@ export default function BigScreen() {
     channel.onmessage = (ev: MessageEvent) => {
       const msg = ev.data as { type: string; identity: string; poseData?: unknown };
       if (msg.type === 'pose') {
+        // console.log('pose', msg.identity, msg.poseData);
         applyPose(msg.identity, msg.poseData);
       } else if (msg.type === 'leave') {
         removeAvatarRef.current(msg.identity);

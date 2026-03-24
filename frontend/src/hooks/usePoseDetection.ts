@@ -24,7 +24,7 @@ interface PoseInstance {
 }
 
 interface PoseConstructor {
-  new (config: { locateFile: (file: string) => string }): PoseInstance;
+  new(config: { locateFile: (file: string) => string }): PoseInstance;
 }
 
 declare global {
@@ -112,7 +112,7 @@ export function usePoseDetection(
       pose.onResults((results: PoseResults) => {
         if (cancelled) return;
         const room = roomRef.current;
-        if (!room || !results.poseLandmarks) return;
+        if (!room || room.state !== 'connected' || !results.poseLandmarks) return;
 
         const frame: PoseFrame = {
           type: 'pose',
