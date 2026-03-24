@@ -11,6 +11,7 @@ export interface PoseFrame {
 
 const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm';
 const MODEL_BASE = 'https://storage.googleapis.com/mediapipe-models';
+const encoder = new TextEncoder();
 
 export function usePoseDetection(
   videoRef: RefObject<HTMLVideoElement | null>,
@@ -74,7 +75,7 @@ export function usePoseDetection(
                     : [],
                 };
 
-                const data = new TextEncoder().encode(JSON.stringify(frame));
+                const data = encoder.encode(JSON.stringify(frame));
                 room.localParticipant.publishData(data, {
                   reliable: false,
                 });

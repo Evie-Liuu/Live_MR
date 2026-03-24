@@ -184,9 +184,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         const text = new TextDecoder().decode(payload);
         const data = JSON.parse(text) as unknown;
 
-        console.log('handleDataReceived', data);
-
-
         // Update local React state (for StudentTile per-tile avatars)
         updateParticipant(participant.identity, (info) => ({
           ...info,

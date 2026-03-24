@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRM, VRMHumanBoneName } from '@pixiv/three-vrm';
+import { Pose as KPose } from 'kalidokit';
 
 interface PoseLandmark {
   x: number;
@@ -13,6 +14,7 @@ interface PoseLandmark {
 
 interface PoseData {
   landmarks?: PoseLandmark[];
+  worldLandmarks?: PoseLandmark[];
 }
 
 /** One avatar slot in the shared scene */
@@ -45,6 +47,8 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
   const avatarsRef = useRef<Map<string, AvatarSlot>>(new Map());
   /** Ordered list of identities (determines x-position) */
   const orderRef = useRef<string[]>([]);
+  /** In-flight VRM load promises to prevent duplicate loads */
+  const loadingRef = useRef<Map<string, Promise<AvatarSlot>>>(new Map());
 
   // ─── Scene initialisation ───────────────────────────────────────────────
   useEffect(() => {
@@ -109,11 +113,18 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     return () => {
       ro.disconnect();
       cancelAnimationFrame(rafRef.current);
-      // Remove all avatar scenes
       for (const slot of avatarsRef.current.values()) {
         scene.remove(slot.vrm.scene);
+        slot.vrm.scene.traverse((obj) => {
+          if (obj instanceof THREE.Mesh) {
+            obj.geometry?.dispose();
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            for (const mat of mats) mat?.dispose();
+          }
+        });
       }
       avatarsRef.current.clear();
+      loadingRef.current.clear();
       orderRef.current = [];
       renderer.dispose();
     };
@@ -149,10 +160,14 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
       const existing = avatarsRef.current.get(identity);
       if (existing) return Promise.resolve(existing);
 
+      // Return in-flight promise if already loading this identity
+      const inFlight = loadingRef.current.get(identity);
+      if (inFlight) return inFlight;
+
       const scene = sceneRef.current;
       if (!scene) return Promise.reject(new Error('Scene not ready'));
 
-      return new Promise((resolve, reject) => {
+      const loadPromise = new Promise<AvatarSlot>((resolve, reject) => {
         const loader = new GLTFLoader();
         loader.register((parser) => new VRMLoaderPlugin(parser));
         loader.load(
@@ -160,6 +175,7 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
           (gltf) => {
             const vrm = gltf.userData.vrm as VRM | undefined;
             if (!vrm) {
+              loadingRef.current.delete(identity);
               reject(new Error('VRM not found in GLTF'));
               return;
             }
@@ -179,13 +195,20 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
 
             const slot: AvatarSlot = { vrm, baseX: 0 };
             avatarsRef.current.set(identity, slot);
+            loadingRef.current.delete(identity);
             reposition();
             resolve(slot);
           },
           undefined,
-          reject,
+          (err) => {
+            loadingRef.current.delete(identity);
+            reject(err);
+          },
         );
       });
+
+      loadingRef.current.set(identity, loadPromise);
+      return loadPromise;
     },
     [reposition],
   );
@@ -201,11 +224,11 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
         const data = rawData as PoseData;
         if (!data.landmarks || data.landmarks.length < 33) return;
 
-        const { Pose: KPose } = await import('kalidokit');
-        const poseRig = KPose.solve(data.landmarks, data.landmarks, {
-          runtime: 'mediapipe',
-          enableLegs: true,
-        });
+        const poseRig = KPose.solve(
+          data.worldLandmarks ?? data.landmarks,
+          data.landmarks,
+          { runtime: 'mediapipe', enableLegs: true },
+        );
         if (!poseRig) return;
 
         const humanoid = vrm.humanoid;
@@ -266,6 +289,14 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
       const slot = avatarsRef.current.get(identity);
       if (!slot) return;
       sceneRef.current?.remove(slot.vrm.scene);
+      // Dispose GPU resources to prevent memory leaks
+      slot.vrm.scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry?.dispose();
+          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+          for (const mat of mats) mat?.dispose();
+        }
+      });
       avatarsRef.current.delete(identity);
       orderRef.current = orderRef.current.filter((id) => id !== identity);
       reposition();
