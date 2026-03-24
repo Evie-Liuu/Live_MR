@@ -2,7 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { VRMLoaderPlugin, VRM, VRMHumanBoneName } from '@pixiv/three-vrm';
+import { VRMLoaderPlugin, VRM, VRMUtils } from '@pixiv/three-vrm';
+import { solveWithKalidokit, type BoneRotation } from '../utils/kalidokitSolver';
 
 interface PoseLandmark {
   x: number;
@@ -11,22 +12,30 @@ interface PoseLandmark {
   visibility: number;
 }
 
-interface PoseData {
-  landmarks?: PoseLandmark[];
+interface PoseFrame {
+  type: 'pose';
+  landmarks: PoseLandmark[];
+  worldLandmarks: PoseLandmark[];
 }
 
 /** How fast bones follow the target rotation (higher = snappier) */
-// const LERP_SPEED = 14
+const LERP_SPEED = 14;
 /** Upper clamp so a large delta spike doesn't teleport the bones */
-// const MAX_LERP_T = 0.9
+const MAX_LERP_T = 0.9;
+/** Smoothing for Kalidokit solver internally */
+const SOLVER_SMOOTHING = 0.5;
 
 export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
   const vrmRef = useRef<VRM | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const clockRef = useRef(new THREE.Timer());
+  const clockRef = useRef(new THREE.Clock()); // Use THREE.Clock for delta
   const rafRef = useRef<number>(0);
+  
+  // Track previous state for smoothing
+  const prevRotationsRef = useRef<Record<string, BoneRotation>>({});
+  const initialHipsPosRef = useRef<THREE.Vector3 | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -62,9 +71,13 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
       (gltf) => {
         const vrm = gltf.userData.vrm as VRM | undefined;
         if (vrm) {
+          VRMUtils.rotateVRM0(vrm);
           scene.add(vrm.scene);
-          // vrm.scene.rotation.y = Math.PI;
           vrmRef.current = vrm;
+          
+          // Store initial hips position
+          const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+          if (hips) initialHipsPosRef.current = hips.position.clone();
         }
       },
       undefined,
@@ -94,80 +107,51 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
     };
   }, [canvasRef]);
 
-  // Reusable THREE objects (avoid per-frame allocation)
-  // const _targetQuat = new THREE.Quaternion()
-  // const _euler = new THREE.Euler()
+  // Reusable THREE objects
+  const _targetQuat = new THREE.Quaternion();
 
-  const applyPose = useCallback(async (rawData: unknown) => {
+  const applyPose = useCallback((rawData: unknown) => {
     const vrm = vrmRef.current;
     if (!vrm) return;
 
-    const data = rawData as PoseData;
-    if (!data.landmarks || data.landmarks.length < 33) return;
+    const frame = rawData as PoseFrame;
+    if (!frame.landmarks || frame.landmarks.length < 33) return;
+    
+    // Fallback to landmarks if worldLandmarks is missing
+    const worldLms = frame.worldLandmarks || frame.landmarks;
+    const normLms = frame.landmarks;
 
     try {
-      const { Pose: KPose } = await import('kalidokit');
+      const { boneRotations, hipsPosition } = solveWithKalidokit(
+        worldLms,
+        normLms,
+        prevRotationsRef.current,
+        SOLVER_SMOOTHING
+      );
 
-      const poseRig = KPose.solve(data.landmarks, data.landmarks, {
-        runtime: 'mediapipe',
-        enableLegs: true,
-      });
-
-      if (!poseRig) return;
+      prevRotationsRef.current = boneRotations;
 
       const humanoid = vrm.humanoid;
       if (!humanoid) return;
 
-      // Apply spine rotation
-      if (poseRig.Spine) {
-        const spine = humanoid.getNormalizedBoneNode(VRMHumanBoneName.Spine);
-        if (spine) {
-          spine.rotation.x = poseRig.Spine.x;
-          spine.rotation.y = poseRig.Spine.y;
-          spine.rotation.z = poseRig.Spine.z;
-        }
-      }
+      const delta = clockRef.current.getDelta();
+      const t = Math.min(1 - Math.exp(-LERP_SPEED * delta), MAX_LERP_T);
 
-      // Apply hip position/rotation
-      if (poseRig.Hips) {
-        const hips = humanoid.getNormalizedBoneNode(VRMHumanBoneName.Hips);
-        if (hips && poseRig.Hips.rotation) {
-          hips.rotation.x = poseRig.Hips.rotation.x;
-          hips.rotation.y = poseRig.Hips.rotation.y;
-          hips.rotation.z = poseRig.Hips.rotation.z;
-        }
-      }
+      // Apply body bone rotations with mirroring
+      for (const [boneName, rot] of Object.entries(boneRotations)) {
+        const bone = humanoid.getNormalizedBoneNode(boneName as any);
+        if (!bone) continue;
 
-      // Apply arm rotations
-      const boneMap: Array<[string, VRMHumanBoneName]> = [
-        ['RightUpperArm', VRMHumanBoneName.RightUpperArm],
-        ['RightLowerArm', VRMHumanBoneName.RightLowerArm],
-        ['LeftUpperArm', VRMHumanBoneName.LeftUpperArm],
-        ['LeftLowerArm', VRMHumanBoneName.LeftLowerArm],
-        ['RightUpperLeg', VRMHumanBoneName.RightUpperLeg],
-        ['RightLowerLeg', VRMHumanBoneName.RightLowerLeg],
-        ['LeftUpperLeg', VRMHumanBoneName.LeftUpperLeg],
-        ['LeftLowerLeg', VRMHumanBoneName.LeftLowerLeg],
-      ];
+        // Mirror horizontal axes (Y-Yaw and Z-Roll) for visual mirroring (左右同向)
+        _targetQuat.set(rot.x, -rot.y, rot.z, rot.w);
+        bone.quaternion.slerp(_targetQuat, t);
 
-      // Frame-rate-independent interpolation factor
-      // const delta = clockRef.current.getDelta()
-      // const t = Math.min(1 - Math.exp(-LERP_SPEED * delta), MAX_LERP_T)
-
-      for (const [rigKey, boneName] of boneMap) {
-        const rigData = poseRig[rigKey as keyof typeof poseRig] as
-          | { x: number; y: number; z: number; w: number }
-          | undefined;
-        if (rigData) {
-          const bone = humanoid.getNormalizedBoneNode(boneName);
-          if (bone) {
-            bone.rotation.x = rigData.x;
-            bone.rotation.y = rigData.y;
-            bone.rotation.z = rigData.z;
-          }
-          // if (!bone) continue
-          // _targetQuat.set(rigData.x, -rigData.y, rigData.z, rigData.w)
-          // bone.quaternion.slerp(_targetQuat, t)
+        // Apply Hips position
+        if (boneName === 'hips' && hipsPosition) {
+          // Mirror X for Hips movement too
+          bone.position.x = THREE.MathUtils.lerp(bone.position.x, -hipsPosition.x, t);
+          bone.position.y = THREE.MathUtils.lerp(bone.position.y, hipsPosition.y, t);
+          bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z, t);
         }
       }
     } catch (err) {
@@ -177,3 +161,4 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
 
   return { applyPose };
 }
+

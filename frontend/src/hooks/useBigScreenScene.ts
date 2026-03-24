@@ -2,8 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { VRMLoaderPlugin, VRM, VRMHumanBoneName } from '@pixiv/three-vrm';
-import { Pose as KPose } from 'kalidokit';
+import { VRMLoaderPlugin, VRM, VRMUtils } from '@pixiv/three-vrm';
+import { solveWithKalidokit, type BoneRotation } from '../utils/kalidokitSolver';
 
 interface PoseLandmark {
   x: number;
@@ -12,9 +12,10 @@ interface PoseLandmark {
   visibility: number;
 }
 
-interface PoseData {
-  landmarks?: PoseLandmark[];
-  worldLandmarks?: PoseLandmark[];
+interface PoseFrame {
+  type: 'pose';
+  landmarks: PoseLandmark[];
+  worldLandmarks: PoseLandmark[];
 }
 
 /** One avatar slot in the shared scene */
@@ -22,25 +23,27 @@ interface AvatarSlot {
   vrm: VRM;
   /** world-space X centre for this avatar */
   baseX: number;
+  /** previous rotations for smoothing */
+  prevRotations: Record<string, BoneRotation>;
+  /** initial hips position for proper reset */
+  initialHipsPos: THREE.Vector3;
 }
 
 const AVATAR_SPACING = 1.6; // metres between avatar centres
+const LERP_SPEED = 14;
+const MAX_LERP_T = 0.9;
+const SOLVER_SMOOTHING = 0.5;
 
 /** Resolve the X position for avatar at index `i` centred around origin */
 function slotX(index: number, total: number): number {
   return (index - (total - 1) / 2) * AVATAR_SPACING;
 }
 
-/**
- * Manages a single Three.js scene containing multiple VRM avatars.
- * Avatars are created/removed by `identity` key and re-centred on the x-axis
- * whenever the set changes.
- */
 export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>) {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const clockRef = useRef(new THREE.Timer());
+  const clockRef = useRef(new THREE.Clock());
   const rafRef = useRef<number>(0);
 
   /** identity → avatar slot */
@@ -59,7 +62,6 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     scene.background = new THREE.Color(0x1a1a2e);
     sceneRef.current = scene;
 
-    // Wide camera to frame multiple avatars
     const camera = new THREE.PerspectiveCamera(40, canvas.width / canvas.height, 0.1, 50);
     camera.position.set(0, 1.2, 5);
     camera.lookAt(0, 1, 0);
@@ -70,7 +72,6 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     renderer.setPixelRatio(window.devicePixelRatio);
     rendererRef.current = renderer;
 
-    // Lighting
     const ambient = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambient);
     const dir1 = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -80,11 +81,9 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     dir2.position.set(-2, 1, -2);
     scene.add(dir2);
 
-    // Grid floor
     const grid = new THREE.GridHelper(20, 20, 0x2a2a4a, 0x2a2a4a);
     scene.add(grid);
 
-    // Render loop
     const animate = () => {
       rafRef.current = requestAnimationFrame(animate);
       const delta = clockRef.current.getDelta();
@@ -97,7 +96,6 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     };
     rafRef.current = requestAnimationFrame(animate);
 
-    // Resize observer
     const ro = new ResizeObserver(() => {
       if (!canvas) return;
       const w = canvas.clientWidth;
@@ -115,13 +113,6 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
       cancelAnimationFrame(rafRef.current);
       for (const slot of avatarsRef.current.values()) {
         scene.remove(slot.vrm.scene);
-        slot.vrm.scene.traverse((obj) => {
-          if (obj instanceof THREE.Mesh) {
-            obj.geometry?.dispose();
-            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-            for (const mat of mats) mat?.dispose();
-          }
-        });
       }
       avatarsRef.current.clear();
       loadingRef.current.clear();
@@ -130,9 +121,6 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     };
   }, [canvasRef]);
 
-  // ─── Helpers ────────────────────────────────────────────────────────────
-
-  /** Reposition all avatars after adding/removing one */
   const reposition = useCallback(() => {
     const order = orderRef.current;
     const total = order.length;
@@ -142,11 +130,8 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
       const x = slotX(i, total);
       slot.baseX = x;
       slot.vrm.scene.position.x = x;
-      slot.vrm.scene.position.y = 0;
-      slot.vrm.scene.position.z = 0;
     });
 
-    // Adjust camera distance based on number of avatars
     if (cameraRef.current) {
       const spread = total > 1 ? AVATAR_SPACING * (total - 1) : 0;
       cameraRef.current.position.set(0, 1.2, Math.max(3, spread / 2 + 3.5));
@@ -154,13 +139,11 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     }
   }, []);
 
-  /** Load (or retrieve) a VRM for a given identity */
   const ensureAvatar = useCallback(
     (identity: string): Promise<AvatarSlot> => {
       const existing = avatarsRef.current.get(identity);
       if (existing) return Promise.resolve(existing);
 
-      // Return in-flight promise if already loading this identity
       const inFlight = loadingRef.current.get(identity);
       if (inFlight) return inFlight;
 
@@ -179,13 +162,11 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
               reject(new Error('VRM not found in GLTF'));
               return;
             }
-            // Mirror the avatar so it faces the camera
-            vrm.scene.rotation.y = Math.PI;
+
+            VRMUtils.rotateVRM0(vrm);
             scene.add(vrm.scene);
 
-            // Register in order list if not already present
             if (!orderRef.current.includes(identity)) {
-              // Put teacher ('host') first
               if (identity.startsWith('host-')) {
                 orderRef.current.unshift(identity);
               } else {
@@ -193,7 +174,15 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
               }
             }
 
-            const slot: AvatarSlot = { vrm, baseX: 0 };
+            const hips = vrm.humanoid.getNormalizedBoneNode('hips');
+            const initialHipsPos = hips ? hips.position.clone() : new THREE.Vector3();
+
+            const slot: AvatarSlot = {
+              vrm,
+              baseX: 0,
+              prevRotations: {},
+              initialHipsPos
+            };
             avatarsRef.current.set(identity, slot);
             loadingRef.current.delete(identity);
             reposition();
@@ -213,67 +202,44 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     [reposition],
   );
 
-  // ─── Public API ─────────────────────────────────────────────────────────
+  const _targetQuat = new THREE.Quaternion();
 
-  /** Apply pose data (MediaPipe landmarks) to a specific participant's avatar */
   const applyPose = useCallback(
     async (identity: string, rawData: unknown) => {
       try {
         const slot = await ensureAvatar(identity);
         const { vrm } = slot;
-        const data = rawData as PoseData;
-        if (!data.landmarks || data.landmarks.length < 33) return;
+        const frame = rawData as PoseFrame;
+        if (!frame.landmarks || frame.landmarks.length < 33) return;
 
-        const poseRig = KPose.solve(
-          data.worldLandmarks ?? data.landmarks,
-          data.landmarks,
-          { runtime: 'mediapipe', enableLegs: true },
+        const { boneRotations, hipsPosition } = solveWithKalidokit(
+          frame.worldLandmarks || frame.landmarks,
+          frame.landmarks,
+          slot.prevRotations,
+          SOLVER_SMOOTHING
         );
-        if (!poseRig) return;
+
+        slot.prevRotations = boneRotations;
 
         const humanoid = vrm.humanoid;
         if (!humanoid) return;
 
-        if (poseRig.Spine) {
-          const spine = humanoid.getNormalizedBoneNode(VRMHumanBoneName.Spine);
-          if (spine) {
-            spine.rotation.x = poseRig.Spine.x;
-            spine.rotation.y = poseRig.Spine.y;
-            spine.rotation.z = poseRig.Spine.z;
-          }
-        }
+        const delta = clockRef.current.getDelta();
+        const t = Math.min(1 - Math.exp(-LERP_SPEED * delta), MAX_LERP_T);
 
-        if (poseRig.Hips?.rotation) {
-          const hips = humanoid.getNormalizedBoneNode(VRMHumanBoneName.Hips);
-          if (hips) {
-            hips.rotation.x = poseRig.Hips.rotation.x;
-            hips.rotation.y = poseRig.Hips.rotation.y;
-            hips.rotation.z = poseRig.Hips.rotation.z;
-          }
-        }
+        for (const [boneName, rot] of Object.entries(boneRotations)) {
+          const bone = humanoid.getNormalizedBoneNode(boneName as any);
+          if (!bone) continue;
 
-        const boneMap: Array<[string, VRMHumanBoneName]> = [
-          ['RightUpperArm', VRMHumanBoneName.RightUpperArm],
-          ['RightLowerArm', VRMHumanBoneName.RightLowerArm],
-          ['LeftUpperArm', VRMHumanBoneName.LeftUpperArm],
-          ['LeftLowerArm', VRMHumanBoneName.LeftLowerArm],
-          ['RightUpperLeg', VRMHumanBoneName.RightUpperLeg],
-          ['RightLowerLeg', VRMHumanBoneName.RightLowerLeg],
-          ['LeftUpperLeg', VRMHumanBoneName.LeftUpperLeg],
-          ['LeftLowerLeg', VRMHumanBoneName.LeftLowerLeg],
-        ];
+          // Mirror horizontal axes (Y-Yaw and Z-Roll) for visual mirroring (左右同向)
+          _targetQuat.set(rot.x, -rot.y, rot.z, rot.w);
+          bone.quaternion.slerp(_targetQuat, t);
 
-        for (const [rigKey, boneName] of boneMap) {
-          const rigData = poseRig[rigKey as keyof typeof poseRig] as
-            | { x: number; y: number; z: number }
-            | undefined;
-          if (rigData) {
-            const bone = humanoid.getNormalizedBoneNode(boneName);
-            if (bone) {
-              bone.rotation.x = rigData.x;
-              bone.rotation.y = rigData.y;
-              bone.rotation.z = rigData.z;
-            }
+          // Apply Hips position
+          if (boneName === 'hips' && hipsPosition) {
+            bone.position.x = THREE.MathUtils.lerp(bone.position.x, -hipsPosition.x, t);
+            bone.position.y = THREE.MathUtils.lerp(bone.position.y, hipsPosition.y, t);
+            bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z, t);
           }
         }
       } catch (err) {
@@ -283,20 +249,11 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
     [ensureAvatar],
   );
 
-  /** Remove an avatar from the scene */
   const removeAvatar = useCallback(
     (identity: string) => {
       const slot = avatarsRef.current.get(identity);
       if (!slot) return;
       sceneRef.current?.remove(slot.vrm.scene);
-      // Dispose GPU resources to prevent memory leaks
-      slot.vrm.scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) {
-          obj.geometry?.dispose();
-          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-          for (const mat of mats) mat?.dispose();
-        }
-      });
       avatarsRef.current.delete(identity);
       orderRef.current = orderRef.current.filter((id) => id !== identity);
       reposition();
@@ -306,3 +263,4 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
 
   return { applyPose, removeAvatar };
 }
+
