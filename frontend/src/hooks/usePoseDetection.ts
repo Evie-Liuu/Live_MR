@@ -1,37 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { RefObject, MutableRefObject } from 'react';
 import type { Room } from 'livekit-client';
-
-// MediaPipe Pose types (loaded at runtime via CDN)
-interface PoseLandmark {
-  x: number;
-  y: number;
-  z: number;
-  visibility?: number;
-}
-
-interface PoseResults {
-  poseLandmarks?: PoseLandmark[];
-  poseWorldLandmarks?: PoseLandmark[];
-}
-
-interface PoseInstance {
-  setOptions(options: Record<string, unknown>): void;
-  onResults(callback: (results: PoseResults) => void): void;
-  initialize(): Promise<void>;
-  send(input: { image: HTMLVideoElement }): Promise<void>;
-  close(): void;
-}
-
-interface PoseConstructor {
-  new(config: { locateFile: (file: string) => string }): PoseInstance;
-}
-
-declare global {
-  interface Window {
-    Pose?: PoseConstructor;
-  }
-}
+import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 
 export interface PoseFrame {
   type: 'pose';
@@ -39,123 +9,90 @@ export interface PoseFrame {
   worldLandmarks: Array<{ x: number; y: number; z: number; visibility: number }>;
 }
 
-const scriptPromises: Record<string, Promise<void> | undefined> = {};
-
-function loadScript(src: string): Promise<void> {
-  const existingPromise = scriptPromises[src];
-  if (existingPromise) {
-    return existingPromise;
-  }
-
-  const promise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement;
-    if (existingScript) {
-      if (existingScript.dataset.loaded) {
-        resolve();
-      } else {
-        existingScript.addEventListener('load', () => resolve());
-        existingScript.addEventListener('error', () => reject());
-      }
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = () => {
-      script.dataset.loaded = 'true';
-      resolve();
-    };
-    script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-    document.head.appendChild(script);
-  });
-
-  scriptPromises[src] = promise;
-  return promise;
-}
+const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm';
+const MODEL_BASE = 'https://storage.googleapis.com/mediapipe-models';
 
 export function usePoseDetection(
   videoRef: RefObject<HTMLVideoElement | null>,
   roomRef: MutableRefObject<Room | null>,
 ) {
-  const poseRef = useRef<PoseInstance | null>(null);
+  const poseRef = useRef<PoseLandmarker | null>(null);
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
-      // Load MediaPipe Pose from CDN if not already loaded
-      if (!window.Pose) {
-        await loadScript(
-          'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
-        );
-      }
+      try {
+        const vision = await FilesetResolver.forVisionTasks(WASM_CDN);
+        const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: `${MODEL_BASE}/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task`,
+            delegate: 'GPU',
+          },
+          runningMode: 'VIDEO',
+          numPoses: 1,
+          minPoseDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
 
-      const PoseClass = window.Pose;
-      if (!PoseClass) {
-        console.warn('MediaPipe Pose not available');
-        return;
-      }
+        if (cancelled) {
+          poseLandmarker.close();
+          return;
+        }
 
-      const pose = new PoseClass({
-        locateFile: (file: string) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
-      });
+        poseRef.current = poseLandmarker;
 
-      pose.setOptions({
-        modelComplexity: 1,
-        smoothLandmarks: true,
-        enableSegmentation: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
-      });
+        const loop = () => {
+          if (cancelled) return;
 
-      pose.onResults((results: PoseResults) => {
-        if (cancelled) return;
-        const room = roomRef.current;
-        if (!room || room.state !== 'connected' || !results.poseLandmarks) return;
+          const video = videoRef.current;
+          const pose = poseRef.current;
 
-        const frame: PoseFrame = {
-          type: 'pose',
-          landmarks: results.poseLandmarks.map((l) => ({
-            x: l.x,
-            y: l.y,
-            z: l.z,
-            visibility: l.visibility ?? 0,
-          })),
-          worldLandmarks: (results.poseWorldLandmarks ?? []).map((l) => ({
-            x: l.x,
-            y: l.y,
-            z: l.z,
-            visibility: l.visibility ?? 0,
-          })),
+          if (video && video.readyState >= 2 && pose) {
+            try {
+              const now = performance.now();
+              const result = pose.detectForVideo(video, now);
+              const room = roomRef.current;
+
+              if (room && room.state === 'connected' && result.landmarks && result.landmarks.length > 0) {
+                const frame: PoseFrame = {
+                  type: 'pose',
+                  landmarks: result.landmarks[0].map((l) => ({
+                    x: l.x,
+                    y: l.y,
+                    z: l.z,
+                    visibility: l.visibility ?? 0,
+                  })),
+                  worldLandmarks: result.worldLandmarks && result.worldLandmarks.length > 0
+                    ? result.worldLandmarks[0].map((l) => ({
+                      x: l.x,
+                      y: l.y,
+                      z: l.z,
+                      visibility: l.visibility ?? 0,
+                    }))
+                    : [],
+                };
+
+                const data = new TextEncoder().encode(JSON.stringify(frame));
+                room.localParticipant.publishData(data, {
+                  reliable: false,
+                });
+              }
+            } catch (err) {
+              // ignore frame send errors
+            }
+          }
+
+          if (!cancelled) {
+            rafRef.current = requestAnimationFrame(loop);
+          }
         };
 
-        const data = new TextEncoder().encode(JSON.stringify(frame));
-        room.localParticipant.publishData(data, {
-          reliable: false,
-        });
-      });
-
-      await pose.initialize();
-      if (cancelled) return;
-      poseRef.current = pose;
-
-      const loop = async () => {
-        if (cancelled) return;
-        const video = videoRef.current;
-        if (video && video.readyState >= 2 && poseRef.current) {
-          try {
-            await poseRef.current.send({ image: video });
-          } catch {
-            // ignore frame send errors
-          }
-        }
-        if (!cancelled) {
-          rafRef.current = requestAnimationFrame(loop);
-        }
-      };
-
-      rafRef.current = requestAnimationFrame(loop);
+        rafRef.current = requestAnimationFrame(loop);
+      } catch (err) {
+        console.error('Failed to initialize MediaPipe PoseLandmarker:', err);
+      }
     };
 
     init();
@@ -163,7 +100,9 @@ export function usePoseDetection(
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
-      poseRef.current?.close();
+      if (poseRef.current) {
+        poseRef.current.close();
+      }
     };
   }, [videoRef, roomRef]);
 }
