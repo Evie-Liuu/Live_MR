@@ -37,6 +37,14 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart }: 
     return unsubscribe;
   }, [roomId, hostToken, handleEvent]);
 
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomId)
+    } catch (error) {
+      console.error('複製失敗:', error)
+    }
+  }
+
   const handleApprove = async (requestId: string) => {
     try {
       await approveRequest(roomId, requestId);
@@ -63,7 +71,16 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart }: 
       <h2>等待學生加入</h2>
       <div className="qr-section">
         <QRCodeSVG value={joinUrl} size={200} />
-        <p className="room-id">房間 ID: {roomId}</p>
+        <div className='inline-flex'>
+          <p className="room-id">房間 ID: {roomId}</p>
+          <button
+            onClick={handleCopyCode}
+            className="text-blue-500 p-1!"
+            title="複製"
+          >
+            <span className="material-icons text-sm!">content_copy</span>
+          </button>
+        </div>
         <p className="join-url">{joinUrl}</p>
       </div>
       <div className="pending-list">

@@ -39,18 +39,37 @@ export interface PoseFrame {
   worldLandmarks: Array<{ x: number; y: number; z: number; visibility: number }>;
 }
 
+const scriptPromises: Record<string, Promise<void> | undefined> = {};
+
 function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve();
+  const existingPromise = scriptPromises[src];
+  if (existingPromise) {
+    return existingPromise;
+  }
+
+  const promise = new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector(`script[src="${src}"]`) as HTMLScriptElement;
+    if (existingScript) {
+      if (existingScript.dataset.loaded) {
+        resolve();
+      } else {
+        existingScript.addEventListener('load', () => resolve());
+        existingScript.addEventListener('error', () => reject());
+      }
       return;
     }
     const script = document.createElement('script');
     script.src = src;
-    script.onload = () => resolve();
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    };
     script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
     document.head.appendChild(script);
   });
+
+  scriptPromises[src] = promise;
+  return promise;
 }
 
 export function usePoseDetection(
@@ -64,10 +83,12 @@ export function usePoseDetection(
     let cancelled = false;
 
     const init = async () => {
-      // Load MediaPipe Pose from CDN
-      await loadScript(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
-      );
+      // Load MediaPipe Pose from CDN if not already loaded
+      if (!window.Pose) {
+        await loadScript(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js',
+        );
+      }
 
       const PoseClass = window.Pose;
       if (!PoseClass) {

@@ -13,12 +13,14 @@
     "@livekit/components-react": "^2.9.20",
     "@mediapipe/pose": "^0.5.1675469404",
     "@pixiv/three-vrm": "^3.5.1",
+    "@tailwindcss/vite": "^4.2.2",
     "@types/three": "^0.183.1",
     "kalidokit": "^1.1.5",
     "livekit-client": "^2.17.3",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
     "three": "^0.183.2"
   },
   "devDependencies": {
