@@ -22,7 +22,9 @@ export function createRouter(store: RoomStore): Router {
   router.post('/rooms', async (_req: Request, res: Response) => {
     try {
       const { roomId, hostToken } = store.createRoom()
-      const livekitToken = await createToken(roomId, 'host', true)
+      const hostId = `host-${Math.random().toString(36).substring(7)}`
+      // const hostId = `host`
+      const livekitToken = await createToken(roomId, hostId, true)
       res.json({ roomId, hostToken, livekitToken })
     } catch (err) {
       res.status(500).json({ error: 'Failed to create room' })

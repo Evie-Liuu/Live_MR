@@ -132,14 +132,24 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       }
     };
 
+    let isMounted = true;
     room.on(RoomEvent.ParticipantConnected, handleConnected);
     room.on(RoomEvent.ParticipantDisconnected, handleDisconnected);
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed as never);
     room.on(RoomEvent.DataReceived, handleDataReceived as never);
 
     // Add existing participants
-    room.connect(LIVEKIT_URL, livekitToken).then(() => {
+    room.connect(LIVEKIT_URL, livekitToken).then(async () => {
+      if (!isMounted) return;
       setConnectedRoom(room);
+
+      // Enable local camera
+      try {
+        await room.localParticipant.setCameraEnabled(true);
+      } catch (err) {
+        console.error("Failed to enable camera:", err);
+      }
+
       for (const [, p] of room.remoteParticipants) {
         handleConnected(p);
         for (const [, pub] of p.trackPublications) {
@@ -148,26 +158,32 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           }
         }
       }
+    }).catch(err => {
+      console.error("Failed to connect to room:", err);
     });
 
     return () => {
+      isMounted = false;
       setConnectedRoom(null);
       room.disconnect();
     };
   }, [livekitToken, updateParticipant]);
 
-  const participantList = Array.from(participants.values());
+  // Filter out other host instances from the student grid
+  const studentList = Array.from(participants.values()).filter(
+    (p) => !p.participant.identity.startsWith('host-')
+  );
 
   return (
     <div className="host-session">
       <div className="session-header">
         <h2>課堂進行中</h2>
         <span className="room-badge">房間: {roomId}</span>
-        <span className="count-badge">{participantList.length} 位學生</span>
+        <span className="count-badge">{studentList.length} 位學生</span>
       </div>
       {connectedRoom && <LocalVideo room={connectedRoom} />}
       <div className="student-grid">
-        {participantList.map((info) => (
+        {studentList.map((info) => (
           <StudentTile
             key={info.participant.identity}
             participant={info.participant}
