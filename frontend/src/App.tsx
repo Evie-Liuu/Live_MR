@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import BigScreen from './components/BigScreen.tsx';
 import type { AppState } from './state.ts';
 import { createRoom } from './api.ts';
 import RoleSelect from './components/RoleSelect.tsx';
@@ -17,6 +18,9 @@ function getInitialState(): AppState {
   }
   return { screen: 'select-role' };
 }
+
+// Detect big-screen mode before mounting any hook-bearing components
+const isBigScreen = new URLSearchParams(window.location.search).get('screen') === 'bigscreen';
 
 function App() {
   const [state, setState] = useState<AppState>(getInitialState);
@@ -132,4 +136,5 @@ function App() {
   return <div className="app">{renderScreen()}</div>;
 }
 
-export default App;
+export default isBigScreen ? BigScreen : App;
+

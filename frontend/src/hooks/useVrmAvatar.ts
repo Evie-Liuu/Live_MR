@@ -53,7 +53,7 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
     loader.register((parser) => new VRMLoaderPlugin(parser));
 
     loader.load(
-      '/avatar.vrm',
+      '/default.vrm',
       (gltf) => {
         const vrm = gltf.userData.vrm as VRM | undefined;
         if (vrm) {
