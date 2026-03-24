@@ -9,8 +9,8 @@ export interface PoseFrame {
   worldLandmarks: Array<{ x: number; y: number; z: number; visibility: number }>;
 }
 
-const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm';
-const MODEL_BASE = 'https://storage.googleapis.com/mediapipe-models';
+const WASM_PATH = '/mediapipe-wasm';
+const MODEL_PATH = '/mediapipe-models/pose_landmarker_heavy.task';
 const encoder = new TextEncoder();
 
 export function usePoseDetection(
@@ -25,17 +25,35 @@ export function usePoseDetection(
 
     const init = async () => {
       try {
-        const vision = await FilesetResolver.forVisionTasks(WASM_CDN);
-        const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: `${MODEL_BASE}/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task`,
-            delegate: 'GPU',
-          },
-          runningMode: 'VIDEO',
+        const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
+
+        let poseLandmarker: PoseLandmarker | null = null;
+        const commonOptions = {
+          runningMode: 'VIDEO' as const,
           numPoses: 1,
           minPoseDetectionConfidence: 0.5,
           minTrackingConfidence: 0.5,
-        });
+        };
+
+        // Try GPU first, fall back to CPU if unsupported
+        try {
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: MODEL_PATH,
+              delegate: 'GPU',
+            },
+            ...commonOptions,
+          });
+        } catch {
+          console.warn('[PoseDetection] GPU delegate failed, falling back to CPU');
+          poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+            baseOptions: {
+              modelAssetPath: MODEL_PATH,
+              delegate: 'CPU',
+            },
+            ...commonOptions,
+          });
+        }
 
         if (cancelled) {
           poseLandmarker.close();

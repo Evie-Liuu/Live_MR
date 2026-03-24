@@ -40,7 +40,7 @@ export function useBigScreenScene(canvasRef: RefObject<HTMLCanvasElement | null>
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const clockRef = useRef(new THREE.Clock());
+  const clockRef = useRef(new THREE.Timer());
   const rafRef = useRef<number>(0);
 
   /** identity → avatar slot */

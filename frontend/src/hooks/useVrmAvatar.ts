@@ -15,12 +15,17 @@ interface PoseData {
   landmarks?: PoseLandmark[];
 }
 
+/** How fast bones follow the target rotation (higher = snappier) */
+const LERP_SPEED = 14
+/** Upper clamp so a large delta spike doesn't teleport the bones */
+const MAX_LERP_T = 0.9
+
 export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
   const vrmRef = useRef<VRM | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const clockRef = useRef(new THREE.Clock());
+  const clockRef = useRef(new THREE.Timer());
   const rafRef = useRef<number>(0);
 
   useEffect(() => {
@@ -58,7 +63,7 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
         const vrm = gltf.userData.vrm as VRM | undefined;
         if (vrm) {
           scene.add(vrm.scene);
-          vrm.scene.rotation.y = Math.PI;
+          // vrm.scene.rotation.y = Math.PI;
           vrmRef.current = vrm;
         }
       },
@@ -88,6 +93,10 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
       }
     };
   }, [canvasRef]);
+
+  // Reusable THREE objects (avoid per-frame allocation)
+  const _targetQuat = new THREE.Quaternion()
+  const _euler = new THREE.Euler()
 
   const applyPose = useCallback(async (rawData: unknown) => {
     const vrm = vrmRef.current;
@@ -141,9 +150,13 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
         ['LeftLowerLeg', VRMHumanBoneName.LeftLowerLeg],
       ];
 
+      // Frame-rate-independent interpolation factor
+      const delta = clockRef.current.getDelta()
+      const t = Math.min(1 - Math.exp(-LERP_SPEED * delta), MAX_LERP_T)
+
       for (const [rigKey, boneName] of boneMap) {
         const rigData = poseRig[rigKey as keyof typeof poseRig] as
-          | { x: number; y: number; z: number }
+          | { x: number; y: number; z: number; w: number }
           | undefined;
         if (rigData) {
           const bone = humanoid.getNormalizedBoneNode(boneName);
@@ -152,6 +165,9 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
             bone.rotation.y = rigData.y;
             bone.rotation.z = rigData.z;
           }
+          // if (!bone) continue
+          // _targetQuat.set(rigData.x, -rigData.y, rigData.z, rigData.w)
+          // bone.quaternion.slerp(_targetQuat, t)
         }
       }
     } catch (err) {
