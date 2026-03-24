@@ -453,3 +453,33 @@ button:disabled {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
+
+.bigscreen-scene-label {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+/* ===== Host Session – inline controls (scene / VRM selector) ===== */
+.control-label {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.control-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.control-select:hover,
+.control-select:focus {
+  border-color: var(--accent-light);
+}

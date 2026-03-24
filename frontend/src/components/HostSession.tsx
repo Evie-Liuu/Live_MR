@@ -11,11 +11,12 @@ import StudentTile from './StudentTile.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
 import type { BigScreenMsg } from './BigScreen';
 import PoseDebugOverlay from './PoseDebugOverlay';
+import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
+import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 
 // ─── LocalVideo: teacher's self-view camera ────────────────────────────────
-function LocalVideo({ room, poseData }: { room: Room, poseData?: any }) {
+function LocalVideo({ room, poseData }: { room: Room; poseData?: unknown }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
 
   useEffect(() => {
@@ -25,8 +26,7 @@ function LocalVideo({ room, poseData }: { room: Room, poseData?: any }) {
     const attachCamera = () => {
       const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
       if (camPub?.track) {
-        const stream = new MediaStream([camPub.track.mediaStreamTrack]);
-        el.srcObject = stream;
+        el.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
       }
     };
 
@@ -39,41 +39,54 @@ function LocalVideo({ room, poseData }: { room: Room, poseData?: any }) {
     el.addEventListener('loadedmetadata', handleLoadedMetadata);
 
     attachCamera();
-    const handleLocalTrack = () => attachCamera();
-    room.localParticipant.on('localTrackPublished', handleLocalTrack);
+    room.localParticipant.on('localTrackPublished', attachCamera);
 
     return () => {
-      room.localParticipant.off('localTrackPublished', handleLocalTrack);
+      room.localParticipant.off('localTrackPublished', attachCamera);
       el.srcObject = null;
       el.removeEventListener('loadedmetadata', handleLoadedMetadata);
     };
   }, [room]);
 
+  // Keep size in sync with poseData triggers
   useEffect(() => {
-    // Update size if it hasn't been set correctly
-    if (poseData && videoRef.current && (videoSize.width !== videoRef.current.clientWidth || videoSize.height !== videoRef.current.clientHeight)) {
-      if (videoRef.current.clientWidth > 0) {
-        setVideoSize({
-          width: videoRef.current.clientWidth,
-          height: videoRef.current.clientHeight,
-        });
-      }
+    const el = videoRef.current;
+    if (poseData && el && el.clientWidth > 0) {
+      setVideoSize((prev) => {
+        if (prev.width !== el.clientWidth || prev.height !== el.clientHeight) {
+          return { width: el.clientWidth, height: el.clientHeight };
+        }
+        return prev;
+      });
     }
-  }, [poseData, videoSize.width, videoSize.height]);
+  }, [poseData]);
 
-  const landmarks = poseData?.landmarks;
+  const frame = poseData as { landmarks?: unknown[] } | null;
+  const landmarks = frame?.landmarks;
 
   return (
     <div className="teacher-tile" style={{ position: 'relative' }}>
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
       {landmarks && (
-        <PoseDebugOverlay 
-          landmarks={[landmarks]} 
-          width={videoSize.width} 
-          height={videoSize.height} 
+        <PoseDebugOverlay
+          landmarks={[landmarks as never]}
+          width={videoSize.width}
+          height={videoSize.height}
         />
       )}
-      <div className="teacher-label" style={{ position: 'absolute', bottom: 5, right: 5, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '2px 5px' }}>老師 (我)</div>
+      <div
+        className="teacher-label"
+        style={{
+          position: 'absolute',
+          bottom: 5,
+          right: 5,
+          background: 'rgba(0,0,0,0.5)',
+          color: '#fff',
+          padding: '2px 5px',
+        }}
+      >
+        老師 (我)
+      </div>
     </div>
   );
 }
@@ -98,7 +111,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
-  const [teacherPoseData, setTeacherPoseData] = useState<any | null>(null);
+  const [teacherPoseData, setTeacherPoseData] = useState<unknown | null>(null);
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
@@ -111,6 +124,43 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   // Latest pose snapshot for all participants (used when opening big screen mid-session)
   const poseSnapshotRef = useRef<Record<string, unknown>>({});
 
+  // ─── Scene / VRM source selection ─────────────────────────────────────────
+  const [selectedSceneId, setSelectedSceneId] = useState<string>(
+    () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
+  );
+  const [selectedVrmSourceId, setSelectedVrmSourceId] = useState<string>(
+    () => sessionStorage.getItem('bigscreen-vrmSourceId') ?? DEFAULT_VRM_SOURCE_ID,
+  );
+
+  // Broadcast scene/VRM changes to any open BigScreen window
+  const broadcastSceneChange = useCallback((sceneId: string) => {
+    sessionStorage.setItem('bigscreen-sceneId', sceneId);
+    const msg: BigScreenMsg = { type: 'scene-change', sceneId };
+    channelRef.current?.postMessage(msg);
+  }, []);
+
+  const broadcastVrmChange = useCallback((vrmSourceId: string) => {
+    sessionStorage.setItem('bigscreen-vrmSourceId', vrmSourceId);
+    const msg: BigScreenMsg = { type: 'vrm-change', vrmSourceId };
+    channelRef.current?.postMessage(msg);
+  }, []);
+
+  const handleSceneChange = useCallback(
+    (sceneId: string) => {
+      setSelectedSceneId(sceneId);
+      broadcastSceneChange(sceneId);
+    },
+    [broadcastSceneChange],
+  );
+
+  const handleVrmChange = useCallback(
+    (vrmSourceId: string) => {
+      setSelectedVrmSourceId(vrmSourceId);
+      broadcastVrmChange(vrmSourceId);
+    },
+    [broadcastVrmChange],
+  );
+
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
   useEffect(() => {
     const ch = new BroadcastChannel(CHANNEL_NAME);
@@ -122,36 +172,31 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   }, []);
 
   // ─── Teacher pose detection ───────────────────────────────────────────────
-  // We reuse usePoseDetection but intercept via a custom roomRef that
-  // publishes to LiveKit AND to the big screen channel.
-  // Instead of a real Room, we pass a proxy roomRef that captures the data.
   const teacherPoseInterceptRef = useRef<Room | null>(null);
 
-  // Override publish so we can capture teacher pose without publishing to LiveKit
-  // (teacher is the host sender; no need to echo back).
   useEffect(() => {
-    // Create a lightweight proxy object that satisfies the Room interface
-    // enough for usePoseDetection to call publishData on it.
     const proxy = {
       localParticipant: {
         publishData: (_data: Uint8Array, _opts: unknown) => {
-          // Decode and relay to big screen
           try {
             const text = new TextDecoder().decode(_data);
-            const parsed = JSON.parse(text) as any;
+            const parsed = JSON.parse(text) as unknown;
             const identity = connectedRoom?.localParticipant.identity ?? 'host-teacher';
             poseSnapshotRef.current[identity] = parsed;
             setTeacherPoseData(parsed);
             const msg: BigScreenMsg = { type: 'pose', identity, poseData: parsed };
             channelRef.current?.postMessage(msg);
-          } catch {/* ignore */ }
+          } catch {
+            /* ignore */
+          }
         },
       },
+      // Mimic the Room state so usePoseDetection's guard passes
+      state: 'connected',
     } as unknown as Room;
     teacherPoseInterceptRef.current = proxy;
   }, [connectedRoom]);
 
-  // Run pose detection using the teacher's camera video
   usePoseDetection(teacherVideoRef, teacherPoseInterceptRef);
 
   // ─── LiveKit connection ────────────────────────────────────────────────────
@@ -191,7 +236,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         next.delete(participant.identity);
         return next;
       });
-      // Notify big screen to remove avatar
       channelRef.current?.postMessage({ type: 'leave', identity: participant.identity });
       delete poseSnapshotRef.current[participant.identity];
     };
@@ -216,16 +260,13 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     ) => {
       if (!participant) return;
       try {
-        const text = new TextDecoder().decode(payload);
-        const data = JSON.parse(text) as unknown;
+        const data = JSON.parse(new TextDecoder().decode(payload)) as unknown;
 
-        // Update local React state (for StudentTile per-tile avatars)
         updateParticipant(participant.identity, (info) => ({
           ...info,
           poseData: data,
         }));
 
-        // Relay to big screen
         poseSnapshotRef.current[participant.identity] = data;
         const msg: BigScreenMsg = { type: 'pose', identity: participant.identity, poseData: data };
         channelRef.current?.postMessage(msg);
@@ -241,38 +282,38 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     room.on(RoomEvent.DataReceived, handleDataReceived as never);
 
     const connectPromise = room.connect(LIVEKIT_URL, livekitToken);
-    
-    connectPromise.then(async () => {
-      if (!isMounted) return;
-      setConnectedRoom(room);
 
-      try {
-        await room.localParticipant.setCameraEnabled(true);
-      } catch (err) {
-        if (isMounted) console.error('Failed to enable camera:', err);
-      }
+    connectPromise
+      .then(async () => {
+        if (!isMounted) return;
+        setConnectedRoom(room);
 
-      // Attach teacher camera to hidden video element for pose detection
-      const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
-      if (camPub?.track && teacherVideoRef.current) {
-        const stream = new MediaStream([camPub.track.mediaStreamTrack]);
-        teacherVideoRef.current.srcObject = stream;
-        teacherVideoRef.current.play().catch(() => {/* autoplay */ });
-      }
+        try {
+          await room.localParticipant.setCameraEnabled(true);
+        } catch (err) {
+          if (isMounted) console.error('Failed to enable camera:', err);
+        }
 
-      for (const [, p] of room.remoteParticipants) {
-        handleConnected(p);
-        for (const [, pub] of p.trackPublications) {
-          if (pub.kind === Track.Kind.Video && pub.track) {
-            handleTrackSubscribed(pub.track, pub as RemoteTrackPublication, p);
+        // Attach teacher camera to hidden video for pose detection
+        const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
+        if (camPub?.track && teacherVideoRef.current) {
+          teacherVideoRef.current.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
+          teacherVideoRef.current.play().catch(() => {/* autoplay */});
+        }
+
+        // Populate pre-existing remote participants
+        for (const [, p] of room.remoteParticipants) {
+          handleConnected(p);
+          for (const [, pub] of p.trackPublications) {
+            if (pub.kind === Track.Kind.Video && pub.track) {
+              handleTrackSubscribed(pub.track, pub as RemoteTrackPublication, p);
+            }
           }
         }
-      }
-    }).catch((err) => {
-      if (isMounted) {
-        console.error('Failed to connect to room:', err);
-      }
-    });
+      })
+      .catch((err) => {
+        if (isMounted) console.error('Failed to connect to room:', err);
+      });
 
     return () => {
       isMounted = false;
@@ -283,28 +324,28 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     };
   }, [livekitToken, updateParticipant]);
 
-  // Also attach camera to teacher video ref when connectedRoom changes
+  // Re-attach teacher camera when connectedRoom changes
   useEffect(() => {
     if (!connectedRoom) return;
     const camPub = connectedRoom.localParticipant.getTrackPublication(Track.Source.Camera);
     if (camPub?.track && teacherVideoRef.current) {
-      const stream = new MediaStream([camPub.track.mediaStreamTrack]);
-      teacherVideoRef.current.srcObject = stream;
-      teacherVideoRef.current.play().catch(() => {/* autoplay */ });
+      teacherVideoRef.current.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
+      teacherVideoRef.current.play().catch(() => {/* autoplay */});
     }
   }, [connectedRoom]);
 
   // ─── Big-screen controls ───────────────────────────────────────────────────
   const openBigScreen = useCallback(() => {
-    // Save current snapshot so the new window can prime its avatars
     try {
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
-    } catch {/* ignore */ }
+      sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
+      sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
+    } catch {/* ignore */}
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, []);
+  }, [selectedSceneId, selectedVrmSourceId]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
   const studentList = Array.from(participants.values()).filter(
@@ -327,6 +368,37 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         <h2>課堂進行中</h2>
         <span className="room-badge">房間: {roomId}</span>
         <span className="count-badge">{studentList.length} 位學生</span>
+
+        {/* ── 場景選擇器 ── */}
+        <label htmlFor="scene-select" className="control-label">場景：</label>
+        <select
+          id="scene-select"
+          className="control-select"
+          value={selectedSceneId}
+          onChange={(e) => handleSceneChange(e.target.value)}
+        >
+          {Object.values(SCENE_PRESETS).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+
+        {/* ── 角色模型選擇器 ── */}
+        <label htmlFor="vrm-select" className="control-label">角色：</label>
+        <select
+          id="vrm-select"
+          className="control-select"
+          value={selectedVrmSourceId}
+          onChange={(e) => handleVrmChange(e.target.value)}
+        >
+          {Object.values(VRM_SOURCES).map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+
         <button
           id="open-bigscreen-btn"
           className="bigscreen-btn"

@@ -1,90 +1,111 @@
+/**
+ * useVrmAvatar.ts
+ *
+ * Single-avatar VRM hook used in teacher / student self-view tiles.
+ *
+ * Refactored to share:
+ *  - loadVrm()         → vrmLoader.ts
+ *  - applyPoseToVrm()  → vrmPoseApplier.ts
+ *
+ * Scene config (camera, lighting) is read from the 'studio' preset by default
+ * so the component appearance stays consistent with the scene system.
+ */
 import { useEffect, useRef, useCallback } from 'react';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { VRMLoaderPlugin, VRM, VRMUtils } from '@pixiv/three-vrm';
-import { solveWithKalidokit, type BoneRotation } from '../utils/kalidokitSolver';
+import type { VRM } from '@pixiv/three-vrm';
+import { loadVrm } from '../utils/vrmLoader';
+import {
+  applyPoseToVrm,
+  createPoseApplyState,
+  type PoseApplyState,
+} from '../utils/vrmPoseApplier';
+import type { PoseFrame } from '../types/vrm';
+import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
+import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
+import type { SceneConfig } from '../types/vrm';
 
-interface PoseLandmark {
-  x: number;
-  y: number;
-  z: number;
-  visibility: number;
+interface UseVrmAvatarOptions {
+  /** ID of the scene preset to use (default: 'studio') */
+  sceneId?: string;
+  /** ID of the VRM source to load (default: 'default') */
+  vrmSourceId?: string;
 }
 
-interface PoseFrame {
-  type: 'pose';
-  landmarks: PoseLandmark[];
-  worldLandmarks: PoseLandmark[];
+/** Apply per-SceneConfig lights to a THREE.Scene */
+function applyLights(scene: THREE.Scene, config: SceneConfig): void {
+  for (const light of config.lights) {
+    if (light.type === 'ambient') {
+      const l = new THREE.AmbientLight(light.color ?? 0xffffff, light.intensity);
+      scene.add(l);
+    } else if (light.type === 'directional') {
+      const l = new THREE.DirectionalLight(light.color ?? 0xffffff, light.intensity);
+      if (light.position) l.position.set(...light.position);
+      scene.add(l);
+    }
+  }
 }
 
-/** How fast bones follow the target rotation (higher = snappier) */
-const LERP_SPEED = 14;
-/** Upper clamp so a large delta spike doesn't teleport the bones */
-const MAX_LERP_T = 0.9;
-/** Smoothing for Kalidokit solver internally */
-const SOLVER_SMOOTHING = 0.5;
+export function useVrmAvatar(
+  canvasRef: RefObject<HTMLCanvasElement | null>,
+  options: UseVrmAvatarOptions = {},
+) {
+  const { sceneId = 'studio', vrmSourceId = DEFAULT_VRM_SOURCE_ID } = options;
 
-export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
   const vrmRef = useRef<VRM | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const clockRef = useRef(new THREE.Clock()); // Use THREE.Clock for delta
+  const clockRef = useRef(new THREE.Clock());
   const rafRef = useRef<number>(0);
-  
-  // Track previous state for smoothing
-  const prevRotationsRef = useRef<Record<string, BoneRotation>>({});
-  const initialHipsPosRef = useRef<THREE.Vector3 | null>(null);
+  const poseStateRef = useRef<PoseApplyState>(createPoseApplyState());
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Scene setup
+    // Resolve scene preset (fall back to DEFAULT_SCENE_ID then hard defaults)
+    const preset: SceneConfig =
+      SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID] ?? SCENE_PRESETS.studio;
+
+    // Scene
     const scene = new THREE.Scene();
+    if (preset.background != null) {
+      scene.background = new THREE.Color(preset.background);
+    }
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(30, canvas.width / canvas.height, 0.1, 20);
-    camera.position.set(0, 1.3, 2.5);
-    camera.lookAt(0, 1, 0);
+    // Camera
+    const { fov, position, lookAt, near = 0.1, far = 20 } = preset.camera;
+    const camera = new THREE.PerspectiveCamera(fov, canvas.width / canvas.height, near, far);
+    camera.position.set(...position);
+    camera.lookAt(...lookAt);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    // Renderer
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: preset.background == null, // transparent when no background set
+      antialias: true,
+    });
     renderer.setSize(canvas.width, canvas.height);
     renderer.setPixelRatio(window.devicePixelRatio);
     rendererRef.current = renderer;
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambient);
-    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-    directional.position.set(1, 2, 1);
-    scene.add(directional);
+    // Lights
+    applyLights(scene, preset);
 
-    // Load VRM
-    const loader = new GLTFLoader();
-    loader.register((parser) => new VRMLoaderPlugin(parser));
+    // VRM source
+    const vrmSource = VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID];
+    const spawn = preset.avatarDefaults;
 
-    loader.load(
-      '/default.vrm',
-      (gltf) => {
-        const vrm = gltf.userData.vrm as VRM | undefined;
-        if (vrm) {
-          VRMUtils.rotateVRM0(vrm);
-          scene.add(vrm.scene);
-          vrmRef.current = vrm;
-          
-          // Store initial hips position
-          const hips = vrm.humanoid.getNormalizedBoneNode('hips');
-          if (hips) initialHipsPosRef.current = hips.position.clone();
-        }
-      },
-      undefined,
-      (err) => {
-        console.warn('Failed to load VRM avatar:', err);
-      },
-    );
+    loadVrm({ url: vrmSource.url, scene, spawn })
+      .then(({ vrm }) => {
+        vrmRef.current = vrm;
+      })
+      .catch((err) => {
+        console.warn('[useVrmAvatar] Failed to load VRM:', err);
+      });
 
     // Render loop
     const animate = () => {
@@ -105,60 +126,20 @@ export function useVrmAvatar(canvasRef: RefObject<HTMLCanvasElement | null>) {
         vrmRef.current = null;
       }
     };
-  }, [canvasRef]);
-
-  // Reusable THREE objects
-  const _targetQuat = new THREE.Quaternion();
+    // Re-init when scene or model changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasRef, sceneId, vrmSourceId]);
 
   const applyPose = useCallback((rawData: unknown) => {
     const vrm = vrmRef.current;
     if (!vrm) return;
 
     const frame = rawData as PoseFrame;
-    if (!frame.landmarks || frame.landmarks.length < 33) return;
-    
-    // Fallback to landmarks if worldLandmarks is missing
-    const worldLms = frame.worldLandmarks || frame.landmarks;
-    const normLms = frame.landmarks;
+    if (!frame?.landmarks || frame.landmarks.length < 33) return;
 
-    try {
-      const { boneRotations, hipsPosition } = solveWithKalidokit(
-        worldLms,
-        normLms,
-        prevRotationsRef.current,
-        SOLVER_SMOOTHING
-      );
-
-      prevRotationsRef.current = boneRotations;
-
-      const humanoid = vrm.humanoid;
-      if (!humanoid) return;
-
-      const delta = clockRef.current.getDelta();
-      const t = Math.min(1 - Math.exp(-LERP_SPEED * delta), MAX_LERP_T);
-
-      // Apply body bone rotations with mirroring
-      for (const [boneName, rot] of Object.entries(boneRotations)) {
-        const bone = humanoid.getNormalizedBoneNode(boneName as any);
-        if (!bone) continue;
-
-        // Mirror horizontal axes (Y-Yaw and Z-Roll) for visual mirroring (左右同向)
-        _targetQuat.set(rot.x, -rot.y, rot.z, rot.w);
-        bone.quaternion.slerp(_targetQuat, t);
-
-        // Apply Hips position
-        if (boneName === 'hips' && hipsPosition) {
-          // Mirror X for Hips movement too
-          bone.position.x = THREE.MathUtils.lerp(bone.position.x, -hipsPosition.x, t);
-          bone.position.y = THREE.MathUtils.lerp(bone.position.y, hipsPosition.y, t);
-          bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z, t);
-        }
-      }
-    } catch (err) {
-      console.warn('Pose apply error:', err);
-    }
+    const delta = clockRef.current.getDelta();
+    applyPoseToVrm(vrm, poseStateRef.current, frame.landmarks, frame.worldLandmarks ?? [], delta);
   }, []);
 
   return { applyPose };
 }
-
