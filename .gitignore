@@ -28,3 +28,6 @@ dist-ssr
 *.sw?
 
 frontend/public/mediapipe-*
+
+# Git worktrees
+.worktrees/
