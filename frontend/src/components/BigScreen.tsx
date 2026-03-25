@@ -28,6 +28,44 @@ const CHANNEL_NAME = 'live-mr-bigscreen';
  *
  * Scene preset can be switched at runtime via a 'scene-change' message.
  */
+// ─── Camera Background Sub-Component ──────────────────────────────────────────
+function CameraBackground() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    async function getCameras() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log("偵測到的設備：", videoDevices);
+      return videoDevices;
+    }
+
+    async function startCamera() {
+      try {
+        //TODO: 列出所有攝影機
+        //TODO: 分別啟動兩個串流
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (err) {
+        console.error('[BigScreen] Failed to start camera background:', err);
+      }
+    }
+    startCamera();
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  return <video ref={videoRef} autoPlay muted playsInline />;
+}
+
+// ─── Main Component ─────────────────────────────────────────────────────────
+
 export default function BigScreen() {
   // Scene / VRM source state (drives useBigScreenScene re-init)
   const [sceneId, setSceneId] = useState<string>(() => {
@@ -89,6 +127,25 @@ export default function BigScreen() {
 
   return (
     <div className="bigscreen-root">
+      {/* 1. Underlying DOM Background Layer */}
+      {currentPreset && currentPreset.backgroundType !== 'none' && (
+        <div
+          className="bigscreen-bg"
+          style={{
+            backgroundColor: currentPreset.backgroundType === 'color' ? currentPreset.backgroundValue : undefined,
+          }}
+        >
+          {currentPreset.backgroundType === 'image' && currentPreset.backgroundValue && (
+            <img src={currentPreset.backgroundValue} alt="Background" />
+          )}
+          {currentPreset.backgroundType === 'video' && currentPreset.backgroundValue && (
+            <video src={currentPreset.backgroundValue} autoPlay loop muted playsInline />
+          )}
+          {currentPreset.backgroundType === 'camera' && <CameraBackground />}
+        </div>
+      )}
+
+      {/* 2. Transparent 3D Canvas Layer */}
       <canvas
         ref={canvasRef}
         id="bigscreen-canvas"
@@ -96,11 +153,11 @@ export default function BigScreen() {
         width={window.innerWidth}
         height={window.innerHeight}
       />
+
+      {/* 3. Overlay UI Layer */}
       <div className="bigscreen-overlay">
         <span className="bigscreen-title">Live MR — 大屏顯示</span>
-        {currentPreset && (
-          <span className="bigscreen-scene-label">{currentPreset.label}</span>
-        )}
+        {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
     </div>
   );

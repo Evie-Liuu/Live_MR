@@ -70,9 +70,9 @@ export function useVrmAvatar(
 
     // Scene
     const scene = new THREE.Scene();
-    if (preset.background != null) {
-      scene.background = new THREE.Color(preset.background);
-    }
+    // if (preset.backgroundType === 'color') {
+    //   scene.background = new THREE.Color(preset.backgroundValue);
+    // }
     sceneRef.current = scene;
 
     // Camera
@@ -85,7 +85,7 @@ export function useVrmAvatar(
     // Renderer
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      alpha: preset.background == null, // transparent when no background set
+      // alpha: preset.backgroundType === 'none', // transparent when no background set
       antialias: true,
     });
     renderer.setSize(canvas.width, canvas.height);
