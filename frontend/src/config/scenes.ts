@@ -22,7 +22,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
     camera: {
       fov: 40,
       position: [0, 1.5, 5],
-      lookAt: [0, 1.5, -100],
+      lookAt: [0, 1.5, 0],
       near: 0.1,
       far: 50,
     },
