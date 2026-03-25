@@ -8,90 +8,13 @@ import {
   DataPacket_Kind,
 } from 'livekit-client';
 import StudentTile from './StudentTile.tsx';
+import LocalVideo from './LocalVideo.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
 import type { BigScreenMsg } from './BigScreen';
-import PoseDebugOverlay from './PoseDebugOverlay';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
-
-// ─── LocalVideo: teacher's self-view camera ────────────────────────────────
-function LocalVideo({ room, poseData }: { room: Room; poseData?: unknown }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
-
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-
-    const attachCamera = () => {
-      const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
-      if (camPub?.track) {
-        el.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
-      }
-    };
-
-    const handleLoadedMetadata = () => {
-      setVideoSize({
-        width: el.clientWidth || 320,
-        height: el.clientHeight || 240,
-      });
-    };
-    el.addEventListener('loadedmetadata', handleLoadedMetadata);
-
-    attachCamera();
-    room.localParticipant.on('localTrackPublished', attachCamera);
-
-    return () => {
-      room.localParticipant.off('localTrackPublished', attachCamera);
-      el.srcObject = null;
-      el.removeEventListener('loadedmetadata', handleLoadedMetadata);
-    };
-  }, [room]);
-
-  // Keep size in sync with poseData triggers
-  useEffect(() => {
-    const el = videoRef.current;
-    if (poseData && el && el.clientWidth > 0) {
-      setVideoSize((prev) => {
-        if (prev.width !== el.clientWidth || prev.height !== el.clientHeight) {
-          return { width: el.clientWidth, height: el.clientHeight };
-        }
-        return prev;
-      });
-    }
-  }, [poseData]);
-
-  const frame = poseData as { landmarks?: unknown[] } | null;
-  const landmarks = frame?.landmarks;
-
-  return (
-    <div className="teacher-tile" style={{ position: 'relative' }}>
-      <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
-      {landmarks && (
-        <PoseDebugOverlay
-          landmarks={[landmarks as never]}
-          width={videoSize.width}
-          height={videoSize.height}
-        />
-      )}
-      <div
-        className="teacher-label"
-        style={{
-          position: 'absolute',
-          bottom: 5,
-          right: 5,
-          background: 'rgba(0,0,0,0.5)',
-          color: '#fff',
-          padding: '2px 5px',
-        }}
-      >
-        老師 (我)
-      </div>
-    </div>
-  );
-}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
