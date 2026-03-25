@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
+import PerformanceMonitor from './PerformanceMonitor.tsx';
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
@@ -82,6 +83,8 @@ export default function BigScreen() {
   const applyPoseRef = useRef(applyPose);
   applyPoseRef.current = applyPose;
 
+  const [poseUpdateCount, setPoseUpdateCount] = useState(0);
+
   // Apply snapshot stored by HostSession before the window was opened
   useEffect(() => {
     try {
@@ -107,6 +110,7 @@ export default function BigScreen() {
 
       if (msg.type === 'pose' && msg.identity) {
         applyPoseRef.current(msg.identity, msg.poseData);
+        setPoseUpdateCount(c => c + 1);
       } else if (msg.type === 'leave' && msg.identity) {
         removeAvatarRef.current(msg.identity);
       } else if (msg.type === 'scene-change' && msg.sceneId) {
@@ -159,6 +163,9 @@ export default function BigScreen() {
         <span className="bigscreen-title">Live MR — 大屏顯示</span>
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
+
+      <PerformanceMonitor label="Render FPS" position="top-right" />
+      <PerformanceMonitor label="Pose Rx FPS" trigger={poseUpdateCount} position="bottom-right" />
     </div>
   );
 }

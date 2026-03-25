@@ -13,6 +13,7 @@ import type { BigScreenMsg } from './BigScreen';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
+import PerformanceMonitor from './PerformanceMonitor.tsx';
 
 // ─── LocalVideo: teacher's self-view camera ────────────────────────────────
 function LocalVideo({ room, poseData }: { room: Room; poseData?: unknown }) {
@@ -408,6 +409,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           🖥️ 開啟大屏
         </button>
       </div>
+
+      <PerformanceMonitor label="App Render FPS" position="top-left" />
+      <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" />
 
       {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />}
 
