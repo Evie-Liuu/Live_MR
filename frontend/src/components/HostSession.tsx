@@ -14,6 +14,7 @@ import PoseDebugOverlay from './PoseDebugOverlay';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
+import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 
 // ─── LocalVideo: teacher's self-view camera ────────────────────────────────
 function LocalVideo({ room, poseData }: { room: Room; poseData?: unknown }) {
@@ -104,9 +105,6 @@ interface ParticipantInfo {
   poseData: unknown | null;
 }
 
-const LIVEKIT_URL = (import.meta.env.VITE_LIVEKIT_URL as string) || 'ws://localhost:7880';
-const CHANNEL_NAME = 'live-mr-bigscreen';
-
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function HostSession({ roomId, livekitToken }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
@@ -164,7 +162,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
   useEffect(() => {
-    const ch = new BroadcastChannel(CHANNEL_NAME);
+    const ch = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME);
     channelRef.current = ch;
     return () => {
       ch.close();

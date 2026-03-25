@@ -2,14 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Room, RoomEvent, Track } from 'livekit-client';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import PoseDebugOverlay from './PoseDebugOverlay';
+import { LIVEKIT_URL } from '../config/constants.ts';
 
 interface StudentSessionProps {
   roomId: string;
   token: string;
   name: string;
 }
-
-const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL as string || 'ws://localhost:7880';
 
 export default function StudentSession({ roomId, token, name }: StudentSessionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);

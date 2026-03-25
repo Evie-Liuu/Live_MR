@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
+import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
@@ -13,8 +14,6 @@ export interface BigScreenMsg {
   /** For 'vrm-change': new VRM source ID */
   vrmSourceId?: string;
 }
-
-const CHANNEL_NAME = 'live-mr-bigscreen';
 
 /**
  * BigScreen – full-screen VRM avatar wall displayed on the teacher's
@@ -103,7 +102,7 @@ export default function BigScreen() {
 
   // Listen for ongoing pose/leave/scene-change updates
   useEffect(() => {
-    const channel = new BroadcastChannel(CHANNEL_NAME);
+    const channel = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME);
 
     channel.onmessage = (ev: MessageEvent) => {
       const msg = ev.data as BigScreenMsg;
