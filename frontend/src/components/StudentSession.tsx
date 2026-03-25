@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Room, RoomEvent, Track } from 'livekit-client';
 import { usePoseDetection } from '../hooks/usePoseDetection';
+import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL } from '../config/constants.ts';
 
@@ -14,11 +15,20 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const videoRef = useRef<HTMLVideoElement>(null);
   const [connected, setConnected] = useState(false);
   const roomRef = useRef<Room | null>(null);
-  const [landmarks, setLandmarks] = useState<any[] | null>(null);
+  const [landmarks, setLandmarks] = useState<PoseLandmark[] | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
 
-  // Pose detection sends data via the room
-  usePoseDetection(videoRef, roomRef, (lms) => {
+  const publishPose = useCallback(
+    (data: Uint8Array) => {
+      const room = roomRef.current;
+      if (room?.state === 'connected') {
+        room.localParticipant.publishData(data, { reliable: false });
+      }
+    },
+    [], // roomRef is a stable ref, empty deps is correct
+  );
+
+  usePoseDetection(videoRef, publishPose, (lms) => {
     if (videoRef.current) {
       setVideoSize({
         width: videoRef.current.clientWidth,

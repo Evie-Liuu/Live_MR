@@ -171,32 +171,23 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   }, []);
 
   // ─── Teacher pose detection ───────────────────────────────────────────────
-  const teacherPoseInterceptRef = useRef<Room | null>(null);
+  const teacherPublishPose = useCallback(
+    (data: Uint8Array) => {
+      if (!connectedRoom) return; // guard: don't broadcast until connected
+      try {
+        const text = new TextDecoder().decode(data);
+        const parsed = JSON.parse(text) as unknown;
+        const identity = connectedRoom.localParticipant.identity;
+        poseSnapshotRef.current[identity] = parsed;
+        setTeacherPoseData(parsed);
+        const msg: BigScreenMsg = { type: 'pose', identity, poseData: parsed };
+        channelRef.current?.postMessage(msg);
+      } catch { /* ignore */ }
+    },
+    [connectedRoom],
+  );
 
-  useEffect(() => {
-    const proxy = {
-      localParticipant: {
-        publishData: (_data: Uint8Array, _opts: unknown) => {
-          try {
-            const text = new TextDecoder().decode(_data);
-            const parsed = JSON.parse(text) as unknown;
-            const identity = connectedRoom?.localParticipant.identity ?? 'host-teacher';
-            poseSnapshotRef.current[identity] = parsed;
-            setTeacherPoseData(parsed);
-            const msg: BigScreenMsg = { type: 'pose', identity, poseData: parsed };
-            channelRef.current?.postMessage(msg);
-          } catch {
-            /* ignore */
-          }
-        },
-      },
-      // Mimic the Room state so usePoseDetection's guard passes
-      state: 'connected',
-    } as unknown as Room;
-    teacherPoseInterceptRef.current = proxy;
-  }, [connectedRoom]);
-
-  usePoseDetection(teacherVideoRef, teacherPoseInterceptRef);
+  usePoseDetection(teacherVideoRef, teacherPublishPose);
 
   // ─── LiveKit connection ────────────────────────────────────────────────────
   const updateParticipant = useCallback(
