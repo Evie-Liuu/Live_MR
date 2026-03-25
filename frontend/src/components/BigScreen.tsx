@@ -93,8 +93,8 @@ export default function BigScreen() {
         ref={canvasRef}
         id="bigscreen-canvas"
         className="bigscreen-canvas"
-        width={1920}
-        height={1080}
+        width={window.innerWidth}
+        height={window.innerHeight}
       />
       <div className="bigscreen-overlay">
         <span className="bigscreen-title">Live MR — 大屏顯示</span>

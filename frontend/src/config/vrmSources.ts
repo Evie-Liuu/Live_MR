@@ -15,7 +15,7 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
   default: {
     id: 'default',
     label: '預設角色',
-    url: '/default.vrm',
+    url: '/models/default.vrm',
   },
   // Example future entries:
   // teacher: {

@@ -50,6 +50,8 @@ export interface SceneConfig {
   lights: LightConfig[];
   /** Background: THREE.Color hex, or undefined for transparent */
   background?: number;
+  /** Optional background image URL (e.g. '/images/clothingStore.png') */
+  backgroundImage?: string;
   /** Floor grid: true = default 20×20, or explicit size/divisions */
   grid?: boolean | { size: number; divisions: number; color?: number };
   /** Default spawn for each avatar (by slot index, or a single fallback) */

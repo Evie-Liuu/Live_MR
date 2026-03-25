@@ -21,19 +21,20 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
     label: '教室舞台',
     camera: {
       fov: 40,
-      position: [0, 1.2, 5],
-      lookAt: [0, 1, 0],
+      position: [0, 1.5, 5],
+      lookAt: [0, 1.5, -100],
       near: 0.1,
       far: 50,
     },
     lights: [
-      { type: 'ambient',     color: 0xffffff, intensity: 0.7 },
+      { type: 'ambient', color: 0xffffff, intensity: 0.7 },
       { type: 'directional', color: 0xffffff, intensity: 0.9, position: [2, 4, 2] },
       { type: 'directional', color: 0x8888ff, intensity: 0.3, position: [-2, 1, -2] },
     ],
-    background: 0x1a1a2e,
+    // background: 0x1a1a2e,
+    backgroundImage: '/images/clothingStore.png',
     grid: { size: 20, divisions: 20, color: 0x2a2a4a },
-    avatarDefaults: { position: [0, 0, 0], scale: 1 },
+    avatarDefaults: { position: [0, 0, -1.5], scale: 1.5 },
     avatarSpacing: 1.6,
   },
 
@@ -49,7 +50,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
       far: 50,
     },
     lights: [
-      { type: 'ambient',     color: 0x111122, intensity: 0.4 },
+      { type: 'ambient', color: 0x111122, intensity: 0.4 },
       { type: 'directional', color: 0xffffff, intensity: 1.4, position: [0, 5, 3] },
       { type: 'directional', color: 0x4466ff, intensity: 0.5, position: [-3, 2, -1] },
     ],
@@ -71,7 +72,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
       far: 100,
     },
     lights: [
-      { type: 'ambient',     color: 0xffeedd, intensity: 1.0 },
+      { type: 'ambient', color: 0xffeedd, intensity: 1.0 },
       { type: 'directional', color: 0xffffff, intensity: 1.2, position: [5, 8, 3] },
       { type: 'directional', color: 0xaaddff, intensity: 0.4, position: [-3, 3, -5] },
     ],
@@ -94,7 +95,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
       far: 20,
     },
     lights: [
-      { type: 'ambient',     color: 0xffffff, intensity: 0.6 },
+      { type: 'ambient', color: 0xffffff, intensity: 0.6 },
       { type: 'directional', color: 0xffffff, intensity: 0.8, position: [1, 2, 1] },
     ],
     background: 0x111118,

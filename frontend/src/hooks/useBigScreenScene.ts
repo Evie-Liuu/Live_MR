@@ -110,7 +110,21 @@ export function useBigScreenScene(
       SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID];
     presetRef.current = preset;
 
+    let isMounted = true;
+    let bgMesh: THREE.Mesh | null = null;
+    const bgDist = 20; // Background wall distance
     const scene = new THREE.Scene();
+    // if (preset.backgroundImage) {
+    //   new THREE.TextureLoader().load(preset.backgroundImage, (tex) => {
+    //     if (!isMounted) {
+    //       tex.dispose();
+    //       return;
+    //     }
+    //     // Use sRGB encoding for correct colors
+    //     tex.colorSpace = THREE.SRGBColorSpace;
+    //     scene.background = tex;
+    //   });
+    // }
     if (preset.background != null) {
       scene.background = new THREE.Color(preset.background);
     }
@@ -125,7 +139,36 @@ export function useBigScreenScene(
     );
     camera.position.set(...position);
     camera.lookAt(...lookAt);
+    camera.updateMatrix()
     cameraRef.current = camera;
+
+    // Load background image as a physical vertical wall
+    if (preset.backgroundImage) {
+      new THREE.TextureLoader().load(preset.backgroundImage, (tex) => {
+        if (!isMounted) {
+          tex.dispose();
+          return;
+        }
+        tex.colorSpace = THREE.SRGBColorSpace;
+        const bgGeo = new THREE.PlaneGeometry(1, 1);
+        const bgMat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.FrontSide });
+        const mesh = new THREE.Mesh(bgGeo, bgMat);
+        mesh.name = 'background_wall';
+        scene.add(mesh);
+        bgMesh = mesh;
+
+        // Position & Scale
+        const vFov = (camera.fov * Math.PI) / 180;
+        const h = 2 * Math.tan(vFov / 2) * bgDist;
+        const w = h * camera.aspect;
+        mesh.scale.set(w, h, 1);
+        mesh.position.set(0, camera.position.y, camera.position.z - bgDist);
+      });
+    }
+    console.log('position', position);
+    console.log('lookAt', lookAt);
+
+
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(canvas.width, canvas.height);
@@ -156,15 +199,39 @@ export function useBigScreenScene(
       if (cameraRef.current) {
         cameraRef.current.aspect = w / h;
         cameraRef.current.updateProjectionMatrix();
+
+        if (bgMesh) {
+          const vFov = (cameraRef.current.fov * Math.PI) / 180;
+          const h_ = 2 * Math.tan(vFov / 2) * bgDist;
+          const w_ = h_ * cameraRef.current.aspect;
+          bgMesh.scale.set(w_, h_, 1);
+          bgMesh.position.set(
+            0,
+            cameraRef.current.position.y,
+            cameraRef.current.position.z - bgDist,
+          );
+        }
       }
     });
     ro.observe(canvas);
 
     return () => {
+      isMounted = false;
       ro.disconnect();
       cancelAnimationFrame(rafRef.current);
       for (const slot of avatarsRef.current.values()) {
         scene.remove(slot.vrm.scene);
+      }
+      // if (scene.background instanceof THREE.Texture) {
+      //   scene.background.dispose();
+      // }
+      if (bgMesh) {
+        if (bgMesh.material instanceof THREE.Material) {
+          const mat = bgMesh.material as any;
+          if (mat.map) mat.map.dispose();
+          mat.dispose();
+        }
+        bgMesh.geometry.dispose();
       }
       avatarsRef.current.clear();
       loadingRef.current.clear();
@@ -191,8 +258,8 @@ export function useBigScreenScene(
 
     if (cameraRef.current) {
       const spread = total > 1 ? spacing * (total - 1) : 0;
-      cameraRef.current.position.set(0, 1.2, Math.max(3, spread / 2 + 3.5));
-      cameraRef.current.lookAt(0, 1, 0);
+      // cameraRef.current.position.set(0, 1.2, Math.max(3, spread / 2 + 3.5));
+      // cameraRef.current.lookAt(0, 1, 0);
     }
   }, []);
 
