@@ -237,16 +237,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     };
   }, [livekitToken, updateParticipant]);
 
-  // Re-attach teacher camera when connectedRoom changes
-  useEffect(() => {
-    if (!connectedRoom) return;
-    const camPub = connectedRoom.localParticipant.getTrackPublication(Track.Source.Camera);
-    if (camPub?.track && teacherVideoRef.current) {
-      teacherVideoRef.current.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
-      teacherVideoRef.current.play().catch(() => {/* autoplay */});
-    }
-  }, [connectedRoom]);
-
   // ─── Big-screen controls ───────────────────────────────────────────────────
   const openBigScreen = useCallback(() => {
     try {

@@ -34,17 +34,9 @@ function CameraBackground() {
 
   useEffect(() => {
     let stream: MediaStream | null = null;
-    async function getCameras() {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      console.log("偵測到的設備：", videoDevices);
-      return videoDevices;
-    }
 
     async function startCamera() {
       try {
-        //TODO: 列出所有攝影機
-        //TODO: 分別啟動兩個串流
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -153,8 +145,6 @@ export default function BigScreen() {
         ref={canvasRef}
         id="bigscreen-canvas"
         className="bigscreen-canvas"
-        width={window.innerWidth}
-        height={window.innerHeight}
       />
 
       {/* 3. Overlay UI Layer */}

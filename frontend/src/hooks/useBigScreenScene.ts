@@ -101,13 +101,13 @@ export function useBigScreenScene(
     );
     camera.position.set(...position);
     camera.lookAt(...lookAt);
-    camera.updateMatrix()
+    camera.updateProjectionMatrix();
     cameraRef.current = camera;
 
 
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    renderer.setSize(canvas.width, canvas.height);
+    renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
     renderer.setPixelRatio(window.devicePixelRatio);
     rendererRef.current = renderer;
 
@@ -168,11 +168,6 @@ export function useBigScreenScene(
       slot.vrm.scene.position.x = x;
     });
 
-    if (cameraRef.current) {
-      const spread = total > 1 ? spacing * (total - 1) : 0;
-      // cameraRef.current.position.set(0, 1.2, Math.max(3, spread / 2 + 3.5));
-      // cameraRef.current.lookAt(0, 1, 0);
-    }
   }, []);
 
   // ─── Avatar lifecycle ─────────────────────────────────────────────────────

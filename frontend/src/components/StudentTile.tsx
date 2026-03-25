@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import type { RemoteParticipant, RemoteTrackPublication } from 'livekit-client';
 import { useVrmAvatar } from '../hooks/useVrmAvatar';
 import PoseDebugOverlay from './PoseDebugOverlay';
+import type { PoseFrame } from '../types/vrm';
 
 interface StudentTileProps {
   participant: RemoteParticipant;
   videoTrack: RemoteTrackPublication | null;
-  poseData: any | null; // Using any to quickly access landmarks
+  poseData: PoseFrame | null;
 }
 
 export default function StudentTile({ participant, videoTrack, poseData }: StudentTileProps) {
@@ -53,14 +54,14 @@ export default function StudentTile({ participant, videoTrack, poseData }: Stude
         }
       }
     }
-  }, [poseData, applyPose, videoSize.width, videoSize.height]);
+  }, [poseData, applyPose]);
 
   const landmarks = poseData?.landmarks;
 
   return (
     <div className="student-tile" style={{ position: 'relative' }}>
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
-      <canvas ref={canvasRef} className="avatar-canvas" width={320} height={240} style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
+      <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
       {landmarks && (
         <PoseDebugOverlay 
           landmarks={[landmarks]} 

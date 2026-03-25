@@ -9,7 +9,7 @@ export function createRouter(store: RoomStore): Router {
   const sseClients = new Map<string, Set<Response>>()
 
   // 統一發送 SSE 事件的方法，配合前端 source.onmessage
-  function notifyRoom(roomId: string, type: string, data: Record<string, any>): void {
+  function notifyRoom(roomId: string, type: string, data: Record<string, unknown>): void {
     const clients = sseClients.get(roomId)
     if (!clients) return
     const payload = JSON.stringify({ type, ...data })
@@ -23,7 +23,6 @@ export function createRouter(store: RoomStore): Router {
     try {
       const { roomId, hostToken } = store.createRoom()
       const hostId = `host-${Math.random().toString(36).substring(7)}`
-      // const hostId = `host`
       const livekitToken = await createToken(roomId, hostId, true)
       res.json({ roomId, hostToken, livekitToken })
     } catch (err) {
