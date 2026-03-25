@@ -64,7 +64,12 @@ export function useVrmAvatar(
 
     // Camera
     const { fov, position, lookAt, near = 0.1, far = 20 } = preset.camera;
-    const camera = new THREE.PerspectiveCamera(fov, canvas.width / canvas.height, near, far);
+    const camera = new THREE.PerspectiveCamera(
+      fov,
+      (canvas.clientWidth || canvas.width) / (canvas.clientHeight || canvas.height),
+      near,
+      far,
+    );
     camera.position.set(...position);
     camera.lookAt(...lookAt);
     cameraRef.current = camera;
@@ -75,7 +80,11 @@ export function useVrmAvatar(
       // alpha: preset.backgroundType === 'none', // transparent when no background set
       antialias: true,
     });
-    renderer.setSize(canvas.width, canvas.height);
+    renderer.setSize(
+      canvas.clientWidth || canvas.width,
+      canvas.clientHeight || canvas.height,
+      false,
+    );
     renderer.setPixelRatio(window.devicePixelRatio);
     rendererRef.current = renderer;
 
@@ -105,8 +114,23 @@ export function useVrmAvatar(
     };
     rafRef.current = requestAnimationFrame(animate);
 
+    // Responsive resize
+    const ro = new ResizeObserver(() => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (w > 0 && h > 0) {
+        renderer.setSize(w, h, false);
+        if (cameraRef.current) {
+          cameraRef.current.aspect = w / h;
+          cameraRef.current.updateProjectionMatrix();
+        }
+      }
+    });
+    ro.observe(canvas);
+
     return () => {
       cancelAnimationFrame(rafRef.current);
+      ro.disconnect();
       renderer.dispose();
       if (vrmRef.current) {
         scene.remove(vrmRef.current.scene);
