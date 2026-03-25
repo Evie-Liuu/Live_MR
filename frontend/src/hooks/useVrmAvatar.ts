@@ -43,7 +43,7 @@ export function useVrmAvatar(
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const clockRef = useRef(new THREE.Clock());
+  const timerRef = useRef(new THREE.Timer());
   const rafRef = useRef<number>(0);
   const poseStateRef = useRef<PoseApplyState>(createPoseApplyState());
 
@@ -104,9 +104,10 @@ export function useVrmAvatar(
       });
 
     // Render loop
-    const animate = () => {
+    const animate = (timestamp: number) => {
       rafRef.current = requestAnimationFrame(animate);
-      const delta = clockRef.current.getDelta();
+      timerRef.current.update(timestamp);
+      const delta = timerRef.current.getDelta();
       if (vrmRef.current) {
         vrmRef.current.update(delta);
       }
@@ -148,7 +149,8 @@ export function useVrmAvatar(
     const frame = rawData as PoseFrame;
     if (!frame?.landmarks || frame.landmarks.length < 33) return;
 
-    const delta = clockRef.current.getDelta();
+    timerRef.current.update(performance.now());
+    const delta = timerRef.current.getDelta();
     applyPoseToVrm(vrm, poseStateRef.current, frame.landmarks, frame.worldLandmarks ?? [], delta);
   }, []);
 

@@ -48,7 +48,7 @@ export function createPoseApplyState(): PoseApplyState {
  * @param state      Mutable state (prev rotations) – update in place
  * @param landmarks  33 normalized landmarks from MediaPipe
  * @param worldLandmarks  33 world-space landmarks from MediaPipe
- * @param delta      Seconds since last frame (from THREE.Clock)
+ * @param delta      Seconds since last frame (from THREE.Timer)
  * @param opts       Tuning options
  */
 export function applyPoseToVrm(
