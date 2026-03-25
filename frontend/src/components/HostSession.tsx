@@ -34,6 +34,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<unknown | null>(null);
+  const [faceEnabled, setFaceEnabled] = useState(false);
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
@@ -110,7 +111,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     [connectedRoom],
   );
 
-  usePoseDetection(teacherVideoRef, teacherPublishPose);
+  usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled);
 
   // ─── LiveKit connection ────────────────────────────────────────────────────
   const updateParticipant = useCallback(
@@ -301,6 +302,14 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
             </option>
           ))}
         </select>
+
+        <button
+          className={`control-btn ${faceEnabled ? 'active' : ''}`}
+          onClick={() => setFaceEnabled((v) => !v)}
+          title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
+        >
+          {faceEnabled ? '🔴 臉部辨識 ON' : '⚪ 臉部辨識 OFF'}
+        </button>
 
         <button
           id="open-bigscreen-btn"

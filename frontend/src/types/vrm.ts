@@ -7,10 +7,16 @@ export interface PoseLandmark {
   visibility: number;
 }
 
+export interface FaceBlendshapes {
+  [category: string]: number;
+}
+
 export interface PoseFrame {
   type: 'pose';
   landmarks: PoseLandmark[];
   worldLandmarks: PoseLandmark[];
+  /** Face blendshapes from FaceLandmarker (optional, present when face detection enabled) */
+  faceBlendshapes?: FaceBlendshapes;
 }
 
 // ─── Scene Configuration ──────────────────────────────────────────────────────
