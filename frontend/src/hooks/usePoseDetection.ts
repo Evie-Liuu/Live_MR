@@ -11,6 +11,9 @@ const POSE_MODEL_PATH = '/mediapipe-models/pose_landmarker_heavy.task';
 const FACE_MODEL_PATH = '/mediapipe-models/face_landmarker.task';
 const encoder = new TextEncoder();
 
+/** Minimum interval between detections (~30 fps) */
+const DETECT_INTERVAL_MS = 33;
+
 export function usePoseDetection(
   videoRef: RefObject<HTMLVideoElement | null>,
   /**
@@ -95,58 +98,67 @@ export function usePoseDetection(
         if (cancelled) { faceLandmarker?.close(); poseLandmarker.close(); return; }
         faceRef.current = faceLandmarker;
 
+        let lastDetectTime = 0;
+
         const loop = () => {
           if (cancelled) return;
-          const video = videoRef.current;
-          const pose = poseRef.current;
 
-          if (video && video.readyState >= 2 && pose) {
-            try {
-              const now = performance.now();
-              const result = pose.detectForVideo(video, now);
+          const now = performance.now();
 
-              if (result.landmarks && result.landmarks.length > 0) {
-                const frame: PoseFrame = {
-                  type: 'pose',
-                  landmarks: result.landmarks[0].map((l) => ({
-                    x: l.x, y: l.y, z: l.z,
-                    visibility: l.visibility ?? 0,
-                  })),
-                  worldLandmarks:
-                    result.worldLandmarks && result.worldLandmarks.length > 0
-                      ? result.worldLandmarks[0].map((l) => ({
-                          x: l.x, y: l.y, z: l.z,
-                          visibility: l.visibility ?? 0,
-                        }))
-                      : [],
-                };
+          // ── Throttle: skip detection if under interval ──
+          if (now - lastDetectTime >= DETECT_INTERVAL_MS) {
+            lastDetectTime = now;
 
-                // ── Face blendshapes (when enabled) ──
-                if (faceEnabledRef.current && faceRef.current) {
-                  try {
-                    const faceResult = faceRef.current.detectForVideo(video, now);
-                    if (
-                      faceResult.faceBlendshapes &&
-                      faceResult.faceBlendshapes.length > 0
-                    ) {
-                      const bs: FaceBlendshapes = {};
-                      for (const cat of faceResult.faceBlendshapes[0].categories) {
-                        bs[cat.categoryName] = cat.score;
+            const video = videoRef.current;
+            const pose = poseRef.current;
+
+            if (video && video.readyState >= 2 && pose) {
+              try {
+                const result = pose.detectForVideo(video, now);
+
+                if (result.landmarks && result.landmarks.length > 0) {
+                  const frame: PoseFrame = {
+                    type: 'pose',
+                    landmarks: result.landmarks[0].map((l) => ({
+                      x: l.x, y: l.y, z: l.z,
+                      visibility: l.visibility ?? 0,
+                    })),
+                    worldLandmarks:
+                      result.worldLandmarks && result.worldLandmarks.length > 0
+                        ? result.worldLandmarks[0].map((l) => ({
+                            x: l.x, y: l.y, z: l.z,
+                            visibility: l.visibility ?? 0,
+                          }))
+                        : [],
+                  };
+
+                  // ── Face blendshapes (when enabled) ──
+                  if (faceEnabledRef.current && faceRef.current) {
+                    try {
+                      const faceResult = faceRef.current.detectForVideo(video, now);
+                      if (
+                        faceResult.faceBlendshapes &&
+                        faceResult.faceBlendshapes.length > 0
+                      ) {
+                        const bs: FaceBlendshapes = {};
+                        for (const cat of faceResult.faceBlendshapes[0].categories) {
+                          bs[cat.categoryName] = cat.score;
+                        }
+                        frame.faceBlendshapes = bs;
                       }
-                      frame.faceBlendshapes = bs;
+                    } catch {
+                      // ignore per-frame face errors
                     }
-                  } catch {
-                    // ignore per-frame face errors
                   }
-                }
 
-                // Always emit landmarks for overlay
-                onLandmarksUpdateRef.current?.(frame.landmarks);
-                // Only publish if callback provided
-                onPublishRef.current?.(encoder.encode(JSON.stringify(frame)));
+                  // Always emit landmarks for overlay
+                  onLandmarksUpdateRef.current?.(frame.landmarks);
+                  // Only publish if callback provided
+                  onPublishRef.current?.(encoder.encode(JSON.stringify(frame)));
+                }
+              } catch {
+                // ignore per-frame errors
               }
-            } catch {
-              // ignore per-frame errors
             }
           }
 
