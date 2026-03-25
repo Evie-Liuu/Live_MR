@@ -20,6 +20,7 @@ import {
   createPoseApplyState,
   type PoseApplyState,
 } from '../utils/vrmPoseApplier';
+import { applyLights } from '../utils/threeScene';
 import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
@@ -30,20 +31,6 @@ interface UseVrmAvatarOptions {
   sceneId?: string;
   /** ID of the VRM source to load (default: 'default') */
   vrmSourceId?: string;
-}
-
-/** Apply per-SceneConfig lights to a THREE.Scene */
-function applyLights(scene: THREE.Scene, config: SceneConfig): void {
-  for (const light of config.lights) {
-    if (light.type === 'ambient') {
-      const l = new THREE.AmbientLight(light.color ?? 0xffffff, light.intensity);
-      scene.add(l);
-    } else if (light.type === 'directional') {
-      const l = new THREE.DirectionalLight(light.color ?? 0xffffff, light.intensity);
-      if (light.position) l.position.set(...light.position);
-      scene.add(l);
-    }
-  }
 }
 
 export function useVrmAvatar(

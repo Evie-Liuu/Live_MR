@@ -22,6 +22,7 @@ import {
   createPoseApplyState,
   type PoseApplyState,
 } from '../utils/vrmPoseApplier';
+import { applyLights, applyGrid } from '../utils/threeScene';
 import type { PoseFrame, SceneConfig } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
@@ -41,30 +42,6 @@ interface AvatarSlot {
 /** Resolve the X position for avatar at index `i` centred around origin */
 function slotX(index: number, total: number, spacing: number): number {
   return (index - (total - 1) / 2) * spacing;
-}
-
-/** Apply lighting from a SceneConfig to a THREE.Scene */
-function applyLights(scene: THREE.Scene, config: SceneConfig): void {
-  for (const light of config.lights) {
-    if (light.type === 'ambient') {
-      scene.add(new THREE.AmbientLight(light.color ?? 0xffffff, light.intensity));
-    } else if (light.type === 'directional') {
-      const l = new THREE.DirectionalLight(light.color ?? 0xffffff, light.intensity);
-      if (light.position) l.position.set(...light.position);
-      scene.add(l);
-    }
-  }
-}
-
-/** Add a floor grid from a SceneConfig to a THREE.Scene */
-function applyGrid(scene: THREE.Scene, config: SceneConfig): void {
-  if (!config.grid) return;
-  const { size, divisions, color } =
-    config.grid === true
-      ? { size: 20, divisions: 20, color: 0x2a2a4a }
-      : { size: config.grid.size, divisions: config.grid.divisions, color: config.grid.color ?? 0x2a2a4a };
-  const grid = new THREE.GridHelper(size, divisions, color, color);
-  scene.add(grid);
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
