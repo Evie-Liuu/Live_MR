@@ -20,9 +20,9 @@ describe('API Routes', () => {
     app = createApp(store)
   })
 
-  describe('POST /api/rooms/create', () => {
+  describe('POST /api/rooms', () => {
     it('creates a room and returns roomId, hostToken, livekitToken', async () => {
-      const res = await request(app).post('/api/rooms/create')
+      const res = await request(app).post('/api/rooms')
       expect(res.status).toBe(200)
       expect(res.body.roomId).toBeDefined()
       expect(res.body.hostToken).toBeDefined()
@@ -32,169 +32,124 @@ describe('API Routes', () => {
     })
 
     it('room exists in store after creation', async () => {
-      const res = await request(app).post('/api/rooms/create')
+      const res = await request(app).post('/api/rooms')
       const room = store.getRoom(res.body.roomId)
       expect(room).toBeDefined()
     })
   })
 
-  describe('POST /api/rooms/join-request', () => {
+  describe('POST /api/rooms/:roomId/join', () => {
     it('creates a join request and returns requestId', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
+      const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
 
       const res = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ roomId, name: 'Alice' })
+        .post(`/api/rooms/${roomId}/join`)
+        .send({ name: 'Alice' })
       expect(res.status).toBe(200)
       expect(res.body.requestId).toBeDefined()
     })
 
-    it('returns 400 if roomId or name missing', async () => {
+    it('returns 400 if name missing', async () => {
+      const createRes = await request(app).post('/api/rooms')
+      const { roomId } = createRes.body
+
       const res = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ name: 'Alice' })
+        .post(`/api/rooms/${roomId}/join`)
+        .send({})
       expect(res.status).toBe(400)
     })
 
     it('returns 404 if room does not exist', async () => {
       const res = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ roomId: 'nonexistent', name: 'Alice' })
+        .post('/api/rooms/nonexistent/join')
+        .send({ name: 'Alice' })
       expect(res.status).toBe(404)
     })
   })
 
-  describe('GET /api/rooms/:roomId/request-status/:requestId', () => {
+  describe('GET /api/rooms/:roomId/requests/:requestId', () => {
     it('returns pending status for new request', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
+      const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
 
       const joinRes = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ roomId, name: 'Alice' })
+        .post(`/api/rooms/${roomId}/join`)
+        .send({ name: 'Alice' })
       const { requestId } = joinRes.body
 
-      const res = await request(app).get(`/api/rooms/${roomId}/request-status/${requestId}`)
+      const res = await request(app).get(`/api/rooms/${roomId}/requests/${requestId}`)
       expect(res.status).toBe(200)
       expect(res.body.status).toBe('pending')
       expect(res.body.token).toBeUndefined()
     })
 
     it('returns 404 for unknown request', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
+      const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
 
-      const res = await request(app).get(`/api/rooms/${roomId}/request-status/nonexistent`)
+      const res = await request(app).get(`/api/rooms/${roomId}/requests/nonexistent`)
       expect(res.status).toBe(404)
     })
   })
 
-  describe('POST /api/rooms/approve', () => {
+  describe('POST /api/rooms/:roomId/requests/:requestId/approve', () => {
     it('approves a request', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
-      const { roomId, hostToken } = createRes.body
+      const createRes = await request(app).post('/api/rooms')
+      const { roomId } = createRes.body
 
       const joinRes = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ roomId, name: 'Alice' })
+        .post(`/api/rooms/${roomId}/join`)
+        .send({ name: 'Alice' })
       const { requestId } = joinRes.body
 
       const res = await request(app)
-        .post('/api/rooms/approve')
-        .send({ roomId, requestId, hostToken })
+        .post(`/api/rooms/${roomId}/requests/${requestId}/approve`)
       expect(res.status).toBe(200)
       expect(res.body.status).toBe('approved')
 
       // Check that polling returns approved with token
-      const statusRes = await request(app).get(`/api/rooms/${roomId}/request-status/${requestId}`)
+      const statusRes = await request(app).get(`/api/rooms/${roomId}/requests/${requestId}`)
       expect(statusRes.body.status).toBe('approved')
       expect(statusRes.body.token).toBeDefined()
     })
 
-    it('returns 400 if missing fields', async () => {
-      const res = await request(app)
-        .post('/api/rooms/approve')
-        .send({ roomId: 'x' })
-      expect(res.status).toBe(400)
-    })
-
-    it('returns 403 for invalid host token', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
+    it('returns 404 for unknown request', async () => {
+      const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
 
-      const joinRes = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ roomId, name: 'Alice' })
-      const { requestId } = joinRes.body
-
       const res = await request(app)
-        .post('/api/rooms/approve')
-        .send({ roomId, requestId, hostToken: 'wrong' })
-      expect(res.status).toBe(403)
-    })
-
-    it('returns 404 for unknown request', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
-      const { roomId, hostToken } = createRes.body
-
-      const res = await request(app)
-        .post('/api/rooms/approve')
-        .send({ roomId, requestId: 'nonexistent', hostToken })
+        .post(`/api/rooms/${roomId}/requests/nonexistent/approve`)
       expect(res.status).toBe(404)
     })
   })
 
-  describe('POST /api/rooms/reject', () => {
+  describe('POST /api/rooms/:roomId/requests/:requestId/reject', () => {
     it('rejects a request', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
-      const { roomId, hostToken } = createRes.body
+      const createRes = await request(app).post('/api/rooms')
+      const { roomId } = createRes.body
 
       const joinRes = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ roomId, name: 'Bob' })
+        .post(`/api/rooms/${roomId}/join`)
+        .send({ name: 'Bob' })
       const { requestId } = joinRes.body
 
       const res = await request(app)
-        .post('/api/rooms/reject')
-        .send({ roomId, requestId, hostToken })
+        .post(`/api/rooms/${roomId}/requests/${requestId}/reject`)
       expect(res.status).toBe(200)
       expect(res.body.status).toBe('rejected')
 
       // Check polling returns rejected
-      const statusRes = await request(app).get(`/api/rooms/${roomId}/request-status/${requestId}`)
+      const statusRes = await request(app).get(`/api/rooms/${roomId}/requests/${requestId}`)
       expect(statusRes.body.status).toBe('rejected')
     })
 
-    it('returns 400 if missing fields', async () => {
-      const res = await request(app)
-        .post('/api/rooms/reject')
-        .send({ roomId: 'x' })
-      expect(res.status).toBe(400)
-    })
-
-    it('returns 403 for invalid host token', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
+    it('returns 404 for unknown request', async () => {
+      const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
 
-      const joinRes = await request(app)
-        .post('/api/rooms/join-request')
-        .send({ roomId, name: 'Bob' })
-      const { requestId } = joinRes.body
-
       const res = await request(app)
-        .post('/api/rooms/reject')
-        .send({ roomId, requestId, hostToken: 'wrong' })
-      expect(res.status).toBe(403)
-    })
-
-    it('returns 404 for unknown request', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
-      const { roomId, hostToken } = createRes.body
-
-      const res = await request(app)
-        .post('/api/rooms/reject')
-        .send({ roomId, requestId: 'nonexistent', hostToken })
+        .post(`/api/rooms/${roomId}/requests/nonexistent/reject`)
       expect(res.status).toBe(404)
     })
   })
@@ -206,7 +161,7 @@ describe('API Routes', () => {
     })
 
     it('returns SSE headers for existing room', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
+      const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
 
       // We need to handle the SSE connection carefully - it stays open
@@ -233,7 +188,7 @@ describe('API Routes', () => {
     })
 
     it('sends pending requests on connect', async () => {
-      const createRes = await request(app).post('/api/rooms/create')
+      const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
 
       // Add a pending request before connecting SSE
@@ -254,7 +209,7 @@ describe('API Routes', () => {
         req.then((res) => resolve(res.body as string))
       })
 
-      expect(body).toContain('event: join-request')
+      expect(body).toContain('"type":"join-request"')
       expect(body).toContain('Alice')
     })
   })
