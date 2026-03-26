@@ -212,7 +212,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
         if (camPub?.track && teacherVideoRef.current) {
           teacherVideoRef.current.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
-          teacherVideoRef.current.play().catch(() => {/* autoplay */});
+          teacherVideoRef.current.play().catch(() => {/* autoplay */ });
         }
 
         // Populate pre-existing remote participants
@@ -232,11 +232,19 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     return () => {
       isMounted = false;
       setConnectedRoom(null);
-      connectPromise.catch(() => {}).finally(() => {
+      connectPromise.catch(() => { }).finally(() => {
         room.disconnect();
       });
     };
   }, [livekitToken, updateParticipant]);
+
+  // Sync faceEnabled to LiveKit metadata for students to pick up
+  useEffect(() => {
+    if (connectedRoom) {
+      const metadata = JSON.stringify({ faceEnabled });
+      connectedRoom.localParticipant.setMetadata(metadata);
+    }
+  }, [connectedRoom, faceEnabled]);
 
   // ─── Big-screen controls ───────────────────────────────────────────────────
   const openBigScreen = useCallback(() => {
@@ -244,7 +252,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
       sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
       sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
-    } catch {/* ignore */}
+    } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');

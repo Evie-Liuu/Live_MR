@@ -137,6 +137,14 @@ export function usePoseDetection(
                     try {
                       const faceResult = faceRef.current.detectForVideo(video, now);
                       if (
+                        faceResult.faceLandmarks &&
+                        faceResult.faceLandmarks.length > 0
+                      ) {
+                        frame.faceLandmarks = faceResult.faceLandmarks[0].map((l) => ({
+                          x: l.x, y: l.y, z: l.z, visibility: l.visibility ?? 1,
+                        }));
+                      }
+                      if (
                         faceResult.faceBlendshapes &&
                         faceResult.faceBlendshapes.length > 0
                       ) {

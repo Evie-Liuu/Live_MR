@@ -231,13 +231,7 @@ export function useBigScreenScene(
 
         timerRef.current.update(performance.now());
         const delta = timerRef.current.getDelta();
-        applyPoseToVrm(
-          slot.vrm,
-          slot.poseState,
-          frame.landmarks,
-          frame.worldLandmarks ?? [],
-          delta,
-        );
+        applyPoseToVrm(slot.vrm, slot.poseState, frame, delta);
       } catch (err) {
         console.warn(`[BigScreenScene] applyPose error for ${identity}:`, err);
       }

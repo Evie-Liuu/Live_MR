@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Room, RoomEvent, Track } from 'livekit-client';
+import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
@@ -17,6 +17,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const roomRef = useRef<Room | null>(null);
   const [landmarks, setLandmarks] = useState<PoseLandmark[] | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
+  const [faceEnabled, setFaceEnabled] = useState(true);
 
   const publishPose = useCallback(
     (data: Uint8Array) => {
@@ -36,16 +37,40 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       });
     }
     setLandmarks(lms);
-  });
+  }, faceEnabled);
 
   useEffect(() => {
     let isMounted = true;
     const room = new Room();
     roomRef.current = room;
 
+    const checkHostMetadata = (p: Participant) => {
+      if (p.identity.startsWith('host-') && p.metadata) {
+        try {
+          const data = JSON.parse(p.metadata);
+          if (typeof data.faceEnabled === 'boolean' && isMounted) {
+            setFaceEnabled(data.faceEnabled);
+          }
+        } catch { /* ignore */ }
+      }
+    };
+
     room.on(RoomEvent.Connected, () => {
       if (isMounted) setConnected(true);
+      // Initial check for host metadata if they are already in the room
+      for (const [, p] of room.remoteParticipants) {
+        checkHostMetadata(p);
+      }
     });
+
+    room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
+      checkHostMetadata(p);
+    });
+
+    room.on(RoomEvent.ParticipantMetadataChanged, (_metadata: string | undefined, p: Participant) => {
+      checkHostMetadata(p);
+    });
+
     room.on(RoomEvent.Disconnected, () => {
       if (isMounted) setConnected(false);
     });

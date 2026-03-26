@@ -17,6 +17,8 @@ export interface PoseFrame {
   worldLandmarks: PoseLandmark[];
   /** Face blendshapes from FaceLandmarker (optional, present when face detection enabled) */
   faceBlendshapes?: FaceBlendshapes;
+  /** Face landmarks for Kalidokit Face.solve */
+  faceLandmarks?: PoseLandmark[];
 }
 
 // ─── Scene Configuration ──────────────────────────────────────────────────────

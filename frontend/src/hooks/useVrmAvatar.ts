@@ -151,7 +151,7 @@ export function useVrmAvatar(
 
     timerRef.current.update(performance.now());
     const delta = timerRef.current.getDelta();
-    applyPoseToVrm(vrm, poseStateRef.current, frame.landmarks, frame.worldLandmarks ?? [], delta);
+    applyPoseToVrm(vrm, poseStateRef.current, frame, delta);
   }, []);
 
   return { applyPose };
