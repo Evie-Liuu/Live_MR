@@ -18,11 +18,11 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     url: '/models/default.vrm',
   },
   // Example future entries:
-  // teacher: {
-  //   id: 'teacher',
-  //   label: '教師角色',
-  //   url: '/teacher.vrm',
-  // },
+  student_male: {
+    id: 'student_male',
+    label: '男生角色',
+    url: 'models/male.vrm',
+  },
   // student_female: {
   //   id: 'student_female',
   //   label: '女生角色',

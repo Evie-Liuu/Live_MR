@@ -17,7 +17,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const roomRef = useRef<Room | null>(null);
   const [landmarks, setLandmarks] = useState<PoseLandmark[] | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
-  const [faceEnabled, setFaceEnabled] = useState(true);
+  const [faceEnabled, setFaceEnabled] = useState(false);
 
   const publishPose = useCallback(
     (data: Uint8Array) => {
