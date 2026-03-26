@@ -73,6 +73,14 @@ export function useBigScreenScene(
   const loadingRef = useRef<Map<string, Promise<AvatarSlot>>>(new Map());
   /** Per-identity VRM URL overrides (set when a participant selects their own model) */
   const vrmUrlOverridesRef = useRef<Map<string, string>>(new Map());
+  /**
+   * Per-identity load generation counter.
+   * Incremented each time a NEW load is started for an identity.
+   * When a load resolves it checks its captured generation against the current
+   * value; if stale (swapAvatar fired a newer load) the resolved VRM is removed
+   * from the scene immediately, preventing ghost T-pose models.
+   */
+  const loadGenRef = useRef<Map<string, number>>(new Map());
 
   // Keep a stable ref to the current preset so reposition/ensureAvatar
   // always see the latest spacing without re-creating callbacks.
@@ -150,6 +158,7 @@ export function useBigScreenScene(
       }
       avatarsRef.current.clear();
       loadingRef.current.clear();
+      loadGenRef.current.clear();
       orderRef.current = [];
       renderer.dispose();
     };
@@ -193,8 +202,20 @@ export function useBigScreenScene(
         (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
       const spawn = presetRef.current.avatarDefaults;
 
+      // Assign a generation so stale loads (superseded by swapAvatar) can
+      // detect themselves and remove the already-added VRM from the scene.
+      const gen = (loadGenRef.current.get(identity) ?? 0) + 1;
+      loadGenRef.current.set(identity, gen);
+
       const loadPromise = loadVrm({ url: resolvedUrl, scene, spawn })
         .then(({ vrm, initialHipsPos }) => {
+          // loadVrm already called scene.add(vrm.scene). If a newer load was
+          // started for this identity, discard this one to avoid ghost models.
+          if (loadGenRef.current.get(identity) !== gen) {
+            scene.remove(vrm.scene);
+            throw new Error(`[BigScreenScene] Stale load discarded for ${identity}`);
+          }
+
           if (!orderRef.current.includes(identity)) {
             // Host avatar goes first (leftmost)
             if (identity.startsWith('host-')) {
@@ -281,6 +302,9 @@ export function useBigScreenScene(
       if (!slot) return;
       sceneRef.current?.remove(slot.vrm.scene);
       avatarsRef.current.delete(identity);
+      loadingRef.current.delete(identity);
+      // Invalidate any in-flight load so it discards itself on resolve
+      loadGenRef.current.delete(identity);
       orderRef.current = orderRef.current.filter((id) => id !== identity);
       vrmUrlOverridesRef.current.delete(identity);
       reposition();
