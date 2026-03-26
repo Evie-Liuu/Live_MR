@@ -71,6 +71,8 @@ export function useBigScreenScene(
   const orderRef = useRef<string[]>([]);
   /** In-flight VRM load promises – prevent duplicate loads */
   const loadingRef = useRef<Map<string, Promise<AvatarSlot>>>(new Map());
+  /** Per-identity VRM URL overrides (set when a participant selects their own model) */
+  const vrmUrlOverridesRef = useRef<Map<string, string>>(new Map());
 
   // Keep a stable ref to the current preset so reposition/ensureAvatar
   // always see the latest spacing without re-creating callbacks.
@@ -174,7 +176,7 @@ export function useBigScreenScene(
   // ─── Avatar lifecycle ─────────────────────────────────────────────────────
 
   const ensureAvatar = useCallback(
-    (identity: string): Promise<AvatarSlot> => {
+    (identity: string, vrmUrlOverride?: string): Promise<AvatarSlot> => {
       const existing = avatarsRef.current.get(identity);
       if (existing) return Promise.resolve(existing);
 
@@ -184,10 +186,14 @@ export function useBigScreenScene(
       const scene = sceneRef.current;
       if (!scene) return Promise.reject(new Error('[BigScreenScene] Scene not ready'));
 
-      const vrmSource = VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID];
+      // Priority: explicit override → per-identity stored override → global fallback
+      const resolvedUrl =
+        vrmUrlOverride ??
+        vrmUrlOverridesRef.current.get(identity) ??
+        (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
       const spawn = presetRef.current.avatarDefaults;
 
-      const loadPromise = loadVrm({ url: vrmSource.url, scene, spawn })
+      const loadPromise = loadVrm({ url: resolvedUrl, scene, spawn })
         .then(({ vrm, initialHipsPos }) => {
           if (!orderRef.current.includes(identity)) {
             // Host avatar goes first (leftmost)
@@ -220,6 +226,32 @@ export function useBigScreenScene(
     [reposition, vrmSourceId],
   );
 
+  /** Swap the VRM model for a specific identity. Removes old avatar and reloads with new URL. */
+  const swapAvatar = useCallback(
+    (identity: string, vrmUrl: string) => {
+      // Avoid reloading if it is already exactly this URL override
+      if (vrmUrlOverridesRef.current.get(identity) === vrmUrl) return;
+
+      // Store the override so future ensureAvatar calls use it
+      vrmUrlOverridesRef.current.set(identity, vrmUrl);
+
+      // Remove the existing avatar from scene (keeps order slot)
+      const slot = avatarsRef.current.get(identity);
+      if (slot) {
+        sceneRef.current?.remove(slot.vrm.scene);
+        avatarsRef.current.delete(identity);
+        // Cancel any in-flight load
+        loadingRef.current.delete(identity);
+      }
+
+      // Re-load with new URL (ensureAvatar will pick up the override)
+      ensureAvatar(identity, vrmUrl).catch((err) =>
+        console.warn(`[BigScreenScene] swapAvatar failed for ${identity}:`, err),
+      );
+    },
+    [ensureAvatar],
+  );
+
   // ─── Pose application ─────────────────────────────────────────────────────
 
   const applyPose = useCallback(
@@ -248,10 +280,11 @@ export function useBigScreenScene(
       sceneRef.current?.remove(slot.vrm.scene);
       avatarsRef.current.delete(identity);
       orderRef.current = orderRef.current.filter((id) => id !== identity);
+      vrmUrlOverridesRef.current.delete(identity);
       reposition();
     },
     [reposition],
   );
 
-  return { applyPose, removeAvatar };
+  return { applyPose, removeAvatar, swapAvatar };
 }

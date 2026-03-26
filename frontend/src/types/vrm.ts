@@ -62,6 +62,8 @@ export interface SceneConfig {
   backgroundValue?: string;
   /** Floor grid: true = default 20×20, or explicit size/divisions */
   grid?: boolean | { size: number; divisions: number; color?: number };
+  /** Restricted list of allowed VRM source IDs for this scene. If undefined, all are allowed. */
+  allowedVrmIds?: string[];
   /** Default spawn for each avatar (by slot index, or a single fallback) */
   avatarDefaults?: AvatarSpawnConfig;
   /** Spacing between avatar slots (metres) */

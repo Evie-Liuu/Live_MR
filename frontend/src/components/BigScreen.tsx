@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
+import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
   sceneId?: string;
-  /** For 'vrm-change': new VRM source ID */
+  /** For 'vrm-change': new VRM source ID (global fallback for new avatars) */
   vrmSourceId?: string;
+  /** For 'vrm-identity-change': swap the VRM for a specific participant */
+  vrmUrl?: string;
 }
 
 /**
@@ -68,11 +71,13 @@ export default function BigScreen() {
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { applyPose, removeAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId });
+  const { applyPose, removeAvatar, swapAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
   const applyPoseRef = useRef(applyPose);
   applyPoseRef.current = applyPose;
+  const swapAvatarRef = useRef(swapAvatar);
+  swapAvatarRef.current = swapAvatar;
 
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
 
@@ -84,6 +89,16 @@ export default function BigScreen() {
         const snapshot = JSON.parse(raw) as Record<string, unknown>;
         for (const [identity, poseData] of Object.entries(snapshot)) {
           applyPose(identity, poseData);
+        }
+      }
+
+      // Also restore individual student roles
+      const rawRoles = sessionStorage.getItem('bigscreen-studentRoles');
+      if (rawRoles) {
+        const roles = JSON.parse(rawRoles) as Record<string, string>;
+        for (const [iden, srcId] of Object.entries(roles)) {
+          const vrmUrl = (VRM_SOURCES[srcId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+          swapAvatarRef.current(iden, vrmUrl); // override the source
         }
       }
     } catch (e) {
@@ -110,6 +125,8 @@ export default function BigScreen() {
       } else if (msg.type === 'vrm-change' && msg.vrmSourceId) {
         setVrmSourceId(msg.vrmSourceId);
         sessionStorage.setItem('bigscreen-vrmSourceId', msg.vrmSourceId);
+      } else if (msg.type === 'vrm-identity-change' && msg.identity && msg.vrmUrl) {
+        swapAvatarRef.current(msg.identity, msg.vrmUrl);
       }
     };
 

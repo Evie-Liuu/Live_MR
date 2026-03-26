@@ -8,12 +8,13 @@ interface StudentTileProps {
   participant: RemoteParticipant;
   videoTrack: RemoteTrackPublication | null;
   poseData: PoseFrame | null;
+  vrmSourceId?: string;
 }
 
-export default function StudentTile({ participant, videoTrack, poseData }: StudentTileProps) {
+export default function StudentTile({ participant, videoTrack, poseData, vrmSourceId }: StudentTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { applyPose } = useVrmAvatar(canvasRef);
+  const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId });
   const videoSizeRef = useRef({ width: 320, height: 240 });
 
   // Attach video track

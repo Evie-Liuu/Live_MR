@@ -106,9 +106,6 @@ export function applyPoseToVrm(
   }
 
   // Apply Face if enabled and landmarks exist
-  console.log('frame.faceLandmarks');
-  console.log(frame.faceLandmarks);
-
   if (faceEnabled && frame.faceLandmarks && frame.faceLandmarks.length >= 468) {
     const faceRig = Face.solve(frame.faceLandmarks as any, {
       runtime: 'mediapipe',

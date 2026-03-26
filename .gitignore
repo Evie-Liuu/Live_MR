@@ -31,3 +31,7 @@ frontend/public/mediapipe-*
 
 # Git worktrees
 .worktrees/
+
+
+# Models
+frontend/public/models/*

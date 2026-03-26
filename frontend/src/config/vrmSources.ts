@@ -21,13 +21,28 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
   student_male: {
     id: 'student_male',
     label: '男生角色',
-    url: 'models/male.vrm',
+    url: '/models/male.vrm', // Changed to /models as per static structure usually
   },
-  // student_female: {
-  //   id: 'student_female',
-  //   label: '女生角色',
-  //   url: '/student_female.vrm',
-  // },
+  student_female: {
+    id: 'student_female',
+    label: '女生角色',
+    url: '/models/female.vrm',
+  },
+  teacher_male: {
+    id: 'teacher_male',
+    label: '男老師',
+    url: '/models/teacher_male.vrm',
+  },
+  teacher_female: {
+    id: 'teacher_female',
+    label: '女老師',
+    url: '/models/teacher_female.vrm',
+  },
+  robot: {
+    id: 'robot',
+    label: '機器人',
+    url: '/models/robot.vrm',
+  },
 } as const;
 
 /** Default VRM source ID used when no preference is set */

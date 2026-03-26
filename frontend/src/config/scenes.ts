@@ -34,6 +34,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
     backgroundType: 'image',
     backgroundValue: '/images/clothingStore.png',
     grid: { size: 20, divisions: 20, color: 0x2a2a4a },
+    allowedVrmIds: ['default', 'student_male', 'student_female', 'teacher_male', 'teacher_female'],
     avatarDefaults: { position: [0, 0, -1.5], scale: 1.5 },
     avatarSpacing: 1.6,
   },
@@ -57,6 +58,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
     backgroundType: 'color',
     backgroundValue: '#0a0a0f',
     grid: false,
+    allowedVrmIds: ['student_male', 'student_female', 'robot'],
     avatarDefaults: { position: [0, 0, 0], scale: 1 },
     avatarSpacing: 1.8,
   },
@@ -80,6 +82,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
     // No background → renderer alpha:true + transparent
     backgroundType: 'none',
     grid: false,
+    allowedVrmIds: ['default', 'robot', 'teacher_male', 'teacher_female'],
     avatarDefaults: { position: [0, 0, 0], scale: 1 },
     avatarSpacing: 1.6,
   },

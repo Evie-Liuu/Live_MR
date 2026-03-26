@@ -51,9 +51,22 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
   );
+  // Global default VRM for new avatars (students who haven't picked their own)
   const [selectedVrmSourceId, setSelectedVrmSourceId] = useState<string>(
     () => sessionStorage.getItem('bigscreen-vrmSourceId') ?? DEFAULT_VRM_SOURCE_ID,
   );
+  // Teacher's own personal avatar selection
+  const [teacherVrmSourceId, setTeacherVrmSourceId] = useState<string>(
+    () => sessionStorage.getItem('bigscreen-teacherVrmSourceId') ?? DEFAULT_VRM_SOURCE_ID,
+  );
+  // Individual student roles selected by the host
+  const [studentRoles, setStudentRoles] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bigscreen-studentRoles') || '{}');
+    } catch {
+      return {};
+    }
+  });
 
   // Broadcast scene/VRM changes to any open BigScreen window
   const broadcastSceneChange = useCallback((sceneId: string) => {
@@ -68,12 +81,67 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     channelRef.current?.postMessage(msg);
   }, []);
 
+  /** Swap the teacher's own BigScreen avatar */
+  const broadcastTeacherVrmChange = useCallback(
+    (vrmSourceId: string) => {
+      if (!connectedRoom) return;
+      sessionStorage.setItem('bigscreen-teacherVrmSourceId', vrmSourceId);
+      const identity = connectedRoom.localParticipant.identity;
+      const vrmUrl = (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const msg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
+      channelRef.current?.postMessage(msg);
+    },
+    [connectedRoom],
+  );
+
   const handleSceneChange = useCallback(
     (sceneId: string) => {
       setSelectedSceneId(sceneId);
       broadcastSceneChange(sceneId);
+
+      // Validate and fallback roles if the new scene restricts them
+      const preset = SCENE_PRESETS[sceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
+      const allowed = preset.allowedVrmIds;
+      if (allowed && allowed.length > 0) {
+        setTeacherVrmSourceId((prev) => {
+          if (!allowed.includes(prev)) {
+            const fallback = allowed[0];
+            setTimeout(() => broadcastTeacherVrmChange(fallback), 0);
+            return fallback;
+          }
+          return prev;
+        });
+
+        setSelectedVrmSourceId((prev) => {
+          if (!allowed.includes(prev)) {
+            const fallback = allowed[0];
+            setTimeout(() => broadcastVrmChange(fallback), 0);
+            return fallback;
+          }
+          return prev;
+        });
+
+        setStudentRoles((prev) => {
+          const next = { ...prev };
+          let changed = false;
+          for (const [id, role] of Object.entries(next)) {
+            if (!allowed.includes(role)) {
+              next[id] = allowed[0];
+              changed = true;
+              const vrmUrl = (VRM_SOURCES[allowed[0]] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+              const msg: BigScreenMsg = { type: 'vrm-identity-change', identity: id, vrmUrl };
+              setTimeout(() => channelRef.current?.postMessage(msg), 0);
+            }
+          }
+          if (changed) {
+            sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next));
+            return next;
+          }
+          return prev;
+        });
+      }
     },
-    [broadcastSceneChange],
+    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange],
   );
 
   const handleVrmChange = useCallback(
@@ -82,6 +150,30 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       broadcastVrmChange(vrmSourceId);
     },
     [broadcastVrmChange],
+  );
+
+  const handleTeacherVrmChange = useCallback(
+    (vrmSourceId: string) => {
+      console.log("handleTeacherVrmChange", vrmSourceId);
+
+      setTeacherVrmSourceId(vrmSourceId);
+      broadcastTeacherVrmChange(vrmSourceId);
+    },
+    [broadcastTeacherVrmChange],
+  );
+
+  const handleStudentRoleChange = useCallback(
+    (identity: string, vrmSourceId: string) => {
+      setStudentRoles((prev) => {
+        const next = { ...prev, [identity]: vrmSourceId };
+        sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next));
+        return next;
+      });
+      const vrmUrl = (VRM_SOURCES[vrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const msg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
+      channelRef.current?.postMessage(msg);
+    },
+    [],
   );
 
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
@@ -142,6 +234,25 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         });
         return next;
       });
+
+      // Forward any previously set individual role to BigScreen
+      if (!participant.identity.startsWith('host-')) {
+        setStudentRoles(prev => {
+          const role = prev[participant.identity];
+          if (role) {
+            const vrmUrl = (VRM_SOURCES[role] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+            setTimeout(() => {
+              const msg: BigScreenMsg = {
+                type: 'vrm-identity-change',
+                identity: participant.identity,
+                vrmUrl,
+              };
+              channelRef.current?.postMessage(msg);
+            }, 100);
+          }
+          return prev;
+        });
+      }
     };
 
     const handleDisconnected = (participant: RemoteParticipant) => {
@@ -189,11 +300,17 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       }
     };
 
+    /** For LiveKit metadata updates from students, ignore vrmUrl since we override it locally */
+    const handleParticipantMetadataChanged = () => {
+      // Nothing to do for VRM sources anymore. Control is fully on Host.
+    };
+
     let isMounted = true;
     room.on(RoomEvent.ParticipantConnected, handleConnected);
     room.on(RoomEvent.ParticipantDisconnected, handleDisconnected);
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed as never);
     room.on(RoomEvent.DataReceived, handleDataReceived as never);
+    room.on(RoomEvent.ParticipantMetadataChanged, handleParticipantMetadataChanged as never);
 
     const connectPromise = room.connect(LIVEKIT_URL, livekitToken);
 
@@ -264,6 +381,12 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     (p) => !p.participant.identity.startsWith('host-'),
   );
 
+  // Derived state: allowed VRMs for current scene
+  const currentScenePreset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
+  const allowedVrms = currentScenePreset.allowedVrmIds
+    ? currentScenePreset.allowedVrmIds.map(id => VRM_SOURCES[id]).filter(Boolean)
+    : Object.values(VRM_SOURCES);
+
   return (
     <div className="host-session">
       {/* Hidden video element used solely for teacher pose detection */}
@@ -296,15 +419,15 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           ))}
         </select>
 
-        {/* ── 角色模型選擇器 ── */}
-        <label htmlFor="vrm-select" className="control-label">角色：</label>
+        {/* ── 角色模型選擇器（老師本人） ── */}
+        <label htmlFor="vrm-teacher-select" className="control-label">🎓 老師角色：</label>
         <select
-          id="vrm-select"
+          id="vrm-teacher-select"
           className="control-select"
-          value={selectedVrmSourceId}
-          onChange={(e) => handleVrmChange(e.target.value)}
+          value={teacherVrmSourceId}
+          onChange={(e) => handleTeacherVrmChange(e.target.value)}
         >
-          {Object.values(VRM_SOURCES).map((s) => (
+          {allowedVrms.map((s) => (
             <option key={s.id} value={s.id}>
               {s.label}
             </option>
@@ -335,14 +458,34 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />}
 
       <div className="student-grid">
-        {studentList.map((info) => (
-          <StudentTile
-            key={info.participant.identity}
-            participant={info.participant}
-            videoTrack={info.videoTrack}
-            poseData={info.poseData}
-          />
-        ))}
+        {studentList.map((info) => {
+          const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
+          return (
+            <div key={info.participant.identity} className="student-container" style={{ position: 'relative' }}>
+              <StudentTile
+                // key={info.participant.identity}
+                participant={info.participant}
+                videoTrack={info.videoTrack}
+                poseData={info.poseData}
+                vrmSourceId={currentVrmId}
+              />
+              <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
+                <select
+                  className="control-select"
+                  value={currentVrmId}
+                  onChange={(e) => handleStudentRoleChange(info.participant.identity, e.target.value)}
+                  style={{ fontSize: '11px', padding: '1px' }}
+                >
+                  {allowedVrms.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

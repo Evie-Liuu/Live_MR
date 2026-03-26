@@ -117,6 +117,14 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
     };
   }, [token]);
 
+  // Publish metadata whenever faceEnabled changes (or on connect)
+  // useEffect(() => {
+  //   const room = roomRef.current;
+  //   if (!connected || !room || room.state !== 'connected') return;
+  //   const metadata = JSON.stringify({ faceEnabled });
+  //   room.localParticipant.setMetadata(metadata);
+  // }, [connected, faceEnabled]);
+
   return (
     <div className="student-session">
       <div className="session-header">
