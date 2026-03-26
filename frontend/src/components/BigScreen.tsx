@@ -85,21 +85,33 @@ export default function BigScreen() {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem('bigscreen-snapshot');
-      if (raw) {
-        const snapshot = JSON.parse(raw) as Record<string, unknown>;
-        for (const [identity, poseData] of Object.entries(snapshot)) {
-          applyPose(identity, poseData);
+      const snapshot: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+
+      // ① Apply VRM overrides FIRST so ensureAvatar (called inside applyPose)
+      //    picks up the correct URL rather than the global default.
+      const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
+      if (teacherVrmId) {
+        for (const identity of Object.keys(snapshot)) {
+          if (identity.startsWith('host-')) {
+            const vrmUrl = (VRM_SOURCES[teacherVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+            swapAvatarRef.current(identity, vrmUrl);
+          }
         }
       }
 
-      // Also restore individual student roles
       const rawRoles = sessionStorage.getItem('bigscreen-studentRoles');
       if (rawRoles) {
         const roles = JSON.parse(rawRoles) as Record<string, string>;
         for (const [iden, srcId] of Object.entries(roles)) {
           const vrmUrl = (VRM_SOURCES[srcId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-          swapAvatarRef.current(iden, vrmUrl); // override the source
+          swapAvatarRef.current(iden, vrmUrl);
         }
+      }
+
+      // ② Then apply poses — ensureAvatar reuses the in-flight loads started
+      //    above, so avatars load with the correct role VRM from the start.
+      for (const [identity, poseData] of Object.entries(snapshot)) {
+        applyPose(identity, poseData);
       }
     } catch (e) {
       console.warn('[BigScreen] Failed to parse snapshot', e);

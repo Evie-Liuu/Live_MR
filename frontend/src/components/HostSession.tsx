@@ -369,12 +369,25 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
       sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
       sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
+      sessionStorage.setItem('bigscreen-teacherVrmSourceId', teacherVrmSourceId);
     } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, [selectedSceneId, selectedVrmSourceId]);
+  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId]);
+
+  // Ensure teacher's VRM is broadcasted when room connects initially
+  useEffect(() => {
+    if (connectedRoom && teacherVrmSourceId) {
+      const identity = connectedRoom.localParticipant.identity;
+      const vrmUrl = (VRM_SOURCES[teacherVrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const msg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
+      setTimeout(() => {
+        channelRef.current?.postMessage(msg);
+      }, 100);
+    }
+  }, [connectedRoom, teacherVrmSourceId]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
   const studentList = Array.from(participants.values()).filter(

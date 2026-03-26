@@ -235,13 +235,14 @@ export function useBigScreenScene(
       // Store the override so future ensureAvatar calls use it
       vrmUrlOverridesRef.current.set(identity, vrmUrl);
 
+      // TODO: Cancel any in-flight load regardless of whether a slot is present
+      loadingRef.current.delete(identity);
+
       // Remove the existing avatar from scene (keeps order slot)
       const slot = avatarsRef.current.get(identity);
       if (slot) {
         sceneRef.current?.remove(slot.vrm.scene);
         avatarsRef.current.delete(identity);
-        // Cancel any in-flight load
-        loadingRef.current.delete(identity);
       }
 
       // Re-load with new URL (ensureAvatar will pick up the override)
