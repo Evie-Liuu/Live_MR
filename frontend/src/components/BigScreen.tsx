@@ -89,6 +89,8 @@ export default function BigScreen() {
 
       // ① Apply VRM overrides FIRST so ensureAvatar (called inside applyPose)
       //    picks up the correct URL rather than the global default.
+
+      // 1a. Baseline roles copied from HostSession at window.open time
       const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
       if (teacherVrmId) {
         for (const identity of Object.keys(snapshot)) {
@@ -104,6 +106,17 @@ export default function BigScreen() {
         const roles = JSON.parse(rawRoles) as Record<string, string>;
         for (const [iden, srcId] of Object.entries(roles)) {
           const vrmUrl = (VRM_SOURCES[srcId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+          swapAvatarRef.current(iden, vrmUrl);
+        }
+      }
+
+      // 1b. Live role changes received after BigScreen was opened (takes priority).
+      //     sessionStorage is per-window, so HostSession's writes don't propagate
+      //     here — we persist incoming vrm-identity-change messages ourselves.
+      const rawLiveUrls = sessionStorage.getItem('bigscreen-liveVrmUrls');
+      if (rawLiveUrls) {
+        const liveUrls = JSON.parse(rawLiveUrls) as Record<string, string>;
+        for (const [iden, vrmUrl] of Object.entries(liveUrls)) {
           swapAvatarRef.current(iden, vrmUrl);
         }
       }
