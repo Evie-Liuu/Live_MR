@@ -46,6 +46,10 @@ export function useVrmAvatar(
   const timerRef = useRef(new THREE.Timer());
   const rafRef = useRef<number>(0);
   const poseStateRef = useRef<PoseApplyState>(createPoseApplyState());
+  /** Latest unprocessed pose frame – set by applyPose, consumed in RAF */
+  const pendingPoseRef = useRef<PoseFrame | null>(null);
+  /** Last applied frame – used for continuous 60 fps lerp between 30 fps data */
+  const lastFrameRef = useRef<PoseFrame | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -109,6 +113,15 @@ export function useVrmAvatar(
       timerRef.current.update(timestamp);
       const delta = timerRef.current.getDelta();
       if (vrmRef.current) {
+        if (pendingPoseRef.current) {
+          applyPoseToVrm(vrmRef.current, poseStateRef.current, pendingPoseRef.current, delta);
+          lastFrameRef.current = pendingPoseRef.current;
+          pendingPoseRef.current = null;
+        } else if (lastFrameRef.current) {
+          applyPoseToVrm(vrmRef.current, poseStateRef.current, lastFrameRef.current, delta, {
+            reuseLastSolve: true,
+          });
+        }
         vrmRef.current.update(delta);
       }
       renderer.render(scene, camera);
@@ -143,15 +156,10 @@ export function useVrmAvatar(
   }, [canvasRef, sceneId, vrmSourceId]);
 
   const applyPose = useCallback((rawData: unknown) => {
-    const vrm = vrmRef.current;
-    if (!vrm) return;
-
     const frame = rawData as PoseFrame;
     if (!frame?.landmarks || frame.landmarks.length < 33) return;
-
-    timerRef.current.update(performance.now());
-    const delta = timerRef.current.getDelta();
-    applyPoseToVrm(vrm, poseStateRef.current, frame, delta);
+    // Queue for the RAF loop; latest frame wins
+    pendingPoseRef.current = frame;
   }, []);
 
   return { applyPose };

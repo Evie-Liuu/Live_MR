@@ -15,6 +15,7 @@ import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
+import { decodePoseFrame } from '../utils/poseCodec.ts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
@@ -189,17 +190,17 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   // ─── Teacher pose detection ───────────────────────────────────────────────
   const teacherPublishPose = useCallback(
     (data: Uint8Array) => {
-      if (!connectedRoom) return; // guard: don't broadcast until connected
       try {
-        const text = new TextDecoder().decode(data);
-        const parsed = JSON.parse(text) as unknown;
+        const parsed = decodePoseFrame(data);
+        // Always update local overlay regardless of connection state
+        setTeacherPoseData(parsed);
+        if (!connectedRoom) return;
         const identity = connectedRoom.localParticipant.identity;
         poseSnapshotRef.current[identity] = parsed;
         // Update sessionStorage to keep snapshot in sync
         try {
           sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
         } catch {/* ignore */ }
-        setTeacherPoseData(parsed);
         const msg: BigScreenMsg = { type: 'pose', identity, poseData: parsed };
         channelRef.current?.postMessage(msg);
       } catch { /* ignore */ }
@@ -303,7 +304,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     ) => {
       if (!participant) return;
       try {
-        const data = JSON.parse(new TextDecoder().decode(payload)) as unknown;
+        const data = decodePoseFrame(payload);
 
         updateParticipant(participant.identity, (info) => ({
           ...info,

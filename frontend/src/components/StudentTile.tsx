@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RemoteParticipant, RemoteTrackPublication } from 'livekit-client';
 import { useVrmAvatar } from '../hooks/useVrmAvatar';
 import PoseDebugOverlay from './PoseDebugOverlay';
@@ -15,7 +15,7 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId });
-  const videoSizeRef = useRef({ width: 320, height: 240 });
+  const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
 
   // Attach video track
   useEffect(() => {
@@ -27,10 +27,9 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
     el.srcObject = stream;
 
     const handleLoadedMetadata = () => {
-      videoSizeRef.current = {
-        width: el.clientWidth || 320,
-        height: el.clientHeight || 240,
-      };
+      if (el.clientWidth > 0) {
+        setVideoSize({ width: el.clientWidth, height: el.clientHeight });
+      }
     };
     el.addEventListener('loadedmetadata', handleLoadedMetadata);
 
@@ -44,16 +43,6 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
   useEffect(() => {
     if (poseData) {
       applyPose(poseData);
-
-      // Also update size if it hasn't been set correctly
-      if (videoRef.current && (videoSizeRef.current.width !== videoRef.current.clientWidth || videoSizeRef.current.height !== videoRef.current.clientHeight)) {
-        if (videoRef.current.clientWidth > 0) {
-          videoSizeRef.current = {
-            width: videoRef.current.clientWidth,
-            height: videoRef.current.clientHeight,
-          };
-        }
-      }
     }
   }, [poseData, applyPose]);
 
@@ -66,8 +55,8 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
       {landmarks && (
         <PoseDebugOverlay
           landmarks={[landmarks]}
-          width={videoSizeRef.current.width}
-          height={videoSizeRef.current.height}
+          width={videoSize.width}
+          height={videoSize.height}
         />
       )}
       <div className="student-name" style={{ position: 'absolute', bottom: 5, right: 5, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '2px 5px' }}>{participant.identity}</div>

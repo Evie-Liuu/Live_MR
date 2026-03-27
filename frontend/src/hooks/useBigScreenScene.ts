@@ -35,7 +35,19 @@ interface AvatarSlot {
   baseX: number;
   poseState: PoseApplyState;
   initialHipsPos: THREE.Vector3;
+  /** Latest unprocessed pose frame – set by applyPose, consumed in RAF */
+  pendingPose: import('../types/vrm').PoseFrame | null;
+  /** Last successfully applied frame – used for continuous 60 fps lerp */
+  lastFrame: import('../types/vrm').PoseFrame | null;
+  /** Timestamp (ms) when pendingPose was last set */
+  lastPoseAt: number;
+  /** Exponential moving average of inter-pose intervals (ms), default 33 = 30 fps */
+  avgPoseIntervalMs: number;
 }
+
+/** lerpSpeed baseline at 30 fps; scaled proportionally to actual data rate */
+const BASE_LERP_SPEED   = 14;
+const BASE_INTERVAL_MS  = 33;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -129,9 +141,33 @@ export function useBigScreenScene(
       rafRef.current = requestAnimationFrame(animate);
       timerRef.current.update(timestamp);
       const delta = timerRef.current.getDelta();
+
       for (const slot of avatarsRef.current.values()) {
+        // Adaptive lerp speed: proportional to actual pose data rate.
+        // At 30 fps (33 ms) → 14; at 15 fps (66 ms) → 7; cap 60 fps at 20.
+        const adaptiveLerp = Math.min(
+          BASE_LERP_SPEED * (BASE_INTERVAL_MS / Math.max(slot.avgPoseIntervalMs, 16)),
+          20,
+        );
+
+        if (slot.pendingPose) {
+          // New data: run full kalidokit solve + bone lerp
+          applyPoseToVrm(slot.vrm, slot.poseState, slot.pendingPose, delta, {
+            lerpSpeed: adaptiveLerp,
+          });
+          slot.lastFrame   = slot.pendingPose;
+          slot.pendingPose = null;
+        } else if (slot.lastFrame) {
+          // No new data: continue lerping toward cached targets (skip re-solve)
+          applyPoseToVrm(slot.vrm, slot.poseState, slot.lastFrame, delta, {
+            lerpSpeed: adaptiveLerp,
+            reuseLastSolve: true,
+          });
+        }
+
         slot.vrm.update(delta);
       }
+
       if (cameraRef.current) {
         renderer.render(scene, cameraRef.current);
       }
@@ -230,6 +266,10 @@ export function useBigScreenScene(
             baseX: 0,
             poseState: createPoseApplyState(),
             initialHipsPos,
+            pendingPose: null,
+            lastFrame: null,
+            lastPoseAt: 0,
+            avgPoseIntervalMs: BASE_INTERVAL_MS,
           };
           avatarsRef.current.set(identity, slot);
           loadingRef.current.delete(identity);
@@ -277,6 +317,16 @@ export function useBigScreenScene(
 
   // ─── Pose application ─────────────────────────────────────────────────────
 
+  /**
+   * Queue a pose frame for the given identity.
+   *
+   * The actual bone math runs inside the RAF loop (render-driven), not here.
+   * This means:
+   *  • BroadcastChannel messages that arrive faster than the render rate are
+   *    automatically coalesced – only the latest frame per identity is kept.
+   *  • The kalidokit solver never runs outside requestAnimationFrame.
+   *  • timerRef state is only mutated from one place (the RAF callback).
+   */
   const applyPose = useCallback(
     async (identity: string, rawData: unknown) => {
       try {
@@ -284,9 +334,17 @@ export function useBigScreenScene(
         const frame = rawData as PoseFrame;
         if (!frame?.landmarks || frame.landmarks.length < 33) return;
 
-        timerRef.current.update(performance.now());
-        const delta = timerRef.current.getDelta();
-        applyPoseToVrm(slot.vrm, slot.poseState, frame, delta);
+        // Track inter-pose interval for adaptive lerp
+        const now = performance.now();
+        const interval = now - slot.lastPoseAt;
+        if (slot.lastPoseAt > 0 && interval < 500) {
+          // EMA: 10 % new sample – slow adaptation for stability
+          slot.avgPoseIntervalMs = slot.avgPoseIntervalMs * 0.9 + interval * 0.1;
+        }
+        slot.lastPoseAt = now;
+
+        // Queue for render loop (latest frame wins; previous pending is dropped)
+        slot.pendingPose = frame;
       } catch (err) {
         console.warn(`[BigScreenScene] applyPose error for ${identity}:`, err);
       }

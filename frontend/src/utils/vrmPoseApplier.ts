@@ -24,6 +24,12 @@ export interface ApplyPoseOptions {
   mirror?: boolean;
   /** Whether to apply face movements using kalidokit Face.solve */
   faceEnabled?: boolean;
+  /**
+   * Skip the kalidokit solver and reuse the last cached bone targets.
+   * Use this for mid-frame re-lerps (60 fps render between 30 fps pose frames)
+   * to avoid redundant heavy computation while keeping animation smooth.
+   */
+  reuseLastSolve?: boolean;
 }
 
 const DEFAULT_OPTS: Required<ApplyPoseOptions> = {
@@ -39,10 +45,13 @@ const _targetQuat = new THREE.Quaternion();
 
 export interface PoseApplyState {
   prevRotations: Record<string, BoneRotation>;
+  /** Cached solver output – reused for 60 fps lerp between 30 fps pose frames */
+  cachedBoneRotations: Record<string, BoneRotation> | null;
+  cachedHipsPos: { x: number; y: number; z: number } | null;
 }
 
 export function createPoseApplyState(): PoseApplyState {
-  return { prevRotations: {} };
+  return { prevRotations: {}, cachedBoneRotations: null, cachedHipsPos: null };
 }
 
 /**
@@ -63,21 +72,28 @@ export function applyPoseToVrm(
 ): void {
   if (!frame.landmarks || frame.landmarks.length < 33) return;
 
-  const { lerpSpeed, maxLerpT, solverSmoothing, mirror, faceEnabled } = {
+  const { lerpSpeed, maxLerpT, solverSmoothing, mirror, faceEnabled, reuseLastSolve } = {
     ...DEFAULT_OPTS,
     ...opts,
   };
 
-  const worldLms = frame.worldLandmarks?.length >= 33 ? frame.worldLandmarks : frame.landmarks;
+  // ── Solver phase (skipped when reuseLastSolve + cache is warm) ────────────
+  if (!reuseLastSolve || !state.cachedBoneRotations) {
+    if (!frame.landmarks || frame.landmarks.length < 33) return;
+    const worldLms = frame.worldLandmarks?.length >= 33 ? frame.worldLandmarks : frame.landmarks;
+    const { boneRotations, hipsPosition } = solveWithKalidokit(
+      worldLms,
+      frame.landmarks,
+      state.prevRotations,
+      solverSmoothing,
+    );
+    state.prevRotations = boneRotations;
+    state.cachedBoneRotations = boneRotations;
+    state.cachedHipsPos = hipsPosition ?? null;
+  }
 
-  const { boneRotations, hipsPosition } = solveWithKalidokit(
-    worldLms,
-    frame.landmarks,
-    state.prevRotations,
-    solverSmoothing,
-  );
-
-  state.prevRotations = boneRotations;
+  const boneRotations = state.cachedBoneRotations!;
+  const hipsPosition  = state.cachedHipsPos;
 
   const humanoid = vrm.humanoid;
   if (!humanoid) return;
@@ -105,8 +121,9 @@ export function applyPoseToVrm(
     }
   }
 
-  // Apply Face if enabled and landmarks exist
-  if (faceEnabled && frame.faceLandmarks && frame.faceLandmarks.length >= 468) {
+  // Apply Face if enabled, new data available, and landmarks exist
+  // (skip when reuseLastSolve – bones already lerp toward last cached targets)
+  if (!reuseLastSolve && faceEnabled && frame.faceLandmarks && frame.faceLandmarks.length >= 468) {
     const faceRig = Face.solve(frame.faceLandmarks as any, {
       runtime: 'mediapipe',
       video: undefined,

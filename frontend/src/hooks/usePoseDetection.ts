@@ -9,7 +9,7 @@ export type { PoseFrame };
 const WASM_PATH = '/mediapipe-wasm';
 const POSE_MODEL_PATH = '/mediapipe-models/pose_landmarker_heavy.task';
 const FACE_MODEL_PATH = '/mediapipe-models/face_landmarker.task';
-const encoder = new TextEncoder();
+import { encodePoseFrame } from '../utils/poseCodec';
 
 /** Minimum interval between detections (~30 fps) */
 const DETECT_INTERVAL_MS = 33;
@@ -162,7 +162,7 @@ export function usePoseDetection(
                   // Always emit landmarks for overlay
                   onLandmarksUpdateRef.current?.(frame.landmarks);
                   // Only publish if callback provided
-                  onPublishRef.current?.(encoder.encode(JSON.stringify(frame)));
+                  onPublishRef.current?.(encodePoseFrame(frame));
                 }
               } catch {
                 // ignore per-frame errors
