@@ -370,5 +370,16 @@ export function useBigScreenScene(
     [reposition],
   );
 
-  return { applyPose, removeAvatar, swapAvatar };
+  /**
+   * Pre-register a VRM URL for an identity WITHOUT triggering a load.
+   * The override will be picked up the next time ensureAvatar is called
+   * (i.e. when the first pose frame arrives for this identity).
+   * Use this to avoid T-pose ghost models when setting up known participants
+   * before their pose data has arrived.
+   */
+  const setVrmOverride = useCallback((identity: string, vrmUrl: string) => {
+    vrmUrlOverridesRef.current.set(identity, vrmUrl);
+  }, []);
+
+  return { applyPose, removeAvatar, swapAvatar, setVrmOverride };
 }

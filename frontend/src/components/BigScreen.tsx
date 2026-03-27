@@ -59,6 +59,28 @@ function CameraBackground() {
   return <video ref={videoRef} autoPlay muted playsInline />;
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve the VRM URL for a participant, given the current role mappings.
+ * Priority: liveUrls (most recent vrm-identity-change) > teacherVrmId (host-*) > studentRole > undefined (use global default)
+ */
+function resolveVrmUrl(
+  identity: string,
+  liveUrls: Record<string, string>,
+  roles: Record<string, string>,
+  teacherVrmId: string | null,
+): string | undefined {
+  if (liveUrls[identity]) return liveUrls[identity];
+  if (identity.startsWith('host-') && teacherVrmId) {
+    return (VRM_SOURCES[teacherVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+  }
+  if (roles[identity]) {
+    return (VRM_SOURCES[roles[identity]] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+  }
+  return undefined; // caller falls back to global vrmSourceId via ensureAvatar
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function BigScreen() {
@@ -71,15 +93,19 @@ export default function BigScreen() {
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { applyPose, removeAvatar, swapAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId });
+  const { applyPose, removeAvatar, swapAvatar, setVrmOverride } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
   const applyPoseRef = useRef(applyPose);
   applyPoseRef.current = applyPose;
   const swapAvatarRef = useRef(swapAvatar);
   swapAvatarRef.current = swapAvatar;
+  const setVrmOverrideRef = useRef(setVrmOverride);
+  setVrmOverrideRef.current = setVrmOverride;
 
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
+  /** Identities whose VRM override has already been registered this session */
+  const seenIdentitiesRef = useRef<Set<string>>(new Set());
 
   // Apply snapshot stored by HostSession before the window was opened
   useEffect(() => {
@@ -97,26 +123,16 @@ export default function BigScreen() {
         sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}',
       );
 
-      // ① Apply VRM overrides ONLY for identities present in the snapshot.
-      //    Iterating over all roles (not just snapshot) would create T-pose ghost
-      //    models for participants who have disconnected since the snapshot was taken.
+      // ① Pre-register VRM overrides for all snapshot identities WITHOUT loading.
+      //    ensureAvatar (called by applyPose below) will pick up the override and
+      //    load the correct model — no T-pose ghost models.
       for (const identity of Object.keys(snapshot)) {
-        // Priority: live URL (most recent) > student role > teacher fallback
-        let vrmUrl: string | undefined = liveUrls[identity];
-
-        if (!vrmUrl) {
-          if (identity.startsWith('host-') && teacherVrmId) {
-            vrmUrl = (VRM_SOURCES[teacherVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-          } else if (roles[identity]) {
-            vrmUrl = (VRM_SOURCES[roles[identity]] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-          }
-        }
-
-        if (vrmUrl) swapAvatarRef.current(identity, vrmUrl);
+        seenIdentitiesRef.current.add(identity);
+        const vrmUrl = resolveVrmUrl(identity, liveUrls, roles, teacherVrmId);
+        if (vrmUrl) setVrmOverrideRef.current(identity, vrmUrl);
       }
 
-      // ② Apply poses — ensureAvatar reuses the in-flight loads started above,
-      //    so each avatar loads with the correct role VRM from the start.
+      // ② Apply poses — ensureAvatar picks up the pre-registered override above.
       for (const [identity, poseData] of Object.entries(snapshot)) {
         applyPose(identity, poseData);
       }
@@ -134,6 +150,21 @@ export default function BigScreen() {
       const msg = ev.data as BigScreenMsg;
 
       if (msg.type === 'pose' && msg.identity) {
+        // On first sight of an identity, pre-register the correct VRM override
+        // before ensureAvatar runs.  This handles the case where BigScreen opened
+        // after the initial vrm-identity-change broadcast was already sent.
+        if (!seenIdentitiesRef.current.has(msg.identity)) {
+          seenIdentitiesRef.current.add(msg.identity);
+          const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
+          const roles: Record<string, string> = JSON.parse(
+            sessionStorage.getItem('bigscreen-studentRoles') || '{}',
+          );
+          const liveUrls: Record<string, string> = JSON.parse(
+            sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}',
+          );
+          const vrmUrl = resolveVrmUrl(msg.identity, liveUrls, roles, teacherVrmId);
+          if (vrmUrl) setVrmOverrideRef.current(msg.identity, vrmUrl);
+        }
         applyPoseRef.current(msg.identity, msg.poseData);
         setPoseUpdateCount(c => c + 1);
       } else if (msg.type === 'leave' && msg.identity) {
