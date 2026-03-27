@@ -10,6 +10,50 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRM, VRMUtils } from '@pixiv/three-vrm';
 import type { AvatarSpawnConfig } from '../types/vrm';
 
+/**
+ * Configure spring bone parameters for better hair physics.
+ * - Increases stiffness for faster return to rest position
+ * - Adds damping to reduce oscillation
+ * - Sets hit radius to prevent clipping through the model
+ */
+function configureSpringBones(vrm: VRM): void {
+  const springBoneManager = vrm.springBoneManager;
+  if (!springBoneManager) return;
+
+  // Gather all available collider groups to maximize collision coverage
+  const allColliderGroups = springBoneManager.colliderGroups;
+
+  // Iterate through all spring bone joints
+  springBoneManager.joints.forEach((joint: any) => {
+    // Identify hair bones by checking the bone name
+    const boneName = joint.bone ? joint.bone.name.toLowerCase() : '';
+    const isHair = boneName.includes('hair');
+
+    if (isHair && joint.settings) {
+      // Snappy return: Increase stiffness (typical Snappy setup uses 4.0-10.0)
+      joint.settings.stiffness = 8.0;
+
+      // Stabilize: Drag force (damping) to prevent jittering
+      joint.settings.dragForce = 0.5;
+
+      // Minimize sagging: Reduce gravity power to help hair return to rest position faster
+      joint.settings.gravityPower = 0.1;
+
+      // Prevent clipping: Increase collision radius (standard is around 0.02)
+      // Thicker hair volume helps prevent it from dipping into the mesh
+      joint.settings.hitRadius = 0.06;
+
+      // Assign all collider groups to hair to ensure it collides with head, torso, etc.
+      if (allColliderGroups && allColliderGroups.length > 0) {
+        joint.colliderGroups = allColliderGroups;
+      }
+    }
+  });
+
+  // Re-initialise and update to apply changes properly
+  springBoneManager.setInitState();
+}
+
 export interface LoadVrmOptions {
   /** URL or path to the .vrm file */
   url: string;
@@ -66,6 +110,9 @@ export function loadVrm({
         }
 
         scene.add(vrm.scene);
+
+        // Configure spring bones for better hair physics
+        configureSpringBones(vrm);
 
         // Capture initial hips position (before any pose is applied)
         const hipsNode = vrm.humanoid.getNormalizedBoneNode('hips');
