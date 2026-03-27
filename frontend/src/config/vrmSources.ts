@@ -15,33 +15,27 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
   default: {
     id: 'default',
     label: '預設角色',
-    url: '/models/default.vrm',
+    url: '/models/Default_Female.vrm',
   },
-  // Example future entries:
-  student_male: {
-    id: 'student_male',
-    label: '男生角色',
-    url: '/models/male.vrm', // Changed to /models as per static structure usually
+  teenager_female: {
+    id: 'teenager_female',
+    label: '少女',
+    url: '/models/teenager_female.vrm',
+  },
+  teenager_male: {
+    id: 'teenager_male',
+    label: '少年',
+    url: '/models/teenager_male.vrm',
   },
   student_female: {
     id: 'student_female',
-    label: '女生角色',
-    url: '/models/female.vrm',
+    label: '女學生',
+    url: '/models/Student_Female.vrm',
   },
-  teacher_male: {
-    id: 'teacher_male',
-    label: '男老師',
-    url: '/models/teacher_male.vrm',
-  },
-  teacher_female: {
-    id: 'teacher_female',
-    label: '女老師',
-    url: '/models/teacher_female.vrm',
-  },
-  robot: {
-    id: 'robot',
-    label: '機器人',
-    url: '/models/robot.vrm',
+  student_male: {
+    id: 'student_male',
+    label: '男學生',
+    url: '/models/Student_Male.vrm',
   },
 } as const;
 

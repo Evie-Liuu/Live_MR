@@ -35,4 +35,4 @@ frontend/public/mediapipe-*
 
 
 # Models
-frontend/public/models/*
+frontend/public/models
