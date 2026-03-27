@@ -11,6 +11,7 @@ import StudentTile from './StudentTile.tsx';
 import LocalVideo from './LocalVideo.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
 import type { BigScreenMsg } from './BigScreen';
+import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
@@ -26,7 +27,7 @@ interface HostSessionProps {
 interface ParticipantInfo {
   participant: RemoteParticipant;
   videoTrack: RemoteTrackPublication | null;
-  poseData: unknown | null;
+  poseData: PoseFrame | null;
 }
 
 // ─── Main component ──────────────────────────────────────────────────────────
@@ -34,7 +35,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
-  const [teacherPoseData, setTeacherPoseData] = useState<unknown | null>(null);
+  const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(false);
 
   // Big-screen pop-out window reference
@@ -382,7 +383,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   useEffect(() => {
     if (connectedRoom) {
       const metadata = JSON.stringify({ faceEnabled });
-      connectedRoom.localParticipant.setMetadata(metadata);
+      connectedRoom.localParticipant.setMetadata(metadata).catch((err) => {
+        console.warn('Failed to update metadata:', err);
+      });
     }
   }, [connectedRoom, faceEnabled]);
 
