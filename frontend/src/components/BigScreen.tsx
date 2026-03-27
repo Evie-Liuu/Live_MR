@@ -144,6 +144,19 @@ export default function BigScreen() {
         setPoseUpdateCount(c => c + 1);
       } else if (msg.type === 'leave' && msg.identity) {
         removeAvatarRef.current(msg.identity);
+        // Prune BigScreen's own sessionStorage so a refresh won't reload this ghost
+        try {
+          const snap = JSON.parse(sessionStorage.getItem('bigscreen-snapshot') || '{}') as Record<string, unknown>;
+          delete snap[msg.identity];
+          sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(snap));
+        } catch {/* ignore */}
+        try {
+          const roles = JSON.parse(sessionStorage.getItem('bigscreen-studentRoles') || '{}') as Record<string, string>;
+          if (msg.identity in roles) {
+            delete roles[msg.identity];
+            sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(roles));
+          }
+        } catch {/* ignore */}
       } else if (msg.type === 'scene-change' && msg.sceneId) {
         setSceneId(msg.sceneId);
         sessionStorage.setItem('bigscreen-sceneId', msg.sceneId);

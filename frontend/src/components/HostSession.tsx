@@ -195,6 +195,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         const parsed = JSON.parse(text) as unknown;
         const identity = connectedRoom.localParticipant.identity;
         poseSnapshotRef.current[identity] = parsed;
+        // Update sessionStorage to keep snapshot in sync
+        try {
+          sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
+        } catch {/* ignore */ }
         setTeacherPoseData(parsed);
         const msg: BigScreenMsg = { type: 'pose', identity, poseData: parsed };
         channelRef.current?.postMessage(msg);
@@ -263,6 +267,20 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       });
       channelRef.current?.postMessage({ type: 'leave', identity: participant.identity });
       delete poseSnapshotRef.current[participant.identity];
+      // Prune stale identity from studentRoles so BigScreen re-open won't reload ghost avatars
+      setStudentRoles((prev) => {
+        if (!(participant.identity in prev)) return prev;
+        const next = { ...prev };
+        delete next[participant.identity];
+        try {
+          sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next));
+        } catch {/* ignore */ }
+        return next;
+      });
+      // Update sessionStorage to keep snapshot in sync
+      try {
+        sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
+      } catch {/* ignore */ }
     };
 
     const handleTrackSubscribed = (
@@ -293,6 +311,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         }));
 
         poseSnapshotRef.current[participant.identity] = data;
+        // Update sessionStorage to keep snapshot in sync
+        try {
+          sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
+        } catch {/* ignore */ }
         const msg: BigScreenMsg = { type: 'pose', identity: participant.identity, poseData: data };
         channelRef.current?.postMessage(msg);
       } catch {
