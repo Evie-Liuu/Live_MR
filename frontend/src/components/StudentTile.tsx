@@ -44,7 +44,7 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
   useEffect(() => {
     if (poseData) {
       applyPose(poseData);
-      
+
       // Also update size if it hasn't been set correctly
       if (videoRef.current && (videoSizeRef.current.width !== videoRef.current.clientWidth || videoSizeRef.current.height !== videoRef.current.clientHeight)) {
         if (videoRef.current.clientWidth > 0) {
@@ -64,8 +64,8 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
       <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
       {landmarks && (
-        <PoseDebugOverlay 
-          landmarks={[landmarks]} 
+        <PoseDebugOverlay
+          landmarks={[landmarks]}
           width={videoSizeRef.current.width}
           height={videoSizeRef.current.height}
         />

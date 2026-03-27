@@ -87,42 +87,36 @@ export default function BigScreen() {
       const raw = sessionStorage.getItem('bigscreen-snapshot');
       const snapshot: Record<string, unknown> = raw ? JSON.parse(raw) : {};
 
-      // ① Apply VRM overrides FIRST so ensureAvatar (called inside applyPose)
-      //    picks up the correct URL rather than the global default.
-
-      // 1a. Baseline roles copied from HostSession at window.open time
       const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
-      if (teacherVrmId) {
-        for (const identity of Object.keys(snapshot)) {
-          if (identity.startsWith('host-')) {
-            const vrmUrl = (VRM_SOURCES[teacherVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-            swapAvatarRef.current(identity, vrmUrl);
+      const roles: Record<string, string> = JSON.parse(
+        sessionStorage.getItem('bigscreen-studentRoles') || '{}',
+      );
+      // Live role changes received after BigScreen was opened (takes priority).
+      // Written by the vrm-identity-change channel handler below.
+      const liveUrls: Record<string, string> = JSON.parse(
+        sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}',
+      );
+
+      // ① Apply VRM overrides ONLY for identities present in the snapshot.
+      //    Iterating over all roles (not just snapshot) would create T-pose ghost
+      //    models for participants who have disconnected since the snapshot was taken.
+      for (const identity of Object.keys(snapshot)) {
+        // Priority: live URL (most recent) > student role > teacher fallback
+        let vrmUrl: string | undefined = liveUrls[identity];
+
+        if (!vrmUrl) {
+          if (identity.startsWith('host-') && teacherVrmId) {
+            vrmUrl = (VRM_SOURCES[teacherVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+          } else if (roles[identity]) {
+            vrmUrl = (VRM_SOURCES[roles[identity]] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
           }
         }
+
+        if (vrmUrl) swapAvatarRef.current(identity, vrmUrl);
       }
 
-      const rawRoles = sessionStorage.getItem('bigscreen-studentRoles');
-      if (rawRoles) {
-        const roles = JSON.parse(rawRoles) as Record<string, string>;
-        for (const [iden, srcId] of Object.entries(roles)) {
-          const vrmUrl = (VRM_SOURCES[srcId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-          swapAvatarRef.current(iden, vrmUrl);
-        }
-      }
-
-      // 1b. Live role changes received after BigScreen was opened (takes priority).
-      //     sessionStorage is per-window, so HostSession's writes don't propagate
-      //     here — we persist incoming vrm-identity-change messages ourselves.
-      const rawLiveUrls = sessionStorage.getItem('bigscreen-liveVrmUrls');
-      if (rawLiveUrls) {
-        const liveUrls = JSON.parse(rawLiveUrls) as Record<string, string>;
-        for (const [iden, vrmUrl] of Object.entries(liveUrls)) {
-          swapAvatarRef.current(iden, vrmUrl);
-        }
-      }
-
-      // ② Then apply poses — ensureAvatar reuses the in-flight loads started
-      //    above, so avatars load with the correct role VRM from the start.
+      // ② Apply poses — ensureAvatar reuses the in-flight loads started above,
+      //    so each avatar loads with the correct role VRM from the start.
       for (const [identity, poseData] of Object.entries(snapshot)) {
         applyPose(identity, poseData);
       }
@@ -144,7 +138,8 @@ export default function BigScreen() {
         setPoseUpdateCount(c => c + 1);
       } else if (msg.type === 'leave' && msg.identity) {
         removeAvatarRef.current(msg.identity);
-        // Prune BigScreen's own sessionStorage so a refresh won't reload this ghost
+        // Prune all BigScreen-local sessionStorage keys so a refresh won't
+        // reload a ghost model for this departed participant.
         try {
           const snap = JSON.parse(sessionStorage.getItem('bigscreen-snapshot') || '{}') as Record<string, unknown>;
           delete snap[msg.identity];
@@ -152,10 +147,13 @@ export default function BigScreen() {
         } catch {/* ignore */}
         try {
           const roles = JSON.parse(sessionStorage.getItem('bigscreen-studentRoles') || '{}') as Record<string, string>;
-          if (msg.identity in roles) {
-            delete roles[msg.identity];
-            sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(roles));
-          }
+          delete roles[msg.identity];
+          sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(roles));
+        } catch {/* ignore */}
+        try {
+          const live = JSON.parse(sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}') as Record<string, string>;
+          delete live[msg.identity];
+          sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
         } catch {/* ignore */}
       } else if (msg.type === 'scene-change' && msg.sceneId) {
         setSceneId(msg.sceneId);
@@ -165,6 +163,13 @@ export default function BigScreen() {
         sessionStorage.setItem('bigscreen-vrmSourceId', msg.vrmSourceId);
       } else if (msg.type === 'vrm-identity-change' && msg.identity && msg.vrmUrl) {
         swapAvatarRef.current(msg.identity, msg.vrmUrl);
+        // Persist to BigScreen's own sessionStorage (per-window — HostSession's
+        // writes don't propagate here) so a refresh restores the live role.
+        try {
+          const live = JSON.parse(sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}') as Record<string, string>;
+          live[msg.identity] = msg.vrmUrl;
+          sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
+        } catch {/* ignore */}
       }
     };
 
