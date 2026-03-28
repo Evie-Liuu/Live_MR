@@ -86,6 +86,7 @@ export function applyPoseToVrm(
       frame.landmarks,
       state.prevRotations,
       solverSmoothing,
+      mirror,
     );
     state.prevRotations = boneRotations;
     state.cachedBoneRotations = boneRotations;
@@ -104,12 +105,9 @@ export function applyPoseToVrm(
     const bone = humanoid.getNormalizedBoneNode(boneName as never);
     if (!bone) continue;
 
-    // Mirror horizontal axes (Y-Yaw and Z-Roll) for visual mirroring (左右同向)
-    if (mirror) {
-      _targetQuat.set(rot.x, -rot.y, rot.z, rot.w);
-    } else {
-      _targetQuat.set(rot.x, rot.y, rot.z, rot.w);
-    }
+    // 鏡像已在 solver 的歐拉角空間完成（轉四元數之前），
+    // 此處直接套用，不再於四元數空間做近似反轉。
+    _targetQuat.set(rot.x, rot.y, rot.z, rot.w);
     bone.quaternion.slerp(_targetQuat, t);
 
     // Apply Hips translation

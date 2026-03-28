@@ -98,17 +98,20 @@ function slerpRotation(
 
 /**
  * Solve pose using Kalidokit and return VRM bone rotations.
- * 
+ *
  * @param worldLandmarks 33 world-space landmarks
  * @param normalizedLandmarks 33 normalized landmarks
  * @param prevRotations Previous frame's rotations for smoothing
  * @param smoothing Smoothing factor (0 = no smoothing, 0.9 = very smooth)
+ * @param mirror 鏡像模式：在歐拉角空間反轉 Y（偏航）和 Z（翻滾），
+ *               必須在轉四元數之前完成，否則軸間會交叉耦合導致側傾
  */
 export function solveWithKalidokit(
   worldLandmarks: Landmark[],
   normalizedLandmarks: Landmark[],
   prevRotations: Record<string, BoneRotation>,
   smoothing: number,
+  mirror = false,
 ): {
   boneRotations: Record<string, BoneRotation>
   hipsPosition?: { x: number; y: number; z: number }
@@ -130,13 +133,24 @@ export function solveWithKalidokit(
 
   const rotations: Record<string, BoneRotation> = {}
 
+  // Kalidokit computes Spine as a world-space rotation (from shoulder landmarks),
+  // but VRM Spine is a child of Hips. Subtract Hips rotation so we apply only
+  // the *relative* upper-body twist, avoiding double-rotation that causes
+  // over-yaw and asymmetric side-tilt when turning.
+  if (poseRig.Hips && poseRig.Spine) {
+    poseRig.Spine.y -= poseRig.Hips.rotation.y
+    poseRig.Spine.z -= poseRig.Hips.rotation.z
+  }
+
   // Convert each Kalidokit bone's Euler rotation → quaternion → smoothed
   for (const [kalidoName, vrmName] of Object.entries(KALIDOKIT_TO_VRM)) {
     const eulerRot = poseRig[kalidoName as keyof KalidokitPoseResult]
     if (!eulerRot || typeof eulerRot !== 'object' || !('x' in eulerRot)) continue
 
     const euler = eulerRot as { x: number; y: number; z: number }
-    const currentQuat = eulerToQuaternion(euler)
+    // 鏡像：在歐拉角空間反轉 Y/Z，避免四元數空間的軸交叉耦合
+    const mirrored = mirror ? { x: euler.x, y: -euler.y, z: -euler.z } : euler
+    const currentQuat = eulerToQuaternion(mirrored)
     rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing)
   }
 
@@ -144,7 +158,10 @@ export function solveWithKalidokit(
   let hipsPosition: { x: number; y: number; z: number } | undefined = undefined
   if (poseRig.Hips) {
     const hipsEuler = poseRig.Hips.rotation
-    const hipsQuat = eulerToQuaternion(hipsEuler)
+    const mirroredHips = mirror
+      ? { x: hipsEuler.x, y: -hipsEuler.y, z: -hipsEuler.z }
+      : hipsEuler
+    const hipsQuat = eulerToQuaternion(mirroredHips)
     rotations.hips = slerpRotation(hipsQuat, prevRotations.hips, smoothing)
 
     hipsPosition = {
