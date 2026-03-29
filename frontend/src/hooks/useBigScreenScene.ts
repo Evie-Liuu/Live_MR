@@ -23,7 +23,7 @@ import {
   type PoseApplyState,
 } from '../utils/vrmPoseApplier';
 import { applyLights, applyGrid } from '../utils/threeScene';
-import type { PoseFrame, SceneConfig } from '../types/vrm';
+import type { PoseFrame, SceneConfig, AvatarSpawnConfig } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
 
@@ -63,13 +63,15 @@ interface UseBigScreenSceneOptions {
   sceneId?: string;
   /** VRM source ID used for all avatars (default: 'default') */
   vrmSourceId?: string;
+  /** Slot assignments from HostSession: slotId → participant identity */
+  slotAssignments?: Record<string, string>;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -99,6 +101,15 @@ export function useBigScreenScene(
   const presetRef = useRef<SceneConfig>(
     SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID],
   );
+
+  /** Latest slot assignments (slotId → identity). Updated each render so callbacks are current. */
+  const slotAssignmentsRef = useRef<Record<string, string>>(slotAssignments ?? {});
+  slotAssignmentsRef.current = slotAssignments ?? {};
+
+  /** Identities that are slot-pinned (should not use auto-spacing). */
+  const slotPinnedRef = useRef<Set<string>>(new Set());
+  /** Per-identity spawn overrides set when an identity is assigned to a slot. */
+  const spawnOverridesRef = useRef<Map<string, AvatarSpawnConfig>>(new Map());
 
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
@@ -196,6 +207,8 @@ export function useBigScreenScene(
       loadingRef.current.clear();
       loadGenRef.current.clear();
       orderRef.current = [];
+      slotPinnedRef.current.clear();
+      spawnOverridesRef.current.clear();
       renderer.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -209,6 +222,7 @@ export function useBigScreenScene(
     const spacing = presetRef.current.avatarSpacing ?? 1.6;
 
     order.forEach((id, i) => {
+      if (slotPinnedRef.current.has(id)) return; // slot-pinned: position is managed by slot
       const slot = avatarsRef.current.get(id);
       if (!slot) return;
       const x = slotX(i, total, spacing);
@@ -221,9 +235,25 @@ export function useBigScreenScene(
   // ─── Avatar lifecycle ─────────────────────────────────────────────────────
 
   const ensureAvatar = useCallback(
-    (identity: string, vrmUrlOverride?: string): Promise<AvatarSlot> => {
+    (identity: string, vrmUrlOverride?: string, spawnOverride?: AvatarSpawnConfig): Promise<AvatarSlot> => {
+      // If a spawn override is provided, pin the identity and store the override
+      if (spawnOverride) {
+        slotPinnedRef.current.add(identity);
+        spawnOverridesRef.current.set(identity, spawnOverride);
+      }
+
       const existing = avatarsRef.current.get(identity);
-      if (existing) return Promise.resolve(existing);
+      if (existing) {
+        // Reposition to new slot location if spawn override provided
+        if (spawnOverride?.position) {
+          existing.vrm.scene.position.set(...spawnOverride.position);
+          existing.baseX = spawnOverride.position[0];
+        }
+        if (spawnOverride?.rotation) {
+          existing.vrm.scene.rotation.set(...spawnOverride.rotation);
+        }
+        return Promise.resolve(existing);
+      }
 
       const inFlight = loadingRef.current.get(identity);
       if (inFlight) return inFlight;
@@ -236,7 +266,11 @@ export function useBigScreenScene(
         vrmUrlOverride ??
         vrmUrlOverridesRef.current.get(identity) ??
         (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-      const spawn = presetRef.current.avatarDefaults;
+      // Spawn priority: explicit override → stored slot override → scene avatarDefaults
+      const spawn =
+        spawnOverride ??
+        spawnOverridesRef.current.get(identity) ??
+        presetRef.current.avatarDefaults;
 
       // Assign a generation so stale loads (superseded by swapAvatar) can
       // detect themselves and remove the already-added VRM from the scene.
@@ -252,18 +286,21 @@ export function useBigScreenScene(
             throw new Error(`[BigScreenScene] Stale load discarded for ${identity}`);
           }
 
-          if (!orderRef.current.includes(identity)) {
-            // Host avatar goes first (leftmost)
-            if (identity.startsWith('host-')) {
-              orderRef.current.unshift(identity);
-            } else {
-              orderRef.current.push(identity);
+          const isSlotPinned = slotPinnedRef.current.has(identity);
+          if (!isSlotPinned) {
+            if (!orderRef.current.includes(identity)) {
+              // Host avatar goes first (leftmost)
+              if (identity.startsWith('host-')) {
+                orderRef.current.unshift(identity);
+              } else {
+                orderRef.current.push(identity);
+              }
             }
           }
 
           const slot: AvatarSlot = {
             vrm,
-            baseX: 0,
+            baseX: spawn?.position?.[0] ?? 0,
             poseState: createPoseApplyState(),
             initialHipsPos,
             pendingPose: null,
@@ -273,7 +310,7 @@ export function useBigScreenScene(
           };
           avatarsRef.current.set(identity, slot);
           loadingRef.current.delete(identity);
-          reposition();
+          if (!isSlotPinned) reposition();
           return slot;
         })
         .catch((err) => {
@@ -330,7 +367,25 @@ export function useBigScreenScene(
   const applyPose = useCallback(
     async (identity: string, rawData: unknown) => {
       try {
-        const slot = await ensureAvatar(identity);
+        const preset = presetRef.current;
+
+        // In slotted scenes, only load avatars for assigned participants
+        let slotSpawn: AvatarSpawnConfig | undefined;
+        if (preset.slots && preset.slots.length > 0) {
+          const slotId = Object.entries(slotAssignmentsRef.current)
+            .find(([, id]) => id === identity)?.[0];
+          if (!slotId) return; // unassigned: not shown on BigScreen
+          const sceneSlot = preset.slots.find(s => s.id === slotId);
+          if (sceneSlot) {
+            slotSpawn = {
+              position: sceneSlot.position,
+              rotation: sceneSlot.rotation,
+              scale: preset.avatarDefaults?.scale,
+            };
+          }
+        }
+
+        const slot = await ensureAvatar(identity, undefined, slotSpawn);
         const frame = rawData as PoseFrame;
         if (!frame?.landmarks || frame.landmarks.length < 33) return;
 
@@ -365,6 +420,8 @@ export function useBigScreenScene(
       loadGenRef.current.delete(identity);
       orderRef.current = orderRef.current.filter((id) => id !== identity);
       vrmUrlOverridesRef.current.delete(identity);
+      slotPinnedRef.current.delete(identity);
+      spawnOverridesRef.current.delete(identity);
       reposition();
     },
     [reposition],
@@ -381,5 +438,5 @@ export function useBigScreenScene(
     vrmUrlOverridesRef.current.set(identity, vrmUrl);
   }, []);
 
-  return { applyPose, removeAvatar, swapAvatar, setVrmOverride };
+  return { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar };
 }
