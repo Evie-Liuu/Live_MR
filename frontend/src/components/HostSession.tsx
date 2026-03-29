@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Room,
   RoomEvent,
@@ -527,6 +527,8 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
 
+  const SLOT_COLORS = ['#44aaff', '#ff8844', '#aa88ff', '#44ff88'];
+
   return (
     <div className="host-session">
       {/* Hidden video element used solely for teacher pose detection */}
@@ -559,21 +561,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           ))}
         </select>
 
-        {/* ── 角色模型選擇器（老師本人） ── */}
-        <label htmlFor="vrm-teacher-select" className="control-label">🎓 老師角色：</label>
-        <select
-          id="vrm-teacher-select"
-          className="control-select"
-          value={teacherVrmSourceId}
-          onChange={(e) => handleTeacherVrmChange(e.target.value)}
-        >
-          {allowedVrms.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-
         <button
           className={`control-btn ${faceEnabled ? 'active' : ''}`}
           onClick={() => setFaceEnabled((v) => !v)}
@@ -602,18 +589,29 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         {hasSlots && (
           <div className="slot-panel">
             <div className="slot-panel-header">🎭 場景角色 SLOTS</div>
-            {currentScenePreset.slots!.map((sceneSlot) => {
+            {currentScenePreset.slots!.map((sceneSlot, slotIndex) => {
               const assignedIdentity = slotAssignments[sceneSlot.id];
               const assignedVrmId = assignedIdentity
                 ? (studentRoles[assignedIdentity] ?? sceneSlot.defaultVrmId ?? selectedVrmSourceId)
                 : (sceneSlot.defaultVrmId ?? selectedVrmSourceId);
               return (
-                <div key={sceneSlot.id} className="slot-block">
+                <div
+                  key={sceneSlot.id}
+                  className="slot-block"
+                  style={{ '--slot-color': SLOT_COLORS[slotIndex % SLOT_COLORS.length] } as React.CSSProperties}
+                >
                   <div className="slot-block-title">
-                    {sceneSlot.icon && <span>{sceneSlot.icon}</span>}
-                    <span>{sceneSlot.label}</span>
+                    {sceneSlot.icon && <span style={{ fontSize: '18px' }}>{sceneSlot.icon}</span>}
+                    <div>
+                      <div style={{ color: SLOT_COLORS[slotIndex % SLOT_COLORS.length], fontSize: '12px', fontWeight: 700 }}>
+                        {sceneSlot.label}
+                      </div>
+                      <div className="slot-block-position-hint">
+                        位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'} (x={sceneSlot.position[0]})
+                      </div>
+                    </div>
                     <span className={`slot-status ${assignedIdentity ? 'assigned' : 'unassigned'}`}>
-                      {assignedIdentity ? '已指派' : '未指派'}
+                      {assignedIdentity ? '● 已指派' : '未指派'}
                     </span>
                   </div>
                   <label className="slot-field-label">指派給</label>
@@ -652,55 +650,126 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           </div>
         )}
 
-        {/* ── Participant Grid ── */}
-        <div className="student-grid">
-          {studentList.map((info) => {
-            const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
-            const assignedSlotId = identityToSlotId[info.participant.identity];
-            const assignedSlot = assignedSlotId
-              ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
-              : undefined;
-            return (
-              <div
-                key={info.participant.identity}
-                className="student-container"
-                style={{ position: 'relative', opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
-              >
-                <StudentTile
-                  participant={info.participant}
-                  videoTrack={info.videoTrack}
-                  poseData={info.poseData}
-                  vrmSourceId={currentVrmId}
-                />
-                {assignedSlot && (
-                  <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
-                    {assignedSlot.icon} {assignedSlot.label}
-                  </div>
+        {/* ── Right Column (task selector + participant grid) ── */}
+        <div className="host-right-col">
+          {currentScenePreset.tasks && currentScenePreset.tasks.length > 0 && (
+            <div className="task-selector">
+              <div className="task-selector-header">🎯 場景任務目標</div>
+              <div className="task-pills">
+                {currentScenePreset.tasks.map((task) => (
+                  <button
+                    key={task}
+                    className={`task-pill${selectedTask === task ? ' active' : ''}`}
+                    onClick={() => { setSelectedTask(task); broadcastTaskChange(task); }}
+                  >
+                    {task}
+                  </button>
+                ))}
+                {selectedTask && (
+                  <button
+                    className="task-pill-clear"
+                    onClick={() => { setSelectedTask(null); broadcastTaskChange(null); }}
+                  >
+                    ✕ 無任務
+                  </button>
                 )}
-                {!assignedSlot && hasSlots && (
-                  <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
-                    未指派
+              </div>
+            </div>
+          )}
+
+          <div className="student-grid">
+            {/* ── Teacher card ── */}
+            {connectedRoom && (() => {
+              const teacherIdentityLocal = connectedRoom.localParticipant.identity;
+              const teacherSlotId = identityToSlotId[teacherIdentityLocal];
+              const teacherSlot = teacherSlotId
+                ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
+                : undefined;
+              return (
+                <div
+                  className="student-container teacher-card"
+                  style={{ position: 'relative', opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
+                >
+                  <div className="teacher-card-tab">老師</div>
+                  {teacherSlot && (
+                    <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                      {teacherSlot.icon} {teacherSlot.label}
+                    </div>
+                  )}
+                  {!teacherSlot && hasSlots && (
+                    <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                      未指派
+                    </div>
+                  )}
+                  <div className="teacher-card-video">📹 自身影像</div>
+                  <div className="student-name">
+                    {connectedRoom.localParticipant.name || teacherIdentityLocal}
                   </div>
-                )}
-                {!hasSlots && (
-                  <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
+                  <div style={{ padding: '4px 8px 6px' }}>
                     <select
                       className="control-select"
-                      value={currentVrmId}
-                      onChange={(e) => handleStudentRoleChange(info.participant.identity, e.target.value)}
-                      style={{ fontSize: '11px', padding: '1px' }}
+                      value={teacherVrmSourceId}
+                      onChange={(e) => handleTeacherVrmChange(e.target.value)}
+                      style={{ width: '100%', fontSize: '11px' }}
                     >
                       {allowedVrms.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.label}
-                        </option>
+                        <option key={s.id} value={s.id}>{s.label}</option>
                       ))}
                     </select>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                </div>
+              );
+            })()}
+
+            {/* ── Student tiles ── */}
+            {studentList.map((info) => {
+              const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
+              const assignedSlotId = identityToSlotId[info.participant.identity];
+              const assignedSlot = assignedSlotId
+                ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
+                : undefined;
+              return (
+                <div
+                  key={info.participant.identity}
+                  className="student-container"
+                  style={{ position: 'relative', opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
+                >
+                  <StudentTile
+                    participant={info.participant}
+                    videoTrack={info.videoTrack}
+                    poseData={info.poseData}
+                    vrmSourceId={currentVrmId}
+                  />
+                  {assignedSlot && (
+                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                      {assignedSlot.icon} {assignedSlot.label}
+                    </div>
+                  )}
+                  {!assignedSlot && hasSlots && (
+                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                      未指派
+                    </div>
+                  )}
+                  {!hasSlots && (
+                    <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
+                      <select
+                        className="control-select"
+                        value={currentVrmId}
+                        onChange={(e) => handleStudentRoleChange(info.participant.identity, e.target.value)}
+                        style={{ fontSize: '11px', padding: '1px' }}
+                      >
+                        {allowedVrms.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
