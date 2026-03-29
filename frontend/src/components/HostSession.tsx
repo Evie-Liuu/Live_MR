@@ -70,10 +70,31 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     }
   });
 
+  // Slot assignments: slotId → participant identity
+  const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  // Selected scene task goal
+  const [selectedTask, setSelectedTask] = useState<string | null>(
+    () => sessionStorage.getItem('bigscreen-task') ?? null,
+  );
+
   // Broadcast scene/VRM changes to any open BigScreen window
   const broadcastSceneChange = useCallback((sceneId: string) => {
     sessionStorage.setItem('bigscreen-sceneId', sceneId);
     const msg: BigScreenMsg = { type: 'scene-change', sceneId };
+    channelRef.current?.postMessage(msg);
+  }, []);
+
+  const broadcastTaskChange = useCallback((task: string | null) => {
+    if (task) sessionStorage.setItem('bigscreen-task', task);
+    else sessionStorage.removeItem('bigscreen-task');
+    const msg: BigScreenMsg = { type: 'task-change', task };
     channelRef.current?.postMessage(msg);
   }, []);
 
@@ -99,6 +120,14 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const handleSceneChange = useCallback(
     (sceneId: string) => {
       setSelectedSceneId(sceneId);
+      // Clear slot assignments — they are scene-specific
+      setSlotAssignments({});
+      try { sessionStorage.removeItem('bigscreen-slotAssignments'); } catch {/* ignore */}
+      // Clear task goal — it is scene-specific
+      setSelectedTask(null);
+      sessionStorage.removeItem('bigscreen-task');
+      const taskClearMsg: BigScreenMsg = { type: 'task-change', task: null };
+      channelRef.current?.postMessage(taskClearMsg);
       broadcastSceneChange(sceneId);
 
       // Validate and fallback roles if the new scene restricts them
@@ -176,6 +205,50 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       channelRef.current?.postMessage(msg);
     },
     [],
+  );
+
+  const handleSlotAssign = useCallback(
+    (slotId: string, identity: string | null) => {
+      const preset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
+      const sceneSlot = preset.slots?.find(s => s.id === slotId);
+
+      setSlotAssignments(prev => {
+        const next = { ...prev };
+        if (identity === null) {
+          delete next[slotId];
+        } else {
+          // If this identity is already in another slot, vacate that slot
+          for (const [sid, id] of Object.entries(next)) {
+            if (id === identity && sid !== slotId) {
+              delete next[sid];
+            }
+          }
+          next[slotId] = identity;
+        }
+        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */}
+        return next;
+      });
+
+      // Apply VRM priority: manual override > slot default > scene global
+      if (identity && sceneSlot?.defaultVrmId) {
+        const hasManualOverride = studentRoles[identity];
+        if (!hasManualOverride) {
+          const vrmUrl = (VRM_SOURCES[sceneSlot.defaultVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+          const vrmMsg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
+          channelRef.current?.postMessage(vrmMsg);
+          // Persist so BigScreen restore sees it
+          setStudentRoles(prev => {
+            const next = { ...prev, [identity]: sceneSlot.defaultVrmId! };
+            try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */}
+            return next;
+          });
+        }
+      }
+
+      const msg: BigScreenMsg = { type: 'slot-assign', slotId, identity: identity ?? undefined };
+      channelRef.current?.postMessage(msg);
+    },
+    [selectedSceneId, studentRoles],
   );
 
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
@@ -277,6 +350,17 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         try {
           sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next));
         } catch {/* ignore */ }
+        return next;
+      });
+      // Remove disconnected participant from slot assignments
+      setSlotAssignments((prev) => {
+        const entry = Object.entries(prev).find(([, id]) => id === participant.identity);
+        if (!entry) return prev;
+        const [slotId] = entry;
+        const next = { ...prev };
+        delete next[slotId];
+        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */}
+        channelRef.current?.postMessage({ type: 'slot-assign', slotId, identity: undefined });
         return next;
       });
       // Update sessionStorage to keep snapshot in sync
@@ -396,12 +480,15 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
       sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
       sessionStorage.setItem('bigscreen-teacherVrmSourceId', teacherVrmSourceId);
-    } catch {/* ignore */ }
+      sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(slotAssignments));
+      if (selectedTask) sessionStorage.setItem('bigscreen-task', selectedTask);
+      else sessionStorage.removeItem('bigscreen-task');
+    } catch {/* ignore */}
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId]);
+  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTask]);
 
   // Ensure teacher's VRM is broadcasted when room connects initially
   useEffect(() => {
@@ -425,6 +512,20 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const allowedVrms = currentScenePreset.allowedVrmIds
     ? currentScenePreset.allowedVrmIds.map(id => VRM_SOURCES[id]).filter(Boolean)
     : Object.values(VRM_SOURCES);
+
+  // Reverse map: identity → slotId
+  const identityToSlotId = Object.fromEntries(
+    Object.entries(slotAssignments).map(([slotId, identity]) => [identity, slotId])
+  );
+
+  // All participants for slot assignment dropdown (teacher + students)
+  const teacherIdentity = connectedRoom?.localParticipant.identity;
+  const allParticipantOptions = [
+    ...(teacherIdentity ? [{ identity: teacherIdentity, label: `老師 (${teacherIdentity})` }] : []),
+    ...studentList.map(info => ({ identity: info.participant.identity, label: info.participant.name || info.participant.identity })),
+  ];
+
+  const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
 
   return (
     <div className="host-session">
@@ -496,35 +597,111 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
       {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />}
 
-      <div className="student-grid">
-        {studentList.map((info) => {
-          const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
-          return (
-            <div key={info.participant.identity} className="student-container" style={{ position: 'relative' }}>
-              <StudentTile
-                // key={info.participant.identity}
-                participant={info.participant}
-                videoTrack={info.videoTrack}
-                poseData={info.poseData}
-                vrmSourceId={currentVrmId}
-              />
-              <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
-                <select
-                  className="control-select"
-                  value={currentVrmId}
-                  onChange={(e) => handleStudentRoleChange(info.participant.identity, e.target.value)}
-                  style={{ fontSize: '11px', padding: '1px' }}
-                >
-                  {allowedVrms.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
+      <div className={hasSlots ? 'host-main-two-col' : undefined}>
+        {/* ── Slot Panel (only shown when scene has slots) ── */}
+        {hasSlots && (
+          <div className="slot-panel">
+            <div className="slot-panel-header">🎭 場景角色 SLOTS</div>
+            {currentScenePreset.slots!.map((sceneSlot) => {
+              const assignedIdentity = slotAssignments[sceneSlot.id];
+              const assignedVrmId = assignedIdentity
+                ? (studentRoles[assignedIdentity] ?? sceneSlot.defaultVrmId ?? selectedVrmSourceId)
+                : (sceneSlot.defaultVrmId ?? selectedVrmSourceId);
+              return (
+                <div key={sceneSlot.id} className="slot-block">
+                  <div className="slot-block-title">
+                    {sceneSlot.icon && <span>{sceneSlot.icon}</span>}
+                    <span>{sceneSlot.label}</span>
+                    <span className={`slot-status ${assignedIdentity ? 'assigned' : 'unassigned'}`}>
+                      {assignedIdentity ? '已指派' : '未指派'}
+                    </span>
+                  </div>
+                  <label className="slot-field-label">指派給</label>
+                  <select
+                    className="control-select slot-select"
+                    value={assignedIdentity ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleSlotAssign(sceneSlot.id, val === '' ? null : val);
+                    }}
+                  >
+                    <option value="">─ 移除指派</option>
+                    {allParticipantOptions.map(opt => (
+                      <option key={opt.identity} value={opt.identity}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <label className="slot-field-label">角色模型</label>
+                  <select
+                    className="control-select slot-select"
+                    value={assignedVrmId}
+                    disabled={!assignedIdentity}
+                    onChange={(e) => {
+                      if (assignedIdentity) handleStudentRoleChange(assignedIdentity, e.target.value);
+                    }}
+                  >
+                    {allowedVrms.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.id === sceneSlot.defaultVrmId ? `★ ${s.label}` : s.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+            <div className="slot-panel-footer">未指派者不出現在大屏</div>
+          </div>
+        )}
+
+        {/* ── Participant Grid ── */}
+        <div className="student-grid">
+          {studentList.map((info) => {
+            const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
+            const assignedSlotId = identityToSlotId[info.participant.identity];
+            const assignedSlot = assignedSlotId
+              ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
+              : undefined;
+            return (
+              <div
+                key={info.participant.identity}
+                className="student-container"
+                style={{ position: 'relative', opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
+              >
+                <StudentTile
+                  participant={info.participant}
+                  videoTrack={info.videoTrack}
+                  poseData={info.poseData}
+                  vrmSourceId={currentVrmId}
+                />
+                {assignedSlot && (
+                  <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                    {assignedSlot.icon} {assignedSlot.label}
+                  </div>
+                )}
+                {!assignedSlot && hasSlots && (
+                  <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                    未指派
+                  </div>
+                )}
+                {!hasSlots && (
+                  <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
+                    <select
+                      className="control-select"
+                      value={currentVrmId}
+                      onChange={(e) => handleStudentRoleChange(info.participant.identity, e.target.value)}
+                      style={{ fontSize: '11px', padding: '1px' }}
+                    >
+                      {allowedVrms.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
