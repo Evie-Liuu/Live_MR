@@ -690,8 +690,8 @@ button:disabled {
 
 /* ===== Host Session – teacher card ===== */
 .teacher-card {
-  border-color: #3a2a5a !important;
-  background: #1e1a2e !important;
+  border-color: #3a2a5a;
+  background: #1e1a2e;
 }
 
 .teacher-card-tab {
