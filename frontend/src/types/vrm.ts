@@ -23,6 +23,16 @@ export interface PoseFrame {
 
 // ─── Scene Configuration ──────────────────────────────────────────────────────
 
+/** A named, fixed position within a scene for a participant */
+export interface SceneSlot {
+  id: string;                                    // e.g. 'cashier', 'customer'
+  label: string;                                 // display name e.g. '收銀員'
+  icon?: string;                                 // optional emoji for console UI e.g. '🏪'
+  position: [x: number, y: number, z: number];  // world-space position on BigScreen
+  rotation?: [x: number, y: number, z: number]; // euler rotation (radians); y used to face partner
+  defaultVrmId?: string;                         // suggested VRM for this slot
+}
+
 /** Camera preset: where the Three.js PerspectiveCamera sits */
 export interface CameraConfig {
   fov: number;
@@ -68,6 +78,10 @@ export interface SceneConfig {
   avatarDefaults?: AvatarSpawnConfig;
   /** Spacing between avatar slots (metres) */
   avatarSpacing?: number;
+  /** Named, fixed positions for participants in this scene (enables slot-assignment mode) */
+  slots?: SceneSlot[];
+  /** Optional list of task goal strings for this scene. Host picks one; BigScreen shows it. */
+  tasks?: string[];
 }
 
 // ─── VRM Source Configuration ─────────────────────────────────────────────────
