@@ -7,7 +7,7 @@ import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -16,6 +16,10 @@ export interface BigScreenMsg {
   vrmSourceId?: string;
   /** For 'vrm-identity-change': swap the VRM for a specific participant */
   vrmUrl?: string;
+  /** For 'slot-assign': which slot to assign/clear */
+  slotId?: string;
+  /** For 'task-change': task string, or null to clear */
+  task?: string | null;
 }
 
 /**
@@ -91,9 +95,21 @@ export default function BigScreen() {
   const [vrmSourceId, setVrmSourceId] = useState<string>(() => {
     return sessionStorage.getItem('bigscreen-vrmSourceId') ?? 'default';
   });
+  const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
+    } catch { return {}; }
+  });
+  /** BigScreen-local ref: slotId → identity for resolving unassign (identity == null) */
+  const slotAssignmentsRef = useRef<Map<string, string>>(
+    new Map(Object.entries(JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}')))
+  );
+  const [currentTask, setCurrentTask] = useState<string | null>(
+    () => sessionStorage.getItem('bigscreen-task') ?? null,
+  );
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { applyPose, removeAvatar, swapAvatar, setVrmOverride } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId });
+  const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId, slotAssignments });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
   const applyPoseRef = useRef(applyPose);
@@ -102,6 +118,8 @@ export default function BigScreen() {
   swapAvatarRef.current = swapAvatar;
   const setVrmOverrideRef = useRef(setVrmOverride);
   setVrmOverrideRef.current = setVrmOverride;
+  const ensureAvatarRef = useRef(ensureAvatar);
+  ensureAvatarRef.current = ensureAvatar;
 
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
   /** Identities whose VRM override has already been registered this session */
@@ -133,6 +151,7 @@ export default function BigScreen() {
       }
 
       // ② Apply poses — ensureAvatar picks up the pre-registered override above.
+      //    applyPose will skip identities not assigned to a slot in slotted scenes.
       for (const [identity, poseData] of Object.entries(snapshot)) {
         applyPose(identity, poseData);
       }
@@ -169,6 +188,17 @@ export default function BigScreen() {
         setPoseUpdateCount(c => c + 1);
       } else if (msg.type === 'leave' && msg.identity) {
         removeAvatarRef.current(msg.identity);
+        // Remove from slot assignments if they were assigned
+        for (const [slotId, id] of slotAssignmentsRef.current) {
+          if (id === msg.identity) {
+            slotAssignmentsRef.current.delete(slotId);
+            setSlotAssignments(prev => {
+              const next = { ...prev };
+              delete next[slotId];
+              return next;
+            });
+          }
+        }
         // Prune all BigScreen-local sessionStorage keys so a refresh won't
         // reload a ghost model for this departed participant.
         try {
@@ -186,9 +216,60 @@ export default function BigScreen() {
           delete live[msg.identity];
           sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
         } catch {/* ignore */}
+      } else if (msg.type === 'slot-assign' && msg.slotId !== undefined) {
+        if (msg.identity != null) {
+          // Assign identity to slot
+          slotAssignmentsRef.current.set(msg.slotId, msg.identity);
+          setSlotAssignments(prev => ({ ...prev, [msg.slotId!]: msg.identity! }));
+          try {
+            const stored = JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
+            stored[msg.slotId] = msg.identity;
+            sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(stored));
+          } catch {/* ignore */}
+          // Immediately load avatar at slot position (before next pose frame)
+          const preset = SCENE_PRESETS[sceneId];
+          const sceneSlot = preset?.slots?.find(s => s.id === msg.slotId);
+          if (sceneSlot) {
+            const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
+            const roles: Record<string, string> = JSON.parse(
+              sessionStorage.getItem('bigscreen-studentRoles') || '{}',
+            );
+            const liveUrls: Record<string, string> = JSON.parse(
+              sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}',
+            );
+            const vrmUrl = resolveVrmUrl(msg.identity, liveUrls, roles, teacherVrmId);
+            const spawn = {
+              position: sceneSlot.position,
+              rotation: sceneSlot.rotation,
+              scale: preset.avatarDefaults?.scale,
+            };
+            ensureAvatarRef.current(msg.identity, vrmUrl, spawn).catch(() => {/* ignore */});
+          }
+        } else {
+          // Unassign: remove previous occupant
+          const prevIdentity = slotAssignmentsRef.current.get(msg.slotId);
+          if (prevIdentity) {
+            removeAvatarRef.current(prevIdentity);
+            slotAssignmentsRef.current.delete(msg.slotId);
+            setSlotAssignments(prev => {
+              const next = { ...prev };
+              delete next[msg.slotId!];
+              return next;
+            });
+            try {
+              const stored = JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
+              delete stored[msg.slotId];
+              sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(stored));
+            } catch {/* ignore */}
+          }
+        }
       } else if (msg.type === 'scene-change' && msg.sceneId) {
         setSceneId(msg.sceneId);
         sessionStorage.setItem('bigscreen-sceneId', msg.sceneId);
+        // Clear slot assignments — they are scene-specific
+        setSlotAssignments({});
+        slotAssignmentsRef.current.clear();
+        sessionStorage.removeItem('bigscreen-slotAssignments');
       } else if (msg.type === 'vrm-change' && msg.vrmSourceId) {
         setVrmSourceId(msg.vrmSourceId);
         sessionStorage.setItem('bigscreen-vrmSourceId', msg.vrmSourceId);
@@ -201,6 +282,8 @@ export default function BigScreen() {
           live[msg.identity] = msg.vrmUrl;
           sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
         } catch {/* ignore */}
+      } else if (msg.type === 'task-change') {
+        setCurrentTask(msg.task ?? null);
       }
     };
 
@@ -243,6 +326,13 @@ export default function BigScreen() {
         <span className="bigscreen-title">Live MR — 大屏顯示</span>
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
+
+      {currentTask && (
+        <div className="bigscreen-task-overlay">
+          <div className="bigscreen-task-label">🎯 任務目標</div>
+          <div className="bigscreen-task-text">{currentTask}</div>
+        </div>
+      )}
 
       <PerformanceMonitor label="Render FPS" position="top-right" />
       <PerformanceMonitor label="Pose Rx FPS" trigger={poseUpdateCount} position="bottom-right" />
