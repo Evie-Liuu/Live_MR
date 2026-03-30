@@ -94,7 +94,7 @@ export function applyPoseToVrm(
   }
 
   const boneRotations = state.cachedBoneRotations!;
-  const hipsPosition  = state.cachedHipsPos;
+  const hipsPosition = state.cachedHipsPos;
 
   const humanoid = vrm.humanoid;
   if (!humanoid) return;
@@ -113,9 +113,9 @@ export function applyPoseToVrm(
     // Apply Hips translation
     if (boneName === 'hips' && hipsPosition) {
       const mirrorX = mirror ? -1 : 1;
-      bone.position.x = THREE.MathUtils.lerp(bone.position.x, mirrorX * hipsPosition.x, t);
+      bone.position.x = THREE.MathUtils.lerp(bone.position.x, -hipsPosition.x, t) * 0.1;  // 1
       bone.position.y = THREE.MathUtils.lerp(bone.position.y, hipsPosition.y, t);
-      bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z, t);
+      bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z, t) * 0.1;  // 1
     }
   }
 
