@@ -3,18 +3,22 @@ import type { Room } from 'livekit-client';
 import { Track } from 'livekit-client';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import type { PoseFrame } from '../types/vrm';
+import { useVrmAvatar } from '../hooks/useVrmAvatar';
 
 interface LocalVideoProps {
   room: Room;
   poseData?: unknown;
+  vrmSourceId?: string;
 }
 
 /**
  * Teacher self-view tile: attaches the local camera track to a <video>
  * and overlays the pose debug skeleton if poseData is available.
  */
-export default function LocalVideo({ room, poseData }: LocalVideoProps) {
+export default function LocalVideo({ room, poseData, vrmSourceId }: LocalVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId });
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
 
   useEffect(() => {
@@ -46,6 +50,13 @@ export default function LocalVideo({ room, poseData }: LocalVideoProps) {
     };
   }, [room]);
 
+  // Apply pose to VRM avatar
+  useEffect(() => {
+    if (poseData) {
+      applyPose(poseData);
+    }
+  }, [poseData, applyPose]);
+
   // Keep size in sync with poseData updates
   useEffect(() => {
     const el = videoRef.current;
@@ -64,6 +75,7 @@ export default function LocalVideo({ room, poseData }: LocalVideoProps) {
   return (
     <div className="teacher-tile" style={{ position: 'relative' }}>
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
+      <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
       {landmarks && (
         <PoseDebugOverlay
           landmarks={[landmarks as never]}
@@ -71,19 +83,6 @@ export default function LocalVideo({ room, poseData }: LocalVideoProps) {
           height={videoSize.height}
         />
       )}
-      <div
-        className="teacher-label"
-        style={{
-          position: 'absolute',
-          bottom: 5,
-          right: 5,
-          background: 'rgba(0,0,0,0.5)',
-          color: '#fff',
-          padding: '2px 5px',
-        }}
-      >
-        老師 (我)
-      </div>
     </div>
   );
 }

@@ -341,6 +341,15 @@ button:disabled {
   opacity: 0.85;
 }
 
+.teacher-tile {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+}
+
 /* ===== Student Tile ===== */
 .student-tile {
   position: relative;

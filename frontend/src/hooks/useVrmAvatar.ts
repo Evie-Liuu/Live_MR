@@ -96,6 +96,7 @@ export function useVrmAvatar(
     applyLights(scene, preset);
 
     // VRM source
+    if (!vrmSourceId) return;
     const vrmSource = VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID];
     const spawn = preset.avatarDefaults;
 

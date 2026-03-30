@@ -122,7 +122,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       setSelectedSceneId(sceneId);
       // Clear slot assignments — they are scene-specific
       setSlotAssignments({});
-      try { sessionStorage.removeItem('bigscreen-slotAssignments'); } catch {/* ignore */}
+      try { sessionStorage.removeItem('bigscreen-slotAssignments'); } catch {/* ignore */ }
       // Clear task goal — it is scene-specific
       setSelectedTask(null);
       sessionStorage.removeItem('bigscreen-task');
@@ -225,7 +225,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           }
           next[slotId] = identity;
         }
-        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */}
+        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */ }
         return next;
       });
 
@@ -239,7 +239,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           // Persist so BigScreen restore sees it
           setStudentRoles(prev => {
             const next = { ...prev, [identity]: sceneSlot.defaultVrmId! };
-            try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */}
+            try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */ }
             return next;
           });
         }
@@ -359,7 +359,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         const [slotId] = entry;
         const next = { ...prev };
         delete next[slotId];
-        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */}
+        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */ }
         channelRef.current?.postMessage({ type: 'slot-assign', slotId, identity: undefined });
         return next;
       });
@@ -483,7 +483,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(slotAssignments));
       if (selectedTask) sessionStorage.setItem('bigscreen-task', selectedTask);
       else sessionStorage.removeItem('bigscreen-task');
-    } catch {/* ignore */}
+    } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
@@ -582,7 +582,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       <PerformanceMonitor label="App Render FPS" position="top-left" />
       <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" />
 
-      {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />}
+      {/* {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />} */}
 
       <div className={hasSlots ? 'host-main-two-col' : undefined}>
         {/* ── Slot Panel (only shown when scene has slots) ── */}
@@ -701,21 +701,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                       未指派
                     </div>
                   )}
-                  <div className="teacher-card-video">📹 自身影像</div>
+                  {/* <div className="teacher-card-video">📹 自身影像</div> */}
+                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={teacherVrmSourceId} />
                   <div className="student-name">
                     {connectedRoom.localParticipant.name || teacherIdentityLocal}
-                  </div>
-                  <div style={{ padding: '4px 8px 6px' }}>
-                    <select
-                      className="control-select"
-                      value={teacherVrmSourceId}
-                      onChange={(e) => handleTeacherVrmChange(e.target.value)}
-                      style={{ width: '100%', fontSize: '11px' }}
-                    >
-                      {allowedVrms.map((s) => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
-                      ))}
-                    </select>
                   </div>
                 </div>
               );

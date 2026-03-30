@@ -43,7 +43,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
         label: '收銀員',
         icon: '🏪',
         position: [1.2, 0, -1.5],
-        rotation: [0, -0.3, 0],
+        // rotation: [0, Math.PI, 0],
         defaultVrmId: 'student_female',
       },
       {
@@ -51,7 +51,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
         label: '顧客',
         icon: '🛍️',
         position: [-1.2, 0, -1.5],
-        rotation: [0, 0.3, 0],
+        // rotation: [0, Math.PI, 0],
         defaultVrmId: 'student_male',
       },
     ],
