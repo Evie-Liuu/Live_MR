@@ -52,13 +52,13 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
     <div className="student-tile" style={{ position: 'relative' }}>
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
       <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
-      {landmarks && (
+      {/* {landmarks && (
         <PoseDebugOverlay
           landmarks={[landmarks]}
           width={videoSize.width}
           height={videoSize.height}
         />
-      )}
+      )} */}
       <div className="student-name" style={{ position: 'absolute', bottom: 5, right: 5, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '2px 5px' }}>{participant.identity}</div>
     </div>
   );

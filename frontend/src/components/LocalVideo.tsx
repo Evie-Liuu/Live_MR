@@ -83,6 +83,9 @@ export default function LocalVideo({ room, poseData, vrmSourceId }: LocalVideoPr
           height={videoSize.height}
         />
       )}
+      <div className="student-name" style={{ position: 'absolute', bottom: 5, right: 5, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '2px 5px' }}>
+        {room.localParticipant.name || room.localParticipant.identity}
+      </div>
     </div>
   );
 }

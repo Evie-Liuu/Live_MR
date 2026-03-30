@@ -175,13 +175,13 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange],
   );
 
-  const handleVrmChange = useCallback(
-    (vrmSourceId: string) => {
-      setSelectedVrmSourceId(vrmSourceId);
-      broadcastVrmChange(vrmSourceId);
-    },
-    [broadcastVrmChange],
-  );
+  // const handleVrmChange = useCallback(
+  //   (vrmSourceId: string) => {
+  //     setSelectedVrmSourceId(vrmSourceId);
+  //     broadcastVrmChange(vrmSourceId);
+  //   },
+  //   [broadcastVrmChange],
+  // );
 
   const handleTeacherVrmChange = useCallback(
     (vrmSourceId: string) => {
@@ -231,24 +231,30 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
       // Apply VRM priority: manual override > slot default > scene global
       if (identity && sceneSlot?.defaultVrmId) {
-        const hasManualOverride = studentRoles[identity];
-        if (!hasManualOverride) {
-          const vrmUrl = (VRM_SOURCES[sceneSlot.defaultVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-          const vrmMsg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
-          channelRef.current?.postMessage(vrmMsg);
-          // Persist so BigScreen restore sees it
-          setStudentRoles(prev => {
-            const next = { ...prev, [identity]: sceneSlot.defaultVrmId! };
-            try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */ }
-            return next;
-          });
+        const isTeacher = connectedRoom?.localParticipant.identity === identity;
+        if (isTeacher) {
+          // Host assigned: Immediately apply slot default
+          handleTeacherVrmChange(sceneSlot.defaultVrmId);
+        } else {
+          const hasManualOverride = studentRoles[identity];
+          if (!hasManualOverride) {
+            const vrmUrl = (VRM_SOURCES[sceneSlot.defaultVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+            const vrmMsg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
+            channelRef.current?.postMessage(vrmMsg);
+            // Persist so BigScreen restore sees it
+            setStudentRoles(prev => {
+              const next = { ...prev, [identity]: sceneSlot.defaultVrmId! };
+              try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */ }
+              return next;
+            });
+          }
         }
       }
 
       const msg: BigScreenMsg = { type: 'slot-assign', slotId, identity: identity ?? undefined };
       channelRef.current?.postMessage(msg);
     },
-    [selectedSceneId, studentRoles],
+    [selectedSceneId, studentRoles, connectedRoom, handleTeacherVrmChange],
   );
 
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
@@ -592,7 +598,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
             {currentScenePreset.slots!.map((sceneSlot, slotIndex) => {
               const assignedIdentity = slotAssignments[sceneSlot.id];
               const assignedVrmId = assignedIdentity
-                ? (studentRoles[assignedIdentity] ?? sceneSlot.defaultVrmId ?? selectedVrmSourceId)
+                ? (assignedIdentity === teacherIdentity
+                  ? teacherVrmSourceId
+                  : (studentRoles[assignedIdentity] ?? sceneSlot.defaultVrmId ?? selectedVrmSourceId))
                 : (sceneSlot.defaultVrmId ?? selectedVrmSourceId);
               return (
                 <div
@@ -634,7 +642,13 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                     value={assignedVrmId}
                     disabled={!assignedIdentity}
                     onChange={(e) => {
-                      if (assignedIdentity) handleStudentRoleChange(assignedIdentity, e.target.value);
+                      if (assignedIdentity) {
+                        if (assignedIdentity === teacherIdentity) {
+                          handleTeacherVrmChange(e.target.value);
+                        } else {
+                          handleStudentRoleChange(assignedIdentity, e.target.value);
+                        }
+                      }
                     }}
                   >
                     {allowedVrms.map((s) => (
@@ -690,22 +704,18 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                   className="student-container teacher-card"
                   style={{ position: 'relative', opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
                 >
+                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={teacherVrmSourceId} />
                   <div className="teacher-card-tab">老師</div>
                   {teacherSlot && (
-                    <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
                       {teacherSlot.icon} {teacherSlot.label}
                     </div>
                   )}
                   {!teacherSlot && hasSlots && (
-                    <div style={{ position: 'absolute', top: '6px', right: '6px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
+                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
                       未指派
                     </div>
                   )}
-                  {/* <div className="teacher-card-video">📹 自身影像</div> */}
-                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={teacherVrmSourceId} />
-                  <div className="student-name">
-                    {connectedRoom.localParticipant.name || teacherIdentityLocal}
-                  </div>
                 </div>
               );
             })()}
@@ -739,7 +749,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                       未指派
                     </div>
                   )}
-                  {!hasSlots && (
+                  {/* {!hasSlots && (
                     <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
                       <select
                         className="control-select"
@@ -754,7 +764,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                         ))}
                       </select>
                     </div>
-                  )}
+                  )} */}
                 </div>
               );
             })}
