@@ -94,7 +94,7 @@ export function applyPoseToVrm(
   }
 
   const boneRotations = state.cachedBoneRotations!;
-  const hipsPosition  = state.cachedHipsPos;
+  const hipsPosition = state.cachedHipsPos;
 
   const humanoid = vrm.humanoid;
   if (!humanoid) return;
