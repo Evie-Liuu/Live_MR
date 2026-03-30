@@ -149,7 +149,9 @@ export function solveWithKalidokit(
 
     const euler = eulerRot as { x: number; y: number; z: number }
     // 鏡像：在歐拉角空間反轉 Y/Z，避免四元數空間的軸交叉耦合
-    const mirrored = mirror ? { x: euler.x, y: -euler.y, z: -euler.z * 0.3 } : euler  // -euler.z
+    const mirrored = mirror
+      ? { x: euler.x, y: -euler.y, z: -euler.z }
+      : { x: euler.x, y: -euler.y, z: euler.z }
     const currentQuat = eulerToQuaternion(mirrored)
     rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing)
   }
@@ -159,7 +161,7 @@ export function solveWithKalidokit(
   if (poseRig.Hips) {
     const hipsEuler = poseRig.Hips.rotation
     const mirroredHips = mirror
-      ? { x: hipsEuler.x, y: -hipsEuler.y, z: 0 }  // -hipsEuler.z
+      ? { x: hipsEuler.x, y: -hipsEuler.y, z: -hipsEuler.z * 0.1 }  // -hipsEuler.z
       : hipsEuler
     const hipsQuat = eulerToQuaternion(mirroredHips)
     rotations.hips = slerpRotation(hipsQuat, prevRotations.hips, smoothing)
