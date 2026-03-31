@@ -217,6 +217,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
   const handleSlotAssign = useCallback(
     (slotId: string, identity: string | null) => {
+      const previousIdentity = slotAssignments[slotId];
       const preset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
       const sceneSlot = preset.slots?.find(s => s.id === slotId);
 
@@ -236,6 +237,27 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */ }
         return next;
       });
+
+      // If explicit removal of assignment, also clear the specific model selection
+      if (identity === null && previousIdentity) {
+        const isTeacher = connectedRoom?.localParticipant.identity === previousIdentity;
+        if (isTeacher) {
+          handleTeacherVrmChange(null);
+        } else {
+          setStudentRoles(prev => {
+            const next = { ...prev };
+            delete next[previousIdentity];
+            try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */ }
+            return next;
+          });
+          // Notify BigScreen to remove this identity's specific VRM (falls back to default)
+          channelRef.current?.postMessage({
+            type: 'vrm-identity-change',
+            identity: previousIdentity,
+            vrmUrl: undefined,
+          });
+        }
+      }
 
       // Apply VRM priority: manual override > slot default > scene global
       if (identity && sceneSlot?.defaultVrmId) {
@@ -262,7 +284,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       const msg: BigScreenMsg = { type: 'slot-assign', slotId, identity: identity ?? undefined };
       channelRef.current?.postMessage(msg);
     },
-    [selectedSceneId, studentRoles, connectedRoom, handleTeacherVrmChange],
+    [selectedSceneId, studentRoles, connectedRoom, handleTeacherVrmChange, slotAssignments],
   );
 
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
