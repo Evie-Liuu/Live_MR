@@ -38,6 +38,7 @@ const DEFAULT_OPTS: Required<ApplyPoseOptions> = {
   solverSmoothing: 0.5,
   mirror: true,
   faceEnabled: true,
+  reuseLastSolve: false,
 };
 
 // Reusable Quaternion – avoids per-frame allocations

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RemoteParticipant, RemoteTrackPublication } from 'livekit-client';
 import { useVrmAvatar } from '../hooks/useVrmAvatar';
-import PoseDebugOverlay from './PoseDebugOverlay';
+// import PoseDebugOverlay from './PoseDebugOverlay';
 import type { PoseFrame } from '../types/vrm';
 
 interface StudentTileProps {
@@ -15,7 +15,7 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId });
-  const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
+  const [_, setVideoSize] = useState({ width: 320, height: 240 });
 
   // Attach video track
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
     }
   }, [poseData, applyPose]);
 
-  const landmarks = poseData?.landmarks;
+  // const landmarks = poseData?.landmarks;
 
   return (
     <div className="student-tile" style={{ position: 'relative' }}>

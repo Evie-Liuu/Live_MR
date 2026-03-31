@@ -21,8 +21,8 @@ const ROOM_TTL = 2 * 60 * 60 * 1000
 setInterval(() => store.cleanup(ROOM_TTL), CLEANUP_INTERVAL)
 
 const PORT = parseInt(process.env.PORT || '3001', 10)
-app.listen(PORT, () => {
-  console.log(`Backend listening on port ${PORT}`)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Backend listening on port ${PORT} at 0.0.0.0`)
 })
 
 export { app, store }

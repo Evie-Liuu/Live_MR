@@ -1,6 +1,8 @@
 port: 7880
 rtc:
-  node_ip: 127.0.0.1
+  # IMPORTANT: Change 127.0.0.1 to your host machine's actual LAN IP (e.g. 192.168.1.xxx)
+  # or use '0.0.0.0' for general binding (but some WebRTC clients require a concrete candidate IP).
+  node_ip: 0.0.0.0
   port_range_start: 50000
   port_range_end: 50020
   use_external_ip: false
