@@ -8,7 +8,7 @@ import { useVrmAvatar } from '../hooks/useVrmAvatar';
 interface LocalVideoProps {
   room: Room;
   poseData?: unknown;
-  vrmSourceId?: string;
+  vrmSourceId?: string | null;
 }
 
 /**
@@ -75,7 +75,9 @@ export default function LocalVideo({ room, poseData, vrmSourceId }: LocalVideoPr
   return (
     <div className="teacher-tile" style={{ position: 'relative' }}>
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
-      <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
+      {vrmSourceId !== null && (
+        <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
+      )}
       {landmarks && (
         <PoseDebugOverlay
           landmarks={[landmarks as never]}

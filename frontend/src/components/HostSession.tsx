@@ -54,12 +54,12 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
   );
   // Global default VRM for new avatars (students who haven't picked their own)
-  const [selectedVrmSourceId, setSelectedVrmSourceId] = useState<string>(
-    () => sessionStorage.getItem('bigscreen-vrmSourceId') ?? DEFAULT_VRM_SOURCE_ID,
+  const [selectedVrmSourceId, setSelectedVrmSourceId] = useState<string | null>(
+    () => sessionStorage.getItem('bigscreen-vrmSourceId') ?? null,
   );
   // Teacher's own personal avatar selection
-  const [teacherVrmSourceId, setTeacherVrmSourceId] = useState<string>(
-    () => sessionStorage.getItem('bigscreen-teacherVrmSourceId') ?? DEFAULT_VRM_SOURCE_ID,
+  const [teacherVrmSourceId, setTeacherVrmSourceId] = useState<string | null>(
+    () => sessionStorage.getItem('bigscreen-teacherVrmSourceId') ?? null,
   );
   // Individual student roles selected by the host
   const [studentRoles, setStudentRoles] = useState<Record<string, string>>(() => {
@@ -98,19 +98,27 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     channelRef.current?.postMessage(msg);
   }, []);
 
-  const broadcastVrmChange = useCallback((vrmSourceId: string) => {
-    sessionStorage.setItem('bigscreen-vrmSourceId', vrmSourceId);
-    const msg: BigScreenMsg = { type: 'vrm-change', vrmSourceId };
+  const broadcastVrmChange = useCallback((vrmSourceId: string | null) => {
+    if (vrmSourceId) {
+      sessionStorage.setItem('bigscreen-vrmSourceId', vrmSourceId);
+    } else {
+      sessionStorage.removeItem('bigscreen-vrmSourceId');
+    }
+    const msg: BigScreenMsg = { type: 'vrm-change', vrmSourceId: vrmSourceId ?? undefined };
     channelRef.current?.postMessage(msg);
   }, []);
 
   /** Swap the teacher's own BigScreen avatar */
   const broadcastTeacherVrmChange = useCallback(
-    (vrmSourceId: string) => {
+    (vrmSourceId: string | null) => {
       if (!connectedRoom) return;
-      sessionStorage.setItem('bigscreen-teacherVrmSourceId', vrmSourceId);
+      if (vrmSourceId) {
+        sessionStorage.setItem('bigscreen-teacherVrmSourceId', vrmSourceId);
+      } else {
+        sessionStorage.removeItem('bigscreen-teacherVrmSourceId');
+      }
       const identity = connectedRoom.localParticipant.identity;
-      const vrmUrl = (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const vrmUrl = vrmSourceId ? (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url : undefined;
       const msg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
       channelRef.current?.postMessage(msg);
     },
@@ -135,7 +143,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       const allowed = preset.allowedVrmIds;
       if (allowed && allowed.length > 0) {
         setTeacherVrmSourceId((prev) => {
-          if (!allowed.includes(prev)) {
+          if (prev !== null && !allowed.includes(prev)) {
             const fallback = allowed[0];
             setTimeout(() => broadcastTeacherVrmChange(fallback), 0);
             return fallback;
@@ -144,7 +152,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         });
 
         setSelectedVrmSourceId((prev) => {
-          if (!allowed.includes(prev)) {
+          if (prev !== null && !allowed.includes(prev)) {
             const fallback = allowed[0];
             setTimeout(() => broadcastVrmChange(fallback), 0);
             return fallback;
@@ -184,7 +192,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   // );
 
   const handleTeacherVrmChange = useCallback(
-    (vrmSourceId: string) => {
+    (vrmSourceId: string | null) => {
       console.log("handleTeacherVrmChange", vrmSourceId);
 
       setTeacherVrmSourceId(vrmSourceId);
@@ -484,8 +492,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     try {
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
       sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
-      sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
-      sessionStorage.setItem('bigscreen-teacherVrmSourceId', teacherVrmSourceId);
+      if (selectedVrmSourceId) sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
+      else sessionStorage.removeItem('bigscreen-vrmSourceId');
+      if (teacherVrmSourceId) sessionStorage.setItem('bigscreen-teacherVrmSourceId', teacherVrmSourceId);
+      else sessionStorage.removeItem('bigscreen-teacherVrmSourceId');
       sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(slotAssignments));
       if (selectedTask) sessionStorage.setItem('bigscreen-task', selectedTask);
       else sessionStorage.removeItem('bigscreen-task');
@@ -639,7 +649,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                   <label className="slot-field-label">角色模型</label>
                   <select
                     className="control-select slot-select"
-                    value={assignedVrmId}
+                    value={assignedVrmId ?? ''}
                     disabled={!assignedIdentity}
                     onChange={(e) => {
                       if (assignedIdentity) {

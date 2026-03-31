@@ -8,7 +8,7 @@ interface StudentTileProps {
   participant: RemoteParticipant;
   videoTrack: RemoteTrackPublication | null;
   poseData: PoseFrame | null;
-  vrmSourceId?: string;
+  vrmSourceId?: string | null;
 }
 
 export default function StudentTile({ participant, videoTrack, poseData, vrmSourceId }: StudentTileProps) {
@@ -51,7 +51,9 @@ export default function StudentTile({ participant, videoTrack, poseData, vrmSour
   return (
     <div className="student-tile" style={{ position: 'relative' }}>
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
-      <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
+      {vrmSourceId !== null && (
+        <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
+      )}
       {/* {landmarks && (
         <PoseDebugOverlay
           landmarks={[landmarks]}

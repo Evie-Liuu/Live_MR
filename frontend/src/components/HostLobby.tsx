@@ -33,6 +33,13 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart }: 
   }, []);
 
   useEffect(() => {
+    // 當創建新場景時 (進入 Lobby)，初始化 sessionStorage，但保留 bigscreen-sceneId
+    const savedSceneId = sessionStorage.getItem('bigscreen-sceneId');
+    sessionStorage.clear();
+    if (savedSceneId) {
+      sessionStorage.setItem('bigscreen-sceneId', savedSceneId);
+    }
+
     const unsubscribe = subscribeToRoomEvents(roomId, hostToken, handleEvent);
     return unsubscribe;
   }, [roomId, hostToken, handleEvent]);

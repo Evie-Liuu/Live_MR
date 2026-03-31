@@ -30,7 +30,7 @@ interface UseVrmAvatarOptions {
   /** ID of the scene preset to use (default: 'studio') */
   sceneId?: string;
   /** ID of the VRM source to load (default: 'default') */
-  vrmSourceId?: string;
+  vrmSourceId?: string | null;
 }
 
 export function useVrmAvatar(
@@ -97,7 +97,7 @@ export function useVrmAvatar(
 
     // VRM source
     if (!vrmSourceId) return;
-    const vrmSource = VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID];
+    const vrmSource = VRM_SOURCES[vrmSourceId] ?? null;
     const spawn = preset.avatarDefaults;
 
     loadVrm({ url: vrmSource.url, scene, spawn })
