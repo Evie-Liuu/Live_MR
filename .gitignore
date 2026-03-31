@@ -16,6 +16,7 @@ dist-ssr
 *.local
 .env
 .superpowers
+certs/
 
 # Editor directories and files
 .vscode/*
