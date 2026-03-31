@@ -205,17 +205,17 @@ export default function BigScreen() {
           const snap = JSON.parse(sessionStorage.getItem('bigscreen-snapshot') || '{}') as Record<string, unknown>;
           delete snap[msg.identity];
           sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(snap));
-        } catch {/* ignore */}
+        } catch {/* ignore */ }
         try {
           const roles = JSON.parse(sessionStorage.getItem('bigscreen-studentRoles') || '{}') as Record<string, string>;
           delete roles[msg.identity];
           sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(roles));
-        } catch {/* ignore */}
+        } catch {/* ignore */ }
         try {
           const live = JSON.parse(sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}') as Record<string, string>;
           delete live[msg.identity];
           sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
-        } catch {/* ignore */}
+        } catch {/* ignore */ }
       } else if (msg.type === 'slot-assign' && msg.slotId !== undefined) {
         if (msg.identity != null) {
           // Assign identity to slot
@@ -225,7 +225,7 @@ export default function BigScreen() {
             const stored = JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
             stored[msg.slotId] = msg.identity;
             sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(stored));
-          } catch {/* ignore */}
+          } catch {/* ignore */ }
           // Immediately load avatar at slot position (before next pose frame)
           const preset = SCENE_PRESETS[sceneId];
           const sceneSlot = preset?.slots?.find(s => s.id === msg.slotId);
@@ -243,7 +243,7 @@ export default function BigScreen() {
               rotation: sceneSlot.rotation,
               scale: preset.avatarDefaults?.scale,
             };
-            ensureAvatarRef.current(msg.identity, vrmUrl, spawn).catch(() => {/* ignore */});
+            ensureAvatarRef.current(msg.identity, vrmUrl, spawn).catch(() => {/* ignore */ });
           }
         } else {
           // Unassign: remove previous occupant
@@ -260,7 +260,7 @@ export default function BigScreen() {
               const stored = JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
               delete stored[msg.slotId];
               sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(stored));
-            } catch {/* ignore */}
+            } catch {/* ignore */ }
           }
         }
       } else if (msg.type === 'scene-change' && msg.sceneId) {
@@ -281,7 +281,7 @@ export default function BigScreen() {
           const live = JSON.parse(sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}') as Record<string, string>;
           live[msg.identity] = msg.vrmUrl;
           sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
-        } catch {/* ignore */}
+        } catch {/* ignore */ }
       } else if (msg.type === 'task-change') {
         setCurrentTask(msg.task ?? null);
       }
