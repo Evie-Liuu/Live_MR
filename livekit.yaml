@@ -8,5 +8,7 @@ rtc:
   use_external_ip: false
 keys:
   devkey: devsecret1234567890devsecret1234567890
+redis:
+  address: redis:6379
 logging:
   level: info
