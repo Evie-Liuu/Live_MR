@@ -250,7 +250,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
             try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */ }
             return next;
           });
-          // Notify BigScreen to remove this identity's specific VRM (falls back to default)
+          // Notify BigScreen to remove this identity's specific VRM (falls back to null)
           channelRef.current?.postMessage({
             type: 'vrm-identity-change',
             identity: previousIdentity,
@@ -736,7 +736,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                   className="student-container teacher-card"
                   style={{ position: 'relative', opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
                 >
-                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={teacherVrmSourceId} />
+                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId} />
                   <div className="teacher-card-tab">老師</div>
                   {teacherSlot && (
                     <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
@@ -769,7 +769,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                     participant={info.participant}
                     videoTrack={info.videoTrack}
                     poseData={info.poseData}
-                    vrmSourceId={currentVrmId}
+                    vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
                   />
                   {assignedSlot && (
                     <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>

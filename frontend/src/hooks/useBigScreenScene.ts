@@ -46,8 +46,8 @@ interface AvatarSlot {
 }
 
 /** lerpSpeed baseline at 30 fps; scaled proportionally to actual data rate */
-const BASE_LERP_SPEED   = 14;
-const BASE_INTERVAL_MS  = 33;
+const BASE_LERP_SPEED = 14;
+const BASE_INTERVAL_MS = 33;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -166,7 +166,7 @@ export function useBigScreenScene(
           applyPoseToVrm(slot.vrm, slot.poseState, slot.pendingPose, delta, {
             lerpSpeed: adaptiveLerp,
           });
-          slot.lastFrame   = slot.pendingPose;
+          slot.lastFrame = slot.pendingPose;
           slot.pendingPose = null;
         } else if (slot.lastFrame) {
           // No new data: continue lerping toward cached targets (skip re-solve)
@@ -265,7 +265,8 @@ export function useBigScreenScene(
       const resolvedUrl =
         vrmUrlOverride ??
         vrmUrlOverridesRef.current.get(identity) ??
-        (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+        // (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+        VRM_SOURCES[vrmSourceId].url ?? null;
       // Spawn priority: explicit override → stored slot override → scene avatarDefaults
       const spawn =
         spawnOverride ??
