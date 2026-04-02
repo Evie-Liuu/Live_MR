@@ -6,6 +6,8 @@ rtc:
   port_range_start: 50000
   port_range_end: 50020
   use_external_ip: false
+room:
+  enable_remote_unmute: true
 keys:
   devkey: devsecret1234567890devsecret1234567890
 redis:

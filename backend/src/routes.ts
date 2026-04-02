@@ -8,6 +8,16 @@ import type { EgressService } from './egress.js'
 
 const recordingsDir = path.resolve(process.cwd(), '../recordings')
 
+/** Verify that resolvedPath is strictly inside recordingsDir. */
+function assertInRecordingsDir(resolvedPath: string): void {
+  if (
+    !resolvedPath.startsWith(recordingsDir + path.sep) &&
+    !resolvedPath.startsWith(recordingsDir + '/')
+  ) {
+    throw new Error('Path outside recordings directory')
+  }
+}
+
 interface RecordingDeps {
   recordingStore: RecordingStore
   egressService: EgressService

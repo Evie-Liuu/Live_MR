@@ -113,8 +113,6 @@ export interface StopRecordingResponse {
 
 export async function startRecording(roomId: string): Promise<StartRecordingResponse> {
   const res = await fetch(`/api/rooms/${roomId}/recording/start`, { method: 'POST' });
-  console.log(res);
-
   if (!res.ok) throw new Error(`startRecording failed: ${res.status}`);
   return res.json() as Promise<StartRecordingResponse>;
 }
@@ -143,7 +141,5 @@ export async function muteParticipant(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ trackType, muted }),
   });
-  console.log(res);
-
   if (!res.ok) throw new Error(`muteParticipant failed: ${res.status}`);
 }
