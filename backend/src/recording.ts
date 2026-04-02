@@ -2,11 +2,12 @@ import { randomUUID } from 'crypto'
 
 export interface RecordingSession {
   sessionId: string
-  compositeEgressId: string
   trackEgressIds: Record<string, string>   // identity → egressId
   status: 'recording' | 'stopped'
   startedAt: number
   files: string[]
+  basePath: string
+  participantIdentities: string[]
 }
 
 export class RecordingStore {
@@ -15,17 +16,19 @@ export class RecordingStore {
 
   startSession(
     roomId: string,
-    compositeEgressId: string,
     trackEgressIds: Record<string, string>,
+    basePath: string,
+    participantIdentities: string[],
     sessionId?: string,
   ): RecordingSession {
     const session: RecordingSession = {
       sessionId: sessionId ?? randomUUID(),
-      compositeEgressId,
       trackEgressIds,
       status: 'recording',
       startedAt: Date.now(),
       files: [],
+      basePath,
+      participantIdentities,
     }
     const list = this.sessions.get(roomId) ?? []
     list.push(session)
@@ -38,11 +41,14 @@ export class RecordingStore {
     return list.find((s) => s.status === 'recording') ?? null
   }
 
-  stopSession(roomId: string, files: string[]): RecordingSession | null {
+  stopSession(roomId: string): RecordingSession | null {
     const session = this.getActiveSession(roomId)
     if (!session) return null
     session.status = 'stopped'
-    session.files = files
+    session.files = [
+      `${session.basePath}/bigscreen.webm`,
+      ...session.participantIdentities.map((id) => `${session.basePath}/audio_${id}.ogg`),
+    ]
     return session
   }
 
