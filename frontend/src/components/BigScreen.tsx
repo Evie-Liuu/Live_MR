@@ -7,7 +7,7 @@ import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -20,6 +20,8 @@ export interface BigScreenMsg {
   slotId?: string;
   /** For 'task-change': task string, or null to clear */
   task?: string | null;
+  /** For 'recording-start': session identifier */
+  sessionId?: string;
 }
 
 /**
@@ -124,6 +126,11 @@ export default function BigScreen() {
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
   /** Identities whose VRM override has already been registered this session */
   const seenIdentitiesRef = useRef<Set<string>>(new Set());
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordingChunksRef = useRef<Blob[]>([])
+  const recordingSessionIdRef = useRef<string | null>(null)
+  const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
 
   // Apply snapshot stored by HostSession before the window was opened
   useEffect(() => {
@@ -284,6 +291,50 @@ export default function BigScreen() {
         } catch {/* ignore */ }
       } else if (msg.type === 'task-change') {
         setCurrentTask(msg.task ?? null);
+      } else if (msg.type === 'recording-start' && msg.sessionId) {
+        recordingChunksRef.current = []
+        recordingSessionIdRef.current = msg.sessionId
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const stream = canvas.captureStream(30)
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : 'video/webm'
+        const mr = new MediaRecorder(stream, { mimeType })
+        mr.ondataavailable = (e) => {
+          if (e.data.size > 0) recordingChunksRef.current.push(e.data)
+        }
+        mr.start(1000)
+        mediaRecorderRef.current = mr
+      } else if (msg.type === 'recording-stop') {
+        const mr = mediaRecorderRef.current
+        if (!mr || mr.state === 'inactive') return
+        mr.onstop = async () => {
+          const blob = new Blob(recordingChunksRef.current, { type: 'video/webm' })
+          const sessionId = recordingSessionIdRef.current
+          const roomId = roomIdRef.current
+          if (!sessionId || !roomId) {
+            console.warn('[BigScreen] Cannot upload: missing sessionId or roomId')
+            return
+          }
+          try {
+            const res = await fetch(`/api/rooms/${roomId}/recording/bigscreen`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'video/webm',
+                'X-Session-Id': sessionId,
+              },
+              body: blob,
+            })
+            if (!res.ok) console.error('[BigScreen] Upload failed:', res.status)
+          } catch (err) {
+            console.error('[BigScreen] Failed to upload recording:', err)
+          }
+          mediaRecorderRef.current = null
+          recordingChunksRef.current = []
+          recordingSessionIdRef.current = null
+        }
+        mr.stop()
       }
     };
 
