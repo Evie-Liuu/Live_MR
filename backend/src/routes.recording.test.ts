@@ -6,11 +6,23 @@ import { RecordingStore } from './recording.js'
 import { createRouter } from './routes.js'
 import type { EgressService } from './egress.js'
 
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>()
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      writeFile: vi.fn().mockResolvedValue(undefined),
+    },
+  }
+})
+
 function buildMockEgressService(overrides: Partial<EgressService> = {}): EgressService {
   return {
     startRecording: vi.fn().mockResolvedValue({
-      compositeEgressId: 'egress-composite-1',
       trackEgressIds: { alice: 'egress-track-alice' },
+      participantIdentities: ['alice'],
     }),
     stopRecording: vi.fn().mockResolvedValue(undefined),
     muteTrack: vi.fn().mockResolvedValue(undefined),
@@ -41,6 +53,7 @@ describe('Recording Routes', () => {
     recordingStore = new RecordingStore()
     egressService = buildMockEgressService()
     app = createApp(store, recordingStore, egressService)
+    vi.clearAllMocks()
     const res = await request(app).post('/api/rooms')
     roomId = res.body.roomId
   })
@@ -78,11 +91,10 @@ describe('Recording Routes', () => {
       expect(res.body.status).toBe('stopped')
     })
 
-    it('calls egressService.stopRecording', async () => {
+    it('calls egressService.stopRecording with trackEgressIds', async () => {
       await request(app).post(`/api/rooms/${roomId}/recording/start`)
       await request(app).post(`/api/rooms/${roomId}/recording/stop`)
       expect(egressService.stopRecording).toHaveBeenCalledWith(
-        'egress-composite-1',
         { alice: 'egress-track-alice' },
       )
     })
@@ -105,6 +117,56 @@ describe('Recording Routes', () => {
       const res = await request(app).get(`/api/rooms/${roomId}/recordings`)
       expect(res.body.recordings).toHaveLength(1)
       expect(res.body.recordings[0].status).toBe('recording')
+    })
+
+    it('stopped session includes files with bigscreen.webm', async () => {
+      await request(app).post(`/api/rooms/${roomId}/recording/start`)
+      await request(app).post(`/api/rooms/${roomId}/recording/stop`)
+      const res = await request(app).get(`/api/rooms/${roomId}/recordings`)
+      expect(res.body.recordings[0].files).toEqual(
+        expect.arrayContaining([expect.stringContaining('bigscreen.webm')]),
+      )
+    })
+  })
+
+  describe('POST /api/rooms/:roomId/recording/bigscreen', () => {
+    it('returns 400 without X-Session-Id header', async () => {
+      const res = await request(app)
+        .post(`/api/rooms/${roomId}/recording/bigscreen`)
+        .set('Content-Type', 'video/webm')
+        .send(Buffer.from('fake'))
+      expect(res.status).toBe(400)
+    })
+
+    it('returns 200 and ok:true with valid upload', async () => {
+      await request(app).post(`/api/rooms/${roomId}/recording/start`)
+      const sessionId = (
+        await request(app).get(`/api/rooms/${roomId}/recordings`)
+      ).body.recordings[0].sessionId
+
+      const res = await request(app)
+        .post(`/api/rooms/${roomId}/recording/bigscreen`)
+        .set('Content-Type', 'video/webm')
+        .set('X-Session-Id', sessionId)
+        .send(Buffer.from('fake-webm-data'))
+      expect(res.status).toBe(200)
+      expect(res.body.ok).toBe(true)
+    })
+  })
+
+  describe('GET /api/recordings/:roomId/:sessionId/:filename', () => {
+    it('returns 400 for path traversal attempt', async () => {
+      const res = await request(app).get(
+        `/api/recordings/${roomId}/sess-1/..%2F..%2Fetc%2Fpasswd`,
+      )
+      expect(res.status).toBe(400)
+    })
+
+    it('returns 404 for non-existent file', async () => {
+      const res = await request(app).get(
+        `/api/recordings/${roomId}/sess-1/bigscreen.webm`,
+      )
+      expect(res.status).toBe(404)
     })
   })
 

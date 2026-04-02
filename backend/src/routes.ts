@@ -1,8 +1,12 @@
-import { Router, type Request, type Response } from 'express'
+import express, { Router, type Request, type Response } from 'express'
+import path from 'path'
+import fs from 'fs'
 import { RoomStore } from './rooms.js'
 import { createToken } from './livekit.js'
 import type { RecordingStore } from './recording.js'
 import type { EgressService } from './egress.js'
+
+const recordingsDir = path.resolve(process.cwd(), '../recordings')
 
 interface RecordingDeps {
   recordingStore: RecordingStore
@@ -15,7 +19,6 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
   // SSE 客户端室
   const sseClients = new Map<string, Set<Response>>()
 
-  // 統一發送 SSE 事件的方法，配合前端 source.onmessage
   function notifyRoom(roomId: string, type: string, data: Record<string, unknown>): void {
     const clients = sseClients.get(roomId)
     if (!clients) return
@@ -37,7 +40,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     }
   })
 
-  // POST /api/rooms/:roomId/join — 學生提交申請 { name }
+  // POST /api/rooms/:roomId/join
   router.post('/rooms/:roomId/join', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const { name } = req.body as { name?: string }
@@ -54,17 +57,14 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     }
 
     const request = store.addJoinRequest(roomId, name)
-
-    // 通知老師 (符合 RoomEvent 格式)
     notifyRoom(roomId, 'join-request', {
       requestId: request.requestId,
-      name: request.name
+      name: request.name,
     })
-
     res.json({ requestId: request.requestId })
   })
 
-  // GET /api/rooms/:roomId/requests/:requestId — 學生輪詢狀態
+  // GET /api/rooms/:roomId/requests/:requestId
   router.get('/rooms/:roomId/requests/:requestId', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const requestId = req.params.requestId as string
@@ -82,7 +82,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     res.json(response)
   })
 
-  // POST /api/rooms/:roomId/requests/:requestId/approve — 老師允許
+  // POST /api/rooms/:roomId/requests/:requestId/approve
   router.post('/rooms/:roomId/requests/:requestId/approve', async (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const requestId = req.params.requestId as string
@@ -109,7 +109,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     }
   })
 
-  // POST /api/rooms/:roomId/requests/:requestId/reject — 老師拒絕
+  // POST /api/rooms/:roomId/requests/:requestId/reject
   router.post('/rooms/:roomId/requests/:requestId/reject', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const requestId = req.params.requestId as string
@@ -124,7 +124,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     res.json({ status: 'rejected' })
   })
 
-  // GET /api/rooms/:roomId/events — SSE 串流
+  // GET /api/rooms/:roomId/events — SSE
   router.get('/rooms/:roomId/events', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const room = store.getRoom(roomId)
@@ -141,20 +141,17 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     })
     res.flushHeaders()
 
-    // 發送現有的待審核請求 (同步狀態)
     const pending = store.getPendingRequests(roomId)
     for (const req of pending) {
       const payload = JSON.stringify({ type: 'join-request', requestId: req.requestId, name: req.name })
       res.write(`data: ${payload}\n\n`)
     }
 
-    // 註冊客戶端
     if (!sseClients.has(roomId)) {
       sseClients.set(roomId, new Set())
     }
     sseClients.get(roomId)!.add(res)
 
-    // 關閉時清理
     req.on('close', () => {
       const clients = sseClients.get(roomId)
       if (clients) {
@@ -164,7 +161,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     })
   })
 
-  // ── Recording endpoints (only active when recording deps injected) ──
+  // ── Recording endpoints ──────────────────────────────────────────────────────
 
   router.post('/rooms/:roomId/recording/start', async (req: Request, res: Response) => {
     if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
@@ -178,15 +175,22 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     try {
       const { randomUUID } = await import('crypto')
       const sessionId = randomUUID()
-      const { compositeEgressId, trackEgressIds } = await recording.egressService.startRecording(
+      const basePath = `/recordings/${roomId}/${sessionId}`
+      const { trackEgressIds, participantIdentities } = await recording.egressService.startRecording(
         roomId,
         sessionId,
       )
-      const session = recording.recordingStore.startSession(roomId, compositeEgressId, trackEgressIds, sessionId)
+      const session = recording.recordingStore.startSession(
+        roomId,
+        trackEgressIds,
+        basePath,
+        participantIdentities,
+        sessionId,
+      )
       res.json({ sessionId: session.sessionId, status: session.status })
     } catch (err: any) {
-      console.error('[recording/start] error:', err?.message ?? err)
-      res.status(500).json({ error: 'Failed to start recording', detail: err?.message ?? String(err) })
+      console.error('[recording/start] error:', err?.message ?? err, '| cause:', err?.cause)
+      res.status(500).json({ error: 'Failed to start recording', detail: err?.cause?.message ?? err?.message ?? String(err) })
     }
   })
 
@@ -197,11 +201,12 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     if (!session) { res.status(404).json({ error: 'No active recording' }); return }
 
     try {
-      await recording.egressService.stopRecording(session.compositeEgressId, session.trackEgressIds)
-      const stopped = recording.recordingStore.stopSession(roomId, [])
+      await recording.egressService.stopRecording(session.trackEgressIds)
+      const stopped = recording.recordingStore.stopSession(roomId)
       res.json({ sessionId: stopped!.sessionId, status: stopped!.status })
-    } catch (err) {
-      res.status(500).json({ error: 'Failed to stop recording' })
+    } catch (err: any) {
+      console.error('[recording/stop] error:', err?.message ?? err, '| cause:', err?.cause)
+      res.status(500).json({ error: 'Failed to stop recording', detail: err?.cause?.message ?? err?.message ?? String(err) })
     }
   })
 
@@ -215,6 +220,45 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       startedAt: s.startedAt,
     }))
     res.json({ recordings })
+  })
+
+  // POST /api/rooms/:roomId/recording/bigscreen — BigScreen canvas upload
+  router.post(
+    '/rooms/:roomId/recording/bigscreen',
+    express.raw({ type: 'video/*', limit: '300mb' }),
+    async (req: Request, res: Response) => {
+      if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+      const roomId = req.params.roomId as string
+      const sessionId = req.headers['x-session-id'] as string | undefined
+      if (!sessionId) {
+        res.status(400).json({ error: 'X-Session-Id header required' })
+        return
+      }
+      try {
+        const dir = path.join(recordingsDir, roomId, sessionId)
+        await fs.promises.mkdir(dir, { recursive: true })
+        await fs.promises.writeFile(path.join(dir, 'bigscreen.webm'), req.body as Buffer)
+        res.json({ ok: true })
+      } catch (err: any) {
+        console.error('[recording/bigscreen] error:', err?.message ?? err)
+        res.status(500).json({ error: 'Failed to save bigscreen recording' })
+      }
+    },
+  )
+
+  // GET /api/recordings/:roomId/:sessionId/:filename — file download
+  router.get('/recordings/:roomId/:sessionId/:filename', (req: Request, res: Response) => {
+    const { roomId, sessionId, filename } = req.params as {
+      roomId: string; sessionId: string; filename: string
+    }
+    if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+      res.status(400).json({ error: 'Invalid filename' })
+      return
+    }
+    const filePath = path.join(recordingsDir, roomId, sessionId, filename)
+    res.download(filePath, filename, (err) => {
+      if (err && !res.headersSent) res.status(404).json({ error: 'File not found' })
+    })
   })
 
   router.post(
