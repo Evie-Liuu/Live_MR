@@ -21,7 +21,11 @@ export interface UseRecordingResult {
   toggleMute: (identity: string, trackType: 'audio' | 'video') => Promise<void>
 }
 
-export function useRecording(roomId: string, room: Room | null): UseRecordingResult {
+export function useRecording(
+  roomId: string,
+  room: Room | null,
+  channelRef?: React.RefObject<BroadcastChannel | null>,
+): UseRecordingResult {
   const [isRecording, setIsRecording] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [muteState, setMuteState] = useState<Record<string, MuteState>>({})
@@ -78,18 +82,20 @@ export function useRecording(roomId: string, room: Room | null): UseRecordingRes
     const result = await startRecording(roomId)
     setIsRecording(true)
     setSessionId(result.sessionId)
-  }, [roomId])
+    channelRef?.current?.postMessage({ type: 'recording-start', sessionId: result.sessionId })
+  }, [roomId, channelRef])
 
   const stop = useCallback(async () => {
     await stopRecording(roomId)
     setIsRecording(false)
-  }, [roomId])
+    setSessionId(null)
+    channelRef?.current?.postMessage({ type: 'recording-stop' })
+  }, [roomId, channelRef])
 
   const toggleMute = useCallback(
     async (identity: string, trackType: 'audio' | 'video') => {
       const current = muteState[identity]?.[trackType] ?? false
       await muteParticipant(roomId, identity, trackType, !current)
-      // Optimistic update — LiveKit events will confirm truth
       setMuteState((prev) => ({
         ...prev,
         [identity]: {

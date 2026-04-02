@@ -40,15 +40,16 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(false);
 
-  const { isRecording, start, stop, muteState, toggleMute } = useRecording(
-    roomId,
-    connectedRoom,
-  );
-
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
   // BroadcastChannel to push pose data to big screen
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  const { isRecording, start, stop, muteState, toggleMute } = useRecording(
+    roomId,
+    connectedRoom,
+    channelRef,
+  );
 
   // Teacher's own video ref (for pose detection)
   const teacherVideoRef = useRef<HTMLVideoElement>(null);
@@ -519,6 +520,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   // ─── Big-screen controls ───────────────────────────────────────────────────
   const openBigScreen = useCallback(() => {
     try {
+      sessionStorage.setItem('bigscreen-roomId', roomId);
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
       sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
       if (selectedVrmSourceId) sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
