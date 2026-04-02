@@ -292,20 +292,28 @@ export default function BigScreen() {
       } else if (msg.type === 'task-change') {
         setCurrentTask(msg.task ?? null);
       } else if (msg.type === 'recording-start' && msg.sessionId) {
+        const existing = mediaRecorderRef.current
+        if (existing && existing.state !== 'inactive') {
+          existing.stop()
+        }
         recordingChunksRef.current = []
         recordingSessionIdRef.current = msg.sessionId
         const canvas = canvasRef.current
         if (!canvas) return
-        const stream = canvas.captureStream(30)
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
-          : 'video/webm'
-        const mr = new MediaRecorder(stream, { mimeType })
-        mr.ondataavailable = (e) => {
-          if (e.data.size > 0) recordingChunksRef.current.push(e.data)
+        try {
+          const stream = canvas.captureStream(30)
+          const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+            ? 'video/webm;codecs=vp9'
+            : 'video/webm'
+          const mr = new MediaRecorder(stream, { mimeType })
+          mr.ondataavailable = (e) => {
+            if (e.data.size > 0) recordingChunksRef.current.push(e.data)
+          }
+          mr.start(1000)
+          mediaRecorderRef.current = mr
+        } catch (err) {
+          console.error('[BigScreen] Failed to start canvas recording:', err)
         }
-        mr.start(1000)
-        mediaRecorderRef.current = mr
       } else if (msg.type === 'recording-stop') {
         const mr = mediaRecorderRef.current
         if (!mr || mr.state === 'inactive') return
@@ -317,6 +325,8 @@ export default function BigScreen() {
             console.warn('[BigScreen] Cannot upload: missing sessionId or roomId')
             return
           }
+          // Audio is recorded server-side per-participant; this blob is video-only.
+          // Note: no size limit — assumes sessions are under ~10 minutes per design.
           try {
             const res = await fetch(`/api/rooms/${roomId}/recording/bigscreen`, {
               method: 'POST',
@@ -339,7 +349,11 @@ export default function BigScreen() {
     };
 
     return () => {
-      channel.close();
+      channel.close()
+      const mr = mediaRecorderRef.current
+      if (mr && mr.state !== 'inactive') {
+        mr.stop()
+      }
     };
   }, []); // channel lifecycle independent of applyPose/removeAvatar
 
