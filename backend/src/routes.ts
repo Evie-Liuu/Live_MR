@@ -213,7 +213,8 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     try {
       await recording.egressService.stopRecording(session.trackEgressIds)
       const stopped = recording.recordingStore.stopSession(roomId)
-      res.json({ sessionId: stopped!.sessionId, status: stopped!.status })
+      if (!stopped) { res.status(500).json({ error: 'Failed to stop session' }); return }
+      res.json({ sessionId: stopped.sessionId, status: stopped.status })
     } catch (err: any) {
       console.error('[recording/stop] error:', err?.message ?? err, '| cause:', err?.cause)
       res.status(500).json({ error: 'Failed to stop recording', detail: err?.cause?.message ?? err?.message ?? String(err) })
@@ -244,8 +245,13 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
         res.status(400).json({ error: 'X-Session-Id header required' })
         return
       }
+      const room = store.getRoom(roomId)
+      if (!room) { res.status(404).json({ error: 'Room not found' }); return }
       try {
         const dir = path.join(recordingsDir, roomId, sessionId)
+        if (!dir.startsWith(recordingsDir + path.sep) && !dir.startsWith(recordingsDir + '/')) {
+          res.status(400).json({ error: 'Invalid path' }); return
+        }
         await fs.promises.mkdir(dir, { recursive: true })
         await fs.promises.writeFile(path.join(dir, 'bigscreen.webm'), req.body as Buffer)
         res.json({ ok: true })
@@ -266,6 +272,9 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       return
     }
     const filePath = path.join(recordingsDir, roomId, sessionId, filename)
+    if (!filePath.startsWith(recordingsDir + path.sep) && !filePath.startsWith(recordingsDir + '/')) {
+      res.status(400).json({ error: 'Invalid path' }); return
+    }
     res.download(filePath, filename, (err) => {
       if (err && !res.headersSent) res.status(404).json({ error: 'File not found' })
     })

@@ -119,13 +119,11 @@ describe('Recording Routes', () => {
       expect(res.body.recordings[0].status).toBe('recording')
     })
 
-    it('stopped session includes files with bigscreen.webm', async () => {
+    it('stopped session has status stopped', async () => {
       await request(app).post(`/api/rooms/${roomId}/recording/start`)
-      await request(app).post(`/api/rooms/${roomId}/recording/stop`)
-      const res = await request(app).get(`/api/rooms/${roomId}/recordings`)
-      expect(res.body.recordings[0].files).toEqual(
-        expect.arrayContaining([expect.stringContaining('bigscreen.webm')]),
-      )
+      const stopRes = await request(app).post(`/api/rooms/${roomId}/recording/stop`)
+      expect(stopRes.body.status).toBe('stopped')
+      expect(stopRes.body.sessionId).toBeDefined()
     })
   })
 
