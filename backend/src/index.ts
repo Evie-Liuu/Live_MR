@@ -1,19 +1,24 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { RoomStore } from './rooms.js'
 import { createRouter } from './routes.js'
+import { RecordingStore } from './recording.js'
+import { EgressService } from './egress.js'
 
 const app = express()
 app.use(cors())
 app.use(express.json())
 
 const store = new RoomStore()
+const recordingStore = new RecordingStore()
+const egressService = new EgressService()
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
-app.use('/api', createRouter(store))
+app.use('/api', createRouter(store, { recordingStore, egressService }))
 
 // Cleanup expired rooms every 5 minutes (TTL = 2 hours)
 const CLEANUP_INTERVAL = 5 * 60 * 1000

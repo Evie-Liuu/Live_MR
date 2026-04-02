@@ -1,8 +1,15 @@
 import { Router, type Request, type Response } from 'express'
 import { RoomStore } from './rooms.js'
 import { createToken } from './livekit.js'
+import type { RecordingStore } from './recording.js'
+import type { EgressService } from './egress.js'
 
-export function createRouter(store: RoomStore): Router {
+interface RecordingDeps {
+  recordingStore: RecordingStore
+  egressService: EgressService
+}
+
+export function createRouter(store: RoomStore, recording?: RecordingDeps): Router {
   const router = Router()
 
   // SSE 客户端室
@@ -156,6 +163,82 @@ export function createRouter(store: RoomStore): Router {
       }
     })
   })
+
+  // ── Recording endpoints (only active when recording deps injected) ──
+
+  router.post('/rooms/:roomId/recording/start', async (req: Request, res: Response) => {
+    if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+    const roomId = req.params.roomId as string
+    const room = store.getRoom(roomId)
+    if (!room) { res.status(404).json({ error: 'Room not found' }); return }
+
+    const existing = recording.recordingStore.getActiveSession(roomId)
+    if (existing) { res.status(409).json({ error: 'Already recording' }); return }
+
+    try {
+      const { randomUUID } = await import('crypto')
+      const sessionId = randomUUID()
+      const { compositeEgressId, trackEgressIds } = await recording.egressService.startRecording(
+        roomId,
+        sessionId,
+      )
+      const session = recording.recordingStore.startSession(roomId, compositeEgressId, trackEgressIds, sessionId)
+      res.json({ sessionId: session.sessionId, status: session.status })
+    } catch (err: any) {
+      console.error('[recording/start] error:', err?.message ?? err)
+      res.status(500).json({ error: 'Failed to start recording', detail: err?.message ?? String(err) })
+    }
+  })
+
+  router.post('/rooms/:roomId/recording/stop', async (req: Request, res: Response) => {
+    if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+    const roomId = req.params.roomId as string
+    const session = recording.recordingStore.getActiveSession(roomId)
+    if (!session) { res.status(404).json({ error: 'No active recording' }); return }
+
+    try {
+      await recording.egressService.stopRecording(session.compositeEgressId, session.trackEgressIds)
+      const stopped = recording.recordingStore.stopSession(roomId, [])
+      res.json({ sessionId: stopped!.sessionId, status: stopped!.status })
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to stop recording' })
+    }
+  })
+
+  router.get('/rooms/:roomId/recordings', (req: Request, res: Response) => {
+    if (!recording) { res.json({ recordings: [] }); return }
+    const roomId = req.params.roomId as string
+    const recordings = recording.recordingStore.listSessions(roomId).map((s) => ({
+      sessionId: s.sessionId,
+      status: s.status,
+      files: s.files,
+      startedAt: s.startedAt,
+    }))
+    res.json({ recordings })
+  })
+
+  router.post(
+    '/rooms/:roomId/participants/:identity/mute',
+    async (req: Request, res: Response) => {
+      if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+      const roomId = req.params.roomId as string
+      const identity = req.params.identity as string
+      const { trackType, muted } = req.body as { trackType?: string; muted?: boolean }
+
+      if (trackType !== 'audio' && trackType !== 'video') {
+        res.status(400).json({ error: 'trackType must be "audio" or "video"' })
+        return
+      }
+
+      try {
+        await recording.egressService.muteTrack(roomId, identity, trackType, muted ?? true)
+        res.json({ success: true })
+      } catch (err: any) {
+        console.error('Failed to mute track:', err)
+        res.status(500).json({ error: 'Failed to mute track', message: err.message })
+      }
+    },
+  )
 
   return router
 }

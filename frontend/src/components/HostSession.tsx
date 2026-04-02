@@ -17,6 +17,8 @@ import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { decodePoseFrame } from '../utils/poseCodec.ts';
+import { useRecording } from '../hooks/useRecording.ts';
+import RecordingPanel from './RecordingPanel.tsx';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
@@ -37,6 +39,11 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(false);
+
+  const { isRecording, start, stop, muteState, toggleMute } = useRecording(
+    roomId,
+    connectedRoom,
+  );
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
@@ -584,6 +591,12 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         <span className="room-badge">房間: {roomId}</span>
         <span className="count-badge">{studentList.length} 位學生</span>
 
+        <RecordingPanel
+          isRecording={isRecording}
+          onStart={start}
+          onStop={stop}
+        />
+
         {/* ── 場景選擇器 ── */}
         <label htmlFor="scene-select" className="control-label">場景：</label>
         <select
@@ -770,6 +783,8 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                     videoTrack={info.videoTrack}
                     poseData={info.poseData}
                     vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
+                    muteState={muteState[info.participant.identity]}
+                    onToggleMute={toggleMute}
                   />
                   {assignedSlot && (
                     <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
