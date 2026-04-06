@@ -2,10 +2,17 @@ services:
   nginx:
       image: nginx:latest
       ports:
-        - "443:443"
+        - "${NGINX_PORT:-443}:443"
       volumes:
         - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
         - ./certs:/etc/nginx/certs
+      depends_on:
+        livekit:
+          condition: service_healthy
+        backend:
+          condition: service_healthy
+        frontend:
+          condition: service_started
 
   redis:
     image: redis:7-alpine
@@ -22,14 +29,13 @@ services:
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     ports:
-      - "0.0.0.0:7880:7880"
-      - "0.0.0.0:50000-50020:50000-50020/udp"
+      - "0.0.0.0:60000-60020:60000-60020/udp"
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7880"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:7880"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -53,23 +59,19 @@ services:
   backend:
     build: ./backend
     command: node dist/index.js
-    ports:
-      - "0.0.0.0:3001:3001"
     env_file: .env
     depends_on:
       livekit:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/api/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001/api/health"]
       interval: 10s
       timeout: 5s
       retries: 3
 
   frontend:
     build: ./frontend
-    ports:
-      - "0.0.0.0:80:80"
     depends_on:
       backend:
         condition: service_healthy
