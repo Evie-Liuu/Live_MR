@@ -1,5 +1,9 @@
 
 .claude/
+.agent/
+.codex/
+.gemini/
+openspec/
 
 # Logs
 logs
