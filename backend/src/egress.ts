@@ -7,11 +7,6 @@ import {
   TrackType,
 } from 'livekit-server-sdk'
 
-const API_KEY = (process.env.LIVEKIT_API_KEY || 'devkey').trim()
-const API_SECRET = (process.env.LIVEKIT_API_SECRET || 'devsecret1234567890devsecret1234567890').trim()
-const _lkUrl = (process.env.LIVEKIT_URL || process.env.LIVEKIT_SERVER_URL || 'ws://livekit:7880').trim()
-const SERVER_URL = _lkUrl.replace(/^ws:\/\//i, 'http://').replace(/^wss:\/\//i, 'https://')
-
 export interface StartRecordingResult {
   trackEgressIds: Record<string, string>   // identity → egressId
   participantIdentities: string[]
@@ -21,9 +16,14 @@ export class EgressService {
   private egress: EgressClient
   private roomService: RoomServiceClient
 
-  constructor(serverUrl = SERVER_URL, apiKey = API_KEY, apiSecret = API_SECRET) {
-    this.egress = new EgressClient(serverUrl, apiKey, apiSecret)
-    this.roomService = new RoomServiceClient(serverUrl, apiKey, apiSecret)
+  constructor() {
+    const key = (process.env.LIVEKIT_API_KEY || 'devkey').trim()
+    const secret = (process.env.LIVEKIT_API_SECRET || 'devsecret1234567890devsecret1234567890').trim()
+    const _lkUrl = (process.env.LIVEKIT_URL || process.env.LIVEKIT_SERVER_URL || 'ws://localhost:7880').trim()
+    const urlHttp = _lkUrl.replace(/^ws:\/\//i, 'http://').replace(/^wss:\/\//i, 'https://')
+
+    this.egress = new EgressClient(urlHttp, key, secret)
+    this.roomService = new RoomServiceClient(urlHttp, key, secret)
   }
 
   async startRecording(

@@ -1,4 +1,18 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const rootEnvPath = path.resolve(__dirname, '../../.env')
+const localEnvPath = path.resolve(__dirname, '../../.env.development.local')
+
+// Try loading .env.development.local first, then .env
+if (fs.existsSync(localEnvPath)) {
+  dotenv.config({ path: localEnvPath })
+} else if (fs.existsSync(rootEnvPath)) {
+  dotenv.config({ path: rootEnvPath })
+}
 import express from 'express'
 import cors from 'cors'
 import { RoomStore } from './rooms.js'

@@ -83,14 +83,14 @@ export function useRecording(
     setIsRecording(true)
     setSessionId(result.sessionId)
     channelRef?.current?.postMessage({ type: 'recording-start', sessionId: result.sessionId })
-  }, [roomId, channelRef])
+  }, [roomId])
 
   const stop = useCallback(async () => {
     await stopRecording(roomId)
     setIsRecording(false)
     setSessionId(null)
     channelRef?.current?.postMessage({ type: 'recording-stop' })
-  }, [roomId, channelRef])
+  }, [roomId])
 
   const toggleMute = useCallback(
     async (identity: string, trackType: 'audio' | 'video') => {

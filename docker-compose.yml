@@ -30,6 +30,7 @@ services:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     ports:
       - "0.0.0.0:60000-60020:60000-60020/udp"
+      - "7880:7880"
     restart: unless-stopped
     depends_on:
       redis:
@@ -57,9 +58,13 @@ services:
       - SYS_ADMIN
 
   backend:
-    build: ./backend
-    command: node dist/index.js
+    build:
+      context: ./backend
+      target: build
+    command: npx tsx watch src/index.ts
     env_file: .env
+    volumes:
+      - ./backend/src:/app/src
     depends_on:
       livekit:
         condition: service_healthy
@@ -71,7 +76,16 @@ services:
       retries: 3
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: build
+    command: npm run dev -- --host 0.0.0.0 --port 80
+    env_file: .env
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
     depends_on:
       backend:
         condition: service_healthy

@@ -4,6 +4,7 @@
 .codex/
 .gemini/
 openspec/
+*.diff
 
 # Logs
 logs
