@@ -5,6 +5,7 @@ import { RoomStore } from './rooms.js'
 import { createToken } from './livekit.js'
 import type { RecordingStore } from './recording.js'
 import type { EgressService } from './egress.js'
+import { mergeRecording } from './merge.js'
 
 const recordingsDir = path.resolve(process.cwd(), '../recordings')
 
@@ -239,6 +240,23 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       await recording.egressService.stopRecording(session.trackEgressIds)
       const stopped = recording.recordingStore.stopSession(roomId)
       if (!stopped) { res.status(500).json({ error: 'Failed to stop session' }); return }
+
+      // Trigger merge in background — bigscreen.webm may not be uploaded yet,
+      // mergeRecording waits up to 30 s for it before proceeding.
+      const dir = basepathToDir(stopped.basePath)
+      stopped.mergeStatus = 'merging'
+      mergeRecording(dir, stopped.participantIdentities)
+        .then((outputPath) => {
+          stopped.mergeStatus = 'done'
+          stopped.mergeOutput = outputPath
+          console.log('[merge] Done:', outputPath)
+        })
+        .catch((err: Error) => {
+          stopped.mergeStatus = 'error'
+          stopped.mergeError = err.message
+          console.error('[merge] Failed:', err.message)
+        })
+
       res.json({ sessionId: stopped.sessionId, status: stopped.status })
     } catch (err: any) {
       console.error('[recording/stop] error:', err?.message ?? err, '| cause:', err?.cause)
@@ -252,10 +270,27 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     const recordings = recording.recordingStore.listSessions(roomId).map((s) => ({
       sessionId: s.sessionId,
       status: s.status,
+      mergeStatus: s.mergeStatus,
+      mergeOutput: s.mergeOutput,
+      mergeError: s.mergeError,
       files: s.files,
       startedAt: s.startedAt,
     }))
     res.json({ recordings })
+  })
+
+  // GET /api/rooms/:roomId/recordings/:sessionId/merge — merge status
+  router.get('/rooms/:roomId/recordings/:sessionId/merge', (req: Request, res: Response) => {
+    if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+    const { sessionId } = req.params as { roomId: string; sessionId: string }
+    const session = recording.recordingStore.getSessionById(sessionId)
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return }
+    res.json({
+      sessionId: session.sessionId,
+      mergeStatus: session.mergeStatus,
+      mergeOutput: session.mergeOutput,
+      mergeError: session.mergeError,
+    })
   })
 
   // POST /api/rooms/:roomId/recording/bigscreen — BigScreen canvas upload

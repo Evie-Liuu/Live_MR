@@ -88,11 +88,12 @@ POST /api/rooms/:roomId/recording/stop
 | 方法 | 路徑 | 說明 |
 |------|------|------|
 | POST | `/api/rooms/:roomId/recording/start` | 開始錄製，回傳 sessionId |
-| POST | `/api/rooms/:roomId/recording/stop` | 停止錄製 |
-| GET  | `/api/rooms/:roomId/recordings` | 列出所有 session |
+| POST | `/api/rooms/:roomId/recording/stop` | 停止錄製，背景觸發 FFmpeg 合成 |
+| GET  | `/api/rooms/:roomId/recordings` | 列出所有 session（含 mergeStatus） |
+| GET  | `/api/rooms/:roomId/recordings/:sessionId/merge` | 查詢合成進度 |
 | POST | `/api/rooms/:roomId/recording/bigscreen` | 上傳大屏 webm（Header: X-Session-Id） |
 | POST | `/api/rooms/:roomId/recording/audio` | 上傳參與者音訊（Header: X-Session-Id, X-Participant-Identity） |
-| GET  | `/api/recordings/:roomId/:sessionId/:filename` | 下載錄製檔案 |
+| GET  | `/api/recordings/:roomId/:sessionId/:filename` | 下載錄製檔案（含 output.mp4） |
 | POST | `/api/rooms/:roomId/participants/:identity/mute` | 靜音參與者 |
 
 ---
@@ -113,12 +114,43 @@ backend:
 
 ---
 
+## FFmpeg 合成流程
+
+錄製停止後，backend 在背景自動執行合成，`bigscreen.webm` 最多等待 30 秒（等 BigScreen 上傳完成）。
+
+```
+bigscreen.webm  ──┐
+audio_A.ogg     ──┼─── FFmpeg amix ───→ output.mp4
+audio_B.ogg     ──┘
+```
+
+- 音訊優先：`.ogg`（LiveKit Egress）> `.webm`（client-side），每人取一軌
+- 無音訊時：只做影片格式轉換（`-c:v copy`）
+- 合成進度可透過 `GET /api/rooms/:roomId/recordings/:sessionId/merge` 輪詢
+
+### mergeStatus 狀態機
+
+```
+pending → merging → done
+                 ↘ error
+```
+
+| 狀態 | 說明 |
+|------|------|
+| `pending` | 錄製中，尚未開始合成 |
+| `merging` | FFmpeg 執行中（等待 bigscreen.webm 上傳 + 合成） |
+| `done` | 合成完成，`mergeOutput` 為 output.mp4 絕對路徑 |
+| `error` | 合成失敗，`mergeError` 有錯誤訊息 |
+
+---
+
 ## 關鍵程式碼位置
 
 | 功能 | 檔案 | 說明 |
 |------|------|------|
 | Egress 管理 | `backend/src/egress.ts` | LiveKit EgressClient，startRecording 接受 basePath |
 | Session 管理 | `backend/src/recording.ts` | RecordingStore，含 getSessionById() |
+| FFmpeg 合成 | `backend/src/merge.ts` | mergeRecording()，等待 bigscreen 上傳後合成 |
 | API 路由 | `backend/src/routes.ts:174-` | 所有錄製相關端點 |
 | 大屏錄製 | `frontend/src/components/BigScreen.tsx:326-379` | Canvas MediaRecorder + 上傳 |
 | Host 錄製 hook | `frontend/src/hooks/useRecording.ts` | 音訊錄製 + BroadcastChannel 協調 |

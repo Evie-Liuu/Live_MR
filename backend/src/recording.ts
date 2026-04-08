@@ -4,6 +4,9 @@ export interface RecordingSession {
   sessionId: string
   trackEgressIds: Record<string, string>   // identity → egressId
   status: 'recording' | 'stopped'
+  mergeStatus: 'pending' | 'merging' | 'done' | 'error'
+  mergeOutput?: string   // basePath-relative: e.g. /recordings/{scene}/{folder}/output.mp4
+  mergeError?: string
   startedAt: number
   files: string[]
   basePath: string
@@ -25,6 +28,7 @@ export class RecordingStore {
       sessionId: sessionId ?? randomUUID(),
       trackEgressIds,
       status: 'recording',
+      mergeStatus: 'pending',
       startedAt: Date.now(),
       files: [],
       basePath,
