@@ -61,4 +61,12 @@ export class RecordingStore {
   listSessions(roomId: string): RecordingSession[] {
     return this.sessions.get(roomId) ?? []
   }
+
+  getSessionById(sessionId: string): RecordingSession | null {
+    for (const sessions of this.sessions.values()) {
+      const found = sessions.find((s) => s.sessionId === sessionId)
+      if (found) return found
+    }
+    return null
+  }
 }

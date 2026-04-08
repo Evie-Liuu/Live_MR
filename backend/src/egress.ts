@@ -28,10 +28,8 @@ export class EgressService {
 
   async startRecording(
     roomId: string,
-    sessionId: string,
+    basePath: string,
   ): Promise<StartRecordingResult> {
-    const basePath = `/recordings/${roomId}/${sessionId}`
-
     // Per-participant audio track egress
     const participants = await this.roomService.listParticipants(roomId)
     const trackEgressIds: Record<string, string> = {}

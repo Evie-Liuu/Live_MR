@@ -18,6 +18,15 @@ function assertInRecordingsDir(resolvedPath: string): void {
   }
 }
 
+/**
+ * Convert a basePath like /recordings/{sceneId}/{folderName}
+ * to an absolute filesystem path inside recordingsDir.
+ */
+function basepathToDir(basePath: string): string {
+  const rel = basePath.replace(/^\/recordings\//, '')
+  return path.join(recordingsDir, rel)
+}
+
 interface RecordingDeps {
   recordingStore: RecordingStore
   egressService: EgressService
@@ -204,7 +213,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       const basePath = `/recordings/${safeSceneId}/${folderName}`
       const { trackEgressIds, participantIdentities } = await recording.egressService.startRecording(
         roomId,
-        sessionId,
+        basePath,
       )
       const session = recording.recordingStore.startSession(
         roomId,
@@ -261,13 +270,11 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
         res.status(400).json({ error: 'X-Session-Id header required' })
         return
       }
-      const room = store.getRoom(roomId)
-      if (!room) { res.status(404).json({ error: 'Room not found' }); return }
+      const session = recording.recordingStore.getSessionById(sessionId)
+      if (!session) { res.status(404).json({ error: 'Session not found' }); return }
       try {
-        const dir = path.join(recordingsDir, roomId, sessionId)
-        if (!dir.startsWith(recordingsDir + path.sep) && !dir.startsWith(recordingsDir + '/')) {
-          res.status(400).json({ error: 'Invalid path' }); return
-        }
+        const dir = basepathToDir(session.basePath)
+        assertInRecordingsDir(dir)
         await fs.promises.mkdir(dir, { recursive: true })
         await fs.promises.writeFile(path.join(dir, 'bigscreen.webm'), req.body as Buffer)
         res.json({ ok: true })
@@ -291,19 +298,18 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
         res.status(400).json({ error: 'X-Session-Id and X-Participant-Identity headers required' })
         return
       }
+      const session = recording.recordingStore.getSessionById(sessionId)
+      if (!session) { res.status(404).json({ error: 'Session not found' }); return }
       try {
-        const dir = path.join(recordingsDir, roomId, sessionId)
-        if (!dir.startsWith(recordingsDir + path.sep) && !dir.startsWith(recordingsDir + '/')) {
-          res.status(400).json({ error: 'Invalid path' }); return
-        }
+        const dir = basepathToDir(session.basePath)
+        assertInRecordingsDir(dir)
         await fs.promises.mkdir(dir, { recursive: true })
         // Use .webm for client-side recording (usually produced by MediaRecorder in Chrome)
         const filename = `audio_${identity}.webm`
         await fs.promises.writeFile(path.join(dir, filename), req.body as Buffer)
 
         // Ensure this participant is tracked in the session so they appear in file list
-        const session = recording.recordingStore.getActiveSession(roomId)
-        if (session && !session.participantIdentities.includes(identity)) {
+        if (!session.participantIdentities.includes(identity)) {
           session.participantIdentities.push(identity)
         }
 
@@ -317,20 +323,26 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
 
   // GET /api/recordings/:roomId/:sessionId/:filename — file download
   router.get('/recordings/:roomId/:sessionId/:filename', (req: Request, res: Response) => {
-    const { roomId, sessionId, filename } = req.params as {
+    const { sessionId, filename } = req.params as {
       roomId: string; sessionId: string; filename: string
     }
     if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
       res.status(400).json({ error: 'Invalid filename' })
       return
     }
-    const filePath = path.join(recordingsDir, roomId, sessionId, filename)
-    if (!filePath.startsWith(recordingsDir + path.sep) && !filePath.startsWith(recordingsDir + '/')) {
-      res.status(400).json({ error: 'Invalid path' }); return
+    if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+    const session = recording.recordingStore.getSessionById(sessionId)
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return }
+    try {
+      const dir = basepathToDir(session.basePath)
+      const filePath = path.join(dir, filename)
+      assertInRecordingsDir(filePath)
+      res.download(filePath, filename, (err) => {
+        if (err && !res.headersSent) res.status(404).json({ error: 'File not found' })
+      })
+    } catch {
+      res.status(400).json({ error: 'Invalid path' })
     }
-    res.download(filePath, filename, (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'File not found' })
-    })
   })
 
   router.post(

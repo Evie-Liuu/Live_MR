@@ -3,8 +3,11 @@ services:
       image: nginx:latest
       ports:
         - "${NGINX_PORT:-443}:443"
+      env_file: .env
+      environment:
+        - NGINX_ENVSUBST_TEMPLATE_VARS=SERVER_NAME
       volumes:
-        - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+        - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
         - ./certs:/etc/nginx/certs
       depends_on:
         livekit:
@@ -65,6 +68,7 @@ services:
     env_file: .env
     volumes:
       - ./backend/src:/app/src
+      - ./recordings:/recordings
     depends_on:
       livekit:
         condition: service_healthy
