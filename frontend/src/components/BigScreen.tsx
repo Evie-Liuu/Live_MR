@@ -4,6 +4,7 @@ import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
+import { getRecordings } from '../api.ts';
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
@@ -131,6 +132,37 @@ export default function BigScreen() {
   const recordingChunksRef = useRef<Blob[]>([])
   const recordingSessionIdRef = useRef<string | null>(null)
   const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
+
+  // Restore recording state on mount
+  useEffect(() => {
+    if (!roomIdRef.current) return
+    getRecordings(roomIdRef.current)
+      .then((sessions) => {
+        const active = sessions.find((s) => s.status === 'recording')
+        if (active && !mediaRecorderRef.current) {
+          console.log('[BigScreen] Restoring active recording session:', active.sessionId)
+          recordingChunksRef.current = []
+          recordingSessionIdRef.current = active.sessionId
+          const canvas = canvasRef.current
+          if (!canvas) return
+          try {
+            const stream = canvas.captureStream(30)
+            const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+              ? 'video/webm;codecs=vp9'
+              : 'video/webm'
+            const mr = new MediaRecorder(stream, { mimeType })
+            mr.ondataavailable = (e) => {
+              if (e.data.size > 0) recordingChunksRef.current.push(e.data)
+            }
+            mr.start(1000)
+            mediaRecorderRef.current = mr
+          } catch (err) {
+            console.error('[BigScreen] Failed to restore canvas recording on mount:', err)
+          }
+        }
+      })
+      .catch(() => { /* ignore */ })
+  }, [])
 
   // Apply snapshot stored by HostSession before the window was opened
   useEffect(() => {

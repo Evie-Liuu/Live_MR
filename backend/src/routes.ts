@@ -176,6 +176,8 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
   router.post('/rooms/:roomId/recording/start', async (req: Request, res: Response) => {
     if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
     const roomId = req.params.roomId as string
+    const { sceneId, participantName } = req.body as { sceneId?: string; participantName?: string }
+
     const room = store.getRoom(roomId)
     if (!room) { res.status(404).json({ error: 'Room not found' }); return }
 
@@ -185,7 +187,21 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     try {
       const { randomUUID } = await import('crypto')
       const sessionId = randomUUID()
-      const basePath = `/recordings/${roomId}/${sessionId}`
+
+      // Format: [participantName_currentLocalTime]
+      const now = new Date()
+      const timestamp = now.getFullYear() +
+        ('0' + (now.getMonth() + 1)).slice(-2) +
+        ('0' + now.getDate()).slice(-2) + '-' +
+        ('0' + now.getHours()).slice(-2) +
+        ('0' + now.getMinutes()).slice(-2) +
+        ('0' + now.getSeconds()).slice(-2)
+
+      const safeParticipantName = (participantName || 'Unknown').replace(/[^a-z0-9]/gi, '_')
+      const safeSceneId = (sceneId || 'DefaultScene').replace(/[^a-z0-9]/gi, '_')
+      const folderName = `${safeParticipantName}_${timestamp}`
+
+      const basePath = `/recordings/${safeSceneId}/${folderName}`
       const { trackEgressIds, participantIdentities } = await recording.egressService.startRecording(
         roomId,
         sessionId,
@@ -258,6 +274,43 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       } catch (err: any) {
         console.error('[recording/bigscreen] error:', err?.message ?? err)
         res.status(500).json({ error: 'Failed to save bigscreen recording' })
+      }
+    },
+  )
+
+  // POST /api/rooms/:roomId/recording/audio — Participant audio upload
+  router.post(
+    '/rooms/:roomId/recording/audio',
+    express.raw({ type: 'audio/*', limit: '100mb' }),
+    async (req: Request, res: Response) => {
+      if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+      const roomId = req.params.roomId as string
+      const sessionId = req.headers['x-session-id'] as string | undefined
+      const identity = req.headers['x-participant-identity'] as string | undefined
+      if (!sessionId || !identity) {
+        res.status(400).json({ error: 'X-Session-Id and X-Participant-Identity headers required' })
+        return
+      }
+      try {
+        const dir = path.join(recordingsDir, roomId, sessionId)
+        if (!dir.startsWith(recordingsDir + path.sep) && !dir.startsWith(recordingsDir + '/')) {
+          res.status(400).json({ error: 'Invalid path' }); return
+        }
+        await fs.promises.mkdir(dir, { recursive: true })
+        // Use .webm for client-side recording (usually produced by MediaRecorder in Chrome)
+        const filename = `audio_${identity}.webm`
+        await fs.promises.writeFile(path.join(dir, filename), req.body as Buffer)
+
+        // Ensure this participant is tracked in the session so they appear in file list
+        const session = recording.recordingStore.getActiveSession(roomId)
+        if (session && !session.participantIdentities.includes(identity)) {
+          session.participantIdentities.push(identity)
+        }
+
+        res.json({ ok: true })
+      } catch (err: any) {
+        console.error('[recording/audio] error:', err?.message ?? err)
+        res.status(500).json({ error: 'Failed to save audio recording' })
       }
     },
   )

@@ -48,12 +48,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   // BroadcastChannel to push pose data to big screen
   const channelRef = useRef<BroadcastChannel | null>(null);
 
-  const { isRecording, start, stop, muteState, toggleMute } = useRecording(
-    roomId,
-    connectedRoom,
-    channelRef,
-  );
-
   // Teacher's own video ref (for pose detection)
   const teacherVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -93,6 +87,14 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   // Selected scene task goal
   const [selectedTask, setSelectedTask] = useState<string | null>(
     () => sessionStorage.getItem('bigscreen-task') ?? null,
+  );
+
+  const { isRecording, start, stop, muteState, toggleMute } = useRecording(
+    roomId,
+    connectedRoom,
+    selectedSceneId,
+    connectedRoom?.localParticipant.name || connectedRoom?.localParticipant.identity || 'Host',
+    channelRef,
   );
 
   // Broadcast scene/VRM changes to any open BigScreen window
@@ -482,8 +484,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
         try {
           await room.localParticipant.setCameraEnabled(true);
+          await room.localParticipant.setMicrophoneEnabled(true);
         } catch (err) {
-          if (isMounted) console.error('Failed to enable camera:', err);
+          if (isMounted) console.error('Failed to enable camera/microphone:', err);
         }
 
         // Attach teacher camera to hidden video for pose detection

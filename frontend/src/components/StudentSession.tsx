@@ -85,6 +85,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
 
         try {
           await room.localParticipant.setCameraEnabled(true);
+          await room.localParticipant.setMicrophoneEnabled(true);
           if (!isMounted) return;
 
           // Attach local video to self-view
@@ -96,7 +97,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
           }
         } catch (e) {
           if (isMounted) {
-            console.error("Failed to enable camera:", e);
+            console.error("Failed to enable camera/microphone:", e);
           }
         }
       })

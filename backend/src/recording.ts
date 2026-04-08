@@ -45,9 +45,15 @@ export class RecordingStore {
     const session = this.getActiveSession(roomId)
     if (!session) return null
     session.status = 'stopped'
+    // Include all possible files that may have been generated (Egress .ogg, client-side .webm)
+    const audioFiles: string[] = []
+    for (const id of session.participantIdentities) {
+      audioFiles.push(`${session.basePath}/audio_${id}.ogg`)
+      audioFiles.push(`${session.basePath}/audio_${id}.webm`)
+    }
     session.files = [
       `${session.basePath}/bigscreen.webm`,
-      ...session.participantIdentities.map((id) => `${session.basePath}/audio_${id}.ogg`),
+      ...audioFiles,
     ]
     return session
   }

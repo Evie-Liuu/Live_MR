@@ -111,8 +111,16 @@ export interface StopRecordingResponse {
   status: 'stopped';
 }
 
-export async function startRecording(roomId: string): Promise<StartRecordingResponse> {
-  const res = await fetch(`/api/rooms/${roomId}/recording/start`, { method: 'POST' });
+export async function startRecording(
+  roomId: string,
+  sceneId: string,
+  participantName: string,
+): Promise<StartRecordingResponse> {
+  const res = await fetch(`/api/rooms/${roomId}/recording/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sceneId, participantName }),
+  });
   if (!res.ok) throw new Error(`startRecording failed: ${res.status}`);
   return res.json() as Promise<StartRecordingResponse>;
 }
