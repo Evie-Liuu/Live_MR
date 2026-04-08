@@ -6,6 +6,7 @@ import {
   RemoteTrackPublication,
   Track,
   DataPacket_Kind,
+  type Participant,
 } from 'livekit-client';
 import StudentTile from './StudentTile.tsx';
 import LocalVideo from './LocalVideo.tsx';
@@ -39,6 +40,8 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(false);
+  // Set of participant identities currently speaking
+  const [speakingSet, setSpeakingSet] = useState<Set<string>>(new Set());
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
@@ -458,11 +461,17 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     };
 
     let isMounted = true;
+    // ── Audio speaking detection ──────────────────────────────────────
+    const handleActiveSpeakers = (speakers: Participant[]) => {
+      setSpeakingSet(new Set(speakers.map((p) => p.identity)));
+    };
+
     room.on(RoomEvent.ParticipantConnected, handleConnected);
     room.on(RoomEvent.ParticipantDisconnected, handleDisconnected);
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed as never);
     room.on(RoomEvent.DataReceived, handleDataReceived as never);
     room.on(RoomEvent.ParticipantMetadataChanged, handleParticipantMetadataChanged as never);
+    room.on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakers as never);
 
     const connectPromise = room.connect(LIVEKIT_URL, livekitToken);
 
@@ -501,6 +510,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     return () => {
       isMounted = false;
       setConnectedRoom(null);
+      setSpeakingSet(new Set());
       connectPromise.catch(() => { }).finally(() => {
         room.disconnect();
       });
@@ -746,9 +756,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
               const teacherSlot = teacherSlotId
                 ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
                 : undefined;
+              const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
               return (
                 <div
-                  className="student-container teacher-card"
+                  className={`student-container teacher-card${isTeacherSpeaking ? ' is-speaking' : ''}`}
                   style={{ position: 'relative', opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
                 >
                   <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId} />
@@ -774,10 +785,11 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
               const assignedSlot = assignedSlotId
                 ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
                 : undefined;
+              const isStudentSpeaking = speakingSet.has(info.participant.identity);
               return (
                 <div
                   key={info.participant.identity}
-                  className="student-container"
+                  className={`student-container${isStudentSpeaking ? ' is-speaking' : ''}`}
                   style={{ position: 'relative', opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
                 >
                   <StudentTile

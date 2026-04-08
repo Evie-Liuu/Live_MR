@@ -327,6 +327,13 @@ button:disabled {
   gap: 16px;
 }
 
+/* wrapper div around each tile (teacher card or student tile) */
+.student-container {
+  border-radius: 12px;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
 .bigscreen-btn {
   background: linear-gradient(135deg, #533483, #e94560);
   color: #fff;
@@ -701,6 +708,33 @@ button:disabled {
 .teacher-card {
   border-color: #3a2a5a;
   background: #1e1a2e;
+}
+
+/* ===== Audio speaking indicator ===== */
+@keyframes speaking-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(72, 220, 180, 0.75), 0 0 0 2px rgba(72, 220, 180, 0.4); }
+  50%  { box-shadow: 0 0 0 5px rgba(72, 220, 180, 0.2), 0 0 12px 4px rgba(72, 220, 180, 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(72, 220, 180, 0.75), 0 0 0 2px rgba(72, 220, 180, 0.4); }
+}
+
+@keyframes teacher-speaking-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(160, 100, 255, 0.8), 0 0 0 2px rgba(160, 100, 255, 0.45); }
+  50%  { box-shadow: 0 0 0 5px rgba(160, 100, 255, 0.2), 0 0 14px 5px rgba(160, 100, 255, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(160, 100, 255, 0.8), 0 0 0 2px rgba(160, 100, 255, 0.45); }
+}
+
+/* student-container wraps both teacher-card and plain student tiles */
+.student-container.is-speaking {
+  border: 2px solid rgba(72, 220, 180, 0.9);
+  border-radius: 12px;
+  animation: speaking-pulse 0.9s ease-in-out infinite;
+  transition: border-color 0.15s;
+}
+
+/* teacher card uses a distinct purple/violet glow */
+.student-container.teacher-card.is-speaking {
+  border-color: rgba(160, 100, 255, 0.9);
+  animation: teacher-speaking-pulse 0.9s ease-in-out infinite;
 }
 
 .teacher-card-tab {
