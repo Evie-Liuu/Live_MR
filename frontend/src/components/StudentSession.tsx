@@ -24,11 +24,14 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const [connected, setConnected] = useState(false);
   const roomRef = useRef<Room | null>(null);
   const [landmarks, setLandmarks] = useState<PoseLandmark[] | null>(null);
+  // 追蹤目前本地預覽用的 stream，確保切換鏡頭時能正確釋放
+  const displayStreamRef = useRef<MediaStream | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
   const [faceEnabled, setFaceEnabled] = useState(false);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const isMobile = isMobileDevice();
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const publishPose = useCallback(
     (data: Uint8Array) => {
@@ -109,12 +112,16 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
           if (!isMounted) return;
 
           // 直接設定 srcObject + play()，確保 iPad Safari 顯示畫面
+          displayStreamRef.current = stream;
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             videoRef.current.play().catch(() => { });
           }
 
-          await room.localParticipant.publishTrack(stream.getVideoTracks()[0], {
+          // Safari/WebKit 限制：同一個 MediaStreamTrack 不能同時被 video element
+          // 渲染又被 RTCPeerConnection.addTrack() 使用，否則 video element 會變黑畫面。
+          // 解法：publish 給 LiveKit 的用 clone()，本地顯示用原始 stream。
+          await room.localParticipant.publishTrack(stream.getVideoTracks()[0].clone(), {
             source: Track.Source.Camera,
           });
           await room.localParticipant.setMicrophoneEnabled(true);
@@ -127,17 +134,21 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       .catch((e) => {
         if (isMounted) {
           console.error("Room connection failed:", e);
+          setConnectionError(String(e));
         }
       });
 
     return () => {
       isMounted = false;
       roomRef.current = null;
-      // Ensure we only disconnect after the connection attempt has settled
-      // to avoid "WebSocket is closed before the connection is established" warning.
-      connectPromise.catch(() => { }).finally(() => {
-        room.disconnect();
-      });
+      // 釋放本地預覽的 camera stream
+      if (displayStreamRef.current) {
+        displayStreamRef.current.getTracks().forEach(t => t.stop());
+        displayStreamRef.current = null;
+      }
+      // 立即斷線，避免 React StrictMode 開發環境下兩次 mount 用同一 identity 搶連線。
+      // 若連線尚未建立則 disconnect() 內部會安全忽略。
+      room.disconnect();
     };
   }, [token]);
 
@@ -167,14 +178,20 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       // 取得目前已發布的 camera publication
       const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
       if (camPub?.track) {
-        // 透過 LiveKit 替換已發布的 track（保持訂閱不中斷）
-        await camPub.track.replaceTrack(newTrack);
+        // 停止舊的本地預覽 stream
+        if (displayStreamRef.current) {
+          displayStreamRef.current.getTracks().forEach(t => t.stop());
+        }
+        displayStreamRef.current = newStream;
 
         // 更新自畫面預覽（直接設 srcObject，確保 iPad Safari 顯示）
         if (videoRef.current) {
           videoRef.current.srcObject = newStream;
           videoRef.current.play().catch(() => { });
         }
+
+        // 同樣用 clone() 給 LiveKit，避免 Safari track 共用導致 video 黑畫面
+        await camPub.track.replaceTrack(newTrack.clone());
       }
 
       setFacingMode(nextFacing);
@@ -192,8 +209,13 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
         <span className="room-badge">房間: {roomId}</span>
         <span className="name-badge">{name}</span>
         <span className={`status-badge ${connected ? 'connected' : 'disconnected'}`}>
-          {connected ? '已連線' : '連線中...'}
+          {connected ? '已連線' : connectionError ? '連線失敗' : '連線中...'}
         </span>
+        {connectionError && (
+          <span style={{ color: '#f87171', fontSize: '0.75em', marginLeft: 8 }}>
+            {connectionError}
+          </span>
+        )}
       </div>
       <div className="self-view" style={{ position: 'relative', display: 'inline-block' }}>
         <video ref={videoRef} autoPlay playsInline muted />

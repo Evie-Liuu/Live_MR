@@ -28,9 +28,12 @@ services:
 
   livekit:
     image: livekit/livekit-server:latest
-    command: --config /etc/livekit.yaml
+    # 用 envsubst 把 livekit.yaml.template 的 ${SERVER_NAME} 替換成 .env 的 LAN IP，
+    # 確保 ICE candidates 回報正確的外部 IP，行動裝置才能建立 WebRTC 媒體連線。
+    entrypoint: ["sh", "-c", "sed \"s|__SERVER_NAME__|$SERVER_NAME|g\" /etc/livekit.yaml.template > /tmp/livekit.yaml && exec /livekit-server --config /tmp/livekit.yaml"]
+    env_file: .env
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - ./livekit.yaml.template:/etc/livekit.yaml.template:ro
     ports:
       - "0.0.0.0:60000-60020:60000-60020/udp"
       - "7880:7880"

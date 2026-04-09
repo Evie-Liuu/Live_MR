@@ -1,0 +1,17 @@
+port: 7880
+rtc:
+  # node_ip 必須是 Host 主機的 LAN IP（與 .env SERVER_NAME 相同），
+  # 讓 LiveKit 在 ICE candidates 回報正確的外部 IP，
+  # 行動裝置才能透過 UDP 60000-60020 連上 WebRTC 媒體通道。
+  node_ip: __SERVER_NAME__
+  port_range_start: 60000
+  port_range_end: 60020
+  use_external_ip: false
+room:
+  enable_remote_unmute: true
+keys:
+  devkey: devsecret1234567890devsecret1234567890
+redis:
+  address: redis:6379
+logging:
+  level: info
