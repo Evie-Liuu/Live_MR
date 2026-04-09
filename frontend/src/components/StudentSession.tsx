@@ -114,11 +114,9 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
             videoRef.current.play().catch(() => { });
           }
 
-          setTimeout(async () => {
-            await room.localParticipant.publishTrack(stream.getVideoTracks()[0], {
-              source: Track.Source.Camera,
-            });
-          }, 500);
+          await room.localParticipant.publishTrack(stream.getVideoTracks()[0], {
+            source: Track.Source.Camera,
+          });
           await room.localParticipant.setMicrophoneEnabled(true);
         } catch (e) {
           if (isMounted) {
