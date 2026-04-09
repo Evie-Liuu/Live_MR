@@ -199,13 +199,19 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       const sessionId = randomUUID()
 
       // Format: [participantName_currentLocalTime]
-      const now = new Date()
-      const timestamp = now.getFullYear() +
-        ('0' + (now.getMonth() + 1)).slice(-2) +
-        ('0' + now.getDate()).slice(-2) + '-' +
-        ('0' + now.getHours()).slice(-2) +
-        ('0' + now.getMinutes()).slice(-2) +
-        ('0' + now.getSeconds()).slice(-2)
+      // Use explicit timezone to avoid Docker's default UTC time (e.g., 'Asia/Taipei')
+      const tzOptions: Intl.DateTimeFormatOptions = {
+        timeZone: process.env.TZ || 'Asia/Taipei',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }
+      const formatter = new Intl.DateTimeFormat('sv-SE', tzOptions)
+      const timestamp = formatter.format(new Date()).replace(/[-:]/g, '').replace(' ', '-')
 
       const safeParticipantName = (participantName || 'Unknown').replace(/[^a-z0-9]/gi, '_')
       const safeSceneId = (sceneId || 'DefaultScene').replace(/[^a-z0-9]/gi, '_')
