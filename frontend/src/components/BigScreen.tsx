@@ -95,6 +95,8 @@ export default function BigScreen() {
   const [sceneId, setSceneId] = useState<string>(() => {
     return sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID;
   });
+  const sceneIdRef = useRef<string>(sceneId);
+  useEffect(() => { sceneIdRef.current = sceneId; }, [sceneId]);
   const [vrmSourceId, setVrmSourceId] = useState<string>(() => {
     return sessionStorage.getItem('bigscreen-vrmSourceId') ?? 'default';
   });
@@ -132,6 +134,82 @@ export default function BigScreen() {
   const recordingChunksRef = useRef<Blob[]>([])
   const recordingSessionIdRef = useRef<string | null>(null)
   const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
+  const recordingRafRef = useRef<number | null>(null)
+
+  const startCompositeStream = (sourceCanvas: HTMLCanvasElement): MediaStream => {
+    const compositeCanvas = document.createElement('canvas');
+    compositeCanvas.width = sourceCanvas.width || window.innerWidth;
+    compositeCanvas.height = sourceCanvas.height || window.innerHeight;
+    const ctx = compositeCanvas.getContext('2d')!;
+
+    const drawCover = (ctx: CanvasRenderingContext2D, element: HTMLImageElement | HTMLVideoElement, cw: number, ch: number) => {
+      let sw = 0;
+      let sh = 0;
+      if (element.tagName === 'IMG') {
+        sw = (element as HTMLImageElement).naturalWidth;
+        sh = (element as HTMLImageElement).naturalHeight;
+      } else {
+        sw = (element as HTMLVideoElement).videoWidth;
+        sh = (element as HTMLVideoElement).videoHeight;
+      }
+      if (!sw || !sh) {
+        ctx.drawImage(element, 0, 0, cw, ch);
+        return;
+      }
+      const scale = Math.max(cw / sw, ch / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      const dx = (cw - dw) / 2;
+      const dy = (ch - dh) / 2;
+      ctx.drawImage(element, 0, 0, sw, sh, dx, dy, dw, dh);
+    };
+
+    const drawFrame = () => {
+      const cw = sourceCanvas.width || window.innerWidth;
+      const ch = sourceCanvas.height || window.innerHeight;
+      if (compositeCanvas.width !== cw) compositeCanvas.width = cw;
+      if (compositeCanvas.height !== ch) compositeCanvas.height = ch;
+
+      ctx.clearRect(0, 0, cw, ch);
+
+      // 1. Draw Background
+      const bgDiv = document.querySelector('.bigscreen-bg') as HTMLElement;
+      let hasBg = false;
+      if (bgDiv) {
+        const bgColor = bgDiv.style.backgroundColor;
+        if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+          ctx.fillStyle = bgColor;
+          ctx.fillRect(0, 0, cw, ch);
+          hasBg = true;
+        }
+
+        const img = bgDiv.querySelector('img');
+        if (img && img.complete && img.naturalWidth > 0) {
+          drawCover(ctx, img, cw, ch);
+          hasBg = true;
+        }
+
+        const video = bgDiv.querySelector('video');
+        if (video && video.readyState >= 2) {
+          drawCover(ctx, video, cw, ch);
+          hasBg = true;
+        }
+      }
+
+      if (!hasBg) {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, cw, ch);
+      }
+
+      // 2. Draw 3D Canvas
+      ctx.drawImage(sourceCanvas, 0, 0, cw, ch);
+
+      recordingRafRef.current = requestAnimationFrame(drawFrame);
+    };
+
+    recordingRafRef.current = requestAnimationFrame(drawFrame);
+    return compositeCanvas.captureStream(30);
+  };
 
   // Restore recording state on mount
   useEffect(() => {
@@ -146,7 +224,8 @@ export default function BigScreen() {
           const canvas = canvasRef.current
           if (!canvas) return
           try {
-            const stream = canvas.captureStream(30)
+            if (recordingRafRef.current) cancelAnimationFrame(recordingRafRef.current)
+            const stream = startCompositeStream(canvas)
             const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
               ? 'video/webm;codecs=vp9'
               : 'video/webm'
@@ -266,7 +345,7 @@ export default function BigScreen() {
             sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(stored));
           } catch {/* ignore */ }
           // Immediately load avatar at slot position (before next pose frame)
-          const preset = SCENE_PRESETS[sceneId];
+          const preset = SCENE_PRESETS[sceneIdRef.current];
           const sceneSlot = preset?.slots?.find(s => s.id === msg.slotId);
           if (sceneSlot) {
             const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
@@ -333,7 +412,8 @@ export default function BigScreen() {
         const canvas = canvasRef.current
         if (!canvas) return
         try {
-          const stream = canvas.captureStream(30)
+          if (recordingRafRef.current) cancelAnimationFrame(recordingRafRef.current)
+          const stream = startCompositeStream(canvas)
           const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
             ? 'video/webm;codecs=vp9'
             : 'video/webm'
@@ -348,6 +428,10 @@ export default function BigScreen() {
         }
       } else if (msg.type === 'recording-stop') {
         const mr = mediaRecorderRef.current
+        if (recordingRafRef.current) {
+          cancelAnimationFrame(recordingRafRef.current)
+          recordingRafRef.current = null
+        }
         if (!mr || mr.state === 'inactive') return
         mr.onstop = async () => {
           const blob = new Blob(recordingChunksRef.current, { type: 'video/webm' })
@@ -385,6 +469,10 @@ export default function BigScreen() {
       const mr = mediaRecorderRef.current
       if (mr && mr.state !== 'inactive') {
         mr.stop()
+      }
+      if (recordingRafRef.current) {
+        cancelAnimationFrame(recordingRafRef.current)
+        recordingRafRef.current = null
       }
     };
   }, []); // channel lifecycle independent of applyPose/removeAvatar
