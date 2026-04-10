@@ -227,7 +227,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
           />
         )}
         {/* 連線後顯示切換鏡頭按鈕（行動裝置前/後鏡頭；桌機視裝置支援情況）*/}
-        {connected && (
+        {false && connected && (
           <button
             onClick={switchCamera}
             disabled={isSwitchingCamera}
