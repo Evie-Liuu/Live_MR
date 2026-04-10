@@ -34,7 +34,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
     backgroundType: 'image',
     backgroundValue: '/images/clothingStore.png',
     grid: { size: 20, divisions: 20, color: 0x2a2a4a },
-    allowedVrmIds: ['default', 'student_male', 'student_female', 'teenager_male', 'teenager_female'],
+    allowedVrmIds: ['default', 'student_male', 'student_female', 'teenager_male', 'teenager_female', 'clothingStoreStaff_female'],
     avatarDefaults: { position: [0, 0, -1.5], scale: 1.5 },
     avatarSpacing: 1.6,
     slots: [
@@ -44,7 +44,7 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = {
         icon: '🏪',
         position: [1.2, 0, -1.5],
         // rotation: [0, Math.PI, 0],
-        defaultVrmId: 'student_female',
+        defaultVrmId: 'clothingStoreStaff_female',
       },
       {
         id: 'customer',

@@ -148,10 +148,19 @@ export function solveWithKalidokit(
     if (!eulerRot || typeof eulerRot !== 'object' || !('x' in eulerRot)) continue
 
     const euler = eulerRot as { x: number; y: number; z: number }
+
+    let zRot = mirror ? -euler.z : euler.z;
+
+    // 修正手臂上下文動作顛倒問題 (Arm up/down inverted fix)
+    const isArm = vrmName.toLowerCase().includes('arm') || vrmName.toLowerCase().includes('hand');
+    if (mirror && isArm) {
+      zRot = euler.z;
+    }
+
     // 鏡像：在歐拉角空間反轉 Y/Z，避免四元數空間的軸交叉耦合
     const mirrored = mirror
-      ? { x: euler.x, y: -euler.y, z: -euler.z }
-      : { x: euler.x, y: -euler.y, z: euler.z }
+      ? { x: euler.x, y: -euler.y, z: -zRot }
+      : { x: euler.x, y: -euler.y, z: zRot }
     const currentQuat = eulerToQuaternion(mirrored)
     rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing)
   }
