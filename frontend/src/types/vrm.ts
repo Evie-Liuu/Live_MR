@@ -80,8 +80,45 @@ export interface SceneConfig {
   avatarSpacing?: number;
   /** Named, fixed positions for participants in this scene (enables slot-assignment mode) */
   slots?: SceneSlot[];
-  /** Optional list of task goal strings for this scene. Host picks one; BigScreen shows it. */
-  tasks?: string[];
+  /** Optional teaching modules for this scene (Module → TaskItems hierarchy) */
+  modules?: SceneModule[];
+}
+
+// ─── Teaching Hierarchy ──────────────────────────────────────────────────────
+
+/** Actual practice task, shown as a pill inside a Module */
+export interface TaskItem {
+  id: string;
+  label: string; // e.g. "Ask for the price of a blue T-shirt."
+}
+
+/** A grouping of related tasks (教學功能層) */
+export interface SceneModule {
+  id: string;
+  label: string;  // e.g. "Ask for a Price"
+  icon?: string;  // optional emoji
+  tasks: TaskItem[];
+}
+
+/** A sub-scene within a Theme (e.g. 收銀台, 試衣間) */
+export interface SceneVariant {
+  id: string;
+  label: string;
+  icon?: string;
+  /** Fixed participant positions for THIS scene variant */
+  slots?: SceneSlot[];
+  /** Restricted VRM model IDs for this variant (overrides Theme-level if set) */
+  allowedVrmIds?: string[];
+  /** Teaching modules for this variant */
+  modules?: SceneModule[];
+}
+
+/** Top-level teaching theme (e.g. 服飾店) */
+export interface ThemeConfig {
+  id: string;
+  label: string;
+  icon?: string;
+  scenes: SceneVariant[];
 }
 
 // ─── VRM Source Configuration ─────────────────────────────────────────────────

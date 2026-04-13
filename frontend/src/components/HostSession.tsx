@@ -13,7 +13,7 @@ import LocalVideo from './LocalVideo.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
 import type { BigScreenMsg } from './BigScreen';
 import type { PoseFrame } from '../types/vrm';
-import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
+import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
@@ -84,7 +84,12 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     }
   });
 
-  // Selected scene task goal
+  // Selected module (教學功能層)
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(
+    () => sessionStorage.getItem('bigscreen-moduleId') ?? null,
+  );
+
+  // Selected task item (實際任務層)
   const [selectedTask, setSelectedTask] = useState<string | null>(
     () => sessionStorage.getItem('bigscreen-task') ?? null,
   );
@@ -147,6 +152,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       // Clear task goal — it is scene-specific
       setSelectedTask(null);
       sessionStorage.removeItem('bigscreen-task');
+      // Clear module selection too
+      setSelectedModuleId(null);
+      sessionStorage.removeItem('bigscreen-moduleId');
       const taskClearMsg: BigScreenMsg = { type: 'task-change', task: null };
       channelRef.current?.postMessage(taskClearMsg);
       broadcastSceneChange(sceneId);
@@ -612,7 +620,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           onStop={stop}
         />
 
-        {/* ── 場景選擇器 ── */}
+        {/* ── 場景選擇器（依 Theme 分組）── */}
         <label htmlFor="scene-select" className="control-label">場景：</label>
         <select
           id="scene-select"
@@ -620,10 +628,14 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           value={selectedSceneId}
           onChange={(e) => handleSceneChange(e.target.value)}
         >
-          {Object.values(SCENE_PRESETS).map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
+          {THEMES.map((theme) => (
+            <optgroup key={theme.id} label={`${theme.icon ?? ''} ${theme.label}`}>
+              {theme.scenes.map((scene) => (
+                <option key={scene.id} value={scene.id}>
+                  {scene.icon ? `${scene.icon} ` : ''}{scene.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
 
@@ -726,30 +738,75 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
         {/* ── Right Column (task selector + participant grid) ── */}
         <div className="host-right-col">
-          {currentScenePreset.tasks && currentScenePreset.tasks.length > 0 && (
-            <div className="task-selector">
-              <div className="task-selector-header">🎯 場景任務目標</div>
-              <div className="task-pills">
-                {currentScenePreset.tasks.map((task) => (
-                  <button
-                    key={task}
-                    className={`task-pill${selectedTask === task ? ' active' : ''}`}
-                    onClick={() => { setSelectedTask(task); broadcastTaskChange(task); }}
-                  >
-                    {task}
-                  </button>
-                ))}
-                {selectedTask && (
-                  <button
-                    className="task-pill-clear"
-                    onClick={() => { setSelectedTask(null); broadcastTaskChange(null); }}
-                  >
-                    ✕ 無任務
-                  </button>
+          {(() => {
+            const modules = currentScenePreset.modules;
+            if (!modules || modules.length === 0) return null;
+
+            const activeModule = modules.find(m => m.id === selectedModuleId) ?? null;
+
+            return (
+              <div className="task-selector">
+                <div className="task-selector-header">🎯 教學功能層 Module</div>
+                {/* Module pills */}
+                <div className="task-pills module-pills">
+                  {modules.map((mod) => (
+                    <button
+                      key={mod.id}
+                      className={`task-pill module-pill${selectedModuleId === mod.id ? ' active' : ''}`}
+                      onClick={() => {
+                        if (selectedModuleId === mod.id) {
+                          // toggle off
+                          setSelectedModuleId(null);
+                          sessionStorage.removeItem('bigscreen-moduleId');
+                          setSelectedTask(null);
+                          sessionStorage.removeItem('bigscreen-task');
+                          broadcastTaskChange(null);
+                        } else {
+                          setSelectedModuleId(mod.id);
+                          sessionStorage.setItem('bigscreen-moduleId', mod.id);
+                          // Clear task when switching module
+                          setSelectedTask(null);
+                          sessionStorage.removeItem('bigscreen-task');
+                          broadcastTaskChange(null);
+                        }
+                      }}
+                    >
+                      {mod.icon && <span style={{ marginRight: '4px' }}>{mod.icon}</span>}
+                      {mod.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Task Item pills (only shown when a module is selected) */}
+                {activeModule && (
+                  <>
+                    <div className="task-selector-sub-header">📋 實際任務 Task</div>
+                    <div className="task-pills">
+                      {activeModule.tasks.map((task) => (
+                        <button
+                          key={task.id}
+                          className={`task-pill${selectedTask === task.id ? ' active' : ''}`}
+                          onClick={() => {
+                            const newId = selectedTask === task.id ? null : task.id;
+                            setSelectedTask(newId);
+                            if (newId) {
+                              sessionStorage.setItem('bigscreen-task', newId);
+                              broadcastTaskChange(task.label);
+                            } else {
+                              sessionStorage.removeItem('bigscreen-task');
+                              broadcastTaskChange(null);
+                            }
+                          }}
+                        >
+                          {task.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="student-grid">
             {/* ── Teacher card ── */}
