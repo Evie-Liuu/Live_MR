@@ -150,8 +150,14 @@ export function applyPoseToVrm(
         const eyeR = mirror ? faceRig.eye.l : faceRig.eye.r;
 
         // VRM blink: 0=open, 1=closed. Kalidokit eye: 0=closed, 1=open
-        em.setValue('blinkLeft', THREE.MathUtils.lerp(em.getValue('blinkLeft') ?? 0, 1 - eyeL, t));
-        em.setValue('blinkRight', THREE.MathUtils.lerp(em.getValue('blinkRight') ?? 0, 1 - eyeR, t));
+        // Some models only have 'blink' (no separate blinkLeft/blinkRight)
+        if (em.getExpression('blinkLeft') && em.getExpression('blinkRight')) {
+          em.setValue('blinkLeft', THREE.MathUtils.lerp(em.getValue('blinkLeft') ?? 0, 1 - eyeL, t));
+          em.setValue('blinkRight', THREE.MathUtils.lerp(em.getValue('blinkRight') ?? 0, 1 - eyeR, t));
+        } else if (em.getExpression('blink')) {
+          const blinkVal = 1 - (eyeL + eyeR) / 2;
+          em.setValue('blink', THREE.MathUtils.lerp(em.getValue('blink') ?? 0, blinkVal, t));
+        }
 
         em.setValue('aa', THREE.MathUtils.lerp(em.getValue('aa') ?? 0, faceRig.mouth.shape.A, t));
         em.setValue('ee', THREE.MathUtils.lerp(em.getValue('ee') ?? 0, faceRig.mouth.shape.E, t));
