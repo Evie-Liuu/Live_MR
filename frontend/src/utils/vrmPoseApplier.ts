@@ -136,9 +136,10 @@ export function applyPoseToVrm(
       const head = humanoid.getNormalizedBoneNode('head');
       if (head) {
         // For visual mirroring, swap Y and Z rotation signs
+        const rotX = mirror ? -faceRig.head.x : faceRig.head.x;
         const rotY = mirror ? -faceRig.head.y : faceRig.head.y;
         const rotZ = mirror ? -faceRig.head.z : faceRig.head.z;
-        _targetQuat.setFromEuler(new THREE.Euler(faceRig.head.x, rotY, rotZ, 'XYZ'));
+        _targetQuat.setFromEuler(new THREE.Euler(rotX, rotY, rotZ, 'XYZ'));
         head.quaternion.slerp(_targetQuat, t);
       }
 

@@ -159,7 +159,7 @@ export function solveWithKalidokit(
 
     // 鏡像：在歐拉角空間反轉 Y/Z，避免四元數空間的軸交叉耦合
     const mirrored = mirror
-      ? { x: euler.x, y: -euler.y, z: -zRot }
+      ? { x: euler.x, y: -euler.y, z: zRot }
       : { x: euler.x, y: -euler.y, z: zRot }
     const currentQuat = eulerToQuaternion(mirrored)
     rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing)
