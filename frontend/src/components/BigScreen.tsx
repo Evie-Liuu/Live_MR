@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
@@ -93,7 +93,9 @@ function resolveVrmUrl(
 export default function BigScreen() {
   // Scene / VRM source state (drives useBigScreenScene re-init)
   const [sceneId, setSceneId] = useState<string>(() => {
-    return sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID;
+    const saved = sessionStorage.getItem('bigscreen-sceneId');
+    if (saved && SCENE_PRESETS[saved]) return saved;
+    return DEFAULT_SCENE_ID;
   });
   const sceneIdRef = useRef<string>(sceneId);
   useEffect(() => { sceneIdRef.current = sceneId; }, [sceneId]);
@@ -477,7 +479,7 @@ export default function BigScreen() {
     };
   }, []); // channel lifecycle independent of applyPose/removeAvatar
 
-  const currentPreset = SCENE_PRESETS[sceneId];
+  const currentPreset = useMemo(() => SCENE_PRESETS[sceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID], [sceneId]);
 
   return (
     <div className="bigscreen-root">
