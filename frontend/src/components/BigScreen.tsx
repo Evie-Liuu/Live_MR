@@ -6,6 +6,12 @@ import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
 
+export interface TaskEntry {
+  id: string;
+  label: string;
+  completed: boolean;
+}
+
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
   type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop';
@@ -19,8 +25,8 @@ export interface BigScreenMsg {
   vrmUrl?: string;
   /** For 'slot-assign': which slot to assign/clear */
   slotId?: string;
-  /** For 'task-change': task string, or null to clear */
-  task?: string | null;
+  /** For 'task-change': full list of ordered tasks */
+  tasks?: TaskEntry[];
   /** For 'recording-start': session identifier */
   sessionId?: string;
 }
@@ -111,9 +117,11 @@ export default function BigScreen() {
   const slotAssignmentsRef = useRef<Map<string, string>>(
     new Map(Object.entries(JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}')))
   );
-  const [currentTask, setCurrentTask] = useState<string | null>(
-    () => sessionStorage.getItem('bigscreen-task') ?? null,
-  );
+  const [activeTasks, setActiveTasks] = useState<TaskEntry[]>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bigscreen-tasks') || '[]');
+    } catch { return []; }
+  });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId, slotAssignments });
@@ -403,7 +411,9 @@ export default function BigScreen() {
           sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
         } catch {/* ignore */ }
       } else if (msg.type === 'task-change') {
-        setCurrentTask(msg.task ?? null);
+        const tasks = msg.tasks ?? [];
+        setActiveTasks(tasks);
+        sessionStorage.setItem('bigscreen-tasks', JSON.stringify(tasks));
       } else if (msg.type === 'recording-start' && msg.sessionId) {
         const existing = mediaRecorderRef.current
         if (existing && existing.state !== 'inactive') {
@@ -514,10 +524,22 @@ export default function BigScreen() {
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
 
-      {currentTask && (
-        <div className="bigscreen-task-overlay">
-          <div className="bigscreen-task-label">🎯 任務目標</div>
-          <div className="bigscreen-task-text">{currentTask}</div>
+      {activeTasks.length > 0 && (
+        <div className="bigscreen-tasks-container">
+          <div className="bigscreen-tasks-header">🎯 教學任務平台</div>
+          <div className="bigscreen-tasks-list">
+            {activeTasks.map((t, idx) => (
+              <div
+                key={`${t.id}-${idx}`}
+                className={`bigscreen-task-item ${t.completed ? 'completed' : ''}`}
+              >
+                <div className="bigscreen-task-status">
+                  {t.completed ? '✓' : idx + 1}
+                </div>
+                <div className="bigscreen-task-label">{t.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

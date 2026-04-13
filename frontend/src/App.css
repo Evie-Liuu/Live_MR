@@ -523,33 +523,7 @@ button:disabled {
   border-color: var(--accent-light);
 }
 
-/* ===== BigScreen – Task Goal Overlay ===== */
-.bigscreen-task-overlay {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 2;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 8px 18px;
-  pointer-events: none;
-  text-align: right;
-}
-
-.bigscreen-task-label {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 11px;
-  margin-bottom: 2px;
-}
-
-.bigscreen-task-text {
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-}
+/* ===== BigScreen – New Task List Overlay (Appended below) ===== */
 
 /* ===== Host Session – layout ===== */
 .host-main-two-col {
@@ -643,104 +617,7 @@ button:disabled {
   width: 100%;
 }
 
-/* ===== Host Session – task goal selector ===== */
-.task-selector {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 14px;
-}
-
-.task-selector-header {
-  color: #7788ff;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.task-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.task-pill {
-  background: var(--accent);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.task-pill:hover {
-  border-color: var(--accent-light);
-  color: var(--text-h);
-}
-
-.task-pill.active {
-  background: var(--accent-light);
-  color: #fff;
-  border-color: var(--accent-light);
-}
-
-.task-pill-clear {
-  background: transparent;
-  color: var(--danger);
-  border: 1px solid var(--danger);
-  border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 0.15s;
-}
-
-.task-pill-clear:hover {
-  opacity: 1;
-}
-
-/* ===== Host Session – module pills (教學功能層) ===== */
-.task-selector-sub-header {
-  color: #ffaa44;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  margin-top: 10px;
-  margin-bottom: 6px;
-}
-
-.module-pills {
-  margin-bottom: 2px;
-}
-
-.module-pill {
-  background: #1a1a2e;
-  color: #aab0ff;
-  border: 1px solid #2a2a5a;
-  border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.module-pill:hover {
-  border-color: #ffaa44;
-  color: #ffd080;
-}
-
-.module-pill.active {
-  background: #2a1f00;
-  color: #ffd080;
-  border-color: #ffaa44;
-}
+/* ===== New Task Manager (Appended below) ===== */
 
 /* ===== Host Session – teacher card ===== */
 .teacher-card {
@@ -871,3 +748,350 @@ button:disabled {
 .mute-btn:hover {
   background: rgba(60, 60, 60, 0.9);
 }
+/* ===== New Task Manager (Teacher Side) ===== */
+.task-manager {
+  display: flex;
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 420px;
+}
+
+.task-bank {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-right: 1px solid var(--border);
+  padding-right: 16px;
+}
+
+.task-bank-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #7788ff;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.task-count {
+  font-size: 11px;
+  background: #2a2a4a;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: #aaa;
+}
+.task-count.limit {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+.task-bank-tree {
+  overflow-y: auto;
+  max-height: 480px;
+  padding-right: 4px;
+}
+
+.module-group {
+  margin-bottom: 8px;
+}
+
+.module-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #1a1a3a;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  user-select: none;
+}
+.module-header:hover {
+  background: #25254d;
+}
+.module-header.expanded {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  background: #25254d;
+}
+
+.module-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+.module-arrow {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+.module-tasks {
+  background: #14142d;
+  border: 1px solid #2a2a4a;
+  border-top: none;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-select-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  text-align: left;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #ccc;
+  transition: all 0.2s;
+  width: 100%;
+}
+.task-select-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+.task-select-btn.selected {
+  background: rgba(119, 136, 255, 0.1);
+  color: #7788ff;
+}
+.task-select-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-check {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #2a2a4a;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.task-select-btn.selected .btn-check {
+  background: #7788ff;
+  border-color: #7788ff;
+  color: #000;
+}
+
+.active-tasks {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.active-tasks-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffaa44;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.active-tasks-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #556;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.active-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.active-task-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #1a1a3a;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.active-task-row.completed {
+  opacity: 0.6;
+  border-color: var(--success);
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.task-index {
+  width: 24px;
+  height: 24px;
+  background: #2a2a4a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7788ff;
+  flex-shrink: 0;
+}
+.active-task-row.completed .task-index {
+  background: var(--success);
+  color: #fff;
+}
+
+.task-info {
+  flex: 1;
+}
+.task-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+}
+.active-task-row.completed .task-label {
+  text-decoration: line-through;
+  color: #888;
+}
+
+/* Completion Toggle Switch */
+.completion-toggle {
+  position: relative;
+  width: 60px;
+  height: 24px;
+  cursor: pointer;
+}
+.completion-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #2a2a4a;
+  transition: .4s;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 900;
+  color: #556;
+  letter-spacing: 1px;
+}
+.completion-toggle input:checked + .toggle-slider {
+  background-color: var(--success);
+  color: #fff;
+}
+
+.clear-tasks-btn {
+  margin-top: 12px;
+  align-self: flex-end;
+  background: transparent;
+  color: #ff4444;
+  font-size: 11px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-radius: 6px;
+}
+.clear-tasks-btn:hover {
+  background: rgba(255, 68, 68, 0.1);
+  border-color: #ff4444;
+}
+
+/* ===== BigScreen ??New Task List Overlay ===== */
+.bigscreen-tasks-container {
+  position: absolute;
+  top: 80px;
+  right: 24px;
+  z-index: 2;
+  width: 320px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  padding: 20px;
+  animation: slideInRight 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(60px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.bigscreen-tasks-header {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.bigscreen-tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bigscreen-task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px;
+  border-radius: 14px;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.bigscreen-task-status {
+  width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.bigscreen-task-label {
+  font-size: 15px;
+  color: #fff;
+  line-height: 1.4;
+  font-weight: 500;
+  text-align: left;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.bigscreen-task-item.completed {
+  background: rgba(76, 175, 80, 0.2);
+  transform: scale(0.96);
+  opacity: 0.8;
+}
+.bigscreen-task-item.completed .bigscreen-task-status {
+  background: #4caf50;
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
+  color: #fff;
+}
+.bigscreen-task-item.completed .bigscreen-task-label {
+  text-decoration: line-through;
+  color: rgba(255, 255, 255, 0.4);
+}

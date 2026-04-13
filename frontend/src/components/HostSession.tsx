@@ -11,7 +11,7 @@ import {
 import StudentTile from './StudentTile.tsx';
 import LocalVideo from './LocalVideo.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
-import type { BigScreenMsg } from './BigScreen';
+import type { BigScreenMsg, TaskEntry } from './BigScreen';
 import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
@@ -39,7 +39,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
-  const [faceEnabled, setFaceEnabled] = useState(false);
+  const [faceEnabled, setFaceEnabled] = useState(true);
   // Set of participant identities currently speaking
   const [speakingSet, setSpeakingSet] = useState<Set<string>>(new Set());
 
@@ -84,15 +84,15 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     }
   });
 
-  // Selected module (教學功能層)
-  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(
-    () => sessionStorage.getItem('bigscreen-moduleId') ?? null,
-  );
+  // Ordered list of selected tasks (教學任務層)
+  const [selectedTasks, setSelectedTasks] = useState<TaskEntry[]>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bigscreen-tasks') || '[]');
+    } catch { return []; }
+  });
 
-  // Selected task item (實際任務層)
-  const [selectedTask, setSelectedTask] = useState<string | null>(
-    () => sessionStorage.getItem('bigscreen-task') ?? null,
-  );
+  // Keep track of which modules are expanded in the selector
+  const [expandedModuleIds, setExpandedModuleIds] = useState<Set<string>>(new Set());
 
   const { isRecording, start, stop, muteState, toggleMute } = useRecording(
     roomId,
@@ -109,10 +109,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     channelRef.current?.postMessage(msg);
   }, []);
 
-  const broadcastTaskChange = useCallback((task: string | null) => {
-    if (task) sessionStorage.setItem('bigscreen-task', task);
-    else sessionStorage.removeItem('bigscreen-task');
-    const msg: BigScreenMsg = { type: 'task-change', task };
+  const broadcastTaskChange = useCallback((tasks: TaskEntry[]) => {
+    sessionStorage.setItem('bigscreen-tasks', JSON.stringify(tasks));
+    const msg: BigScreenMsg = { type: 'task-change', tasks };
     channelRef.current?.postMessage(msg);
   }, []);
 
@@ -150,12 +149,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       setSlotAssignments({});
       try { sessionStorage.removeItem('bigscreen-slotAssignments'); } catch {/* ignore */ }
       // Clear task goal — it is scene-specific
-      setSelectedTask(null);
-      sessionStorage.removeItem('bigscreen-task');
-      // Clear module selection too
-      setSelectedModuleId(null);
-      sessionStorage.removeItem('bigscreen-moduleId');
-      const taskClearMsg: BigScreenMsg = { type: 'task-change', task: null };
+      setSelectedTasks([]);
+      sessionStorage.removeItem('bigscreen-tasks');
+      setExpandedModuleIds(new Set());
+      const taskClearMsg: BigScreenMsg = { type: 'task-change', tasks: [] };
       channelRef.current?.postMessage(taskClearMsg);
       broadcastSceneChange(sceneId);
 
@@ -307,6 +304,48 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     },
     [selectedSceneId, studentRoles, connectedRoom, handleTeacherVrmChange, slotAssignments],
   );
+
+  const toggleTaskSelection = useCallback(
+    (taskId: string, label: string) => {
+      setSelectedTasks((prev) => {
+        const index = prev.findIndex((t) => t.id === taskId);
+        let next: TaskEntry[];
+        if (index >= 0) {
+          // Remove
+          next = prev.filter((t) => t.id !== taskId);
+        } else {
+          // Add if under limit
+          if (prev.length >= 7) return prev;
+          next = [...prev, { id: taskId, label, completed: false }];
+        }
+        broadcastTaskChange(next);
+        return next;
+      });
+    },
+    [broadcastTaskChange],
+  );
+
+  const toggleTaskCompletion = useCallback(
+    (taskId: string) => {
+      setSelectedTasks((prev) => {
+        const next = prev.map((t) =>
+          t.id === taskId ? { ...t, completed: !t.completed } : t
+        );
+        broadcastTaskChange(next);
+        return next;
+      });
+    },
+    [broadcastTaskChange],
+  );
+
+  const toggleModuleExpansion = useCallback((moduleId: string) => {
+    setExpandedModuleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(moduleId)) next.delete(moduleId);
+      else next.add(moduleId);
+      return next;
+    });
+  }, []);
 
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
   useEffect(() => {
@@ -549,14 +588,13 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       if (teacherVrmSourceId) sessionStorage.setItem('bigscreen-teacherVrmSourceId', teacherVrmSourceId);
       else sessionStorage.removeItem('bigscreen-teacherVrmSourceId');
       sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(slotAssignments));
-      if (selectedTask) sessionStorage.setItem('bigscreen-task', selectedTask);
-      else sessionStorage.removeItem('bigscreen-task');
+      sessionStorage.setItem('bigscreen-tasks', JSON.stringify(selectedTasks));
     } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTask]);
+  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId]);
 
   // Ensure teacher's VRM is broadcasted when room connects initially
   useEffect(() => {
@@ -738,76 +776,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
         {/* ── Right Column (task selector + participant grid) ── */}
         <div className="host-right-col">
-          {(() => {
-            const modules = currentScenePreset.modules;
-            if (!modules || modules.length === 0) return null;
-
-            const activeModule = modules.find(m => m.id === selectedModuleId) ?? null;
-
-            return (
-              <div className="task-selector">
-                <div className="task-selector-header">🎯 教學功能層 Module</div>
-                {/* Module pills */}
-                <div className="task-pills module-pills">
-                  {modules.map((mod) => (
-                    <button
-                      key={mod.id}
-                      className={`task-pill module-pill${selectedModuleId === mod.id ? ' active' : ''}`}
-                      onClick={() => {
-                        if (selectedModuleId === mod.id) {
-                          // toggle off
-                          setSelectedModuleId(null);
-                          sessionStorage.removeItem('bigscreen-moduleId');
-                          setSelectedTask(null);
-                          sessionStorage.removeItem('bigscreen-task');
-                          broadcastTaskChange(null);
-                        } else {
-                          setSelectedModuleId(mod.id);
-                          sessionStorage.setItem('bigscreen-moduleId', mod.id);
-                          // Clear task when switching module
-                          setSelectedTask(null);
-                          sessionStorage.removeItem('bigscreen-task');
-                          broadcastTaskChange(null);
-                        }
-                      }}
-                    >
-                      {mod.icon && <span style={{ marginRight: '4px' }}>{mod.icon}</span>}
-                      {mod.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Task Item pills (only shown when a module is selected) */}
-                {activeModule && (
-                  <>
-                    <div className="task-selector-sub-header">📋 實際任務 Task</div>
-                    <div className="task-pills">
-                      {activeModule.tasks.map((task) => (
-                        <button
-                          key={task.id}
-                          className={`task-pill${selectedTask === task.id ? ' active' : ''}`}
-                          onClick={() => {
-                            const newId = selectedTask === task.id ? null : task.id;
-                            setSelectedTask(newId);
-                            if (newId) {
-                              sessionStorage.setItem('bigscreen-task', newId);
-                              broadcastTaskChange(task.label);
-                            } else {
-                              sessionStorage.removeItem('bigscreen-task');
-                              broadcastTaskChange(null);
-                            }
-                          }}
-                        >
-                          {task.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })()}
-
           <div className="student-grid">
             {/* ── Teacher card ── */}
             {connectedRoom && (() => {
@@ -890,6 +858,100 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
               );
             })}
           </div>
+
+          {(() => {
+            const modules = currentScenePreset.modules;
+            if (!modules || modules.length === 0) return null;
+
+            return (
+              <div className="task-manager">
+                {/* 1. Task Bank (Selection Tree) */}
+                <div className="task-bank">
+                  <div className="task-bank-header">
+                    <span>📚 任務庫 (Module → Task)</span>
+                    <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>
+                      {selectedTasks.length}/7
+                    </span>
+                  </div>
+                  <div className="task-bank-tree">
+                    {modules.map((mod) => (
+                      <div key={mod.id} className="module-group">
+                        <div
+                          className={`module-header ${expandedModuleIds.has(mod.id) ? 'expanded' : ''}`}
+                          onClick={() => toggleModuleExpansion(mod.id)}
+                        >
+                          <span className="module-icon">{mod.icon || '📁'}</span>
+                          <span className="module-label">{mod.label}</span>
+                          <span className="module-arrow">{expandedModuleIds.has(mod.id) ? '▼' : '▶'}</span>
+                        </div>
+                        {expandedModuleIds.has(mod.id) && (
+                          <div className="module-tasks">
+                            {mod.tasks.map((task) => {
+                              const isSelected = selectedTasks.some(t => t.id === task.id);
+                              return (
+                                <button
+                                  key={task.id}
+                                  className={`task-select-btn ${isSelected ? 'selected' : ''}`}
+                                  onClick={() => toggleTaskSelection(task.id, task.label)}
+                                  disabled={!isSelected && selectedTasks.length >= 7}
+                                >
+                                  <div className="btn-check">
+                                    {isSelected ? '✓' : ''}
+                                  </div>
+                                  <span className="btn-label">{task.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Active Session Progress */}
+                <div className="active-tasks">
+                  <div className="active-tasks-header">⚡ 進行中任務 (教學順序)</div>
+                  {selectedTasks.length === 0 ? (
+                    <div className="active-tasks-empty">
+                      請從左側任務庫中點選任務，<br />
+                      跨 Module 多選最多 7 項，並按順序排列。
+                    </div>
+                  ) : (
+                    <div className="active-tasks-list">
+                      {selectedTasks.map((task, idx) => (
+                        <div key={`${task.id}-${idx}`} className={`active-task-row ${task.completed ? 'completed' : ''}`}>
+                          <div className="task-index">{idx + 1}</div>
+                          <div className="task-info">
+                            <span className="task-label">{task.label}</span>
+                          </div>
+                          <label className="completion-toggle" title={task.completed ? '標記為未完成' : '標記為完成'}>
+                            <input
+                              type="checkbox"
+                              checked={task.completed}
+                              onChange={() => toggleTaskCompletion(task.id)}
+                            />
+                            <div className="toggle-slider">
+                              {task.completed ? 'DONE' : 'GO'}
+                            </div>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {selectedTasks.length > 0 && (
+                    <button className="clear-tasks-btn" onClick={() => {
+                      setSelectedTasks([]);
+                      broadcastTaskChange([]);
+                    }}>
+                      🗑️ 清空所有任務
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
         </div>
       </div>
     </div>
