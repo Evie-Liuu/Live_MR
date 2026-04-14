@@ -124,7 +124,8 @@ export default function BigScreen() {
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId, slotAssignments });
+  const currentTaskId = activeTasks.find(t => !t.completed)?.id;
+  const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId, slotAssignments, currentTaskId });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
   const applyPoseRef = useRef(applyPose);
