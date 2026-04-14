@@ -524,24 +524,40 @@ export default function BigScreen() {
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
 
-      {activeTasks.length > 0 && (
-        <div className="bigscreen-tasks-container">
-          <div className="bigscreen-tasks-header">🎯 教學任務平台</div>
-          <div className="bigscreen-tasks-list">
-            {activeTasks.map((t, idx) => (
-              <div
-                key={`${t.id}-${idx}`}
-                className={`bigscreen-task-item ${t.completed ? 'completed' : ''}`}
-              >
-                <div className="bigscreen-task-status">
-                  {t.completed ? '✓' : idx + 1}
-                </div>
-                <div className="bigscreen-task-label">{t.label}</div>
+      {activeTasks.length > 0 && (() => {
+        const currentTask = activeTasks.find(t => !t.completed);
+        const otherTasks = activeTasks.filter(t => t.id !== currentTask?.id);
+
+        return (
+          <>
+            {currentTask && (
+              <div className="bigscreen-current-task-container">
+                <div className="bigscreen-current-task-label">{currentTask.label}</div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
+
+            <div className="bigscreen-tasks-container">
+              <div className="bigscreen-tasks-list">
+                {otherTasks.map((t, idx) => {
+                  // Re-calculate the original index for display
+                  const originalIndex = activeTasks.findIndex(it => it.id === t.id);
+                  return (
+                    <div
+                      key={`${t.id}-${originalIndex}`}
+                      className={`bigscreen-task-item ${t.completed ? 'completed' : ''}`}
+                    >
+                      <div className="bigscreen-task-status">
+                        {t.completed ? '✓' : originalIndex + 1}
+                      </div>
+                      <div className="bigscreen-task-label">{t.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       <PerformanceMonitor label="Render FPS" position="top-right" />
       <PerformanceMonitor label="Pose Rx FPS" trigger={poseUpdateCount} position="bottom-right" />

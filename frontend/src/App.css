@@ -1560,22 +1560,21 @@ button:disabled {
 
 .tile-slot-badge--unassigned {
   background: rgba(0, 0, 0, 0.45);
-  color: #888;
 }
 
 /* ===== BigScreen New Task List Overlay ===== */
 .bigscreen-tasks-container {
   position: absolute;
-  top: 80px;
+  top: 96px;
   right: 24px;
   z-index: 2;
-  width: 320px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 24px;
-  padding: 20px;
-  animation: slideInRight 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  width: 280px;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 16px;
+  animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideInRight {
@@ -1609,49 +1608,109 @@ button:disabled {
 .bigscreen-task-item {
   display: flex;
   align-items: flex-start;
-  gap: 14px;
-  padding: 10px;
-  border-radius: 14px;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  gap: 12px;
+  padding: 8px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
 .bigscreen-task-status {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .bigscreen-task-label {
-  font-size: 15px;
+  font-size: 14px;
   color: #fff;
   line-height: 1.4;
   font-weight: 500;
   text-align: left;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .bigscreen-task-item.completed {
-  background: rgba(76, 175, 80, 0.2);
-  transform: scale(0.96);
-  opacity: 0.8;
+  background: rgba(76, 175, 80, 0.1);
+  opacity: 0.6;
 }
 
 .bigscreen-task-item.completed .bigscreen-task-status {
   background: #4caf50;
-  box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
   color: #fff;
 }
 
 .bigscreen-task-item.completed .bigscreen-task-label {
   text-decoration: line-through;
   color: rgba(255, 255, 255, 0.4);
+}
+
+/* ===== Current Task Focus (Top-Middle) ===== */
+.bigscreen-current-task-container {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: auto;
+  min-width: 480px;
+  max-width: 900px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  padding: 20px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(79, 70, 229, 0.15);
+  animation: slideDownFade 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownFade {
+  from {
+    transform: translate(-50%, -40px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.bigscreen-current-task-tag {
+  color: #818cf8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bigscreen-current-task-tag::before,
+.bigscreen-current-task-tag::after {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+.bigscreen-current-task-label {
+  color: #fff;
+  font-size: 32px;
+  font-weight: 800;
+  text-align: center;
+  text-shadow: 0 2px 15px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.5px;
 }
