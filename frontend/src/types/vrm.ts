@@ -82,6 +82,8 @@ export interface SceneConfig {
   slots?: SceneSlot[];
   /** Optional teaching modules for this scene (Module → TaskItems hierarchy) */
   modules?: SceneModule[];
+  /** Scene prop system: static props + task prop registry */
+  propSystem?: ScenePropSystem;
 }
 
 // ─── Teaching Hierarchy ──────────────────────────────────────────────────────
@@ -100,6 +102,33 @@ export interface SceneModule {
   tasks: TaskItem[];
 }
 
+/** Static scene prop: always visible when the scene is loaded */
+export interface PropConfig {
+  id: string;
+  url: string;                                    // GLB path e.g. '/models/cashier_counter.glb'
+  position: [x: number, y: number, z: number];
+  rotation?: [x: number, y: number, z: number];  // Euler radians
+  scale?: number;                                 // uniform scale, default 1.0
+}
+
+/** Task-associated prop: pre-loaded at scene start, placed at world-space coords */
+export interface TaskPropConfig {
+  url: string;
+  displayPos: [x: number, y: number, z: number];
+  rotation?: [x: number, y: number, z: number];
+  scale?: number;
+}
+
+/** Prop system config attached to a scene */
+export interface ScenePropSystem {
+  /** Visibility policy for task props — reserved for Phase 2. Default: 'auto-swap' */
+  policy?: 'auto-swap' | 'accumulate' | 'manual';
+  /** Always-visible props loaded with the scene */
+  staticProps?: PropConfig[];
+  /** Task prop registry: task ID → prop config (all pre-loaded, all visible) */
+  taskProps?: Record<string, TaskPropConfig>;
+}
+
 /** A sub-scene within a Theme (e.g. 收銀台, 試衣間) */
 export interface SceneVariant {
   id: string;
@@ -111,6 +140,8 @@ export interface SceneVariant {
   allowedVrmIds?: string[];
   /** Teaching modules for this variant */
   modules?: SceneModule[];
+  /** Scene prop system: static props + task prop registry */
+  propSystem?: ScenePropSystem;
 }
 
 /** Top-level teaching theme (e.g. 服飾店) */
