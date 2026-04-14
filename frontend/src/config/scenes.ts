@@ -130,6 +130,19 @@ export const THEMES: ThemeConfig[] = [
             tasks: [],
           },
         ],
+        propSystem: {
+          policy: 'auto-swap',
+          staticProps: [
+            // Placeholder — replace url with actual GLB path when asset is ready
+            // { id: 'cashier_counter', url: '/models/cashier_counter.glb', position: [0, 0, -2], scale: 1.0 },
+          ],
+          taskProps: {
+            // Placeholder entries — replace urls with actual GLB paths when assets are ready
+            // 'ask_price_1': { url: '/models/blue_tshirt.glb',  displayPos: [0.5, 1.2, -1.5] },
+            // 'ask_price_2': { url: '/models/black_jacket.glb', displayPos: [0.5, 1.2, -1.5] },
+            // 'ask_price_3': { url: '/models/red_skirt.glb',    displayPos: [0.5, 1.2, -1.5] },
+          },
+        },
       },
 
       // ── Scene 2：試衣間 ───────────────────────────────────────────────
@@ -239,6 +252,7 @@ function buildScenePresets(): Record<string, SceneConfig> {
         slots: variant.slots,
         allowedVrmIds: variant.allowedVrmIds,
         modules: variant.modules,
+        propSystem: variant.propSystem,
       };
     }
   }
