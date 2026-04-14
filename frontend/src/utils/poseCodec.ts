@@ -6,24 +6,27 @@
  *   Bytes 0‥3  header (4 bytes, 4-byte aligned)
  *              byte 0  flags  (uint8)
  *                        bit 0  hasWorldLandmarks
- *                        bit 1  hasFaceLandmarks (468 × xyz Float32)
+ *                        bit 1  hasFaceLandmarks (478 × xyz Float32)
  *              bytes 1‥3  reserved / padding (zero)
  *   Bytes 4‥399   pose  landmarks  33 × 3 Float32  (x,y,z; visibility dropped)
  *   Bytes …‥795   world landmarks  33 × 3 Float32  (present when bit 0)
- *   Bytes …       face  landmarks 468 × 3 Float32  (present when bit 1)
+ *   Bytes …       face  landmarks 478 × 3 Float32  (present when bit 1)
  *
  * Size comparison vs JSON
  * ───────────────────────
  *   pose only          :  400 B  vs ~2.6 KB  → 6.5×
  *   pose + world       :  796 B  vs ~5.3 KB  → 6.6×
- *   pose + world + face: 6.4 KB  vs  ~37 KB  → 5.7×
+ *   pose + world + face: 6.5 KB  vs  ~37 KB  → 5.7×
  *
  * Backward compat: first byte 0x7B = '{' → treat as legacy JSON.
  */
 import type { PoseFrame, PoseLandmark } from '../types/vrm';
 
 const POSE_N = 33;
-const FACE_N = 468;
+/** MediaPipe FaceLandmarker returns 478 points: 468 face mesh + 10 iris.
+ *  Kalidokit's calcEyes() requires exactly 478 landmarks for eye-open detection;
+ *  with fewer it returns { l: 1, r: 1 } (always open), breaking blink tracking. */
+const FACE_N = 478;
 const FLAG_WORLD = 1 << 0;
 const FLAG_FACE  = 1 << 1;
 /** Header is 4 bytes so Float32 body starts at a 4-byte-aligned offset */

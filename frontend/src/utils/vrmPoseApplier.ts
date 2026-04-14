@@ -122,7 +122,7 @@ export function applyPoseToVrm(
 
   // Apply Face if enabled, new data available, and landmarks exist
   // (skip when reuseLastSolve – bones already lerp toward last cached targets)
-  if (!reuseLastSolve && faceEnabled && frame.faceLandmarks && frame.faceLandmarks.length >= 468) {
+  if (!reuseLastSolve && faceEnabled && frame.faceLandmarks && frame.faceLandmarks.length >= 478) {
     const faceRig = Face.solve(frame.faceLandmarks as any, {
       runtime: 'mediapipe',
       video: undefined,
@@ -150,11 +150,17 @@ export function applyPoseToVrm(
         const eyeR = mirror ? faceRig.eye.l : faceRig.eye.r;
 
         // VRM blink: 0=open, 1=closed. Kalidokit eye: 0=closed, 1=open
-        // Some models only have 'blink' (no separate blinkLeft/blinkRight)
-        if (em.getExpression('blinkLeft') && em.getExpression('blinkRight')) {
-          em.setValue('blinkLeft', THREE.MathUtils.lerp(em.getValue('blinkLeft') ?? 0, 1 - eyeL, t));
+        // Prefer split blink only when at least one side has actual morph binds.
+        // Some models (e.g. Women_Clerk.vrm) declare blinkLeft/blinkRight as empty
+        // shells and bind the actual morph data to the unified 'blink' expression.
+        const exprBlinkL = em.getExpression('blinkLeft');
+        const exprBlinkR = em.getExpression('blinkRight');
+        const hasSplitBinds = (exprBlinkL?.binds.length ?? 0) > 0 || (exprBlinkR?.binds.length ?? 0) > 0;
+        if (hasSplitBinds) {
+          em.setValue('blinkLeft',  THREE.MathUtils.lerp(em.getValue('blinkLeft')  ?? 0, 1 - eyeL, t));
           em.setValue('blinkRight', THREE.MathUtils.lerp(em.getValue('blinkRight') ?? 0, 1 - eyeR, t));
-        } else if (em.getExpression('blink')) {
+        } else {
+          // Fall back to unified blink
           const blinkVal = 1 - (eyeL + eyeR) / 2;
           em.setValue('blink', THREE.MathUtils.lerp(em.getValue('blink') ?? 0, blinkVal, t));
         }
