@@ -25,7 +25,7 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
   teenager_male: {
     id: 'teenager_male',
     label: '少年',
-    url: '/models/Teenager_Male.vrm',
+    url: '/models/Student_Male2.vrm',
   },
   student_female: {
     id: 'student_female',
@@ -35,7 +35,7 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
   student_male: {
     id: 'student_male',
     label: '男學生',
-    url: '/models/Student_Male1_TEST2.vrm',
+    url: '/models/Student_Male1.vrm',
   },
   clothingStoreStaff_female: {
     id: 'clothingStoreStaff_female',

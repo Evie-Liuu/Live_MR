@@ -627,15 +627,31 @@ button:disabled {
 
 /* ===== Audio speaking indicator ===== */
 @keyframes speaking-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(72, 220, 180, 0.75), 0 0 0 2px rgba(72, 220, 180, 0.4); }
-  50%  { box-shadow: 0 0 0 5px rgba(72, 220, 180, 0.2), 0 0 12px 4px rgba(72, 220, 180, 0.35); }
-  100% { box-shadow: 0 0 0 0 rgba(72, 220, 180, 0.75), 0 0 0 2px rgba(72, 220, 180, 0.4); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(72, 220, 180, 0.75), 0 0 0 2px rgba(72, 220, 180, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgba(72, 220, 180, 0.2), 0 0 12px 4px rgba(72, 220, 180, 0.35);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(72, 220, 180, 0.75), 0 0 0 2px rgba(72, 220, 180, 0.4);
+  }
 }
 
 @keyframes teacher-speaking-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(160, 100, 255, 0.8), 0 0 0 2px rgba(160, 100, 255, 0.45); }
-  50%  { box-shadow: 0 0 0 5px rgba(160, 100, 255, 0.2), 0 0 14px 5px rgba(160, 100, 255, 0.4); }
-  100% { box-shadow: 0 0 0 0 rgba(160, 100, 255, 0.8), 0 0 0 2px rgba(160, 100, 255, 0.45); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(160, 100, 255, 0.8), 0 0 0 2px rgba(160, 100, 255, 0.45);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgba(160, 100, 255, 0.2), 0 0 14px 5px rgba(160, 100, 255, 0.4);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(160, 100, 255, 0.8), 0 0 0 2px rgba(160, 100, 255, 0.45);
+  }
 }
 
 /* student-container wraps both teacher-card and plain student tiles */
@@ -714,8 +730,15 @@ button:disabled {
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .recording-start {
@@ -748,6 +771,7 @@ button:disabled {
 .mute-btn:hover {
   background: rgba(60, 60, 60, 0.9);
 }
+
 /* ===== New Task Manager (Teacher Side) ===== */
 .task-manager {
   display: flex;
@@ -786,6 +810,7 @@ button:disabled {
   border-radius: 10px;
   color: #aaa;
 }
+
 .task-count.limit {
   color: #ff4444;
   background: rgba(255, 68, 68, 0.1);
@@ -793,7 +818,7 @@ button:disabled {
 
 .task-bank-tree {
   overflow-y: auto;
-  max-height: 480px;
+  /* max-height: 480px; */
   padding-right: 4px;
 }
 
@@ -812,9 +837,11 @@ button:disabled {
   transition: background 0.2s;
   user-select: none;
 }
+
 .module-header:hover {
   background: #25254d;
 }
+
 .module-header.expanded {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
@@ -827,6 +854,7 @@ button:disabled {
   font-weight: 600;
   color: #fff;
 }
+
 .module-arrow {
   font-size: 10px;
   opacity: 0.5;
@@ -857,14 +885,17 @@ button:disabled {
   transition: all 0.2s;
   width: 100%;
 }
+
 .task-select-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
 }
+
 .task-select-btn.selected {
   background: rgba(119, 136, 255, 0.1);
   color: #7788ff;
 }
+
 .task-select-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -881,6 +912,7 @@ button:disabled {
   font-size: 10px;
   flex-shrink: 0;
 }
+
 .task-select-btn.selected .btn-check {
   background: #7788ff;
   border-color: #7788ff;
@@ -929,6 +961,7 @@ button:disabled {
   border: 1px solid transparent;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .active-task-row.completed {
   opacity: 0.6;
   border-color: var(--success);
@@ -948,6 +981,7 @@ button:disabled {
   color: #7788ff;
   flex-shrink: 0;
 }
+
 .active-task-row.completed .task-index {
   background: var(--success);
   color: #fff;
@@ -956,11 +990,13 @@ button:disabled {
 .task-info {
   flex: 1;
 }
+
 .task-label {
   font-size: 13px;
   font-weight: 500;
   color: #fff;
 }
+
 .active-task-row.completed .task-label {
   text-decoration: line-through;
   color: #888;
@@ -973,14 +1009,19 @@ button:disabled {
   height: 24px;
   cursor: pointer;
 }
+
 .completion-toggle input {
   opacity: 0;
   width: 0;
   height: 0;
 }
+
 .toggle-slider {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background-color: #2a2a4a;
   transition: .4s;
   border-radius: 24px;
@@ -992,7 +1033,8 @@ button:disabled {
   color: #556;
   letter-spacing: 1px;
 }
-.completion-toggle input:checked + .toggle-slider {
+
+.completion-toggle input:checked+.toggle-slider {
   background-color: var(--success);
   color: #fff;
 }
@@ -1007,6 +1049,7 @@ button:disabled {
   border: 1px solid rgba(255, 68, 68, 0.2);
   border-radius: 6px;
 }
+
 .clear-tasks-btn:hover {
   background: rgba(255, 68, 68, 0.1);
   border-color: #ff4444;
@@ -1024,6 +1067,7 @@ button:disabled {
   border-radius: 6px;
   transition: background 0.15s, border-color 0.15s;
 }
+
 .reset-tasks-btn:hover {
   background: rgba(119, 136, 255, 0.1);
   border-color: rgba(119, 136, 255, 0.6);
@@ -1044,31 +1088,39 @@ button:disabled {
   transition: border-color 0.2s, background 0.2s, color 0.2s;
   white-space: nowrap;
 }
+
 .state-btn:hover {
   border-color: var(--accent-light);
   color: var(--text-h);
 }
+
 .state-btn--open {
   border-color: var(--accent-light);
   background: rgba(83, 52, 131, 0.25);
   color: var(--text-h);
 }
+
 .state-btn--has-data {
   border-color: rgba(100, 200, 100, 0.35);
 }
+
 .state-btn--on {
   border-color: rgba(76, 175, 80, 0.5);
 }
+
 .state-btn--off {
   opacity: 0.65;
 }
+
 .state-btn-value {
   font-weight: 600;
 }
+
 .state-btn-arrow {
   font-size: 8px;
   opacity: 0.45;
 }
+
 .state-btn-badge {
   padding: 1px 7px;
   border-radius: 10px;
@@ -1076,14 +1128,17 @@ button:disabled {
   font-weight: 700;
   letter-spacing: 0.5px;
 }
+
 .badge-on {
   background: rgba(76, 175, 80, 0.18);
   color: var(--success);
 }
+
 .badge-off {
   background: rgba(255, 255, 255, 0.05);
   color: #555;
 }
+
 .badge-count {
   background: rgba(119, 136, 255, 0.15);
   color: #7788ff;
@@ -1107,6 +1162,7 @@ button:disabled {
   gap: 10px;
   flex-shrink: 0;
 }
+
 .task-progress-track {
   width: 120px;
   height: 6px;
@@ -1114,17 +1170,20 @@ button:disabled {
   border-radius: 3px;
   overflow: hidden;
 }
+
 .task-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #5566ee, #88aaff);
   border-radius: 3px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .task-progress-count {
   font-size: 13px;
   color: #778;
   white-space: nowrap;
 }
+
 .task-progress-count strong {
   color: #aabbff;
   font-size: 15px;
@@ -1138,17 +1197,21 @@ button:disabled {
   min-width: 0;
   overflow: hidden;
 }
+
 .task-banner-current--done {
   color: var(--success);
 }
+
 .task-current-icon {
   font-size: 14px;
   color: #7788ff;
   flex-shrink: 0;
 }
+
 .task-banner-current--done .task-current-icon {
   color: var(--success);
 }
+
 .task-current-text {
   font-size: 14px;
   font-weight: 600;
@@ -1165,6 +1228,7 @@ button:disabled {
   gap: 14px;
   align-items: flex-start;
 }
+
 .main-video-area .student-grid {
   flex: 1;
   min-width: 0;
@@ -1182,6 +1246,7 @@ button:disabled {
   flex-direction: column;
   gap: 6px;
 }
+
 .task-sidebar-header {
   font-size: 11px;
   font-weight: 800;
@@ -1192,12 +1257,14 @@ button:disabled {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
+
 .task-sidebar-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
   flex: 1;
 }
+
 .task-sidebar-row {
   display: flex;
   align-items: center;
@@ -1210,21 +1277,27 @@ button:disabled {
   transition: background 0.15s, border-color 0.15s;
   user-select: none;
 }
+
 .task-sidebar-row:hover {
   background: #1a1a3e;
 }
+
 .task-sidebar-row.current {
   border-color: rgba(119, 136, 255, 0.4);
   background: rgba(119, 136, 255, 0.08);
 }
+
 .task-sidebar-row.completed {
   opacity: 0.55;
   border-color: rgba(76, 175, 80, 0.3);
   background: rgba(76, 175, 80, 0.05);
 }
+
 .task-sidebar-checkbox {
-  display: none; /* hidden — whole row is the label/click target */
+  display: none;
+  /* hidden — whole row is the label/click target */
 }
+
 .task-sidebar-num {
   width: 20px;
   height: 20px;
@@ -1238,28 +1311,34 @@ button:disabled {
   color: #556;
   flex-shrink: 0;
 }
+
 .task-sidebar-row.current .task-sidebar-num {
   background: #5566ee;
   color: #fff;
 }
+
 .task-sidebar-row.completed .task-sidebar-num {
   background: var(--success);
   color: #fff;
 }
+
 .task-sidebar-label {
   flex: 1;
   font-size: 12px;
   line-height: 1.4;
   color: #aaa;
 }
+
 .task-sidebar-row.current .task-sidebar-label {
   color: var(--text-h);
   font-weight: 600;
 }
+
 .task-sidebar-row.completed .task-sidebar-label {
   text-decoration: line-through;
   color: #667;
 }
+
 .task-sidebar-status {
   font-size: 11px;
   color: #556;
@@ -1267,17 +1346,26 @@ button:disabled {
   width: 14px;
   text-align: center;
 }
+
 .task-sidebar-row.current .task-sidebar-status {
   color: #7788ff;
 }
+
 .task-sidebar-row.completed .task-sidebar-status {
   color: var(--success);
 }
+
 .task-sidebar-row .task-sidebar-status::before {
   content: '○';
 }
-.task-sidebar-row.current .task-sidebar-status::before { content: ''; }
-.task-sidebar-row.completed .task-sidebar-status::before { content: ''; }
+
+.task-sidebar-row.current .task-sidebar-status::before {
+  content: '';
+}
+
+.task-sidebar-row.completed .task-sidebar-status::before {
+  content: '';
+}
 
 /* ===== Task Manager Drawer Layout ===== */
 .task-manager-drawer {
@@ -1285,6 +1373,7 @@ button:disabled {
   gap: 16px;
   min-height: 100%;
 }
+
 .task-manager-drawer .task-bank {
   border-right: 1px solid var(--border);
   padding-right: 14px;
@@ -1310,6 +1399,7 @@ button:disabled {
   flex-shrink: 0;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
+
 .task-remove-btn:hover {
   color: var(--danger);
   border-color: rgba(233, 69, 96, 0.35);
@@ -1325,9 +1415,15 @@ button:disabled {
   cursor: pointer;
   animation: backdropIn 0.2s ease;
 }
+
 @keyframes backdropIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .panel-drawer {
@@ -1345,11 +1441,13 @@ button:disabled {
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: -6px 0 32px rgba(0, 0, 0, 0.6);
 }
+
 .panel-drawer--open {
   transform: translateX(0);
 }
+
 .panel-drawer--wide {
-  width: 560px;
+  width: 860px;
 }
 
 .panel-drawer-header {
@@ -1364,6 +1462,7 @@ button:disabled {
   flex-shrink: 0;
   background: #0e0e22;
 }
+
 .panel-close-btn {
   margin-left: auto;
   background: transparent;
@@ -1376,11 +1475,13 @@ button:disabled {
   transition: color 0.2s, background 0.2s, border-color 0.2s;
   line-height: 1;
 }
+
 .panel-close-btn:hover {
   color: var(--text-h);
   background: rgba(255, 255, 255, 0.08);
   border-color: #2a2a4a;
 }
+
 .panel-drawer-body {
   flex: 1;
   overflow-y: auto;
@@ -1391,6 +1492,7 @@ button:disabled {
 .scene-group {
   margin-bottom: 18px;
 }
+
 .scene-group-label {
   font-size: 9px;
   font-weight: 800;
@@ -1401,11 +1503,13 @@ button:disabled {
   margin-bottom: 6px;
   border-bottom: 1px solid #16162e;
 }
+
 .scene-options {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
+
 .scene-option-btn {
   display: flex;
   align-items: center;
@@ -1421,16 +1525,19 @@ button:disabled {
   cursor: pointer;
   transition: all 0.15s;
 }
+
 .scene-option-btn:hover {
   background: #1a1a3a;
   color: var(--text-h);
   border-color: #2a2a4a;
 }
+
 .scene-option-btn.active {
   background: rgba(119, 136, 255, 0.12);
   border-color: rgba(119, 136, 255, 0.35);
   color: #aabbff;
 }
+
 .scene-check {
   margin-left: auto;
   color: var(--success);
@@ -1450,6 +1557,7 @@ button:disabled {
   border-radius: 4px;
   pointer-events: none;
 }
+
 .tile-slot-badge--unassigned {
   background: rgba(0, 0, 0, 0.45);
   color: #888;
@@ -1471,8 +1579,15 @@ button:disabled {
 }
 
 @keyframes slideInRight {
-  from { transform: translateX(60px); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(60px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .bigscreen-tasks-header {
@@ -1529,11 +1644,13 @@ button:disabled {
   transform: scale(0.96);
   opacity: 0.8;
 }
+
 .bigscreen-task-item.completed .bigscreen-task-status {
   background: #4caf50;
   box-shadow: 0 0 15px rgba(76, 175, 80, 0.6);
   color: #fff;
 }
+
 .bigscreen-task-item.completed .bigscreen-task-label {
   text-decoration: line-through;
   color: rgba(255, 255, 255, 0.4);
