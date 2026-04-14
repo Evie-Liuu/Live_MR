@@ -162,13 +162,20 @@ export function useBigScreenScene(
     applyGrid(scene, preset);
 
     // Pre-load scene props (per-asset errors are swallowed inside propLoader)
+    let propsCancelled = false;
     if (preset.propSystem) {
       loadStaticProps(preset.propSystem.staticProps ?? [], scene)
-        .then((groups) => { staticPropGroupsRef.current = groups; })
+        .then((groups) => {
+          if (propsCancelled) { disposeStaticProps(groups, scene); return; }
+          staticPropGroupsRef.current = groups;
+        })
         .catch((err) => console.warn('[BigScreenScene] staticProps load error:', err));
 
       loadTaskProps(preset.propSystem.taskProps ?? {}, scene)
-        .then((pool) => { taskPropPoolRef.current = pool; })
+        .then((pool) => {
+          if (propsCancelled) { disposeTaskProps(pool, scene); return; }
+          taskPropPoolRef.current = pool;
+        })
         .catch((err) => console.warn('[BigScreenScene] taskProps load error:', err));
     }
 
@@ -223,6 +230,7 @@ export function useBigScreenScene(
     ro.observe(canvas);
 
     return () => {
+      propsCancelled = true;
       ro.disconnect();
       cancelAnimationFrame(rafRef.current);
       for (const slot of avatarsRef.current.values()) {
