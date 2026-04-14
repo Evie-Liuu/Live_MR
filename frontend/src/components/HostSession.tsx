@@ -40,6 +40,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
+  // Panel drawer open states
+  const [showScenePanel, setShowScenePanel] = useState(false);
+  const [showSlotPanel, setShowSlotPanel] = useState(false);
+  const [showTaskPanel, setShowTaskPanel] = useState(false);
   // Set of participant identities currently speaking
   const [speakingSet, setSpeakingSet] = useState<Set<string>>(new Set());
 
@@ -632,65 +636,90 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   ];
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
-
+  const hasModules = currentScenePreset.modules && currentScenePreset.modules.length > 0;
   const SLOT_COLORS = ['#44aaff', '#ff8844', '#aa88ff', '#44ff88'];
+  // SceneConfig has no icon — look it up from THEMES SceneVariant
+  const currentSceneVariant = THEMES.flatMap(t => t.scenes).find(s => s.id === selectedSceneId);
+
+  // Index of first non-completed task (highlighted in banner)
+  const currentTaskIndex = selectedTasks.findIndex(t => !t.completed);
+
+  // Helpers to open exactly one panel at a time
+  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); };
+  const openSlot  = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); };
+  const openTask  = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); };
+  const closeAll  = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
 
   return (
     <div className="host-session">
-      {/* Hidden video element used solely for teacher pose detection */}
-      <video
-        ref={teacherVideoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      />
+      {/* Hidden video for teacher pose detection */}
+      <video ref={teacherVideoRef} autoPlay playsInline muted style={{ display: 'none' }} aria-hidden="true" />
 
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="session-header">
         <h2>課堂進行中</h2>
         <span className="room-badge">房間: {roomId}</span>
         <span className="count-badge">{studentList.length} 位學生</span>
 
-        <RecordingPanel
-          isRecording={isRecording}
-          onStart={start}
-          onStop={stop}
-        />
-
-        {/* ── 場景選擇器（依 Theme 分組）── */}
-        <label htmlFor="scene-select" className="control-label">場景：</label>
-        <select
-          id="scene-select"
-          className="control-select"
-          value={selectedSceneId}
-          onChange={(e) => handleSceneChange(e.target.value)}
-        >
-          {THEMES.map((theme) => (
-            <optgroup key={theme.id} label={`${theme.icon ?? ''} ${theme.label}`}>
-              {theme.scenes.map((scene) => (
-                <option key={scene.id} value={scene.id}>
-                  {scene.icon ? `${scene.icon} ` : ''}{scene.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-
+        {/* Scene state-aware button */}
         <button
-          className={`control-btn ${faceEnabled ? 'active' : ''}`}
-          onClick={() => setFaceEnabled((v) => !v)}
-          title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
+          className={`state-btn ${showScenePanel ? 'state-btn--open' : ''}`}
+          onClick={openScene}
+          title="切換場景"
         >
-          {faceEnabled ? '🔴 臉部辨識 ON' : '⚪ 臉部辨識 OFF'}
+          <span>{currentSceneVariant?.icon ?? '🎬'}</span>
+          <span className="state-btn-value">{currentScenePreset.label}</span>
+          <span className="state-btn-arrow">{showScenePanel ? '▲' : '▼'}</span>
         </button>
 
+        {/* Face detection toggle */}
         <button
-          id="open-bigscreen-btn"
-          className="bigscreen-btn"
-          onClick={openBigScreen}
-          title="在新視窗開啟大屏顯示"
+          className={`state-btn ${faceEnabled ? 'state-btn--on' : 'state-btn--off'}`}
+          onClick={() => setFaceEnabled(v => !v)}
+          title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
         >
+          <span>{faceEnabled ? '😊' : '⚪'}</span>
+          <span className="state-btn-value">臉部辨識</span>
+          <span className={`state-btn-badge ${faceEnabled ? 'badge-on' : 'badge-off'}`}>
+            {faceEnabled ? 'ON' : 'OFF'}
+          </span>
+        </button>
+
+        {/* Slot config button (scene-dependent) */}
+        {hasSlots && (
+          <button
+            className={`state-btn ${showSlotPanel ? 'state-btn--open' : ''} ${Object.keys(slotAssignments).length > 0 ? 'state-btn--has-data' : ''}`}
+            onClick={openSlot}
+            title="角色配置"
+          >
+            <span>🎭</span>
+            <span className="state-btn-value">角色配置</span>
+            <span className="state-btn-badge badge-count">
+              {Object.keys(slotAssignments).length}/{currentScenePreset.slots!.length}
+            </span>
+            <span className="state-btn-arrow">{showSlotPanel ? '▲' : '▼'}</span>
+          </button>
+        )}
+
+        {/* Task button */}
+        {hasModules && (
+          <button
+            className={`state-btn ${showTaskPanel ? 'state-btn--open' : ''} ${selectedTasks.length > 0 ? 'state-btn--has-data' : ''}`}
+            onClick={openTask}
+            title="任務管理"
+          >
+            <span>📋</span>
+            <span className="state-btn-value">任務</span>
+            <span className="state-btn-badge badge-count">
+              {selectedTasks.filter(t => t.completed).length}/{selectedTasks.length}
+            </span>
+            <span className="state-btn-arrow">{showTaskPanel ? '▲' : '▼'}</span>
+          </button>
+        )}
+
+        <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
+
+        <button id="open-bigscreen-btn" className="bigscreen-btn" onClick={openBigScreen} title="在新視窗開啟大屏顯示">
           🖥️ 開啟大屏
         </button>
       </div>
@@ -698,13 +727,176 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       <PerformanceMonitor label="App Render FPS" position="top-left" />
       <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" />
 
-      {/* {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />} */}
+      {/* ── Task Banner: progress bar + current task hint ─────────────────────── */}
+      {selectedTasks.length > 0 && (() => {
+        const doneCount = selectedTasks.filter(t => t.completed).length;
+        const pct = Math.round((doneCount / selectedTasks.length) * 100);
+        const allDone = doneCount === selectedTasks.length;
+        return (
+          <div className="task-banner">
+            <div className="task-banner-progress">
+              <div className="task-progress-track">
+                <div className="task-progress-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="task-progress-count">
+                <strong>{doneCount}</strong>/{selectedTasks.length}
+              </span>
+            </div>
+            <div className={`task-banner-current ${allDone ? 'task-banner-current--done' : ''}`}>
+              {allDone ? (
+                <><span className="task-current-icon">✓</span><span>所有任務完成</span></>
+              ) : (
+                <><span className="task-current-icon">▸</span><span className="task-current-text">{selectedTasks[currentTaskIndex].label}</span></>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
-      <div className={hasSlots ? 'host-main-two-col' : undefined}>
-        {/* ── Slot Panel (only shown when scene has slots) ── */}
-        {hasSlots && (
-          <div className="slot-panel">
-            <div className="slot-panel-header">🎭 場景角色 SLOTS</div>
+      {/* ── Main Video Area + Task Sidebar ────────────────────────────────────── */}
+      <div className={`main-video-area${selectedTasks.length > 0 ? ' main-with-tasks' : ''}`}>
+
+        {/* Video grid */}
+        <div className="student-grid">
+          {/* ── Teacher card ── */}
+          {connectedRoom && (() => {
+            const teacherIdentityLocal = connectedRoom.localParticipant.identity;
+            const teacherSlotId = identityToSlotId[teacherIdentityLocal];
+            const teacherSlot = teacherSlotId
+              ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
+              : undefined;
+            const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
+            return (
+              <div
+                className={`student-container teacher-card${isTeacherSpeaking ? ' is-speaking' : ''}`}
+                style={{ position: 'relative', opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
+              >
+                <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId} />
+                <div className="teacher-card-tab">老師</div>
+                {teacherSlot && (
+                  <div className="tile-slot-badge">{teacherSlot.icon} {teacherSlot.label}</div>
+                )}
+                {!teacherSlot && hasSlots && (
+                  <div className="tile-slot-badge tile-slot-badge--unassigned">未指派</div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Student tiles ── */}
+          {studentList.map((info) => {
+            const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
+            const assignedSlotId = identityToSlotId[info.participant.identity];
+            const assignedSlot = assignedSlotId
+              ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
+              : undefined;
+            const isStudentSpeaking = speakingSet.has(info.participant.identity);
+            return (
+              <div
+                key={info.participant.identity}
+                className={`student-container${isStudentSpeaking ? ' is-speaking' : ''}`}
+                style={{ position: 'relative', opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
+              >
+                <StudentTile
+                  participant={info.participant}
+                  videoTrack={info.videoTrack}
+                  poseData={info.poseData}
+                  vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
+                  muteState={muteState[info.participant.identity]}
+                  onToggleMute={toggleMute}
+                />
+                {assignedSlot && (
+                  <div className="tile-slot-badge">{assignedSlot.icon} {assignedSlot.label}</div>
+                )}
+                {!assignedSlot && hasSlots && (
+                  <div className="tile-slot-badge tile-slot-badge--unassigned">未指派</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Task progress sidebar (visible when tasks are active) ── */}
+        {selectedTasks.length > 0 && (
+          <div className="task-progress-sidebar">
+            <div className="task-sidebar-header">⚡ 任務進度</div>
+            <div className="task-sidebar-list">
+              {selectedTasks.map((task, idx) => (
+                <label
+                  key={task.id}
+                  className={`task-sidebar-row ${task.completed ? 'completed' : idx === currentTaskIndex ? 'current' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="task-sidebar-checkbox"
+                    checked={task.completed}
+                    onChange={() => toggleTaskCompletion(task.id)}
+                  />
+                  <span className="task-sidebar-num">{idx + 1}</span>
+                  <span className="task-sidebar-label">{task.label}</span>
+                  <span className="task-sidebar-status">
+                    {task.completed ? '✓' : idx === currentTaskIndex ? '▸' : ''}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <button
+              className="reset-tasks-btn"
+              onClick={() => {
+                setSelectedTasks(prev => {
+                  const next = prev.map(t => ({ ...t, completed: false }));
+                  broadcastTaskChange(next);
+                  return next;
+                });
+              }}
+            >
+              ↺ 重製
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── Drawer Backdrop ───────────────────────────────────────────────────── */}
+      {(showScenePanel || showSlotPanel || showTaskPanel) && (
+        <div className="panel-backdrop" onClick={closeAll} />
+      )}
+
+      {/* ── Scene Drawer ─────────────────────────────────────────────────────── */}
+      <div className={`panel-drawer ${showScenePanel ? 'panel-drawer--open' : ''}`}>
+        <div className="panel-drawer-header">
+          <span>🎬 場景選擇</span>
+          <button className="panel-close-btn" onClick={() => setShowScenePanel(false)}>✕</button>
+        </div>
+        <div className="panel-drawer-body">
+          {THEMES.map((theme) => (
+            <div key={theme.id} className="scene-group">
+              <div className="scene-group-label">{theme.icon} {theme.label}</div>
+              <div className="scene-options">
+                {theme.scenes.map((scene) => (
+                  <button
+                    key={scene.id}
+                    className={`scene-option-btn ${selectedSceneId === scene.id ? 'active' : ''}`}
+                    onClick={() => { handleSceneChange(scene.id); setShowScenePanel(false); }}
+                  >
+                    {scene.icon && <span>{scene.icon}</span>}
+                    <span>{scene.label}</span>
+                    {selectedSceneId === scene.id && <span className="scene-check">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Slot Drawer ──────────────────────────────────────────────────────── */}
+      {hasSlots && (
+        <div className={`panel-drawer ${showSlotPanel ? 'panel-drawer--open' : ''}`}>
+          <div className="panel-drawer-header">
+            <span>🎭 角色配置 SLOTS</span>
+            <button className="panel-close-btn" onClick={() => setShowSlotPanel(false)}>✕</button>
+          </div>
+          <div className="panel-drawer-body">
             {currentScenePreset.slots!.map((sceneSlot, slotIndex) => {
               const assignedIdentity = slotAssignments[sceneSlot.id];
               const assignedVrmId = assignedIdentity
@@ -772,188 +964,91 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
             })}
             <div className="slot-panel-footer">未指派者不出現在大屏</div>
           </div>
-        )}
-
-        {/* ── Right Column (task selector + participant grid) ── */}
-        <div className="host-right-col">
-          <div className="student-grid">
-            {/* ── Teacher card ── */}
-            {connectedRoom && (() => {
-              const teacherIdentityLocal = connectedRoom.localParticipant.identity;
-              const teacherSlotId = identityToSlotId[teacherIdentityLocal];
-              const teacherSlot = teacherSlotId
-                ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
-                : undefined;
-              const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
-              return (
-                <div
-                  className={`student-container teacher-card${isTeacherSpeaking ? ' is-speaking' : ''}`}
-                  style={{ position: 'relative', opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
-                >
-                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId} />
-                  <div className="teacher-card-tab">老師</div>
-                  {teacherSlot && (
-                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
-                      {teacherSlot.icon} {teacherSlot.label}
-                    </div>
-                  )}
-                  {!teacherSlot && hasSlots && (
-                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
-                      未指派
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* ── Student tiles ── */}
-            {studentList.map((info) => {
-              const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
-              const assignedSlotId = identityToSlotId[info.participant.identity];
-              const assignedSlot = assignedSlotId
-                ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
-                : undefined;
-              const isStudentSpeaking = speakingSet.has(info.participant.identity);
-              return (
-                <div
-                  key={info.participant.identity}
-                  className={`student-container${isStudentSpeaking ? ' is-speaking' : ''}`}
-                  style={{ position: 'relative', opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
-                >
-                  <StudentTile
-                    participant={info.participant}
-                    videoTrack={info.videoTrack}
-                    poseData={info.poseData}
-                    vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
-                    muteState={muteState[info.participant.identity]}
-                    onToggleMute={toggleMute}
-                  />
-                  {assignedSlot && (
-                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.7)', color: '#fff', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
-                      {assignedSlot.icon} {assignedSlot.label}
-                    </div>
-                  )}
-                  {!assignedSlot && hasSlots && (
-                    <div style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', color: '#aaa', fontSize: '11px', padding: '2px 5px', borderRadius: '4px' }}>
-                      未指派
-                    </div>
-                  )}
-                  {/* {!hasSlots && (
-                    <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
-                      <select
-                        className="control-select"
-                        value={currentVrmId}
-                        onChange={(e) => handleStudentRoleChange(info.participant.identity, e.target.value)}
-                        style={{ fontSize: '11px', padding: '1px' }}
-                      >
-                        {allowedVrms.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )} */}
-                </div>
-              );
-            })}
-          </div>
-
-          {(() => {
-            const modules = currentScenePreset.modules;
-            if (!modules || modules.length === 0) return null;
-
-            return (
-              <div className="task-manager">
-                {/* 1. Task Bank (Selection Tree) */}
-                <div className="task-bank">
-                  <div className="task-bank-header">
-                    <span>📚 任務庫 (Module → Task)</span>
-                    <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>
-                      {selectedTasks.length}/7
-                    </span>
-                  </div>
-                  <div className="task-bank-tree">
-                    {modules.map((mod) => (
-                      <div key={mod.id} className="module-group">
-                        <div
-                          className={`module-header ${expandedModuleIds.has(mod.id) ? 'expanded' : ''}`}
-                          onClick={() => toggleModuleExpansion(mod.id)}
-                        >
-                          <span className="module-icon">{mod.icon || '📁'}</span>
-                          <span className="module-label">{mod.label}</span>
-                          <span className="module-arrow">{expandedModuleIds.has(mod.id) ? '▼' : '▶'}</span>
-                        </div>
-                        {expandedModuleIds.has(mod.id) && (
-                          <div className="module-tasks">
-                            {mod.tasks.map((task) => {
-                              const isSelected = selectedTasks.some(t => t.id === task.id);
-                              return (
-                                <button
-                                  key={task.id}
-                                  className={`task-select-btn ${isSelected ? 'selected' : ''}`}
-                                  onClick={() => toggleTaskSelection(task.id, task.label)}
-                                  disabled={!isSelected && selectedTasks.length >= 7}
-                                >
-                                  <div className="btn-check">
-                                    {isSelected ? '✓' : ''}
-                                  </div>
-                                  <span className="btn-label">{task.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 2. Active Session Progress */}
-                <div className="active-tasks">
-                  <div className="active-tasks-header">⚡ 進行中任務 (教學順序)</div>
-                  {selectedTasks.length === 0 ? (
-                    <div className="active-tasks-empty">
-                      請從左側任務庫中點選任務，<br />
-                      跨 Module 多選最多 7 項，並按順序排列。
-                    </div>
-                  ) : (
-                    <div className="active-tasks-list">
-                      {selectedTasks.map((task, idx) => (
-                        <div key={`${task.id}-${idx}`} className={`active-task-row ${task.completed ? 'completed' : ''}`}>
-                          <div className="task-index">{idx + 1}</div>
-                          <div className="task-info">
-                            <span className="task-label">{task.label}</span>
-                          </div>
-                          <label className="completion-toggle" title={task.completed ? '標記為未完成' : '標記為完成'}>
-                            <input
-                              type="checkbox"
-                              checked={task.completed}
-                              onChange={() => toggleTaskCompletion(task.id)}
-                            />
-                            <div className="toggle-slider">
-                              {task.completed ? 'DONE' : 'GO'}
-                            </div>
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {selectedTasks.length > 0 && (
-                    <button className="clear-tasks-btn" onClick={() => {
-                      setSelectedTasks([]);
-                      broadcastTaskChange([]);
-                    }}>
-                      🗑️ 清空所有任務
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-
         </div>
-      </div>
+      )}
+
+      {/* ── Task Drawer ──────────────────────────────────────────────────────── */}
+      {hasModules && (
+        <div className={`panel-drawer panel-drawer--wide ${showTaskPanel ? 'panel-drawer--open' : ''}`}>
+          <div className="panel-drawer-header">
+            <span>📋 任務管理</span>
+            <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>{selectedTasks.length}/7</span>
+            <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>✕</button>
+          </div>
+          <div className="panel-drawer-body task-manager-drawer">
+            {/* Left: Task Bank */}
+            <div className="task-bank">
+              <div className="task-bank-header">
+                <span>📚 任務庫</span>
+              </div>
+              <div className="task-bank-hint">點選加入，再次點選移除</div>
+              <div className="task-bank-tree">
+                {currentScenePreset.modules!.map((mod) => (
+                  <div key={mod.id} className="module-group">
+                    <div
+                      className={`module-header ${expandedModuleIds.has(mod.id) ? 'expanded' : ''}`}
+                      onClick={() => toggleModuleExpansion(mod.id)}
+                    >
+                      <span className="module-icon">{mod.icon || '📁'}</span>
+                      <span className="module-label">{mod.label}</span>
+                      <span className="module-arrow">{expandedModuleIds.has(mod.id) ? '▼' : '▶'}</span>
+                    </div>
+                    {expandedModuleIds.has(mod.id) && (
+                      <div className="module-tasks">
+                        {mod.tasks.map((task) => {
+                          const isSelected = selectedTasks.some(t => t.id === task.id);
+                          return (
+                            <button
+                              key={task.id}
+                              className={`task-select-btn ${isSelected ? 'selected' : ''}`}
+                              onClick={() => toggleTaskSelection(task.id, task.label)}
+                              disabled={!isSelected && selectedTasks.length >= 7}
+                            >
+                              <div className="btn-check">{isSelected ? '✓' : ''}</div>
+                              <span className="btn-label">{task.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Selected task list + clear */}
+            <div className="active-tasks">
+              <div className="active-tasks-header">⚡ 已選任務</div>
+              {selectedTasks.length === 0 ? (
+                <div className="active-tasks-empty">
+                  從左側任務庫點選，<br />最多 7 項
+                </div>
+              ) : (
+                <div className="active-tasks-list">
+                  {selectedTasks.map((task, idx) => (
+                    <div key={`${task.id}-${idx}`} className={`active-task-row ${task.completed ? 'completed' : ''}`}>
+                      <div className="task-index">{idx + 1}</div>
+                      <div className="task-info">
+                        <span className="task-label">{task.label}</span>
+                      </div>
+                      <button
+                        className="task-remove-btn"
+                        title="移除此任務"
+                        onClick={() => toggleTaskSelection(task.id, task.label)}
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedTasks.length > 0 && (
+                <button className="clear-tasks-btn" onClick={() => { setSelectedTasks([]); broadcastTaskChange([]); }}>
+                  🗑️ 清空所有任務
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
