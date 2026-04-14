@@ -23,6 +23,12 @@ import {
   type PoseApplyState,
 } from '../utils/vrmPoseApplier';
 import { applyLights, applyGrid } from '../utils/threeScene';
+import {
+  loadStaticProps,
+  loadTaskProps,
+  disposeStaticProps,
+  disposeTaskProps,
+} from '../utils/propLoader';
 import type { PoseFrame, SceneConfig, AvatarSpawnConfig } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
@@ -65,13 +71,15 @@ interface UseBigScreenSceneOptions {
   vrmSourceId?: string;
   /** Slot assignments from HostSession: slotId → participant identity */
   slotAssignments?: Record<string, string>;
+  /** Currently active task ID — tracked for Phase 2 interaction triggers */
+  currentTaskId?: string;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -111,6 +119,12 @@ export function useBigScreenScene(
   /** Per-identity spawn overrides set when an identity is assigned to a slot. */
   const spawnOverridesRef = useRef<Map<string, AvatarSpawnConfig>>(new Map());
 
+  const staticPropGroupsRef = useRef<THREE.Group[]>([]);
+  const taskPropPoolRef     = useRef<Map<string, THREE.Group>>(new Map());
+  /** Tracks the active task ID for Phase 2 interaction use */
+  const currentTaskIdRef    = useRef<string | undefined>(undefined);
+  currentTaskIdRef.current = currentTaskId;
+
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -146,6 +160,17 @@ export function useBigScreenScene(
 
     applyLights(scene, preset);
     applyGrid(scene, preset);
+
+    // Pre-load scene props (per-asset errors are swallowed inside propLoader)
+    if (preset.propSystem) {
+      loadStaticProps(preset.propSystem.staticProps ?? [], scene)
+        .then((groups) => { staticPropGroupsRef.current = groups; })
+        .catch((err) => console.warn('[BigScreenScene] staticProps load error:', err));
+
+      loadTaskProps(preset.propSystem.taskProps ?? {}, scene)
+        .then((pool) => { taskPropPoolRef.current = pool; })
+        .catch((err) => console.warn('[BigScreenScene] taskProps load error:', err));
+    }
 
     // Render loop
     const animate = (timestamp: number) => {
@@ -209,6 +234,9 @@ export function useBigScreenScene(
       orderRef.current = [];
       slotPinnedRef.current.clear();
       spawnOverridesRef.current.clear();
+      disposeStaticProps(staticPropGroupsRef.current, scene);
+      staticPropGroupsRef.current = [];
+      disposeTaskProps(taskPropPoolRef.current, scene);
       renderer.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
