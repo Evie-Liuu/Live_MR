@@ -120,9 +120,9 @@ export function useBigScreenScene(
   const spawnOverridesRef = useRef<Map<string, AvatarSpawnConfig>>(new Map());
 
   const staticPropGroupsRef = useRef<THREE.Group[]>([]);
-  const taskPropPoolRef     = useRef<Map<string, THREE.Group>>(new Map());
+  const taskPropPoolRef = useRef<Map<string, THREE.Group>>(new Map());
   /** Tracks the active task ID for Phase 2 interaction use */
-  const currentTaskIdRef    = useRef<string | undefined>(undefined);
+  const currentTaskIdRef = useRef<string | undefined>(undefined);
   currentTaskIdRef.current = currentTaskId;
 
   // ─── Scene initialisation ─────────────────────────────────────────────────
@@ -159,7 +159,7 @@ export function useBigScreenScene(
     rendererRef.current = renderer;
 
     applyLights(scene, preset);
-    applyGrid(scene, preset);
+    // applyGrid(scene, preset);
 
     // Pre-load scene props (per-asset errors are swallowed inside propLoader)
     let propsCancelled = false;
