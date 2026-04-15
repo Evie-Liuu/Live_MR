@@ -342,6 +342,50 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     [broadcastTaskChange],
   );
 
+  // ─── Drag-to-reorder for 已選任務 ────────────────────────────────────────
+  const dragIndexRef = useRef<number | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ index: number; position: 'before' | 'after' } | null>(null);
+
+  const handleTaskDragStart = useCallback((idx: number) => {
+    dragIndexRef.current = idx;
+  }, []);
+
+  const handleTaskDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, idx: number) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const position: 'before' | 'after' = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+    setDropIndicator((prev) =>
+      prev?.index === idx && prev.position === position ? prev : { index: idx, position },
+    );
+  }, []);
+
+  const handleTaskDrop = useCallback((e: React.DragEvent<HTMLDivElement>, idx: number) => {
+    const from = dragIndexRef.current;
+    dragIndexRef.current = null;
+    if (from === null || from === idx) { setDropIndicator(null); return; }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos: 'before' | 'after' = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+
+    setDropIndicator(null);
+    setSelectedTasks((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      const targetItem = prev[idx];
+      let insertAt = next.findIndex((t) => t.id === targetItem.id);
+      if (insertAt === -1) insertAt = pos === 'after' ? next.length : 0;
+      else if (pos === 'after') insertAt += 1;
+      next.splice(insertAt, 0, moved);
+      broadcastTaskChange(next);
+      return next;
+    });
+  }, [broadcastTaskChange]);
+
+  const handleTaskDragEnd = useCallback(() => {
+    dragIndexRef.current = null;
+    setDropIndicator(null);
+  }, []);
+
   const toggleModuleExpansion = useCallback((moduleId: string) => {
     setExpandedModuleIds((prev) => {
       const next = new Set(prev);
@@ -485,7 +529,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     const handleDataReceived = (
       payload: Uint8Array,
       participant?: RemoteParticipant,
-      _kind?: DataPacket_Kind,
+      // _kind?: DataPacket_Kind,
     ) => {
       if (!participant) return;
       try {
@@ -1027,7 +1071,16 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
               ) : (
                 <div className="active-tasks-list">
                   {selectedTasks.map((task, idx) => (
-                    <div key={`${task.id}-${idx}`} className={`active-task-row ${task.completed ? 'completed' : ''}`}>
+                    <div
+                      key={`${task.id}-${idx}`}
+                      className={`active-task-row ${task.completed ? 'completed' : ''} ${dropIndicator?.index === idx ? `drop-${dropIndicator.position}` : ''}`}
+                      draggable
+                      onDragStart={() => handleTaskDragStart(idx)}
+                      onDragOver={(e) => handleTaskDragOver(e, idx)}
+                      onDrop={(e) => handleTaskDrop(e, idx)}
+                      onDragEnd={handleTaskDragEnd}
+                    >
+                      <span className="task-drag-handle" title="拖曳排序">⠿</span>
                       <div className="task-index">{idx + 1}</div>
                       <div className="task-info">
                         <span className="task-label">{task.label}</span>
