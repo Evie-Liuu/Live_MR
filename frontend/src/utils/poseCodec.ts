@@ -27,25 +27,35 @@ const POSE_N = 33;
  *  Kalidokit's calcEyes() requires exactly 478 landmarks for eye-open detection;
  *  with fewer it returns { l: 1, r: 1 } (always open), breaking blink tracking. */
 const FACE_N = 478;
-const FLAG_WORLD = 1 << 0;
-const FLAG_FACE  = 1 << 1;
+/** Each hand has 21 landmarks */
+const HAND_N = 21;
+const FLAG_WORLD     = 1 << 0;
+const FLAG_FACE      = 1 << 1;
+const FLAG_LEFT_HAND = 1 << 2;  // person's left hand
+const FLAG_RIGHT_HAND= 1 << 3;  // person's right hand
 /** Header is 4 bytes so Float32 body starts at a 4-byte-aligned offset */
 const HEADER = 4;
 
 // ─── Encoder ─────────────────────────────────────────────────────────────────
 
 export function encodePoseFrame(frame: PoseFrame): Uint8Array {
-  const hasWorld = (frame.worldLandmarks?.length ?? 0) >= POSE_N;
-  const hasFace  = (frame.faceLandmarks?.length  ?? 0) >= FACE_N;
+  const hasWorld     = (frame.worldLandmarks?.length      ?? 0) >= POSE_N;
+  const hasFace      = (frame.faceLandmarks?.length       ?? 0) >= FACE_N;
+  const hasLeftHand  = (frame.leftHandLandmarks?.length   ?? 0) >= HAND_N;
+  const hasRightHand = (frame.rightHandLandmarks?.length  ?? 0) >= HAND_N;
 
   let flags = 0;
-  if (hasWorld) flags |= FLAG_WORLD;
-  if (hasFace)  flags |= FLAG_FACE;
+  if (hasWorld)     flags |= FLAG_WORLD;
+  if (hasFace)      flags |= FLAG_FACE;
+  if (hasLeftHand)  flags |= FLAG_LEFT_HAND;
+  if (hasRightHand) flags |= FLAG_RIGHT_HAND;
 
   const nFloats =
     POSE_N * 3 +
-    (hasWorld ? POSE_N * 3  : 0) +
-    (hasFace  ? FACE_N * 3  : 0);
+    (hasWorld     ? POSE_N * 3 : 0) +
+    (hasFace      ? FACE_N * 3 : 0) +
+    (hasLeftHand  ? HAND_N * 3 : 0) +
+    (hasRightHand ? HAND_N * 3 : 0);
 
   const buf = new ArrayBuffer(HEADER + nFloats * 4);
   new DataView(buf).setUint8(0, flags);
@@ -58,8 +68,10 @@ export function encodePoseFrame(frame: PoseFrame): Uint8Array {
   };
 
   write(frame.landmarks);
-  if (hasWorld) write(frame.worldLandmarks!);
-  if (hasFace)  write(frame.faceLandmarks!);
+  if (hasWorld)     write(frame.worldLandmarks!);
+  if (hasFace)      write(frame.faceLandmarks!);
+  if (hasLeftHand)  write(frame.leftHandLandmarks!);
+  if (hasRightHand) write(frame.rightHandLandmarks!);
 
   return new Uint8Array(buf);
 }
@@ -88,8 +100,10 @@ export function decodePoseFrame(data: Uint8Array): PoseFrame {
   const body = data.slice(HEADER);
   const f32  = new Float32Array(body.buffer);
 
-  const hasWorld = !!(flags & FLAG_WORLD);
-  const hasFace  = !!(flags & FLAG_FACE);
+  const hasWorld     = !!(flags & FLAG_WORLD);
+  const hasFace      = !!(flags & FLAG_FACE);
+  const hasLeftHand  = !!(flags & FLAG_LEFT_HAND);
+  const hasRightHand = !!(flags & FLAG_RIGHT_HAND);
 
   let off = 0;
   const landmarks = readLandmarks(f32, off, POSE_N); off += POSE_N * 3;
@@ -101,8 +115,18 @@ export function decodePoseFrame(data: Uint8Array): PoseFrame {
 
   let faceLandmarks: PoseLandmark[] | undefined;
   if (hasFace) {
-    faceLandmarks = readLandmarks(f32, off, FACE_N);
+    faceLandmarks = readLandmarks(f32, off, FACE_N); off += FACE_N * 3;
   }
 
-  return { type: 'pose', landmarks, worldLandmarks, faceLandmarks };
+  let leftHandLandmarks: PoseLandmark[] | undefined;
+  if (hasLeftHand) {
+    leftHandLandmarks = readLandmarks(f32, off, HAND_N); off += HAND_N * 3;
+  }
+
+  let rightHandLandmarks: PoseLandmark[] | undefined;
+  if (hasRightHand) {
+    rightHandLandmarks = readLandmarks(f32, off, HAND_N);
+  }
+
+  return { type: 'pose', landmarks, worldLandmarks, faceLandmarks, leftHandLandmarks, rightHandLandmarks };
 }

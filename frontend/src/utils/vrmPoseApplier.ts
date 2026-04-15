@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { solveWithKalidokit, type BoneRotation } from './kalidokitSolver';
-import { Face } from 'kalidokit';
+import { Face, Hand } from 'kalidokit';
 import type { VRM } from '@pixiv/three-vrm';
 import type { PoseFrame } from '../types/vrm';
 
@@ -24,6 +24,8 @@ export interface ApplyPoseOptions {
   mirror?: boolean;
   /** Whether to apply face movements using kalidokit Face.solve */
   faceEnabled?: boolean;
+  /** Whether to apply hand movements using kalidokit Hand.solve */
+  handEnabled?: boolean;
   /**
    * Skip the kalidokit solver and reuse the last cached bone targets.
    * Use this for mid-frame re-lerps (60 fps render between 30 fps pose frames)
@@ -38,6 +40,7 @@ const DEFAULT_OPTS: Required<ApplyPoseOptions> = {
   solverSmoothing: 0.5,
   mirror: true,
   faceEnabled: true,
+  handEnabled: true,
   reuseLastSolve: false,
 };
 
@@ -73,7 +76,7 @@ export function applyPoseToVrm(
 ): void {
   if (!frame.landmarks || frame.landmarks.length < 33) return;
 
-  const { lerpSpeed, maxLerpT, solverSmoothing, mirror, faceEnabled, reuseLastSolve } = {
+  const { lerpSpeed, maxLerpT, solverSmoothing, mirror, faceEnabled, handEnabled, reuseLastSolve } = {
     ...DEFAULT_OPTS,
     ...opts,
   };
@@ -120,6 +123,18 @@ export function applyPoseToVrm(
     }
   }
 
+  // Apply Hands if enabled
+  if (!reuseLastSolve && handEnabled) {
+    if (frame.leftHandLandmarks && frame.leftHandLandmarks.length >= 21) {
+      const leftHandRig = Hand.solve(frame.leftHandLandmarks as any, 'Left');
+      if (leftHandRig) applyHandRig(humanoid, leftHandRig, 'Left', mirror, t);
+    }
+    if (frame.rightHandLandmarks && frame.rightHandLandmarks.length >= 21) {
+      const rightHandRig = Hand.solve(frame.rightHandLandmarks as any, 'Right');
+      if (rightHandRig) applyHandRig(humanoid, rightHandRig, 'Right', mirror, t);
+    }
+  }
+
   // Apply Face if enabled, new data available, and landmarks exist
   // (skip when reuseLastSolve – bones already lerp toward last cached targets)
   if (!reuseLastSolve && faceEnabled && frame.faceLandmarks && frame.faceLandmarks.length >= 478) {
@@ -157,7 +172,7 @@ export function applyPoseToVrm(
         const exprBlinkR = em.getExpression('blinkRight');
         const hasSplitBinds = (exprBlinkL?.binds.length ?? 0) > 0 || (exprBlinkR?.binds.length ?? 0) > 0;
         if (hasSplitBinds) {
-          em.setValue('blinkLeft',  THREE.MathUtils.lerp(em.getValue('blinkLeft')  ?? 0, 1 - eyeL, t));
+          em.setValue('blinkLeft', THREE.MathUtils.lerp(em.getValue('blinkLeft') ?? 0, 1 - eyeL, t));
           em.setValue('blinkRight', THREE.MathUtils.lerp(em.getValue('blinkRight') ?? 0, 1 - eyeR, t));
         } else {
           // Fall back to unified blink
@@ -172,5 +187,56 @@ export function applyPoseToVrm(
         em.setValue('ou', THREE.MathUtils.lerp(em.getValue('ou') ?? 0, faceRig.mouth.shape.U, t));
       }
     }
+  }
+}
+
+/**
+ * Applies Hand.solve results to the VRM finger bones.
+ */
+function applyHandRig(
+  humanoid: any, // VRMHumanoid
+  handRig: any,
+  side: 'Left' | 'Right',
+  mirror: boolean,
+  t: number
+) {
+  const vrmSide = mirror ? (side === 'Left' ? 'Right' : 'Left') : side;
+  const prefix = vrmSide === 'Left' ? 'left' : 'right';
+
+  // Map Kalidokit names to VRM node names (excluding wrist to avoid overriding pose arm solver)
+  const bones = [
+    { k: 'ThumbProximal', v: 'ThumbMetacarpal' },
+    { k: 'ThumbIntermediate', v: 'ThumbProximal' },
+    { k: 'ThumbDistal', v: 'ThumbDistal' },
+    { k: 'IndexProximal', v: 'IndexProximal' },
+    { k: 'IndexIntermediate', v: 'IndexIntermediate' },
+    { k: 'IndexDistal', v: 'IndexDistal' },
+    { k: 'MiddleProximal', v: 'MiddleProximal' },
+    { k: 'MiddleIntermediate', v: 'MiddleIntermediate' },
+    { k: 'MiddleDistal', v: 'MiddleDistal' },
+    { k: 'RingProximal', v: 'RingProximal' },
+    { k: 'RingIntermediate', v: 'RingIntermediate' },
+    { k: 'RingDistal', v: 'RingDistal' },
+    { k: 'LittleProximal', v: 'LittleProximal' },
+    { k: 'LittleIntermediate', v: 'LittleIntermediate' },
+    { k: 'LittleDistal', v: 'LittleDistal' },
+  ];
+
+  for (const { k, v } of bones) {
+    const key = `${side}${k}`;
+    const rot = handRig[key];
+    if (!rot) continue;
+
+    const vrmName = `${prefix}${v}`;
+    const bone = humanoid.getNormalizedBoneNode(vrmName as any);
+    if (!bone) continue;
+
+    // For visual mirroring, swap Y and Z rotation signs
+    const rotX = rot.x;
+    const rotY = mirror ? -rot.y : rot.y;
+    const rotZ = mirror ? -rot.z : rot.z;
+
+    _targetQuat.setFromEuler(new THREE.Euler(rotX, rotY, rotZ, 'XYZ'));
+    bone.quaternion.slerp(_targetQuat, t);
   }
 }

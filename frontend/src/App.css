@@ -1404,18 +1404,23 @@ button:disabled {
   user-select: none;
   transition: color 0.15s;
 }
+
 .task-drag-handle:active {
   cursor: grabbing;
 }
+
 .active-task-row:hover .task-drag-handle {
   color: #7788ff;
 }
+
 .active-task-row[draggable] {
   cursor: default;
 }
+
 .active-task-row.drop-before {
   border-top: 2px solid #7788ff;
 }
+
 .active-task-row.drop-after {
   border-bottom: 2px solid #7788ff;
 }
@@ -1742,7 +1747,7 @@ button:disabled {
 
 .bigscreen-current-task-label {
   color: #fff;
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 800;
   text-align: center;
   text-shadow: 0 2px 15px rgba(0, 0, 0, 0.6);

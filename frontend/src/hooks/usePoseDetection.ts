@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
-import { PoseLandmarker, FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+import { PoseLandmarker, FaceLandmarker, HandLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import type { PoseLandmark, PoseFrame, FaceBlendshapes } from '../types/vrm';
 
 // Re-export PoseFrame as a convenience
@@ -9,6 +9,7 @@ export type { PoseFrame };
 const WASM_PATH = '/mediapipe-wasm';
 const POSE_MODEL_PATH = '/mediapipe-models/pose_landmarker_heavy.task';
 const FACE_MODEL_PATH = '/mediapipe-models/face_landmarker.task';
+const HAND_MODEL_PATH = '/mediapipe-models/hand_landmarker.task';
 import { encodePoseFrame } from '../utils/poseCodec';
 
 /** Minimum interval between detections (~30 fps) */
@@ -24,9 +25,12 @@ export function usePoseDetection(
   onLandmarksUpdate?: (landmarks: PoseLandmark[]) => void,
   /** Enable FaceLandmarker for face blendshapes detection */
   faceEnabled?: boolean,
+  /** Enable HandLandmarker for hand gesture detection */
+  handEnabled?: boolean,
 ) {
   const poseRef = useRef<PoseLandmarker | null>(null);
   const faceRef = useRef<FaceLandmarker | null>(null);
+  const handRef = useRef<HandLandmarker | null>(null);
   const rafRef = useRef<number>(0);
   // Keep stable refs so the rAF loop closure never goes stale
   const onPublishRef = useRef(onPublish);
@@ -35,6 +39,8 @@ export function usePoseDetection(
   onLandmarksUpdateRef.current = onLandmarksUpdate;
   const faceEnabledRef = useRef(faceEnabled ?? false);
   faceEnabledRef.current = faceEnabled ?? false;
+  const handEnabledRef = useRef(handEnabled ?? false);
+  handEnabledRef.current = handEnabled ?? false;
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +104,34 @@ export function usePoseDetection(
         if (cancelled) { faceLandmarker?.close(); poseLandmarker.close(); return; }
         faceRef.current = faceLandmarker;
 
+        // ── Init HandLandmarker ──
+        let handLandmarker: HandLandmarker | null = null;
+        try {
+          handLandmarker = await HandLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: HAND_MODEL_PATH, delegate: 'GPU' },
+            runningMode: 'VIDEO',
+            numHands: 2,
+            minHandDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+          });
+        } catch {
+          console.warn('[HandDetection] GPU delegate failed, falling back to CPU');
+          try {
+            handLandmarker = await HandLandmarker.createFromOptions(vision, {
+              baseOptions: { modelAssetPath: HAND_MODEL_PATH, delegate: 'CPU' },
+              runningMode: 'VIDEO',
+              numHands: 2,
+              minHandDetectionConfidence: 0.5,
+              minTrackingConfidence: 0.5,
+            });
+          } catch (err) {
+            console.error('[HandDetection] Failed to initialize HandLandmarker:', err);
+          }
+        }
+
+        if (cancelled) { handLandmarker?.close(); faceLandmarker?.close(); poseLandmarker.close(); return; }
+        handRef.current = handLandmarker;
+
         let lastDetectTime = 0;
 
         const loop = () => {
@@ -159,6 +193,32 @@ export function usePoseDetection(
                     }
                   }
 
+                  // ── Hand landmarks (when enabled) ──
+                  if (handEnabledRef.current && handRef.current) {
+                    try {
+                      const handResult = handRef.current.detectForVideo(video, now);
+                      if (handResult.landmarks && handResult.landmarks.length > 0) {
+                        for (let hi = 0; hi < handResult.landmarks.length; hi++) {
+                          // handResult.handedness[hi][0].categoryName is 'Left' or 'Right'
+                          // (MediaPipe returns the hand as seen from the camera, mirror of person)
+                          const label = handResult.handedness?.[hi]?.[0]?.categoryName ?? ''
+                          const lms = handResult.landmarks[hi].map((l) => ({
+                            x: l.x, y: l.y, z: l.z, visibility: 1,
+                          }))
+                          // MediaPipe 'Left' = camera left = person's Right hand, and vice versa
+                          // We store as person's perspective to match solveHand() expectations
+                          if (label === 'Left') {
+                            frame.rightHandLandmarks = lms   // camera Left = person Right
+                          } else if (label === 'Right') {
+                            frame.leftHandLandmarks = lms    // camera Right = person Left
+                          }
+                        }
+                      }
+                    } catch {
+                      // ignore per-frame hand errors
+                    }
+                  }
+
                   // Always emit landmarks for overlay
                   onLandmarksUpdateRef.current?.(frame.landmarks);
                   // Only publish if callback provided
@@ -186,6 +246,7 @@ export function usePoseDetection(
       cancelAnimationFrame(rafRef.current);
       poseRef.current?.close();
       faceRef.current?.close();
+      handRef.current?.close();
     };
-  }, [videoRef]); // onPublish, onLandmarksUpdate, faceEnabled intentionally excluded — updated via refs
+  }, [videoRef]); // onPublish, onLandmarksUpdate, faceEnabled, handEnabled intentionally excluded — updated via refs
 }

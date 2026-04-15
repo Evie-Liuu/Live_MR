@@ -19,6 +19,10 @@ export interface PoseFrame {
   faceBlendshapes?: FaceBlendshapes;
   /** Face landmarks for Kalidokit Face.solve */
   faceLandmarks?: PoseLandmark[];
+  /** 21 hand landmarks from MediaPipe HandLandmarker (person's left hand) */
+  leftHandLandmarks?: PoseLandmark[];
+  /** 21 hand landmarks from MediaPipe HandLandmarker (person's right hand) */
+  rightHandLandmarks?: PoseLandmark[];
 }
 
 // ─── Scene Configuration ──────────────────────────────────────────────────────
