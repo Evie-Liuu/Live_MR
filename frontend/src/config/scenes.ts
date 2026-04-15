@@ -45,7 +45,7 @@ export const THEMES: ThemeConfig[] = [
             icon: '🛍️',
             position: [-1.2, 0, -1.5],
             // rotation: [0, Math.PI / 3, 0],
-            defaultVrmId: 'default',
+            defaultVrmId: 'student_male',
           },
         ],
         modules: [
@@ -147,60 +147,60 @@ export const THEMES: ThemeConfig[] = [
       },
 
       // ── Scene 2：試衣間 ───────────────────────────────────────────────
-      {
-        id: 'clothingStore_fitting',
-        label: '試衣間',
-        icon: '🪞',
-        allowedVrmIds: [
-          'default',
-          'student_male',
-          'student_female',
-          'teenager_male',
-          'teenager_female',
-          'clothingStoreStaff_female',
-          'clothingStoreStaff_male',
-        ],
-        slots: [
-          {
-            id: 'staff',
-            label: '店員',
-            icon: '🧑‍💼',
-            position: [1.2, 0, -1.5],
-            // rotation: [0, -Math.PI / 3, 0],
-            defaultVrmId: 'clothingStoreStaff_female',
-          },
-          {
-            id: 'shopper',
-            label: '試穿顧客',
-            icon: '👕',
-            position: [-1.2, 0, -1.5],
-            // rotation: [0, Math.PI / 3, 0],
-            defaultVrmId: 'default',
-          },
-        ],
-        modules: [
-          {
-            id: 'try_on',
-            label: 'Try On Items',
-            icon: '👗',
-            tasks: [
-              { id: 'try_on_1', label: 'Ask if you can try on the red dress.' },
-              { id: 'try_on_2', label: 'Tell the staff the item does not fit.' },
-              { id: 'try_on_3', label: 'Ask for a different colour to try.' },
-            ],
-          },
-          {
-            id: 'return_exchange',
-            label: 'Return or Exchange',
-            icon: '🔄',
-            tasks: [
-              { id: 'return_exchange_1', label: 'Ask how to return an item bought online.' },
-              { id: 'return_exchange_2', label: 'Request an exchange for the same item in a different size.' },
-              { id: 'return_exchange_3', label: 'Explain that you have the receipt and want a refund.' },
-            ],
-          },
-        ],
-      },
+      // {
+      //   id: 'clothingStore_fitting',
+      //   label: '試衣間',
+      //   icon: '🪞',
+      //   allowedVrmIds: [
+      //     'default',
+      //     'student_male',
+      //     'student_female',
+      //     'teenager_male',
+      //     'teenager_female',
+      //     'clothingStoreStaff_female',
+      //     'clothingStoreStaff_male',
+      //   ],
+      //   slots: [
+      //     {
+      //       id: 'staff',
+      //       label: '店員',
+      //       icon: '🧑‍💼',
+      //       position: [1.2, 0, -1.5],
+      //       // rotation: [0, -Math.PI / 3, 0],
+      //       defaultVrmId: 'clothingStoreStaff_female',
+      //     },
+      //     {
+      //       id: 'shopper',
+      //       label: '試穿顧客',
+      //       icon: '👕',
+      //       position: [-1.2, 0, -1.5],
+      //       // rotation: [0, Math.PI / 3, 0],
+      //       defaultVrmId: 'default',
+      //     },
+      //   ],
+      //   modules: [
+      //     {
+      //       id: 'try_on',
+      //       label: 'Try On Items',
+      //       icon: '👗',
+      //       tasks: [
+      //         { id: 'try_on_1', label: 'Ask if you can try on the red dress.' },
+      //         { id: 'try_on_2', label: 'Tell the staff the item does not fit.' },
+      //         { id: 'try_on_3', label: 'Ask for a different colour to try.' },
+      //       ],
+      //     },
+      //     {
+      //       id: 'return_exchange',
+      //       label: 'Return or Exchange',
+      //       icon: '🔄',
+      //       tasks: [
+      //         { id: 'return_exchange_1', label: 'Ask how to return an item bought online.' },
+      //         { id: 'return_exchange_2', label: 'Request an exchange for the same item in a different size.' },
+      //         { id: 'return_exchange_3', label: 'Explain that you have the receipt and want a refund.' },
+      //       ],
+      //     },
+      //   ],
+      // },
     ],
   },
 

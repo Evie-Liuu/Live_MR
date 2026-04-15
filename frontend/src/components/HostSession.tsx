@@ -646,9 +646,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
   // Helpers to open exactly one panel at a time
   const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); };
-  const openSlot  = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); };
-  const openTask  = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); };
-  const closeAll  = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
+  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); };
+  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); };
+  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
 
   return (
     <div className="host-session">
@@ -972,7 +972,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         <div className={`panel-drawer panel-drawer--wide ${showTaskPanel ? 'panel-drawer--open' : ''}`}>
           <div className="panel-drawer-header">
             <span>📋 任務管理</span>
-            <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>{selectedTasks.length}/7</span>
             <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>✕</button>
           </div>
           <div className="panel-drawer-body task-manager-drawer">
@@ -981,7 +980,6 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
               <div className="task-bank-header">
                 <span>📚 任務庫</span>
               </div>
-              <div className="task-bank-hint">點選加入，再次點選移除</div>
               <div className="task-bank-tree">
                 {currentScenePreset.modules!.map((mod) => (
                   <div key={mod.id} className="module-group">
@@ -1018,7 +1016,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
             {/* Right: Selected task list + clear */}
             <div className="active-tasks">
-              <div className="active-tasks-header">⚡ 已選任務</div>
+              <div className="active-tasks-header">
+                <span>⚡ 已選任務</span>
+                <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>{selectedTasks.length}/7</span>
+              </div>
               {selectedTasks.length === 0 ? (
                 <div className="active-tasks-empty">
                   從左側任務庫點選，<br />最多 7 項
