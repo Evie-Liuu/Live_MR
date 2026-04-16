@@ -32,6 +32,18 @@ import {
 import type { PoseFrame, SceneConfig, AvatarSpawnConfig } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
+import {
+  highlightProp,
+  projectToUV,
+  attachPropToHand,
+  returnPropToDisplay,
+} from '../utils/propInteraction';
+import {
+  detectFist,
+  detectOpenHand,
+  isHandRaised,
+  isHandNearProp,
+} from '../utils/gestureDetector';
 
 // ─── Internal avatar slot ────────────────────────────────────────────────────
 
@@ -49,11 +61,23 @@ interface AvatarSlot {
   lastPoseAt: number;
   /** Exponential moving average of inter-pose intervals (ms), default 33 = 30 fps */
   avgPoseIntervalMs: number;
+  /** Object interaction state machine */
+  interaction: {
+    propState: 'displayed' | 'held' | 'returning';
+    lockHand: 'left' | 'right' | null;
+    /** Last task ID seen — detects task changes */
+    lastTaskId: string | undefined;
+    /** performance.now() when hand landmarks were last seen (grace period) */
+    handLostAt: number;
+  };
 }
 
 /** lerpSpeed baseline at 30 fps; scaled proportionally to actual data rate */
 const BASE_LERP_SPEED = 14;
 const BASE_INTERVAL_MS = 33;
+
+/** Reusable Vector3 for prop returning target — avoids per-frame allocation */
+const _displayPosVec = new THREE.Vector3();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -125,6 +149,11 @@ export function useBigScreenScene(
   const currentTaskIdRef = useRef<string | undefined>(undefined);
   currentTaskIdRef.current = currentTaskId;
 
+  /** Accumulated elapsed time (seconds) — drives emissive pulse sin() */
+  const elapsedRef = useRef(0);
+  /** taskId → identity currently holding it. Prevents two slots grabbing the same prop. */
+  const heldByIdentityRef = useRef<Map<string, string>>(new Map());
+
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -184,8 +213,9 @@ export function useBigScreenScene(
       rafRef.current = requestAnimationFrame(animate);
       timerRef.current.update(timestamp);
       const delta = timerRef.current.getDelta();
+      elapsedRef.current += delta;
 
-      for (const slot of avatarsRef.current.values()) {
+      for (const [identity, slot] of avatarsRef.current.entries()) {
         // Adaptive lerp speed: proportional to actual pose data rate.
         // At 30 fps (33 ms) → 14; at 15 fps (66 ms) → 7; cap 60 fps at 20.
         const adaptiveLerp = Math.min(
@@ -209,6 +239,107 @@ export function useBigScreenScene(
         }
 
         slot.vrm.update(delta);
+
+        // ── Prop interaction state machine ────────────────────────────────────
+        {
+          const taskId = currentTaskIdRef.current;
+          const prop   = taskId ? taskPropPoolRef.current.get(taskId) : undefined;
+          const ia     = slot.interaction;
+
+          // ── Task change detection ──────────────────────────────────────────
+          if (ia.lastTaskId !== taskId) {
+            // Release any held/returning state for the OLD task prop
+            if (ia.lastTaskId) {
+              const oldProp = taskPropPoolRef.current.get(ia.lastTaskId);
+              if (oldProp) highlightProp(oldProp, false);
+              if (heldByIdentityRef.current.get(ia.lastTaskId) === identity) {
+                heldByIdentityRef.current.delete(ia.lastTaskId);
+              }
+            }
+            ia.propState  = 'displayed';
+            ia.lockHand   = null;
+            ia.handLostAt = 0;
+            ia.lastTaskId = taskId;
+          }
+
+          if (!prop) continue; // no prop for this task — skip
+
+          // ── Hand landmarks from last known frame ───────────────────────────
+          const frame     = slot.lastFrame;
+          const rightHand = frame?.rightHandLandmarks;
+          const leftHand  = frame?.leftHandLandmarks;
+          const pose      = frame?.landmarks;
+
+          // ── displayed: highlight + grab detection ─────────────────────────
+          if (ia.propState === 'displayed') {
+            highlightProp(prop, true, elapsedRef.current);
+
+            if (cameraRef.current) {
+              const propUV = projectToUV(prop.position, cameraRef.current);
+
+              for (const hand of ['right', 'left'] as const) {
+                const hLandmarks = hand === 'right' ? rightHand : leftHand;
+                if (!hLandmarks || hLandmarks.length < 21) continue;
+                if (!pose || pose.length < 25) continue;
+                // Prevent a second slot from grabbing a prop already held
+                if (heldByIdentityRef.current.has(taskId)) continue;
+
+                const wristUV = { x: hLandmarks[0].x, y: hLandmarks[0].y };
+                const fist    = detectFist(hLandmarks);
+                const raised  = isHandRaised(pose, hand);
+                const near    = isHandNearProp(wristUV, propUV);
+
+                if (fist && (raised || near)) {
+                  ia.propState  = 'held';
+                  ia.lockHand   = hand;
+                  ia.handLostAt = 0;
+                  heldByIdentityRef.current.set(taskId, identity);
+                  highlightProp(prop, false);
+                  break;
+                }
+              }
+            }
+
+          // ── held: follow hand bone, detect release ─────────────────────────
+          } else if (ia.propState === 'held' && ia.lockHand) {
+            attachPropToHand(prop, slot.vrm, ia.lockHand);
+
+            const hLandmarks = ia.lockHand === 'right' ? rightHand : leftHand;
+
+            if (!hLandmarks || hLandmarks.length < 21) {
+              // Grace period: 500 ms before forcing a release on landmark loss
+              const now = performance.now();
+              if (ia.handLostAt === 0) ia.handLostAt = now;
+              if (now - ia.handLostAt > 500) {
+                heldByIdentityRef.current.delete(taskId);
+                ia.propState = 'returning';
+                ia.lockHand  = null;
+              }
+            } else {
+              ia.handLostAt = 0;
+              if (detectOpenHand(hLandmarks)) {
+                heldByIdentityRef.current.delete(taskId);
+                ia.propState = 'returning';
+                ia.lockHand  = null;
+              }
+            }
+
+          // ── returning: lerp back to displayPos ────────────────────────────
+          } else if (ia.propState === 'returning') {
+            const dpCfg = presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
+            if (dpCfg) {
+              _displayPosVec.set(...dpCfg);
+              const arrived = returnPropToDisplay(prop, _displayPosVec, delta);
+              if (arrived) {
+                ia.propState = 'displayed';
+              }
+            } else {
+              // No displayPos in config — consider arrived immediately
+              ia.propState = 'displayed';
+            }
+          }
+        }
+        // ── End prop interaction ───────────────────────────────────────────────
       }
 
       if (cameraRef.current) {
@@ -245,6 +376,7 @@ export function useBigScreenScene(
       disposeStaticProps(staticPropGroupsRef.current, scene);
       staticPropGroupsRef.current = [];
       disposeTaskProps(taskPropPoolRef.current, scene);
+      heldByIdentityRef.current.clear();
       renderer.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -344,6 +476,12 @@ export function useBigScreenScene(
             lastFrame: null,
             lastPoseAt: 0,
             avgPoseIntervalMs: BASE_INTERVAL_MS,
+            interaction: {
+              propState: 'displayed',
+              lockHand: null,
+              lastTaskId: undefined,
+              handLostAt: 0,
+            },
           };
           avatarsRef.current.set(identity, slot);
           loadingRef.current.delete(identity);
