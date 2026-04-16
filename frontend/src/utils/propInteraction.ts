@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 
 // Module-scope reusable vectors — avoids per-frame allocation.
-const _bonePos = new THREE.Vector3();
+const _bonePos   = new THREE.Vector3();   // used by attachPropToHand
+const _ndcPos    = new THREE.Vector3();   // used by projectToUV
 const _offsetVec = new THREE.Vector3();
 
 /**
@@ -43,10 +44,10 @@ export function projectToUV(
   worldPos: THREE.Vector3,
   camera: THREE.Camera,
 ): { x: number; y: number } {
-  _bonePos.copy(worldPos).project(camera);
+  _ndcPos.copy(worldPos).project(camera);
   return {
-    x: (_bonePos.x + 1) / 2,
-    y: (1 - _bonePos.y) / 2,
+    x: (_ndcPos.x + 1) / 2,
+    y: (1 - _ndcPos.y) / 2,
   };
 }
 
