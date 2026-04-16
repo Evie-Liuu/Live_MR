@@ -17,16 +17,16 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     label: '預設角色',
     url: '/models/Default_Female.vrm',
   },
-  teenager_female: {
-    id: 'teenager_female',
-    label: '少女',
-    url: '/models/Teenager_Female.vrm',
-  },
-  teenager_male: {
-    id: 'teenager_male',
-    label: '少年',
-    url: '/models/Student_Male2.vrm',
-  },
+  // teenager_female: {
+  //   id: 'teenager_female',
+  //   label: '少女',
+  //   url: '/models/Teenager_Female.vrm',
+  // },
+  // teenager_male: {
+  //   id: 'teenager_male',
+  //   label: '少年',
+  //   url: '/models/Student_Male2.vrm',
+  // },
   student_female: {
     id: 'student_female',
     label: '女學生',
