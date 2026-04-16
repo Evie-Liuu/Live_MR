@@ -160,9 +160,9 @@ export function usePoseDetection(
                     worldLandmarks:
                       result.worldLandmarks && result.worldLandmarks.length > 0
                         ? result.worldLandmarks[0].map((l) => ({
-                            x: l.x, y: l.y, z: l.z,
-                            visibility: l.visibility ?? 0,
-                          }))
+                          x: l.x, y: l.y, z: l.z,
+                          visibility: l.visibility ?? 0,
+                        }))
                         : [],
                   };
 

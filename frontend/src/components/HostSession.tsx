@@ -40,6 +40,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
+  const [handEnabled, _] = useState(faceEnabled);
   // Panel drawer open states
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
@@ -426,7 +427,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     [connectedRoom],
   );
 
-  usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled);
+  usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled, handEnabled);
 
   // ─── LiveKit connection ────────────────────────────────────────────────────
   const updateParticipant = useCallback(

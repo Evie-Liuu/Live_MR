@@ -27,7 +27,8 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   // 追蹤目前本地預覽用的 stream，確保切換鏡頭時能正確釋放
   const displayStreamRef = useRef<MediaStream | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
-  const [faceEnabled, setFaceEnabled] = useState(false);
+  const [faceEnabled, setFaceEnabled] = useState(true);
+  const [handEnabled, _] = useState(faceEnabled);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const isMobile = isMobileDevice();
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
@@ -51,7 +52,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       });
     }
     setLandmarks(lms);
-  }, faceEnabled);
+  }, faceEnabled, handEnabled);
 
   useEffect(() => {
     let isMounted = true;
