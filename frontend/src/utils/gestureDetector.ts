@@ -4,33 +4,33 @@ import type { PoseLandmark } from '../types/vrm';
 /**
  * Returns true if the hand is in a fist: at least 3 of 4 fingers curled.
  * Expects 21-point MediaPipe HandLandmarker landmarks (image space, y↓).
- * Fingertip curled = tip.y > mcp.y (tip is lower than knuckle in image).
+ * Fingertip curled = tip.y > pip.y (tip below middle knuckle in image).
  */
 export function detectFist(landmarks: PoseLandmark[]): boolean {
   if (landmarks.length < 21) return false;
   const fingers = [
-    { tip: 8,  mcp: 5  }, // index
-    { tip: 12, mcp: 9  }, // middle
-    { tip: 16, mcp: 13 }, // ring
-    { tip: 20, mcp: 17 }, // pinky
+    { tip: 8,  pip: 6  }, // index
+    { tip: 12, pip: 10 }, // middle
+    { tip: 16, pip: 14 }, // ring
+    { tip: 20, pip: 18 }, // pinky
   ];
-  const curled = fingers.filter(f => landmarks[f.tip].y > landmarks[f.mcp].y).length;
+  const curled = fingers.filter(f => landmarks[f.tip].y > landmarks[f.pip].y).length;
   return curled >= 3;
 }
 
 /**
  * Returns true if the hand is open: at least 3 of 4 fingers extended.
- * Finger extended = tip.y < mcp.y.
+ * Finger extended = tip.y < pip.y.
  */
 export function detectOpenHand(landmarks: PoseLandmark[]): boolean {
   if (landmarks.length < 21) return false;
   const fingers = [
-    { tip: 8,  mcp: 5  },
-    { tip: 12, mcp: 9  },
-    { tip: 16, mcp: 13 },
-    { tip: 20, mcp: 17 },
+    { tip: 8,  pip: 6  },
+    { tip: 12, pip: 10 },
+    { tip: 16, pip: 14 },
+    { tip: 20, pip: 18 },
   ];
-  const extended = fingers.filter(f => landmarks[f.tip].y < landmarks[f.mcp].y).length;
+  const extended = fingers.filter(f => landmarks[f.tip].y < landmarks[f.pip].y).length;
   return extended >= 3;
 }
 
