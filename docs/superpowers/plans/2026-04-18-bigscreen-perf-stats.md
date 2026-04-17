@@ -285,7 +285,7 @@ import StatsPanel, { type StatsSnapshot } from './StatsPanel.tsx';
 
 - [ ] **Step 4：新增 `showStats` / `statsData` state**
 
-在 `poseRxFps` state 宣告後方加入：
+在 `poseUpdateCount` state 宣告後方加入：
 
 ```ts
   const [showStats, setShowStats] = useState(false);
@@ -339,13 +339,13 @@ import StatsPanel, { type StatsSnapshot } from './StatsPanel.tsx';
 找到：
 ```tsx
       <PerformanceMonitor label="Render FPS" position="top-right" />
-      <PerformanceMonitor label="Pose Rx FPS" count={poseRxFps} position="bottom-right" />
+      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
 ```
 
 改為：
 ```tsx
       <PerformanceMonitor label="Render FPS" position="top-right" />
-      <PerformanceMonitor label="Pose Rx FPS" count={poseRxFps} position="bottom-right" />
+      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
       {showStats && statsData && <StatsPanel data={statsData} />}
 ```
 
