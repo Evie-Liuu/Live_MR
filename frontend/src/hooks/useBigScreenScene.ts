@@ -134,6 +134,11 @@ export function useBigScreenScene(
     SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID],
   );
 
+  /** Accumulated elapsed time (seconds) — drives emissive pulse sin() */
+  const elapsedRef = useRef(0);
+  /** taskId → identity currently holding it. Prevents two slots grabbing the same prop. */
+  const heldByIdentityRef = useRef<Map<string, string>>(new Map());
+
   /** Latest slot assignments (slotId → identity). Updated each render so callbacks are current. */
   const slotAssignmentsRef = useRef<Record<string, string>>(slotAssignments ?? {});
   slotAssignmentsRef.current = slotAssignments ?? {};
@@ -148,11 +153,6 @@ export function useBigScreenScene(
   /** Tracks the active task ID for Phase 2 interaction use */
   const currentTaskIdRef = useRef<string | undefined>(undefined);
   currentTaskIdRef.current = currentTaskId;
-
-  /** Accumulated elapsed time (seconds) — drives emissive pulse sin() */
-  const elapsedRef = useRef(0);
-  /** taskId → identity currently holding it. Prevents two slots grabbing the same prop. */
-  const heldByIdentityRef = useRef<Map<string, string>>(new Map());
 
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
@@ -243,8 +243,8 @@ export function useBigScreenScene(
         // ── Prop interaction state machine ────────────────────────────────────
         {
           const taskId = currentTaskIdRef.current;
-          const prop   = taskId ? taskPropPoolRef.current.get(taskId) : undefined;
-          const ia     = slot.interaction;
+          const prop = taskId ? taskPropPoolRef.current.get(taskId) : undefined;
+          const ia = slot.interaction;
 
           // ── Task change detection ──────────────────────────────────────────
           if (ia.lastTaskId !== taskId) {
@@ -256,19 +256,19 @@ export function useBigScreenScene(
                 heldByIdentityRef.current.delete(ia.lastTaskId);
               }
             }
-            ia.propState  = 'displayed';
-            ia.lockHand   = null;
+            ia.propState = 'displayed';
+            ia.lockHand = null;
             ia.handLostAt = 0;
             ia.lastTaskId = taskId;
           }
 
-          if (!prop) continue; // no prop for this task — skip
+          if (!taskId || !prop) continue; // no prop for this task — skip
 
           // ── Hand landmarks from last known frame ───────────────────────────
-          const frame     = slot.lastFrame;
+          const frame = slot.lastFrame;
           const rightHand = frame?.rightHandLandmarks;
-          const leftHand  = frame?.leftHandLandmarks;
-          const pose      = frame?.landmarks;
+          const leftHand = frame?.leftHandLandmarks;
+          const pose = frame?.landmarks;
 
           // ── displayed: highlight + grab detection ─────────────────────────
           if (ia.propState === 'displayed') {
@@ -285,13 +285,13 @@ export function useBigScreenScene(
                 if (heldByIdentityRef.current.has(taskId)) continue;
 
                 const wristUV = { x: hLandmarks[0].x, y: hLandmarks[0].y };
-                const fist    = detectFist(hLandmarks);
-                const raised  = isHandRaised(pose, hand);
-                const near    = isHandNearProp(wristUV, propUV);
+                const fist = detectFist(hLandmarks);
+                const raised = isHandRaised(pose, hand);
+                const near = isHandNearProp(wristUV, propUV);
 
                 if (fist && (raised || near)) {
-                  ia.propState  = 'held';
-                  ia.lockHand   = hand;
+                  ia.propState = 'held';
+                  ia.lockHand = hand;
                   ia.handLostAt = 0;
                   heldByIdentityRef.current.set(taskId, identity);
                   highlightProp(prop, false);
@@ -300,7 +300,7 @@ export function useBigScreenScene(
               }
             }
 
-          // ── held: follow hand bone, detect release ─────────────────────────
+            // ── held: follow hand bone, detect release ─────────────────────────
           } else if (ia.propState === 'held' && ia.lockHand) {
             attachPropToHand(prop, slot.vrm, ia.lockHand);
 
@@ -313,18 +313,18 @@ export function useBigScreenScene(
               if (now - ia.handLostAt > 500) {
                 heldByIdentityRef.current.delete(taskId);
                 ia.propState = 'returning';
-                ia.lockHand  = null;
+                ia.lockHand = null;
               }
             } else {
               ia.handLostAt = 0;
               if (detectOpenHand(hLandmarks)) {
                 heldByIdentityRef.current.delete(taskId);
                 ia.propState = 'returning';
-                ia.lockHand  = null;
+                ia.lockHand = null;
               }
             }
 
-          // ── returning: lerp back to displayPos ────────────────────────────
+            // ── returning: lerp back to displayPos ────────────────────────────
           } else if (ia.propState === 'returning') {
             const dpCfg = presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
             if (dpCfg) {
