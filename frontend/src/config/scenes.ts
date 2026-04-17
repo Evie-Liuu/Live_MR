@@ -133,13 +133,15 @@ export const THEMES: ThemeConfig[] = [
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
             { id: 'cashier_counter', url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [2.5, -0.7, -1], rotation: [0, Math.PI / 30, 0], scale: 1.0 },
-            { id: 'rack', url: '/models/clothingStore/objects/ClothingStore_Rack.glb', position: [-3, 0, -3], scale: 1.0 },
+            { id: 'rack', url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 1.0 },
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
             'ask_price_1': { url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-3.5, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
             'ask_price_2': { url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
             // 'ask_price_3': { url: '/models/clothingStore/objects/Skirt_Red.glb',    displayPos: [-3, 0, -2] },
+            'ask_price_4': { url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
+
           },
         },
       },
@@ -227,7 +229,7 @@ const CLOTHING_STORE_BASE: Omit<SceneConfig, 'id' | 'label' | 'slots' | 'allowed
   backgroundType: 'image',
   backgroundValue: '/images/clothingStore.png',
   grid: { size: 20, divisions: 20, color: 0x2a2a4a },
-  avatarDefaults: { position: [0, 0, -1.5], scale: 1.5 },
+  avatarDefaults: { position: [0, 0, 0], scale: 1 },
   avatarSpacing: 1.6,
 };
 

@@ -67,14 +67,28 @@ interface AvatarSlot {
     lockHand: 'left' | 'right' | null;
     /** Last task ID seen — detects task changes */
     lastTaskId: string | undefined;
+    /**
+     * Task ID of the prop currently being lerped back to displayPos after a
+     * task switch (may differ from lastTaskId / currentTaskId).
+     */
+    returningTaskId: string | undefined;
     /** performance.now() when hand landmarks were last seen (grace period) */
     handLostAt: number;
+    /** Consecutive fist-detected frames — must reach GRAB_CONFIRM_FRAMES before grab */
+    grabConfirmCount: number;
+    /** performance.now() deadline before which open-hand release is ignored */
+    grabCooldownUntil: number;
   };
 }
 
 /** lerpSpeed baseline at 30 fps; scaled proportionally to actual data rate */
 const BASE_LERP_SPEED = 14;
 const BASE_INTERVAL_MS = 33;
+
+/** Number of consecutive fist-detected frames required before triggering a grab */
+const GRAB_CONFIRM_FRAMES = 3;
+/** Milliseconds after a grab during which open-hand is ignored (prevents instant release) */
+const GRAB_RELEASE_COOLDOWN_MS = 600;
 
 /** Reusable Vector3 for prop returning target — avoids per-frame allocation */
 const _displayPosVec = new THREE.Vector3();
@@ -248,18 +262,57 @@ export function useBigScreenScene(
 
           // ── Task change detection ──────────────────────────────────────────
           if (ia.lastTaskId !== taskId) {
-            // Release any held/returning state for the OLD task prop
-            if (ia.lastTaskId) {
-              const oldProp = taskPropPoolRef.current.get(ia.lastTaskId);
-              if (oldProp) highlightProp(oldProp, false);
-              if (heldByIdentityRef.current.get(ia.lastTaskId) === identity) {
-                heldByIdentityRef.current.delete(ia.lastTaskId);
+            const oldTaskId = ia.lastTaskId;
+            if (oldTaskId) {
+              const oldProp = taskPropPoolRef.current.get(oldTaskId);
+              if (oldProp) {
+                // Stop highlighting; always return to displayPos smoothly
+                highlightProp(oldProp, false);
+                console.log("ia.propState", ia.propState);
+
+                if (ia.propState === 'held' || ia.propState === 'returning') {
+                  // Let the returning handler lerp the old prop back using returningTaskId
+                  ia.returningTaskId = oldTaskId;
+                  ia.propState = 'returning';
+                } else {
+                  // 正常放手
+                  ia.returningTaskId = undefined;
+                }
+              } else {
+                ia.returningTaskId = undefined;
               }
+              if (heldByIdentityRef.current.get(oldTaskId) === identity) {
+                heldByIdentityRef.current.delete(oldTaskId);
+              }
+            } else {
+              ia.returningTaskId = undefined;
             }
-            ia.propState = 'displayed';
+            // Reset grab state for the new task
             ia.lockHand = null;
             ia.handLostAt = 0;
+            ia.grabConfirmCount = 0;
+            ia.grabCooldownUntil = 0;
             ia.lastTaskId = taskId;
+          }
+
+          // ── Cross-task returning: runs BEFORE the prop-guard so the old prop
+          //    always lerps home even when the new task has no prop yet. ────────
+          if (ia.propState === 'returning' && ia.returningTaskId) {
+            const returningProp = taskPropPoolRef.current.get(ia.returningTaskId);
+            const dpCfg = presetRef.current.propSystem?.taskProps?.[ia.returningTaskId]?.displayPos;
+            if (returningProp && dpCfg) {
+              _displayPosVec.set(...dpCfg);
+              const arrived = returnPropToDisplay(returningProp, _displayPosVec, delta);
+              if (arrived) {
+                ia.propState = 'displayed';
+                ia.returningTaskId = undefined;
+              }
+            } else {
+              // No prop or displayPos config — snap complete
+              ia.propState = 'displayed';
+              ia.returningTaskId = undefined;
+            }
+            continue; // old prop is animating back; skip current-task logic
           }
 
           if (!taskId || !prop) continue; // no prop for this task — skip
@@ -271,9 +324,16 @@ export function useBigScreenScene(
           const pose = frame?.landmarks;
 
           // ── displayed: highlight + grab detection ─────────────────────────
-          if (ia.propState === 'displayed') {
-            highlightProp(prop, true, elapsedRef.current);
 
+          if (ia.propState === 'displayed') {
+            // Only highlight when no other slot is currently holding this prop;
+            // otherwise a later slot would re-enable the glow on an already-held prop.
+            if (!heldByIdentityRef.current.has(taskId)) {
+              highlightProp(prop, true, elapsedRef.current);
+            }
+
+            let grabbedThisFrame = false;
+            let fistDetectedThisFrame = false;
             if (cameraRef.current) {
               const propUV = projectToUV(prop.position, cameraRef.current);
 
@@ -290,41 +350,58 @@ export function useBigScreenScene(
                 const near = isHandNearProp(wristUV, propUV);
 
                 if (fist && (raised || near)) {
-                  ia.propState = 'held';
-                  ia.lockHand = hand;
-                  ia.handLostAt = 0;
-                  heldByIdentityRef.current.set(taskId, identity);
-                  highlightProp(prop, false);
-                  break;
+                  fistDetectedThisFrame = true;
+                  ia.grabConfirmCount++;
+                  if (ia.grabConfirmCount >= GRAB_CONFIRM_FRAMES) {
+                    ia.propState = 'held';
+                    ia.lockHand = hand;
+                    ia.handLostAt = 0;
+                    ia.grabConfirmCount = 0;
+                    ia.grabCooldownUntil = performance.now() + GRAB_RELEASE_COOLDOWN_MS;
+                    heldByIdentityRef.current.set(taskId, identity);
+                    highlightProp(prop, false);
+                    grabbedThisFrame = true;
+                  }
+                  break; // counting toward one hand at a time
                 }
               }
+            }
+            // Only reset counter when no fist gesture was present this frame;
+            // keep accumulating while the fist is held but count < threshold.
+            if (!fistDetectedThisFrame && !grabbedThisFrame) {
+              ia.grabConfirmCount = 0;
             }
 
             // ── held: follow hand bone, detect release ─────────────────────────
           } else if (ia.propState === 'held' && ia.lockHand) {
-            attachPropToHand(prop, slot.vrm, ia.lockHand);
+            attachPropToHand(prop, slot.vrm, ia.lockHand, true);
 
             const hLandmarks = ia.lockHand === 'right' ? rightHand : leftHand;
+            const now = performance.now();
+            const inCooldown = now < ia.grabCooldownUntil;
 
             if (!hLandmarks || hLandmarks.length < 21) {
               // Grace period: 500 ms before forcing a release on landmark loss
-              const now = performance.now();
-              if (ia.handLostAt === 0) ia.handLostAt = now;
-              if (now - ia.handLostAt > 500) {
-                heldByIdentityRef.current.delete(taskId);
-                ia.propState = 'returning';
-                ia.lockHand = null;
+              if (!inCooldown) {
+                if (ia.handLostAt === 0) ia.handLostAt = now;
+                if (now - ia.handLostAt > 500) {
+                  heldByIdentityRef.current.delete(taskId);
+                  ia.propState = 'returning';
+                  ia.lockHand = null;
+                  ia.grabCooldownUntil = 0;
+                }
               }
             } else {
               ia.handLostAt = 0;
-              if (detectOpenHand(hLandmarks)) {
+              if (!inCooldown && detectOpenHand(hLandmarks)) {
                 heldByIdentityRef.current.delete(taskId);
                 ia.propState = 'returning';
                 ia.lockHand = null;
+                ia.grabCooldownUntil = 0;
               }
             }
 
-            // ── returning: lerp back to displayPos ────────────────────────────
+            // ── returning (same task): lerp back to displayPos ────────────────
           } else if (ia.propState === 'returning') {
             const dpCfg = presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
             if (dpCfg) {
@@ -334,7 +411,6 @@ export function useBigScreenScene(
                 ia.propState = 'displayed';
               }
             } else {
-              // No displayPos in config — consider arrived immediately
               ia.propState = 'displayed';
             }
           }
@@ -480,7 +556,10 @@ export function useBigScreenScene(
               propState: 'displayed',
               lockHand: null,
               lastTaskId: undefined,
+              returningTaskId: undefined,
               handLostAt: 0,
+              grabConfirmCount: 0,
+              grabCooldownUntil: 0,
             },
           };
           avatarsRef.current.set(identity, slot);

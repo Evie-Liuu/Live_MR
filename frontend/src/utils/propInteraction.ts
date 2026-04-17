@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 
 // Module-scope reusable vectors — avoids per-frame allocation.
-const _bonePos   = new THREE.Vector3();   // used by attachPropToHand
-const _ndcPos    = new THREE.Vector3();   // used by projectToUV
+const _bonePos = new THREE.Vector3();   // used by attachPropToHand
+const _ndcPos = new THREE.Vector3();   // used by projectToUV
 const _offsetVec = new THREE.Vector3();
 
 /**
@@ -52,28 +52,41 @@ export function projectToUV(
 }
 
 /**
- * Move a prop group toward the VRM hand bone world position each frame (lerp 0.3).
+ * Move a prop group toward the VRM hand bone world position each frame.
  *
  * Mirror convention (matches vrmPoseApplier.ts):
  *   person 'right' hand → VRM 'leftHand' bone
  *   person 'left'  hand → VRM 'rightHand' bone
  *
  * `offset` shifts the prop from the bone origin (default: slightly in front of palm).
+ *
+ * `held` controls the update strategy:
+ *   - false (approaching from hanger): lerp(0.3) — smooth pick-up animation.
+ *   - true  (already held in hand)  : copy()     — snap directly, no jitter.
  */
 export function attachPropToHand(
   group: THREE.Group,
   vrm: VRM,
   hand: 'left' | 'right',
-  offset: [number, number, number] = [0, 0.1, 0.05],
+  held: boolean,
+  offset: [number, number, number] = [0, 0.03, 0.15],
 ): void {
   // Mirror: person's right → VRM leftHand; person's left → VRM rightHand
   const boneName = hand === 'right' ? 'leftHand' : 'rightHand';
+
   const boneNode = vrm.humanoid.getNormalizedBoneNode(boneName);
   if (!boneNode) return;
   boneNode.getWorldPosition(_bonePos);
   _offsetVec.set(...offset);
   _bonePos.add(_offsetVec);
-  group.position.lerp(_bonePos, 0.3);
+
+  if (held) {
+    // Already gripped — snap directly to avoid per-frame floating.
+    group.position.copy(_bonePos);
+  } else {
+    // Approaching from hanger — lerp for a smooth pick-up feel.
+    group.position.lerp(_bonePos, 0.3);
+  }
 }
 
 /**
