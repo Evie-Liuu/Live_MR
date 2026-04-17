@@ -3,6 +3,7 @@ import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
+import StatsPanel, { type StatsSnapshot } from './StatsPanel.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
 
@@ -125,7 +126,27 @@ export default function BigScreen() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentTaskId = activeTasks.find(t => !t.completed)?.id;
-  const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, { sceneId, vrmSourceId, slotAssignments, currentTaskId });
+
+  const poseCountRef = useRef(0);
+  const [poseUpdateCount, setPoseUpdateCount] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPoseUpdateCount(poseCountRef.current);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [showStats, setShowStats] = useState(false);
+  const [statsData, setStatsData] = useState<StatsSnapshot | null>(null);
+
+  const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
+    sceneId,
+    vrmSourceId,
+    slotAssignments,
+    currentTaskId,
+    onStats: showStats ? setStatsData : undefined,
+  });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
   const applyPoseRef = useRef(applyPose);
@@ -137,7 +158,6 @@ export default function BigScreen() {
   const ensureAvatarRef = useRef(ensureAvatar);
   ensureAvatarRef.current = ensureAvatar;
 
-  const [poseUpdateCount, setPoseUpdateCount] = useState(0);
   /** Identities whose VRM override has already been registered this session */
   const seenIdentitiesRef = useRef<Set<string>>(new Set());
 
@@ -254,6 +274,14 @@ export default function BigScreen() {
       .catch(() => { /* ignore */ })
   }, [])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === '`') setShowStats(v => !v);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Apply snapshot stored by HostSession before the window was opened
   useEffect(() => {
     try {
@@ -314,7 +342,7 @@ export default function BigScreen() {
           if (vrmUrl) setVrmOverrideRef.current(msg.identity, vrmUrl);
         }
         applyPoseRef.current(msg.identity, msg.poseData);
-        setPoseUpdateCount(c => c + 1);
+        poseCountRef.current++;
       } else if (msg.type === 'leave' && msg.identity) {
         removeAvatarRef.current(msg.identity);
         // Remove from slot assignments if they were assigned
@@ -561,7 +589,8 @@ export default function BigScreen() {
       })()}
 
       <PerformanceMonitor label="Render FPS" position="top-right" />
-      <PerformanceMonitor label="Pose Rx FPS" trigger={poseUpdateCount} position="bottom-right" />
+      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
+      {showStats && statsData && <StatsPanel data={statsData} />}
     </div>
   );
 }
