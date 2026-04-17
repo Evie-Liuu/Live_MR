@@ -130,6 +130,7 @@ export default function BigScreen() {
   const poseCountRef = useRef(0);
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
 
+  // Flush pose count to state every 1 s so PerformanceMonitor count-mode can compute rate.
   useEffect(() => {
     const id = setInterval(() => {
       setPoseUpdateCount(poseCountRef.current);
@@ -276,7 +277,12 @@ export default function BigScreen() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === '`') setShowStats(v => !v);
+      if (e.key === '`') {
+        setShowStats(v => {
+          if (v) setStatsData(null);
+          return !v;
+        });
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
