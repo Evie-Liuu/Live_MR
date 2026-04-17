@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 export interface StatsSnapshot {
   frameMs: number;
   drawCalls: number;
@@ -12,7 +14,7 @@ interface StatsPanelProps {
   data: StatsSnapshot;
 }
 
-const panelStyle: React.CSSProperties = {
+const panelStyle: CSSProperties = {
   position: 'absolute',
   bottom: 10,
   left: 10,
