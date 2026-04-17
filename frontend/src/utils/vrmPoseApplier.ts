@@ -35,47 +35,47 @@ export interface HandLandmark {
 /** MediaPipe "Left" hand → VRM right-side bones (mirror convention) */
 const LEFT_HAND_BONE_MAP: Record<string, string> = {
   // Wrist
-  Wrist:             'rightHand',
+  Wrist: 'rightHand',
   // Thumb
-  ThumbProximal:     'rightThumbMetacarpal',
+  ThumbProximal: 'rightThumbMetacarpal',
   ThumbIntermediate: 'rightThumbProximal',
-  ThumbDistal:       'rightThumbDistal',
+  ThumbDistal: 'rightThumbDistal',
   // Index
-  IndexProximal:     'rightIndexProximal',
+  IndexProximal: 'rightIndexProximal',
   IndexIntermediate: 'rightIndexIntermediate',
-  IndexDistal:       'rightIndexDistal',
+  IndexDistal: 'rightIndexDistal',
   // Middle
-  MiddleProximal:     'rightMiddleProximal',
+  MiddleProximal: 'rightMiddleProximal',
   MiddleIntermediate: 'rightMiddleIntermediate',
-  MiddleDistal:       'rightMiddleDistal',
+  MiddleDistal: 'rightMiddleDistal',
   // Ring
-  RingProximal:     'rightRingProximal',
+  RingProximal: 'rightRingProximal',
   RingIntermediate: 'rightRingIntermediate',
-  RingDistal:       'rightRingDistal',
+  RingDistal: 'rightRingDistal',
   // Little
-  LittleProximal:     'rightLittleProximal',
+  LittleProximal: 'rightLittleProximal',
   LittleIntermediate: 'rightLittleIntermediate',
-  LittleDistal:       'rightLittleDistal',
+  LittleDistal: 'rightLittleDistal',
 }
 
 /** MediaPipe "Right" hand → VRM left-side bones (mirror convention) */
 const RIGHT_HAND_BONE_MAP: Record<string, string> = {
-  Wrist:             'leftHand',
-  ThumbProximal:     'leftThumbMetacarpal',
+  Wrist: 'leftHand',
+  ThumbProximal: 'leftThumbMetacarpal',
   ThumbIntermediate: 'leftThumbProximal',
-  ThumbDistal:       'leftThumbDistal',
-  IndexProximal:     'leftIndexProximal',
+  ThumbDistal: 'leftThumbDistal',
+  IndexProximal: 'leftIndexProximal',
   IndexIntermediate: 'leftIndexIntermediate',
-  IndexDistal:       'leftIndexDistal',
-  MiddleProximal:     'leftMiddleProximal',
+  IndexDistal: 'leftIndexDistal',
+  MiddleProximal: 'leftMiddleProximal',
   MiddleIntermediate: 'leftMiddleIntermediate',
-  MiddleDistal:       'leftMiddleDistal',
-  RingProximal:     'leftRingProximal',
+  MiddleDistal: 'leftMiddleDistal',
+  RingProximal: 'leftRingProximal',
   RingIntermediate: 'leftRingIntermediate',
-  RingDistal:       'leftRingDistal',
-  LittleProximal:     'leftLittleProximal',
+  RingDistal: 'leftRingDistal',
+  LittleProximal: 'leftLittleProximal',
   LittleIntermediate: 'leftLittleIntermediate',
-  LittleDistal:       'leftLittleDistal',
+  LittleDistal: 'leftLittleDistal',
 }
 
 // ─── Gesture constants (fixed Euler angles for each bone role) ─────────────────
@@ -89,18 +89,18 @@ const EULER_OPEN = { x: 0, y: 0, z: 0 }
  * Left VRM hand curls with negative Z, Right with positive Z.
  */
 const FIST_FINGER_L = { x: 0, y: 0, z: -0.9 }  // VRM left fingers
-const FIST_FINGER_R = { x: 0, y: 0, z:  0.9 }  // VRM right fingers
+const FIST_FINGER_R = { x: 0, y: 0, z: 0.9 }  // VRM right fingers
 
-const FIST_THUMB_L  = { x: 0.6, y:  0.2, z: -0.3 }  // VRM left thumb
-const FIST_THUMB_R  = { x: 0.6, y: -0.2, z:  0.3 }  // VRM right thumb
+const FIST_THUMB_L = { x: 0.6, y: 0.2, z: -0.3 }  // VRM left thumb
+const FIST_THUMB_R = { x: 0.6, y: -0.2, z: 0.3 }  // VRM right thumb
 
 // ─── Reusable THREE objects – avoids per-frame allocations ────────────────────
 
 const _targetQuat = new THREE.Quaternion();
-const _euler      = new THREE.Euler();
-const _quat       = new THREE.Quaternion();
-const _prev       = new THREE.Quaternion();
-const _target     = new THREE.Quaternion();
+const _euler = new THREE.Euler();
+const _quat = new THREE.Quaternion();
+const _prev = new THREE.Quaternion();
+const _target = new THREE.Quaternion();
 
 // ─── Hand solver helpers ──────────────────────────────────────────────────────
 
@@ -133,8 +133,8 @@ function detectGesture(landmarks: HandLandmark[]): HandGesture {
 
   // Index=8/5, Middle=12/9, Ring=16/13, Little=20/17
   const fingers = [
-    { tip: 8,  mcp: 5  },
-    { tip: 12, mcp: 9  },
+    { tip: 8, mcp: 5 },
+    { tip: 12, mcp: 9 },
     { tip: 16, mcp: 13 },
     { tip: 20, mcp: 17 },
   ]
@@ -181,8 +181,8 @@ export function solveHand(
   const gesture = detectGesture(landmarks)
 
   // Mirror: MediaPipe Left → VRM Right, MediaPipe Right → VRM Left
-  const boneMap   = side === 'Left' ? LEFT_HAND_BONE_MAP : RIGHT_HAND_BONE_MAP
-  const vrmSide   = side === 'Left' ? 'Right' : 'Left'  // which VRM side we're writing
+  const boneMap = side === 'Left' ? LEFT_HAND_BONE_MAP : RIGHT_HAND_BONE_MAP
+  const vrmSide = side === 'Left' ? 'Right' : 'Left'  // which VRM side we're writing
   const isVrmLeft = vrmSide === 'Left'
 
   const result: Record<string, BoneRotation> = {}
@@ -293,18 +293,26 @@ export function applyPoseToVrm(
 
   // ── Solver phase (skipped when reuseLastSolve + cache is warm) ────────────
   if (!reuseLastSolve || !state.cachedBoneRotations) {
-    if (!frame.landmarks || frame.landmarks.length < 33) return;
     const worldLms = frame.worldLandmarks?.length >= 33 ? frame.worldLandmarks : frame.landmarks;
-    const { boneRotations, hipsPosition } = solveWithKalidokit(
+    const { boneRotations, hipsPosition, solved } = solveWithKalidokit(
       worldLms,
       frame.landmarks,
       state.prevRotations,
       solverSmoothing,
       mirror,
     );
-    state.prevRotations = boneRotations;
-    state.cachedBoneRotations = boneRotations;
-    state.cachedHipsPos = hipsPosition ?? null;
+    // Only update cache when kalidokit produced a valid result.
+    // If poseRig was undefined (e.g. first frame before detector warms up),
+    // keep the existing cache so bones hold the last good pose instead of
+    // snapping back to T-pose.
+    if (solved) {
+      state.prevRotations = boneRotations;
+      state.cachedBoneRotations = boneRotations;
+      state.cachedHipsPos = hipsPosition ?? null;
+    } else if (!state.cachedBoneRotations) {
+      // No prior cache and solver failed — nothing to apply yet
+      return;
+    }
   }
 
   const boneRotations = state.cachedBoneRotations!;
@@ -327,9 +335,9 @@ export function applyPoseToVrm(
     // Apply Hips translation
     if (boneName === 'hips' && hipsPosition) {
       const mirrorX = mirror ? -1 : 1;
-      bone.position.x = THREE.MathUtils.lerp(bone.position.x, mirrorX * hipsPosition.x, t) * 0.1;  // 1
+      bone.position.x = THREE.MathUtils.lerp(bone.position.x, mirrorX * hipsPosition.x * 0.1, t);
       bone.position.y = THREE.MathUtils.lerp(bone.position.y, hipsPosition.y, t);
-      bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z, t) * 0.1;  // 1
+      bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z * 0.1, t);
     }
   }
 
@@ -398,7 +406,7 @@ export function applyPoseToVrm(
         const exprBlinkR = em.getExpression('blinkRight');
         const hasSplitBinds = (exprBlinkL?.binds.length ?? 0) > 0 || (exprBlinkR?.binds.length ?? 0) > 0;
         if (hasSplitBinds) {
-          em.setValue('blinkLeft',  THREE.MathUtils.lerp(em.getValue('blinkLeft')  ?? 0, 1 - eyeL, t));
+          em.setValue('blinkLeft', THREE.MathUtils.lerp(em.getValue('blinkLeft') ?? 0, 1 - eyeL, t));
           em.setValue('blinkRight', THREE.MathUtils.lerp(em.getValue('blinkRight') ?? 0, 1 - eyeR, t));
         } else {
           // Fall back to unified blink

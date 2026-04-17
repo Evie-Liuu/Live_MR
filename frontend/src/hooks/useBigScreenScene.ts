@@ -624,19 +624,27 @@ export function useBigScreenScene(
       try {
         const preset = presetRef.current;
 
-        // In slotted scenes, only load avatars for assigned participants
+        // In slotted scenes, only load avatars for assigned participants.
+        // Skip the guard if this identity is already tracked (avatar loaded or
+        // load in-flight). This handles the race where slot-assign triggers
+        // ensureAvatar synchronously but the slotAssignments React prop hasn't
+        // re-rendered yet, which would cause every pose frame to early-return
+        // and leave the freshly-loaded VRM permanently in T-pose.
         let slotSpawn: AvatarSpawnConfig | undefined;
         if (preset.slots && preset.slots.length > 0) {
-          const slotId = Object.entries(slotAssignmentsRef.current)
-            .find(([, id]) => id === identity)?.[0];
-          if (!slotId) return; // unassigned: not shown on BigScreen
-          const sceneSlot = preset.slots.find(s => s.id === slotId);
-          if (sceneSlot) {
-            slotSpawn = {
-              position: sceneSlot.position,
-              rotation: sceneSlot.rotation,
-              scale: preset.avatarDefaults?.scale,
-            };
+          const alreadyTracked = avatarsRef.current.has(identity) || loadingRef.current.has(identity);
+          if (!alreadyTracked) {
+            const slotId = Object.entries(slotAssignmentsRef.current)
+              .find(([, id]) => id === identity)?.[0];
+            if (!slotId) return; // unassigned: not shown on BigScreen
+            const sceneSlot = preset.slots.find(s => s.id === slotId);
+            if (sceneSlot) {
+              slotSpawn = {
+                position: sceneSlot.position,
+                rotation: sceneSlot.rotation,
+                scale: preset.avatarDefaults?.scale,
+              };
+            }
           }
         }
 
