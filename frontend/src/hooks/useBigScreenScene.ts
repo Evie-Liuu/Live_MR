@@ -44,6 +44,7 @@ import {
   isHandRaised,
   isHandNearProp,
 } from '../utils/gestureDetector';
+import type { StatsSnapshot } from '../components/StatsPanel';
 
 // ─── Internal avatar slot ────────────────────────────────────────────────────
 
@@ -111,13 +112,15 @@ interface UseBigScreenSceneOptions {
   slotAssignments?: Record<string, string>;
   /** Currently active task ID — tracked for Phase 2 interaction triggers */
   currentTaskId?: string;
+  /** Called once per frame with renderer stats. Only passed when stats panel is visible. */
+  onStats?: (s: StatsSnapshot) => void;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -168,6 +171,9 @@ export function useBigScreenScene(
   const currentTaskIdRef = useRef<string | undefined>(undefined);
   currentTaskIdRef.current = currentTaskId;
 
+  const onStatsRef = useRef<((s: StatsSnapshot) => void) | undefined>(undefined);
+  onStatsRef.current = onStats;
+
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -198,7 +204,7 @@ export function useBigScreenScene(
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     rendererRef.current = renderer;
 
     applyLights(scene, preset);
@@ -421,6 +427,21 @@ export function useBigScreenScene(
 
       if (cameraRef.current) {
         renderer.render(scene, cameraRef.current);
+      }
+
+      const cb = onStatsRef.current;
+      if (cb) {
+        cb({
+          frameMs: delta * 1000,
+          drawCalls: renderer.info.render.calls,
+          triangles: renderer.info.render.triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures,
+          avatarCount: avatarsRef.current.size,
+          avgPoseIntervals: Object.fromEntries(
+            [...avatarsRef.current.entries()].map(([id, s]) => [id, s.avgPoseIntervalMs]),
+          ),
+        });
       }
     };
     rafRef.current = requestAnimationFrame(animate);
