@@ -205,6 +205,7 @@ export function useBigScreenScene(
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.info.autoReset = true;
     rendererRef.current = renderer;
 
     applyLights(scene, preset);
