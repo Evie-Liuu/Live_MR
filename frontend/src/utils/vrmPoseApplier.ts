@@ -167,59 +167,55 @@ function detectGesture(landmarks: HandLandmark[]): HandGesture {
 
 export type HandGesture = 'Open' | 'Fist'
 
-export interface SolveHandResult {
-  /** VRM bone name → quaternion rotation */
-  bones: Record<string, BoneRotation>
-  gesture: HandGesture
-}
-
 /**
  * Solve one hand's VRM finger-bone rotations from 21 MediaPipe landmarks.
+ * Writes results directly into `outBones` (in-place update, no heap allocation).
  *
  * @param landmarks  21 normalized hand landmarks from HandLandmarker
  * @param side       MediaPipe handedness ("Left" | "Right") – person's perspective
- * @param prevBones  Previous frame's bone rotations for slerp smoothing
+ * @param outBones   Pre-allocated bone map (also serves as prev-frame source for slerp)
  * @param smoothing  0 = snap to target, 0.9 = very slow follow
+ * @returns gesture detected, or null if landmarks invalid
  */
 export function solveHand(
   landmarks: HandLandmark[],
   side: 'Left' | 'Right',
-  prevBones: Record<string, BoneRotation>,
+  outBones: Record<string, BoneRotation>,
   smoothing: number,
-): SolveHandResult | null {
-  if (landmarks.length < 21) return null
+): HandGesture | null {
+  if (landmarks.length < 21) return null;
 
-  const gesture = detectGesture(landmarks)
-
-  // Mirror: MediaPipe Left → VRM Right, MediaPipe Right → VRM Left
-  const boneMap = side === 'Left' ? LEFT_HAND_BONE_MAP : RIGHT_HAND_BONE_MAP
-  const vrmSide = side === 'Left' ? 'Right' : 'Left'  // which VRM side we're writing
-  const isVrmLeft = vrmSide === 'Left'
-
-  const result: Record<string, BoneRotation> = {}
+  const gesture = detectGesture(landmarks);
+  const boneMap = side === 'Left' ? LEFT_HAND_BONE_MAP : RIGHT_HAND_BONE_MAP;
+  const vrmSide = side === 'Left' ? 'Right' : 'Left';
+  const isVrmLeft = vrmSide === 'Left';
 
   for (const [role, vrmName] of Object.entries(boneMap)) {
-    let euler: { x: number; y: number; z: number }
+    let euler: { x: number; y: number; z: number };
 
     if (role === 'Wrist') {
-      // Keep wrist at neutral; orientation comes from the pose arm solver
-      euler = EULER_OPEN
+      euler = EULER_OPEN;
     } else if (gesture === 'Open') {
-      euler = EULER_OPEN
+      euler = EULER_OPEN;
     } else {
-      // Fist
       if (role.startsWith('Thumb')) {
-        euler = isVrmLeft ? FIST_THUMB_L : FIST_THUMB_R
+        euler = isVrmLeft ? FIST_THUMB_L : FIST_THUMB_R;
       } else {
-        euler = isVrmLeft ? FIST_FINGER_L : FIST_FINGER_R
+        euler = isVrmLeft ? FIST_FINGER_L : FIST_FINGER_R;
       }
     }
 
-    const cur = eulerToBoneRot(euler)
-    result[vrmName] = slerpBone(cur, prevBones[vrmName], smoothing)
+    const cur = eulerToBoneRot(euler); // writes into _boneRotTemp
+    const bone = outBones[vrmName];
+    if (bone) {
+      slerpBoneInto(cur, bone, smoothing, bone); // prev === out: safe (atomic read first)
+    } else {
+      // Safety fallback: should not happen when PoseApplyState is created via createPoseApplyState
+      outBones[vrmName] = { x: cur.x, y: cur.y, z: cur.z, w: cur.w };
+    }
   }
 
-  return { bones: result, gesture }
+  return gesture;
 }
 
 // ─── ApplyPose options ─────────────────────────────────────────────────────────
@@ -262,18 +258,26 @@ export interface PoseApplyState {
   /** Cached solver output – reused for 60 fps lerp between 30 fps pose frames */
   cachedBoneRotations: Record<string, BoneRotation> | null;
   cachedHipsPos: { x: number; y: number; z: number } | null;
-  /** Previous hand bone rotations – used for gesture slerp smoothing */
-  prevLeftHandBones: Record<string, BoneRotation>;
-  prevRightHandBones: Record<string, BoneRotation>;
+  /** Pre-allocated hand bone maps; updated in-place each frame (replaces prevLeft/RightHandBones) */
+  leftHandBones: Record<string, BoneRotation>;
+  rightHandBones: Record<string, BoneRotation>;
 }
 
 export function createPoseApplyState(): PoseApplyState {
+  const leftHandBones: Record<string, BoneRotation> = {};
+  for (const boneName of Object.values(LEFT_HAND_BONE_MAP)) {
+    leftHandBones[boneName] = { x: 0, y: 0, z: 0, w: 1 };
+  }
+  const rightHandBones: Record<string, BoneRotation> = {};
+  for (const boneName of Object.values(RIGHT_HAND_BONE_MAP)) {
+    rightHandBones[boneName] = { x: 0, y: 0, z: 0, w: 1 };
+  }
   return {
     prevRotations: {},
     cachedBoneRotations: null,
     cachedHipsPos: null,
-    prevLeftHandBones: {},
-    prevRightHandBones: {},
+    leftHandBones,
+    rightHandBones,
   };
 }
 
@@ -355,27 +359,25 @@ export function applyPoseToVrm(
   // ── Apply Hands (gesture-based solver) ────────────────────────────────────
   if (!reuseLastSolve && handEnabled) {
     if (frame.leftHandLandmarks && frame.leftHandLandmarks.length >= 21) {
-      const result = solveHand(
+      const gesture = solveHand(
         frame.leftHandLandmarks as HandLandmark[],
         'Left',
-        state.prevLeftHandBones,
+        state.leftHandBones,
         solverSmoothing,
       );
-      if (result) {
-        applyHandBones(humanoid, result.bones, t);
-        state.prevLeftHandBones = result.bones;
+      if (gesture !== null) {
+        applyHandBones(humanoid, state.leftHandBones, t);
       }
     }
     if (frame.rightHandLandmarks && frame.rightHandLandmarks.length >= 21) {
-      const result = solveHand(
+      const gesture = solveHand(
         frame.rightHandLandmarks as HandLandmark[],
         'Right',
-        state.prevRightHandBones,
+        state.rightHandBones,
         solverSmoothing,
       );
-      if (result) {
-        applyHandBones(humanoid, result.bones, t);
-        state.prevRightHandBones = result.bones;
+      if (gesture !== null) {
+        applyHandBones(humanoid, state.rightHandBones, t);
       }
     }
   }
