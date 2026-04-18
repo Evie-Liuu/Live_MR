@@ -102,24 +102,35 @@ const _quat = new THREE.Quaternion();
 const _prev = new THREE.Quaternion();
 const _target = new THREE.Quaternion();
 
+// Temp BoneRotation written by eulerToBoneRot; caller must consume before next call.
+const _boneRotTemp: BoneRotation = { x: 0, y: 0, z: 0, w: 0 };
+
 // ─── Hand solver helpers ──────────────────────────────────────────────────────
 
 function eulerToBoneRot(e: { x: number; y: number; z: number }): BoneRotation {
-  _euler.set(e.x, e.y, e.z, 'XYZ')
-  _quat.setFromEuler(_euler)
-  return { x: _quat.x, y: _quat.y, z: _quat.z, w: _quat.w }
+  _euler.set(e.x, e.y, e.z, 'XYZ');
+  _quat.setFromEuler(_euler);
+  _boneRotTemp.x = _quat.x;
+  _boneRotTemp.y = _quat.y;
+  _boneRotTemp.z = _quat.z;
+  _boneRotTemp.w = _quat.w;
+  return _boneRotTemp; // caller must consume immediately — do not store reference
 }
 
-function slerpBone(
+function slerpBoneInto(
   cur: BoneRotation,
-  prev: BoneRotation | undefined,
+  prev: BoneRotation,
   smoothing: number,
-): BoneRotation {
-  if (!prev) return cur
-  _prev.set(prev.x, prev.y, prev.z, prev.w)
-  _target.set(cur.x, cur.y, cur.z, cur.w)
-  _prev.slerp(_target, 1 - smoothing)
-  return { x: _prev.x, y: _prev.y, z: _prev.z, w: _prev.w }
+  out: BoneRotation,
+): void {
+  // Read prev atomically before writing out (prev === out is safe)
+  _prev.set(prev.x, prev.y, prev.z, prev.w);
+  _target.set(cur.x, cur.y, cur.z, cur.w);
+  _prev.slerp(_target, 1 - smoothing);
+  out.x = _prev.x;
+  out.y = _prev.y;
+  out.z = _prev.z;
+  out.w = _prev.w;
 }
 
 /**
