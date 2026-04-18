@@ -452,7 +452,7 @@ export function useBigScreenScene(
           geometries: renderer.info.memory.geometries,
           textures: renderer.info.memory.textures,
           avatarCount: avatarsRef.current.size,
-          avgPoseIntervals: api,
+          avgPoseIntervals: { ...api },
         });
       }
     };
@@ -487,6 +487,7 @@ export function useBigScreenScene(
       staticPropGroupsRef.current = [];
       disposeTaskProps(taskPropPoolRef.current, scene);
       heldByIdentityRef.current.clear();
+      avgPoseIntervalsRef.current = {};
       renderer.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
