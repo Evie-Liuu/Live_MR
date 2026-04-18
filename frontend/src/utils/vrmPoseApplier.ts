@@ -388,7 +388,8 @@ export function applyPoseToVrm(
         const rotX = mirror ? -faceRig.head.x : faceRig.head.x;
         const rotY = mirror ? -faceRig.head.y : faceRig.head.y;
         const rotZ = mirror ? -faceRig.head.z : faceRig.head.z;
-        _targetQuat.setFromEuler(new THREE.Euler(rotX, rotY, rotZ, 'XYZ'));
+        _euler.set(rotX, rotY, rotZ, 'XYZ');
+        _targetQuat.setFromEuler(_euler);
         head.quaternion.slerp(_targetQuat, t);
       }
 
