@@ -176,6 +176,8 @@ export function useBigScreenScene(
   const onStatsRef = useRef<((s: StatsSnapshot) => void) | undefined>(undefined);
   onStatsRef.current = onStats;
 
+  const avgPoseIntervalsRef = useRef<Record<string, number>>({});
+
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -434,6 +436,15 @@ export function useBigScreenScene(
 
       const cb = onStatsRef.current;
       if (cb) {
+        const api = avgPoseIntervalsRef.current;
+        // Remove keys for identities that have left
+        for (const k of Object.keys(api)) {
+          if (!avatarsRef.current.has(k)) delete api[k];
+        }
+        // Update existing / add new
+        for (const [id, s] of avatarsRef.current) {
+          api[id] = s.avgPoseIntervalMs;
+        }
         cb({
           frameMs: delta * 1000,
           drawCalls: renderer.info.render.calls,
@@ -441,9 +452,7 @@ export function useBigScreenScene(
           geometries: renderer.info.memory.geometries,
           textures: renderer.info.memory.textures,
           avatarCount: avatarsRef.current.size,
-          avgPoseIntervals: Object.fromEntries(
-            [...avatarsRef.current.entries()].map(([id, s]) => [id, s.avgPoseIntervalMs]),
-          ),
+          avgPoseIntervals: api,
         });
       }
     };
