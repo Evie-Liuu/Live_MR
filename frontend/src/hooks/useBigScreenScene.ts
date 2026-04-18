@@ -80,6 +80,8 @@ interface AvatarSlot {
     /** performance.now() deadline before which open-hand release is ignored */
     grabCooldownUntil: number;
   };
+  /** Pre-allocated output for projectToUV — avoids per-frame {x,y} allocation */
+  _propUV: { x: number; y: number };
 }
 
 /** lerpSpeed baseline at 30 fps; scaled proportionally to actual data rate */
@@ -342,7 +344,7 @@ export function useBigScreenScene(
             let grabbedThisFrame = false;
             let fistDetectedThisFrame = false;
             if (cameraRef.current) {
-              const propUV = projectToUV(prop.position, cameraRef.current);
+              projectToUV(prop.position, cameraRef.current, slot._propUV);
 
               for (const hand of ['right', 'left'] as const) {
                 const hLandmarks = hand === 'right' ? rightHand : leftHand;
@@ -354,7 +356,7 @@ export function useBigScreenScene(
                 const wristUV = { x: hLandmarks[0].x, y: hLandmarks[0].y };
                 const fist = detectFist(hLandmarks);
                 const raised = isHandRaised(pose, hand);
-                const near = isHandNearProp(wristUV, propUV);
+                const near = isHandNearProp(wristUV, slot._propUV);
 
                 if (fist && (raised || near)) {
                   fistDetectedThisFrame = true;
@@ -584,6 +586,7 @@ export function useBigScreenScene(
               grabConfirmCount: 0,
               grabCooldownUntil: 0,
             },
+            _propUV: { x: 0, y: 0 },
           };
           avatarsRef.current.set(identity, slot);
           loadingRef.current.delete(identity);

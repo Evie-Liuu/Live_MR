@@ -39,16 +39,16 @@ export function highlightProp(
 /**
  * Project a world-space position to normalised UV screen space [0,1].
  * x=0 is left, y=0 is top (matches MediaPipe landmark convention).
+ * Writes result into `out` to avoid per-frame allocation.
  */
 export function projectToUV(
   worldPos: THREE.Vector3,
   camera: THREE.Camera,
-): { x: number; y: number } {
+  out: { x: number; y: number },
+): void {
   _ndcPos.copy(worldPos).project(camera);
-  return {
-    x: (_ndcPos.x + 1) / 2,
-    y: (1 - _ndcPos.y) / 2,
-  };
+  out.x = (_ndcPos.x + 1) / 2;
+  out.y = (1 - _ndcPos.y) / 2;
 }
 
 /**
