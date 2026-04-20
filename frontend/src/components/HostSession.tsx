@@ -771,142 +771,50 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {/* Hidden video for teacher pose detection */}
       <video ref={teacherVideoRef} autoPlay playsInline muted style={{ display: 'none' }} aria-hidden="true" />
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="session-header">
-        <h2>課堂進行中</h2>
-        {/* <span className="room-badge">房間: {roomId}</span> */}
-        <button
-          className="qr-share-btn"
-          onClick={() => setShowQRModal(true)}
-          title="分享房間 QR Code"
-        >
-          <span>📱</span>
-        </button>
-        <button
-          className={`state-btn ${showPendingPanel ? 'state-btn--open' : ''} ${pending.length > 0 ? 'state-btn--has-data' : ''}`}
-          onClick={openPending}
-          title="加入和申請清單"
-        >
-          <span>🔔</span>
-          {/* <span className="state-btn-value">加入請求</span> */}
-          <span className="state-btn-value">{studentList.length}位學生</span>
-          <span className="state-btn-badge badge-count">
-            {pending.length}
-          </span>
-          <span className="state-btn-arrow">{showPendingPanel ? '▲' : '▼'}</span>
-        </button>
-
-        <button
-          className={`state-btn ${showScenePanel ? 'state-btn--open' : ''}`}
-          onClick={openScene}
-          title="切換場景"
-        >
-          {currentScenePreset.backgroundValue && (
-            <div
-              className="state-btn-img-bg"
-              style={{ backgroundImage: `url(${currentScenePreset.backgroundValue})` }}
-            />
-          )}
-          <span style={{ position: 'relative', zIndex: 1 }}>{currentSceneVariant?.icon ?? '🎬'}</span>
-          <span className="state-btn-value" style={{ position: 'relative', zIndex: 1 }}>{currentScenePreset.label}</span>
-          <span className="state-btn-arrow" style={{ position: 'relative', zIndex: 1 }}>{showScenePanel ? '▲' : '▼'}</span>
-        </button>
-
-        {/* Face detection toggle */}
-        <button
-          className={`state-btn ${faceEnabled ? 'state-btn--on' : 'state-btn--off'}`}
-          onClick={() => setFaceEnabled(v => !v)}
-          title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
-        >
-          <span>{faceEnabled ? '😊' : '⚪'}</span>
-          <span className="state-btn-value">臉部辨識</span>
-          <span className={`state-btn-badge ${faceEnabled ? 'badge-on' : 'badge-off'}`}>
-            {faceEnabled ? 'ON' : 'OFF'}
-          </span>
-        </button>
-
-        {/* Slot config button (scene-dependent) */}
-        {hasSlots && (
-          <button
-            className={`state-btn ${showSlotPanel ? 'state-btn--open' : ''} ${Object.keys(slotAssignments).length > 0 ? 'state-btn--has-data' : ''}`}
-            onClick={openSlot}
-            title="角色配置"
-          >
-            <span>🎭</span>
-            <span className="state-btn-value">角色配置</span>
-            <span className="state-btn-badge badge-count">
-              {Object.keys(slotAssignments).length}/{currentScenePreset.slots!.length}
-            </span>
-            <span className="state-btn-arrow">{showSlotPanel ? '▲' : '▼'}</span>
-          </button>
-        )}
-
-        {/* Task button */}
-        {hasModules && (
-          <button
-            className={`state-btn ${showTaskPanel ? 'state-btn--open' : ''} ${selectedTasks.length > 0 ? 'state-btn--has-data' : ''}`}
-            onClick={openTask}
-            title="任務管理"
-          >
-            <span>📋</span>
-            <span className="state-btn-value">任務</span>
-            <span className="state-btn-badge badge-count">
-              {selectedTasks.filter(t => t.completed).length}/{selectedTasks.length}
-            </span>
-            <span className="state-btn-arrow">{showTaskPanel ? '▲' : '▼'}</span>
-          </button>
-        )}
-
-        <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
-
-        <button id="open-bigscreen-btn" className="bigscreen-btn" onClick={openBigScreen} title="在新視窗開啟大屏顯示">
-          🖥️ 開啟大屏
-        </button>
-      </div>
-
       <PerformanceMonitor label="App Render FPS" position="top-left" />
       <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" />
 
-      {/* ── Task Banner: progress bar + current task hint ─────────────────────── */}
-      {selectedTasks.length > 0 && (() => {
-        const doneCount = selectedTasks.filter(t => t.completed).length;
-        const pct = Math.round((doneCount / selectedTasks.length) * 100);
-        const allDone = doneCount === selectedTasks.length;
-        return (
-          <div className="task-banner">
-            <div className="task-banner-progress">
-              <div className="task-progress-track">
-                <div className="task-progress-fill" style={{ width: `${pct}%` }} />
-              </div>
-              <span className="task-progress-count">
-                <strong>{doneCount}</strong>/{selectedTasks.length}
-              </span>
-            </div>
-            <div className={`task-banner-current ${allDone ? 'task-banner-current--done' : ''}`}>
-              {allDone ? (
-                <>
-                  <span className="task-current-icon">✓</span>
-                  <span>所有任務完成</span>
-                  <button
-                    className="settlement-trigger-btn"
-                    onClick={() => setShowSettlement(true)}
-                  >
-                    📊 查看結算
-                  </button>
-                </>
-              ) : (
-                <><span className="task-current-icon">▸</span><span className="task-current-text">{selectedTasks[currentTaskIndex].label}</span></>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+      {/* ── Top Bar ──────────────────────────────────────────────────────────── */}
+      <div className="hs-topbar">
+        <div className="hs-brand">
+          <div className="hs-brand-dot" />
+          <span className="hs-brand-title">課堂進行中</span>
+        </div>
+
+        <div className="hs-topbar-actions">
+          <button className="hs-action-btn" onClick={() => setShowQRModal(true)} title="分享房間 QR Code">
+            <span className="hs-action-icon">📱</span>
+            <span className="hs-action-label">分享</span>
+          </button>
+
+          <button
+            className={`hs-action-btn ${pending.length > 0 ? 'hs-action--alert' : ''} ${showPendingPanel ? 'hs-action--active' : ''}`}
+            onClick={openPending}
+            title="學生管理"
+          >
+            <span className="hs-action-icon">👥</span>
+            <span className="hs-action-label">{studentList.length} 位學生</span>
+            {pending.length > 0 && <span className="hs-badge hs-badge--alert">{pending.length}</span>}
+          </button>
+
+          <button
+            className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
+            onClick={() => setFaceEnabled(v => !v)}
+            title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
+          >
+            <span className="hs-action-icon">{faceEnabled ? '😊' : '😶'}</span>
+            <span className="hs-action-label">臉部</span>
+            <span className={`hs-badge ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
+        </div>
+      </div>
 
       {/* ── Settlement Modal ──────────────────────────────────────────────────── */}
       {showSettlement && (
         <div className="settlement-backdrop" onClick={() => setShowSettlement(false)}>
           <div className="settlement-modal" onClick={e => e.stopPropagation()}>
-            {/* Header */}
             <div className="settlement-header">
               <span className="settlement-trophy">🏆</span>
               <div>
@@ -917,7 +825,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             </div>
 
             <div className="settlement-body">
-              {/* Participants */}
               <div className="settlement-section">
                 <div className="settlement-section-title">👥 參與人員</div>
                 <div className="settlement-participants">
@@ -934,13 +841,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                       <span>{info.participant.name || info.participant.identity}</span>
                     </div>
                   ))}
-                  {studentList.length === 0 && (
-                    <div className="settlement-empty">無學生參與</div>
-                  )}
+                  {studentList.length === 0 && <div className="settlement-empty">無學生參與</div>}
                 </div>
               </div>
 
-              {/* Recording status */}
               <div className="settlement-section">
                 <div className="settlement-section-title">🎬 錄製狀態</div>
                 <div className="settlement-recording">
@@ -948,28 +852,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     <div className="settlement-recording-row settlement-recording--active">
                       <span className="recording-dot" />
                       <span>錄製中</span>
-                      <button
-                        className="settlement-stop-btn"
-                        onClick={async () => { await stop(); }}
-                      >
-                        ⏹ 停止錄製
-                      </button>
+                      <button className="settlement-stop-btn" onClick={async () => { await stop(); }}>⏹ 停止錄製</button>
                     </div>
                   ) : hasRecorded ? (
-                    <div className="settlement-recording-row settlement-recording--done">
-                      <span>✓</span>
-                      <span>已保存錄製</span>
-                    </div>
+                    <div className="settlement-recording-row settlement-recording--done"><span>✓</span><span>已保存錄製</span></div>
                   ) : (
-                    <div className="settlement-recording-row settlement-recording--none">
-                      <span>✕</span>
-                      <span>無錄製</span>
-                    </div>
+                    <div className="settlement-recording-row settlement-recording--none"><span>✕</span><span>無錄製</span></div>
                   )}
                 </div>
               </div>
 
-              {/* Task list */}
               <div className="settlement-section">
                 <div className="settlement-section-title">📋 任務清單</div>
                 <div className="settlement-tasks">
@@ -977,9 +869,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     <div key={task.id} className={`settlement-task-row ${task.completed ? 'completed' : 'incomplete'}`}>
                       <div className="settlement-task-num">{idx + 1}</div>
                       <span className="settlement-task-label">{task.label}</span>
-                      <span className="settlement-task-status">
-                        {task.completed ? '✓' : '✕'}
-                      </span>
+                      <span className="settlement-task-status">{task.completed ? '✓' : '✕'}</span>
                     </div>
                   ))}
                 </div>
@@ -987,116 +877,197 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             </div>
 
             <div className="settlement-footer">
-              <button className="settlement-dismiss-btn" onClick={() => setShowSettlement(false)}>
-                關閉
-              </button>
+              <button className="settlement-dismiss-btn" onClick={() => setShowSettlement(false)}>關閉</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Main Video Area + Task Sidebar ────────────────────────────────────── */}
-      <div className={`main-video-area${selectedTasks.length > 0 ? ' main-with-tasks' : ''}`}>
+      {/* ── Main Body: Sidebar + Video ────────────────────────────────────────── */}
+      <div className="hs-body">
 
-        {/* Video grid */}
-        <div className="student-grid">
-          {/* ── Teacher card ── */}
-          {connectedRoom && (() => {
-            const teacherIdentityLocal = connectedRoom.localParticipant.identity;
-            const teacherSlotId = identityToSlotId[teacherIdentityLocal];
-            const teacherSlot = teacherSlotId
-              ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
-              : undefined;
-            const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
-            return (
+        {/* ── Left Sidebar ──────────────────────────────────────────────────── */}
+        <div className="hs-sidebar">
+
+          {/* Scene card */}
+          <div className={`hs-card hs-card--scene ${showScenePanel ? 'hs-card--open' : ''}`} onClick={openScene}>
+            <div className="hs-card-header">
+              <span className="hs-card-icon">🎬</span>
+              <span className="hs-card-title">場景</span>
+              <span className="hs-card-arrow">{showScenePanel ? '▲' : '▼'}</span>
+            </div>
+            <div className="hs-scene-preview">
               <div
-                className={`student-container teacher-card${isTeacherSpeaking ? ' is-speaking' : ''}`}
-                style={{ position: 'relative', opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
+                className={`hs-scene-thumb ${!currentScenePreset.backgroundValue ? 'hs-scene-thumb--no-img' : ''}`}
+                style={currentScenePreset.backgroundValue ? { backgroundImage: `url(${currentScenePreset.backgroundValue})` } : undefined}
               >
-                <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId} />
-                <div className="teacher-card-tab">老師</div>
-                {teacherSlot && (
-                  <div className="tile-slot-badge">{teacherSlot.icon} {teacherSlot.label}</div>
-                )}
-                {!teacherSlot && hasSlots && (
-                  <div className="tile-slot-badge tile-slot-badge--unassigned">未指派</div>
-                )}
+                {currentScenePreset.backgroundValue && <div className="hs-scene-thumb-overlay" />}
+                <span className="hs-scene-thumb-icon">{currentSceneVariant?.icon ?? '🎬'}</span>
+              </div>
+              <span className="hs-scene-label">{currentScenePreset.label}</span>
+            </div>
+          </div>
+
+          {/* Character / Slot card */}
+          {hasSlots && (
+            <div className={`hs-card hs-card--character ${showSlotPanel ? 'hs-card--open' : ''}`} onClick={openSlot}>
+              <div className="hs-card-header">
+                <span className="hs-card-icon">🎭</span>
+                <span className="hs-card-title">角色</span>
+                <span className="hs-badge hs-badge--info">{Object.keys(slotAssignments).length}/{currentScenePreset.slots!.length}</span>
+              </div>
+              <div className="hs-slot-list">
+                {currentScenePreset.slots!.map((slot, i) => {
+                  const assigned = slotAssignments[slot.id];
+                  const assignedOption = assigned ? allParticipantOptions.find(o => o.identity === assigned) : null;
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`hs-slot-row ${assigned ? 'hs-slot-row--filled' : 'hs-slot-row--empty'}`}
+                      style={{ '--slot-color': SLOT_COLORS[i % SLOT_COLORS.length] } as React.CSSProperties}
+                    >
+                      <span className="hs-slot-dot" />
+                      <span className="hs-slot-label">{slot.icon} {slot.label}</span>
+                      <span className="hs-slot-assigned">{assignedOption ? assignedOption.label.split('(')[0].trim() : '─'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Task card */}
+          {hasModules && (
+            <div className={`hs-card hs-card--task ${showTaskPanel ? 'hs-card--open' : ''}`} onClick={openTask}>
+              <div className="hs-card-header">
+                <span className="hs-card-icon">📋</span>
+                <span className="hs-card-title">任務</span>
+                <span className={`hs-badge hs-badge--task ${selectedTasks.length >= 7 ? 'hs-badge--limit' : ''}`}>
+                  {selectedTasks.filter(t => t.completed).length}/{selectedTasks.length}
+                </span>
+              </div>
+              {selectedTasks.length > 0 ? (
+                <div className="hs-task-preview">
+                  <div className="hs-task-progress-bar">
+                    <div
+                      className="hs-task-progress-fill"
+                      style={{ width: `${Math.round((selectedTasks.filter(t => t.completed).length / selectedTasks.length) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="hs-task-preview-list">
+                    {selectedTasks.slice(0, 4).map((task, idx) => (
+                      <label
+                        key={task.id}
+                        className={`hs-task-preview-row ${task.completed ? 'completed' : idx === currentTaskIndex ? 'current' : ''}`}
+                        onClick={e => { e.stopPropagation(); toggleTaskCompletion(task.id); }}
+                      >
+                        <input type="checkbox" checked={task.completed} readOnly onClick={e => e.stopPropagation()} />
+                        <span>{task.label}</span>
+                      </label>
+                    ))}
+                    {selectedTasks.length > 4 && <div className="hs-task-more">+{selectedTasks.length - 4} 更多</div>}
+                  </div>
+                </div>
+              ) : (
+                <div className="hs-task-empty">點擊選擇任務</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Video Area ────────────────────────────────────────────────────── */}
+        <div className="hs-video-area">
+
+          {/* Task banner strip */}
+          {selectedTasks.length > 0 && (() => {
+            const doneCount = selectedTasks.filter(t => t.completed).length;
+            const pct = Math.round((doneCount / selectedTasks.length) * 100);
+            const allDone = doneCount === selectedTasks.length;
+            return (
+              <div className={`hs-task-banner ${allDone ? 'hs-task-banner--done' : ''}`}>
+                <div className="hs-task-banner-bar">
+                  <div className="hs-task-banner-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="hs-task-banner-text">
+                  {allDone ? (
+                    <>
+                      <span>✓ 所有任務完成！</span>
+                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setShowSettlement(true); }}>📊 結算</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="hs-task-arrow">▸</span>
+                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {selectedTasks[currentTaskIndex]?.label}
+                      </span>
+                      <span className="hs-task-counter">{doneCount}/{selectedTasks.length}</span>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })()}
 
-          {/* ── Student tiles ── */}
-          {studentList.map((info) => {
-            const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
-            const assignedSlotId = identityToSlotId[info.participant.identity];
-            const assignedSlot = assignedSlotId
-              ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
-              : undefined;
-            const isStudentSpeaking = speakingSet.has(info.participant.identity);
-            return (
-              <div
-                key={info.participant.identity}
-                className={`student-container${isStudentSpeaking ? ' is-speaking' : ''}`}
-                style={{ position: 'relative', opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
-              >
-                <StudentTile
-                  participant={info.participant}
-                  videoTrack={info.videoTrack}
-                  poseData={info.poseData}
-                  vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
-                  muteState={muteState[info.participant.identity]}
-                  onToggleMute={toggleMute}
-                />
-                {assignedSlot && (
-                  <div className="tile-slot-badge">{assignedSlot.icon} {assignedSlot.label}</div>
-                )}
-                {!assignedSlot && hasSlots && (
-                  <div className="tile-slot-badge tile-slot-badge--unassigned">未指派</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+          {/* Video grid */}
+          <div className="hs-grid">
 
-        {/* ── Task progress sidebar (visible when tasks are active) ── */}
-        {selectedTasks.length > 0 && (
-          <div className="task-progress-sidebar">
-            <div className="task-sidebar-header">⚡ 任務進度</div>
-            <div className="task-sidebar-list">
-              {selectedTasks.map((task, idx) => (
-                <label
-                  key={task.id}
-                  className={`task-sidebar-row ${task.completed ? 'completed' : idx === currentTaskIndex ? 'current' : ''}`}
+            {/* ── Teacher card ── */}
+            {connectedRoom && (() => {
+              const teacherIdentityLocal = connectedRoom.localParticipant.identity;
+              const teacherSlotId = identityToSlotId[teacherIdentityLocal];
+              const teacherSlot = teacherSlotId
+                ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
+                : undefined;
+              const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
+              return (
+                <div
+                  className={`hs-video-card hs-teacher-card${isTeacherSpeaking ? ' hs-video-card--speaking' : ''}`}
+                  style={{ opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
                 >
-                  <input
-                    type="checkbox"
-                    className="task-sidebar-checkbox"
-                    checked={task.completed}
-                    onChange={() => toggleTaskCompletion(task.id)}
+                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId} />
+                  <div className="hs-video-tag hs-video-tag--teacher">👨‍🏫 老師</div>
+                  {teacherSlot && <div className="hs-video-slot-badge">{teacherSlot.icon} {teacherSlot.label}</div>}
+                  {!teacherSlot && hasSlots && <div className="hs-video-slot-badge hs-video-slot-badge--unassigned">未指派</div>}
+                </div>
+              );
+            })()}
+
+            {/* ── Student tiles ── */}
+            {studentList.map((info) => {
+              const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
+              const assignedSlotId = identityToSlotId[info.participant.identity];
+              const assignedSlot = assignedSlotId
+                ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
+                : undefined;
+              const isStudentSpeaking = speakingSet.has(info.participant.identity);
+              return (
+                <div
+                  key={info.participant.identity}
+                  className={`hs-video-card${isStudentSpeaking ? ' hs-video-card--speaking' : ''}`}
+                  style={{ opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
+                >
+                  <StudentTile
+                    participant={info.participant}
+                    videoTrack={info.videoTrack}
+                    poseData={info.poseData}
+                    vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
+                    muteState={muteState[info.participant.identity]}
+                    onToggleMute={toggleMute}
                   />
-                  <span className="task-sidebar-num">{idx + 1}</span>
-                  <span className="task-sidebar-label">{task.label}</span>
-                  <span className="task-sidebar-status">
-                    {task.completed ? '✓' : idx === currentTaskIndex ? '▸' : ''}
-                  </span>
-                </label>
-              ))}
-            </div>
-            <button
-              className="reset-tasks-btn"
-              onClick={() => {
-                setSelectedTasks(prev => {
-                  const next = prev.map(t => ({ ...t, completed: false }));
-                  broadcastTaskChange(next);
-                  return next;
-                });
-              }}
-            >
-              ↺ 重製
-            </button>
+                  {assignedSlot && <div className="hs-video-slot-badge">{assignedSlot.icon} {assignedSlot.label}</div>}
+                  {!assignedSlot && hasSlots && <div className="hs-video-slot-badge hs-video-slot-badge--unassigned">未指派</div>}
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* ── Big Screen FAB (bottom-right) ────────────────────────────────────── */}
+      <button id="open-bigscreen-btn" className="hs-bigscreen-fab" onClick={openBigScreen} title="在新視窗開啟大屏顯示">
+        <span className="hs-fab-icon">🖥️</span>
+        <span className="hs-fab-label">開啟大屏</span>
+      </button>
 
       {/* ── Drawer Backdrop ───────────────────────────────────────────────────── */}
       {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel) && (
