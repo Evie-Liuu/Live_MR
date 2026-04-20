@@ -21,11 +21,14 @@ import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { decodePoseFrame } from '../utils/poseCodec.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
+import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
+import type { RoomEvent as ApiRoomEvent } from '../api.ts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
   roomId: string;
   livekitToken: string;
+  hostToken: string;
 }
 
 interface ParticipantInfo {
@@ -34,8 +37,13 @@ interface ParticipantInfo {
   poseData: PoseFrame | null;
 }
 
+interface PendingStudent {
+  requestId: string;
+  name: string;
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function HostSession({ roomId, livekitToken }: HostSessionProps) {
+export default function HostSession({ roomId, livekitToken, hostToken }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
@@ -46,6 +54,8 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [showPendingPanel, setShowPendingPanel] = useState(false);
+  const [pending, setPending] = useState<PendingStudent[]>([]);
   // Settlement modal (shown when allDone)
   const [showSettlement, setShowSettlement] = useState(false);
   // QR Code share modal
@@ -59,6 +69,43 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const bigScreenWindowRef = useRef<Window | null>(null);
   // BroadcastChannel to push pose data to big screen
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  const handleApiEvent = useCallback((event: ApiRoomEvent) => {
+    if (event.type === 'join-request') {
+      const student: PendingStudent = {
+        requestId: event.requestId as string,
+        name: event.name as string,
+      };
+      setPending((prev) => {
+        if (prev.some((s) => s.requestId === student.requestId)) return prev;
+        return [...prev, student];
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToRoomEvents(roomId, hostToken, handleApiEvent);
+    return unsubscribe;
+  }, [roomId, hostToken, handleApiEvent]);
+
+  const handleApprove = async (requestId: string) => {
+    try {
+      await approveRequest(roomId, requestId);
+      setPending((prev) => prev.filter((s) => s.requestId !== requestId));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    try {
+      await rejectRequest(roomId, requestId);
+      setPending((prev) => prev.filter((s) => s.requestId !== requestId));
+    } catch {
+      // ignore
+    }
+  };
+
 
   // Teacher's own video ref (for pose detection)
   const teacherVideoRef = useRef<HTMLVideoElement>(null);
@@ -713,10 +760,11 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const currentTaskIndex = selectedTasks.findIndex(t => !t.completed);
 
   // Helpers to open exactly one panel at a time
-  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); };
-  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); };
-  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); };
-  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
+  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
+  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
+  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); };
+  const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
+  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
 
   return (
     <div className="host-session">
@@ -734,7 +782,19 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         >
           <span>📱</span>
         </button>
-        <span className="count-badge">{studentList.length} 位學生</span>
+        <button
+          className={`state-btn ${showPendingPanel ? 'state-btn--open' : ''} ${pending.length > 0 ? 'state-btn--has-data' : ''}`}
+          onClick={openPending}
+          title="加入和申請清單"
+        >
+          <span>🔔</span>
+          {/* <span className="state-btn-value">加入請求</span> */}
+          <span className="state-btn-value">{studentList.length}位學生</span>
+          <span className="state-btn-badge badge-count">
+            {pending.length}
+          </span>
+          <span className="state-btn-arrow">{showPendingPanel ? '▲' : '▼'}</span>
+        </button>
 
         <button
           className={`state-btn ${showScenePanel ? 'state-btn--open' : ''}`}
@@ -1039,9 +1099,41 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       </div>
 
       {/* ── Drawer Backdrop ───────────────────────────────────────────────────── */}
-      {(showScenePanel || showSlotPanel || showTaskPanel) && (
+      {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel) && (
         <div className="panel-backdrop" onClick={closeAll} />
       )}
+
+      {/* ── Pending Requests Drawer ───────────────────────────────────────────── */}
+      <div className={`panel-drawer ${showPendingPanel ? 'panel-drawer--open' : ''}`}>
+        <div className="panel-drawer-header">
+          <span>🔔 加入和申請清單</span>
+          <button className="panel-close-btn" onClick={() => setShowPendingPanel(false)}>✕</button>
+        </div>
+        <div className="panel-drawer-body">
+          <div className="pending-list" style={{ padding: '0 16px' }}>
+            <h3 style={{ marginTop: '16px', marginBottom: '8px', color: '#ccc', fontSize: '14px' }}>待審核學生 ({pending.length})</h3>
+            {pending.length === 0 && <div style={{ color: '#666', fontSize: '13px' }}>目前沒有加入請求</div>}
+            {pending.map((s) => (
+              <div key={s.requestId} className="pending-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                <span style={{ fontWeight: 'bold' }}>{s.name}</span>
+                <div className="pending-actions" style={{ display: 'flex', gap: '8px' }}>
+                  <button className="approve-btn" style={{ background: '#4CAF50', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleApprove(s.requestId)}>允許</button>
+                  <button className="reject-btn" style={{ background: '#F44336', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleReject(s.requestId)}>拒絕</button>
+                </div>
+              </div>
+            ))}
+
+            <h3 style={{ marginTop: '24px', marginBottom: '8px', color: '#ccc', fontSize: '14px' }}>已加入學生 ({studentList.length})</h3>
+            {studentList.length === 0 && <div style={{ color: '#666', fontSize: '13px' }}>目前沒有學生加入</div>}
+            {studentList.map((info) => (
+              <div key={info.participant.identity} style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                <span style={{ marginRight: '8px' }}>👤</span>
+                <span>{info.participant.name || info.participant.identity}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* ── Scene Drawer ─────────────────────────────────────────────────────── */}
       <div className={`panel-drawer ${showScenePanel ? 'panel-drawer--open' : ''}`}>

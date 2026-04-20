@@ -65,7 +65,7 @@ function App() {
             hostToken={state.hostToken}
             livekitToken={state.livekitToken}
             onStart={(livekitToken) =>
-              setState({ screen: 'host-session', roomId: state.roomId, livekitToken })
+              setState({ screen: 'host-session', roomId: state.roomId, hostToken: state.hostToken, livekitToken })
             }
           />
         );
@@ -75,6 +75,7 @@ function App() {
           <HostSession
             roomId={state.roomId}
             livekitToken={state.livekitToken}
+            hostToken={state.hostToken}
           />
         );
 
