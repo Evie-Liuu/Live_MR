@@ -144,6 +144,7 @@ export default function BigScreen() {
 
   const poseCountRef = useRef(0);
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
+  const [hasRecorded, setHasRecorded] = useState(false);
 
   // Flush pose count to state every 1 s so PerformanceMonitor count-mode can compute rate.
   useEffect(() => {
@@ -266,6 +267,7 @@ export default function BigScreen() {
         const active = sessions.find((s) => s.status === 'recording')
         if (active && !mediaRecorderRef.current) {
           console.log('[BigScreen] Restoring active recording session:', active.sessionId)
+          setHasRecorded(true)
           recordingChunksRef.current = []
           recordingSessionIdRef.current = active.sessionId
           const canvas = canvasRef.current
@@ -449,6 +451,7 @@ export default function BigScreen() {
       } else if (msg.type === 'scene-change' && msg.sceneId) {
         setSceneId(msg.sceneId);
         sessionStorage.setItem('bigscreen-sceneId', msg.sceneId);
+        setHasRecorded(false);
         // Clear slot assignments — they are scene-specific
         setSlotAssignments({});
         slotAssignmentsRef.current.clear();
@@ -474,6 +477,7 @@ export default function BigScreen() {
         if (existing && existing.state !== 'inactive') {
           existing.stop()
         }
+        setHasRecorded(true)
         recordingChunksRef.current = []
         recordingSessionIdRef.current = msg.sessionId
         const canvas = canvasRef.current
@@ -624,7 +628,7 @@ export default function BigScreen() {
             {/* Trophy header */}
             <div className="bs-settlement-header">
               <div className="bs-settlement-trophy">🏆</div>
-              <div className="bs-settlement-title">課堂圓滿結束</div>
+              <div className="bs-settlement-title">情境對話結束</div>
               <div className="bs-settlement-subtitle">所有任務已完成！</div>
             </div>
 
@@ -655,10 +659,10 @@ export default function BigScreen() {
                       <span className="recording-dot" />
                       <span>錄製中</span>
                     </div>
-                  ) : recordingSessionIdRef.current ? (
-                    <div className="bs-rec-done">✓ 已錄製</div>
+                  ) : hasRecorded ? (
+                    <div className="bs-rec-done">✓ 已保存錄製</div>
                   ) : (
-                    <div className="bs-rec-none">✕ 未錄製</div>
+                    <div className="bs-rec-none">✕ 無錄製</div>
                   )}
                 </div>
               </div>

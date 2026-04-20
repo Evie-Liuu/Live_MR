@@ -116,6 +116,16 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     if (isRecording) setHasRecorded(true);
   }, [isRecording]);
 
+  // Force stop recording when all tasks are completed
+  useEffect(() => {
+    if (selectedTasks.length > 0) {
+      const allDone = selectedTasks.every(t => t.completed);
+      if (allDone && isRecording) {
+        stop();
+      }
+    }
+  }, [selectedTasks, isRecording, stop]);
+
   // Broadcast scene/VRM changes to any open BigScreen window
   const broadcastSceneChange = useCallback((sceneId: string) => {
     sessionStorage.setItem('bigscreen-sceneId', sceneId);
@@ -166,6 +176,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       setSelectedTasks([]);
       sessionStorage.removeItem('bigscreen-tasks');
       setExpandedModuleIds(new Set());
+      setHasRecorded(false);
       const taskClearMsg: BigScreenMsg = { type: 'task-change', tasks: [] };
       channelRef.current?.postMessage(taskClearMsg);
       broadcastSceneChange(sceneId);
@@ -872,12 +883,12 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                   ) : hasRecorded ? (
                     <div className="settlement-recording-row settlement-recording--done">
                       <span>✓</span>
-                      <span>已錄製（已停止）</span>
+                      <span>已保存錄製</span>
                     </div>
                   ) : (
                     <div className="settlement-recording-row settlement-recording--none">
                       <span>✕</span>
-                      <span>本次未錄製</span>
+                      <span>無錄製</span>
                     </div>
                   )}
                 </div>
