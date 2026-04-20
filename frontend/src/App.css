@@ -297,12 +297,29 @@ button:disabled {
 
 .room-badge,
 .count-badge,
-.name-badge {
+.name-badge,
+.qr-share-btn {
   background: var(--bg-card);
   border: 1px solid var(--border);
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 13px;
+}
+
+.qr-share-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  color: var(--text);
+}
+
+.qr-share-btn:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-light);
+  color: #fff;
 }
 
 .status-badge {
@@ -1613,7 +1630,7 @@ button:disabled {
   z-index: 1;
 }
 
-.scene-option-btn > span {
+.scene-option-btn>span {
   position: relative;
   z-index: 1;
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Room,
   RoomEvent,
@@ -47,6 +48,8 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   // Settlement modal (shown when allDone)
   const [showSettlement, setShowSettlement] = useState(false);
+  // QR Code share modal
+  const [showQRModal, setShowQRModal] = useState(false);
   // Track whether a recording was ever started this session
   const [hasRecorded, setHasRecorded] = useState(false);
   // Set of participant identities currently speaking
@@ -723,7 +726,14 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="session-header">
         <h2>課堂進行中</h2>
-        <span className="room-badge">房間: {roomId}</span>
+        {/* <span className="room-badge">房間: {roomId}</span> */}
+        <button
+          className="qr-share-btn"
+          onClick={() => setShowQRModal(true)}
+          title="分享房間 QR Code"
+        >
+          <span>📱</span>
+        </button>
         <span className="count-badge">{studentList.length} 位學生</span>
 
         <button
@@ -732,9 +742,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           title="切換場景"
         >
           {currentScenePreset.backgroundValue && (
-            <div 
-              className="state-btn-img-bg" 
-              style={{ backgroundImage: `url(${currentScenePreset.backgroundValue})` }} 
+            <div
+              className="state-btn-img-bg"
+              style={{ backgroundImage: `url(${currentScenePreset.backgroundValue})` }}
             />
           )}
           <span style={{ position: 'relative', zIndex: 1 }}>{currentSceneVariant?.icon ?? '🎬'}</span>
@@ -1051,9 +1061,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                     onClick={() => { handleSceneChange(scene.id); setShowScenePanel(false); }}
                   >
                     {SCENE_PRESETS[scene.id]?.backgroundValue && (
-                      <div 
-                        className="scene-option-img-bg" 
-                        style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }} 
+                      <div
+                        className="scene-option-img-bg"
+                        style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }}
                       />
                     )}
                     {scene.icon && <span>{scene.icon}</span>}
@@ -1233,6 +1243,40 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                   🗑️ 清空所有任務
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── QR Code Modal ───────────────────────────────────────────────────── */}
+      {showQRModal && (
+        <div className="settlement-backdrop" onClick={() => setShowQRModal(false)}>
+          <div className="settlement-modal" style={{ width: '320px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="settlement-header">
+              <span style={{ fontSize: '24px' }}>📱</span>
+              <div>
+                <div className="settlement-title">分享房間</div>
+                <div className="settlement-subtitle">邀請學生加入課堂</div>
+              </div>
+              <button className="settlement-close" onClick={() => setShowQRModal(false)}>✕</button>
+            </div>
+            <div className="settlement-body" style={{ alignItems: 'center', gap: '20px', padding: '30px 20px' }}>
+              <div style={{ background: '#fff', padding: '12px', borderRadius: '12px' }}>
+                <QRCodeSVG value={`${window.location.protocol}//${window.location.host}/?roomId=${roomId}`} size={200} />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#7788ff', fontSize: '12px', fontWeight: 800, letterSpacing: '1px', marginBottom: '4px' }}>房間 ID</div>
+                <div style={{ color: '#fff', fontSize: '20px', fontWeight: 800 }}>{roomId}</div>
+              </div>
+              <button
+                className="settlement-dismiss-btn"
+                style={{ width: '100%' }}
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.protocol}//${window.location.host}/?roomId=${roomId}`);
+                  // Simple alert or toast could go here
+                }}
+              >
+                複製加入連結
+              </button>
             </div>
           </div>
         </div>
