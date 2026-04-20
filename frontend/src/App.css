@@ -1082,7 +1082,7 @@ button:disabled {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-card);
+  background: #0a0a1a;
   border: 1px solid var(--border);
   color: var(--text);
   padding: 5px 12px;
@@ -1091,11 +1091,27 @@ button:disabled {
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, color 0.2s;
   white-space: nowrap;
+  position: relative;
+  overflow: hidden;
 }
 
 .state-btn:hover {
   border-color: var(--accent-light);
   color: var(--text-h);
+}
+
+.state-btn-img-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+  z-index: 0;
+}
+
+.state-btn:hover .state-btn-img-bg {
+  opacity: 0.55;
 }
 
 .state-btn--open {
@@ -1562,6 +1578,26 @@ button:disabled {
   text-align: left;
   cursor: pointer;
   transition: all 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.scene-option-img-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.15;
+  transition: opacity 0.2s;
+  z-index: 0;
+}
+
+.scene-option-btn:hover .scene-option-img-bg {
+  opacity: 0.3;
+}
+
+.scene-option-btn.active .scene-option-img-bg {
+  opacity: 0.4;
 }
 
 .scene-option-btn:hover {
@@ -1574,6 +1610,12 @@ button:disabled {
   background: rgba(119, 136, 255, 0.12);
   border-color: rgba(119, 136, 255, 0.35);
   color: #aabbff;
+  z-index: 1;
+}
+
+.scene-option-btn > span {
+  position: relative;
+  z-index: 1;
 }
 
 .scene-check {
@@ -1802,8 +1844,15 @@ button:disabled {
 }
 
 @keyframes settlementIn {
-  from { transform: scale(0.88) translateY(20px); opacity: 0; }
-  to   { transform: scale(1) translateY(0);      opacity: 1; }
+  from {
+    transform: scale(0.88) translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
 
 .settlement-header {
@@ -1820,9 +1869,19 @@ button:disabled {
 }
 
 @keyframes trophyBounce {
-  0%, 100% { transform: translateY(0); }
-  30%       { transform: translateY(-10px); }
-  60%       { transform: translateY(-4px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  30% {
+    transform: translateY(-10px);
+  }
+
+  60% {
+    transform: translateY(-4px);
+  }
 }
 
 .settlement-title {
@@ -2261,8 +2320,17 @@ button:disabled {
 }
 
 @keyframes recordPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.5; transform: scale(0.75); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.75);
+  }
 }
 
 /* Task list */
@@ -2327,8 +2395,13 @@ button:disabled {
   flex-shrink: 0;
 }
 
-.bs-settlement-task.done .bs-task-check { color: var(--success); }
-.bs-settlement-task.undone .bs-task-check { color: #ff4444; }
+.bs-settlement-task.done .bs-task-check {
+  color: var(--success);
+}
+
+.bs-settlement-task.undone .bs-task-check {
+  color: #ff4444;
+}
 
 /* Footer */
 .bs-settlement-footer {

@@ -726,15 +726,20 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         <span className="room-badge">房間: {roomId}</span>
         <span className="count-badge">{studentList.length} 位學生</span>
 
-        {/* Scene state-aware button */}
         <button
           className={`state-btn ${showScenePanel ? 'state-btn--open' : ''}`}
           onClick={openScene}
           title="切換場景"
         >
-          <span>{currentSceneVariant?.icon ?? '🎬'}</span>
-          <span className="state-btn-value">{currentScenePreset.label}</span>
-          <span className="state-btn-arrow">{showScenePanel ? '▲' : '▼'}</span>
+          {currentScenePreset.backgroundValue && (
+            <div 
+              className="state-btn-img-bg" 
+              style={{ backgroundImage: `url(${currentScenePreset.backgroundValue})` }} 
+            />
+          )}
+          <span style={{ position: 'relative', zIndex: 1 }}>{currentSceneVariant?.icon ?? '🎬'}</span>
+          <span className="state-btn-value" style={{ position: 'relative', zIndex: 1 }}>{currentScenePreset.label}</span>
+          <span className="state-btn-arrow" style={{ position: 'relative', zIndex: 1 }}>{showScenePanel ? '▲' : '▼'}</span>
         </button>
 
         {/* Face detection toggle */}
@@ -1045,6 +1050,12 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
                     className={`scene-option-btn ${selectedSceneId === scene.id ? 'active' : ''}`}
                     onClick={() => { handleSceneChange(scene.id); setShowScenePanel(false); }}
                   >
+                    {SCENE_PRESETS[scene.id]?.backgroundValue && (
+                      <div 
+                        className="scene-option-img-bg" 
+                        style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }} 
+                      />
+                    )}
                     {scene.icon && <span>{scene.icon}</span>}
                     <span>{scene.label}</span>
                     {selectedSceneId === scene.id && <span className="scene-check">✓</span>}
