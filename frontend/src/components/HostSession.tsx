@@ -45,6 +45,10 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
+  // Settlement modal (shown when allDone)
+  const [showSettlement, setShowSettlement] = useState(false);
+  // Track whether a recording was ever started this session
+  const [hasRecorded, setHasRecorded] = useState(false);
   // Set of participant identities currently speaking
   const [speakingSet, setSpeakingSet] = useState<Set<string>>(new Set());
 
@@ -106,6 +110,11 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     connectedRoom?.localParticipant.name || connectedRoom?.localParticipant.identity || 'Host',
     channelRef,
   );
+
+  // Track if recording was ever started this session
+  useEffect(() => {
+    if (isRecording) setHasRecorded(true);
+  }, [isRecording]);
 
   // Broadcast scene/VRM changes to any open BigScreen window
   const broadcastSceneChange = useCallback((sceneId: string) => {
@@ -789,7 +798,16 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
             </div>
             <div className={`task-banner-current ${allDone ? 'task-banner-current--done' : ''}`}>
               {allDone ? (
-                <><span className="task-current-icon">✓</span><span>所有任務完成</span></>
+                <>
+                  <span className="task-current-icon">✓</span>
+                  <span>所有任務完成</span>
+                  <button
+                    className="settlement-trigger-btn"
+                    onClick={() => setShowSettlement(true)}
+                  >
+                    📊 查看結算
+                  </button>
+                </>
               ) : (
                 <><span className="task-current-icon">▸</span><span className="task-current-text">{selectedTasks[currentTaskIndex].label}</span></>
               )}
@@ -797,6 +815,99 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
           </div>
         );
       })()}
+
+      {/* ── Settlement Modal ──────────────────────────────────────────────────── */}
+      {showSettlement && (
+        <div className="settlement-backdrop" onClick={() => setShowSettlement(false)}>
+          <div className="settlement-modal" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="settlement-header">
+              <span className="settlement-trophy">🏆</span>
+              <div>
+                <div className="settlement-title">課堂結算</div>
+                <div className="settlement-subtitle">所有任務已完成</div>
+              </div>
+              <button className="settlement-close" onClick={() => setShowSettlement(false)}>✕</button>
+            </div>
+
+            <div className="settlement-body">
+              {/* Participants */}
+              <div className="settlement-section">
+                <div className="settlement-section-title">👥 參與人員</div>
+                <div className="settlement-participants">
+                  {connectedRoom && (
+                    <div className="settlement-participant settlement-participant--host">
+                      <span className="settlement-participant-icon">👨‍🏫</span>
+                      <span>{connectedRoom.localParticipant.name || connectedRoom.localParticipant.identity}</span>
+                      <span className="settlement-participant-role">老師</span>
+                    </div>
+                  )}
+                  {studentList.map(info => (
+                    <div key={info.participant.identity} className="settlement-participant">
+                      <span className="settlement-participant-icon">👤</span>
+                      <span>{info.participant.name || info.participant.identity}</span>
+                    </div>
+                  ))}
+                  {studentList.length === 0 && (
+                    <div className="settlement-empty">無學生參與</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recording status */}
+              <div className="settlement-section">
+                <div className="settlement-section-title">🎬 錄製狀態</div>
+                <div className="settlement-recording">
+                  {isRecording ? (
+                    <div className="settlement-recording-row settlement-recording--active">
+                      <span className="recording-dot" />
+                      <span>錄製中</span>
+                      <button
+                        className="settlement-stop-btn"
+                        onClick={async () => { await stop(); }}
+                      >
+                        ⏹ 停止錄製
+                      </button>
+                    </div>
+                  ) : hasRecorded ? (
+                    <div className="settlement-recording-row settlement-recording--done">
+                      <span>✓</span>
+                      <span>已錄製（已停止）</span>
+                    </div>
+                  ) : (
+                    <div className="settlement-recording-row settlement-recording--none">
+                      <span>✕</span>
+                      <span>本次未錄製</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Task list */}
+              <div className="settlement-section">
+                <div className="settlement-section-title">📋 任務清單</div>
+                <div className="settlement-tasks">
+                  {selectedTasks.map((task, idx) => (
+                    <div key={task.id} className={`settlement-task-row ${task.completed ? 'completed' : 'incomplete'}`}>
+                      <div className="settlement-task-num">{idx + 1}</div>
+                      <span className="settlement-task-label">{task.label}</span>
+                      <span className="settlement-task-status">
+                        {task.completed ? '✓' : '✕'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="settlement-footer">
+              <button className="settlement-dismiss-btn" onClick={() => setShowSettlement(false)}>
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Main Video Area + Task Sidebar ────────────────────────────────────── */}
       <div className={`main-video-area${selectedTasks.length > 0 ? ' main-with-tasks' : ''}`}>

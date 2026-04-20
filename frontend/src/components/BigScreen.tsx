@@ -127,6 +127,21 @@ export default function BigScreen() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentTaskId = activeTasks.find(t => !t.completed)?.id;
 
+  // Settlement panel: shown when all tasks are done
+  const allDone = activeTasks.length > 0 && activeTasks.every(t => t.completed);
+  const [showSettlement, setShowSettlement] = useState(false);
+  const prevAllDoneRef = useRef(false);
+  useEffect(() => {
+    if (allDone && !prevAllDoneRef.current) {
+      setShowSettlement(true);
+    }
+    prevAllDoneRef.current = allDone;
+  }, [allDone]);
+
+  /** Track identities that have appeared (for participant list in settlement) */
+  const participantNamesRef = useRef<Map<string, string>>(new Map());
+  const [participantNames, setParticipantNames] = useState<Map<string, string>>(new Map());
+
   const poseCountRef = useRef(0);
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
 
@@ -346,6 +361,11 @@ export default function BigScreen() {
           );
           const vrmUrl = resolveVrmUrl(msg.identity, liveUrls, roles, teacherVrmId);
           if (vrmUrl) setVrmOverrideRef.current(msg.identity, vrmUrl);
+        }
+        // Track participant name for settlement panel
+        if (!participantNamesRef.current.has(msg.identity)) {
+          participantNamesRef.current.set(msg.identity, msg.identity);
+          setParticipantNames(new Map(participantNamesRef.current));
         }
         applyPoseRef.current(msg.identity, msg.poseData);
         poseCountRef.current++;
@@ -593,6 +613,77 @@ export default function BigScreen() {
           </>
         );
       })()}
+
+      {/* Settlement overlay on BigScreen */}
+      {showSettlement && (
+        <div className="bs-settlement-overlay">
+          <div className="bs-settlement-panel">
+            {/* Close button */}
+            <button className="bs-settlement-close" onClick={() => setShowSettlement(false)}>✕</button>
+
+            {/* Trophy header */}
+            <div className="bs-settlement-header">
+              <div className="bs-settlement-trophy">🏆</div>
+              <div className="bs-settlement-title">課堂圓滿結束</div>
+              <div className="bs-settlement-subtitle">所有任務已完成！</div>
+            </div>
+
+            <div className="bs-settlement-columns">
+              {/* Left: Participants */}
+              <div className="bs-settlement-col">
+                <div className="bs-settlement-col-title">👥 參與人員</div>
+                <div className="bs-settlement-participants">
+                  {Array.from(participantNames.entries()).map(([identity, name]) => (
+                    <div key={identity} className={`bs-settlement-participant ${identity.startsWith('host-') ? 'host' : ''}`}>
+                      <span>{identity.startsWith('host-') ? '👨‍🏫' : '👤'}</span>
+                      <span>{name}</span>
+                      {identity.startsWith('host-') && <span className="bs-participant-tag">老師</span>}
+                    </div>
+                  ))}
+                  {participantNames.size === 0 && (
+                    <div className="bs-settlement-empty">—</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Middle: Recording */}
+              <div className="bs-settlement-col">
+                <div className="bs-settlement-col-title">🎬 錄製</div>
+                <div className="bs-settlement-rec">
+                  {mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive' ? (
+                    <div className="bs-rec-active">
+                      <span className="recording-dot" />
+                      <span>錄製中</span>
+                    </div>
+                  ) : recordingSessionIdRef.current ? (
+                    <div className="bs-rec-done">✓ 已錄製</div>
+                  ) : (
+                    <div className="bs-rec-none">✕ 未錄製</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right: Tasks */}
+              <div className="bs-settlement-col bs-settlement-col--tasks">
+                <div className="bs-settlement-col-title">📋 任務清單</div>
+                <div className="bs-settlement-tasklist">
+                  {activeTasks.map((task, idx) => (
+                    <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
+                      <div className="bs-task-num">{idx + 1}</div>
+                      <span className="bs-task-label">{task.label}</span>
+                      <span className="bs-task-check">{task.completed ? '✓' : '✕'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bs-settlement-footer">
+              <button className="bs-settlement-dismiss" onClick={() => setShowSettlement(false)}>關閉</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PerformanceMonitor label="Render FPS" position="top-right" />
       <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
