@@ -1603,9 +1603,10 @@ button:disabled {
   color: #aaa;
   text-align: left;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   position: relative;
   overflow: hidden;
+  min-height: 44px;
 }
 
 .scene-option-img-bg {
@@ -1614,12 +1615,13 @@ button:disabled {
   background-size: cover;
   background-position: center;
   opacity: 0.15;
-  transition: opacity 0.2s;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   z-index: 0;
 }
 
 .scene-option-btn:hover .scene-option-img-bg {
-  opacity: 0.3;
+  opacity: 0.5;
+  transform: scale(1.05);
 }
 
 .scene-option-btn.active .scene-option-img-bg {
@@ -1630,6 +1632,8 @@ button:disabled {
   background: #1a1a3a;
   color: var(--text-h);
   border-color: #2a2a4a;
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 
 .scene-option-btn.active {
