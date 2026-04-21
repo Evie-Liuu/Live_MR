@@ -148,11 +148,11 @@ export const THEMES: ThemeConfig[] = [
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
-            'ask_price_1': { url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-3.5, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
-            'ask_price_2': { url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
-            // 'ask_price_3': { url: '/models/clothingStore/objects/Skirt_Red.glb',    displayPos: [-3, 0, -2] },
+            'ask_price_1': { url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
+            'ask_price_2': { url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
+            'ask_price_3': { url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
             'ask_price_4': { url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
-
+            'ask_price_5': { url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
           },
         },
       },
@@ -233,9 +233,9 @@ const CLOTHING_STORE_BASE: Omit<SceneConfig, 'id' | 'label' | 'slots' | 'allowed
     far: 50,
   },
   lights: [
-    { type: 'ambient', color: 0xffffff, intensity: 0.7 },
-    { type: 'directional', color: 0xffffff, intensity: 0.9, position: [2, 4, 2] },
-    { type: 'directional', color: 0x8888ff, intensity: 0.3, position: [-2, 1, -2] },
+    { type: 'ambient', color: 0xffffff, intensity: 0.8 },
+    { type: 'directional', color: 0xffffff, intensity: 0.9, position: [0, 4, 10], target: [0, 0, 0] },
+    { type: 'directional', color: 0x8888ff, intensity: 0.6, position: [0.5, 2, 0.5], target: [-3, 0, -3] },
   ],
   backgroundType: 'image',
   backgroundValue: '/images/clothingStore.png',

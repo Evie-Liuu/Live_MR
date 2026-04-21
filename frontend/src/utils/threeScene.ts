@@ -10,7 +10,9 @@ export function applyLights(scene: THREE.Scene, config: SceneConfig): void {
     } else if (light.type === 'directional') {
       const l = new THREE.DirectionalLight(light.color ?? 0xffffff, light.intensity);
       if (light.position) l.position.set(...light.position);
+      if (light.target) l.target.position.set(...light.target);
       scene.add(l);
+      // scene.add(new THREE.DirectionalLightHelper(l));
     }
   }
 }

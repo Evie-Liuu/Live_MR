@@ -52,6 +52,7 @@ export interface LightConfig {
   color?: number;
   intensity: number;
   position?: [x: number, y: number, z: number];
+  target?: [x: number, y: number, z: number];
 }
 
 /** Per-avatar spawn settings (applied after VRM load) */
