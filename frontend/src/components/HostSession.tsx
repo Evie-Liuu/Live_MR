@@ -58,8 +58,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [pending, setPending] = useState<PendingStudent[]>([]);
   // Settlement modal (shown when allDone)
   const [showSettlement, setShowSettlement] = useState(false);
-  // QR Code share modal
-  const [showQRModal, setShowQRModal] = useState(false);
+  // QR Code share modal (now opened in separate window)
+  const openShareWindow = useCallback(() => {
+    const url = `${window.location.origin}/?screen=share&roomId=${roomId}`;
+    window.open(url, 'live-mr-share', 'width=480,height=600,menubar=no,toolbar=no');
+  }, [roomId]);
   // Track whether a recording was ever started this session
   const [hasRecorded, setHasRecorded] = useState(false);
   // Set of participant identities currently speaking
@@ -815,7 +818,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         </div>
 
         <div className="hs-topbar-actions">
-          <button className="hs-action-btn" onClick={() => setShowQRModal(true)} title="分享房間 QR Code">
+          <button className="hs-action-btn" onClick={openShareWindow} title="在新視窗分享房間 QR Code">
             <span className="hs-action-icon">📱</span>
             <span className="hs-action-label">分享</span>
           </button>
@@ -1371,40 +1374,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           </div>
         </div>
       )}
-      {/* ── QR Code Modal ───────────────────────────────────────────────────── */}
-      {showQRModal && (
-        <div className="settlement-backdrop" onClick={() => setShowQRModal(false)}>
-          <div className="settlement-modal" style={{ width: '320px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="settlement-header">
-              <span style={{ fontSize: '24px' }}>📱</span>
-              <div>
-                <div className="settlement-title">分享房間</div>
-                <div className="settlement-subtitle">邀請學生加入課堂</div>
-              </div>
-              <button className="settlement-close" onClick={() => setShowQRModal(false)}>✕</button>
-            </div>
-            <div className="settlement-body" style={{ alignItems: 'center', gap: '20px', padding: '30px 20px' }}>
-              <div style={{ background: '#fff', padding: '12px', borderRadius: '12px' }}>
-                <QRCodeSVG value={`${window.location.protocol}//${window.location.host}/?roomId=${roomId}`} size={200} />
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ color: '#7788ff', fontSize: '12px', fontWeight: 800, letterSpacing: '1px', marginBottom: '4px' }}>房間 ID</div>
-                <div style={{ color: '#fff', fontSize: '20px', fontWeight: 800 }}>{roomId}</div>
-              </div>
-              <button
-                className="settlement-dismiss-btn"
-                style={{ width: '100%' }}
-                onClick={() => {
-                  navigator.clipboard.writeText(`${window.location.protocol}//${window.location.host}/?roomId=${roomId}`);
-                  // Simple alert or toast could go here
-                }}
-              >
-                複製加入連結
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

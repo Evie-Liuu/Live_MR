@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import BigScreen from './components/BigScreen.tsx';
+import ShareScreen from './components/ShareScreen.tsx';
 import type { AppState } from './state.ts';
 import { createRoom } from './api.ts';
 import RoleSelect from './components/RoleSelect.tsx';
@@ -19,8 +20,10 @@ function getInitialState(): AppState {
   return { screen: 'select-role' };
 }
 
-// Detect big-screen mode before mounting any hook-bearing components
-const isBigScreen = new URLSearchParams(window.location.search).get('screen') === 'bigscreen';
+// Detect specific screen modes before mounting any hook-bearing components
+const screenParam = new URLSearchParams(window.location.search).get('screen');
+const isBigScreen = screenParam === 'bigscreen';
+const isShareScreen = screenParam === 'share';
 
 function App() {
   const [state, setState] = useState<AppState>(getInitialState);
@@ -137,5 +140,5 @@ function App() {
   return <div className="app">{renderScreen()}</div>;
 }
 
-export default isBigScreen ? BigScreen : App;
+export default isBigScreen ? BigScreen : (isShareScreen ? ShareScreen : App);
 
