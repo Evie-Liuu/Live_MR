@@ -7,11 +7,98 @@ const _bonePos = new THREE.Vector3();   // used by attachPropToHand
 const _ndcPos = new THREE.Vector3();   // used by projectToUV
 const _offsetVec = new THREE.Vector3();
 
+// ---------------------------------------------------------------------------
+// Fresnel rim-glow shader patch
+// ---------------------------------------------------------------------------
+
+/** Per-material uniforms injected by ensureFresnelPatch(). */
+interface FresnelUniforms {
+  uRimEnabled: { value: number };
+  uTime:       { value: number };
+}
+
 /**
- * Toggle emissive pulsing highlight on all MeshStandardMaterial meshes in a GLB group.
- * Call every RAF frame with current elapsed time (seconds) when enabled.
+ * Cache of patched uniforms, keyed by material instance.
+ * WeakMap ensures GC can collect materials that are no longer live.
+ */
+const _fresnelUniformsMap = new WeakMap<THREE.Material, FresnelUniforms>();
+
+/**
+ * Attach a Fresnel rim-glow `onBeforeCompile` hook to a MeshStandardMaterial
+ * the first time it is seen.  Subsequent calls return the cached uniforms.
  *
- * MeshPhysicalMaterial extends MeshStandardMaterial, so isMeshStandardMaterial
+ * Implementation notes:
+ *  - `vNormal`       (view-space) and `vViewPosition` (view-space direction
+ *    toward camera) are always present in the MeshStandard/Physical shader.
+ *  - Fresnel term:   `rim = pow(1 - dot(N, V), exponent)`
+ *  - We inject into `#include <output_fragment>` so the rim is added on top
+ *    of the fully-resolved PBR colour without touching the lighting model.
+ *  - `customProgramCacheKey` is set per-material so Three.js does not share
+ *    the compiled program with un-patched material instances.
+ */
+function ensureFresnelPatch(mat: THREE.MeshStandardMaterial): FresnelUniforms {
+  const cached = _fresnelUniformsMap.get(mat);
+  if (cached) return cached;
+
+  const uniforms: FresnelUniforms = {
+    uRimEnabled: { value: 0 },
+    uTime:       { value: 0 },
+  };
+
+  mat.onBeforeCompile = (shader) => {
+    // Expose uniforms to the shader.
+    shader.uniforms.uRimEnabled = uniforms.uRimEnabled;
+    shader.uniforms.uTime       = uniforms.uTime;
+
+    // Declare uniforms at the top of the fragment shader.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      /* glsl */`
+#include <common>
+uniform float uRimEnabled;
+uniform float uTime;
+`,
+    );
+
+    // Inject rim contribution after the final colour resolve.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <output_fragment>',
+      /* glsl */`
+#include <output_fragment>
+if (uRimEnabled > 0.5) {
+  // vNormal and vViewPosition are both in view-space.
+  vec3  N   = normalize(vNormal);
+  vec3  V   = normalize(vViewPosition);   // points toward camera
+  float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.5);
+  float pulse = 0.55 + 0.45 * sin(uTime * 3.0);
+  // Cyan-white electric edge: tweak RGB to taste.
+  gl_FragColor.rgb += vec3(0.15, 0.85, 1.0) * rim * 2.0 * pulse;
+}
+`,
+    );
+  };
+
+  // Unique cache key so Three.js compiles a dedicated program for this material.
+  mat.customProgramCacheKey = () => `fresnel_rim_${mat.uuid}`;
+
+  // Trigger recompilation if the material was already compiled previously.
+  mat.needsUpdate = true;
+
+  _fresnelUniformsMap.set(mat, uniforms);
+  return uniforms;
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Toggle a Fresnel rim-glow effect on all MeshStandard/Physical meshes inside
+ * a GLB group.  Call every RAF frame with the current elapsed time (seconds).
+ *
+ * The first call for each material compiles an `onBeforeCompile` hook that
+ * injects the rim into the existing PBR shader output — the original lighting,
+ * textures, and emissive map are preserved unchanged.
+ *
+ * MeshPhysicalMaterial extends MeshStandardMaterial, so `isMeshStandardMaterial`
  * covers both types.
  */
 export function highlightProp(
@@ -32,6 +119,9 @@ export function highlightProp(
       } else {
         m.emissiveIntensity = 0;
       }
+      // const u = ensureFresnelPatch(m);
+      // u.uRimEnabled.value = enabled ? 1 : 0;
+      // u.uTime.value       = elapsedTime;
     }
   });
 }
