@@ -42,6 +42,7 @@ frontend/public/mediapipe-*
 
 # Models
 frontend/public/models
+frontend/src/assets/models
 
 # Recordings
 recordings/

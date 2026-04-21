@@ -1009,7 +1009,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         className={`hs-task-preview-row ${task.completed ? 'completed' : idx === currentTaskIndex ? 'current' : ''}`}
                         onClick={e => { e.stopPropagation(); if (!task.completed && idx !== currentTaskIndex) return; toggleTaskCompletion(task.id); }}
                       >
-                        <input type="checkbox" checked={task.completed} disabled={!task.completed && idx !== currentTaskIndex} readOnly />
+                        <input type="checkbox" checked={task.completed} disabled={!task.completed && idx !== currentTaskIndex} readOnly onClick={e => e.stopPropagation()} />
                         <span>{task.label}</span>
                       </label>
                     ))}
