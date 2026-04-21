@@ -64,6 +64,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [hasRecorded, setHasRecorded] = useState(false);
   // Set of participant identities currently speaking
   const [speakingSet, setSpeakingSet] = useState<Set<string>>(new Set());
+  // Embedded BigScreen preview in sidebar
+  const [showBigScreenPreview, setShowBigScreenPreview] = useState(false);
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
@@ -715,6 +717,37 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     bigScreenWindowRef.current = win;
   }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId]);
 
+  // ─── Embedded BigScreen preview ────────────────────────────────────────────
+  // iframe 有獨立的 sessionStorage，透過 BroadcastChannel 補送完整狀態來同步
+  const syncBigScreenState = useCallback(() => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    ch.postMessage({ type: 'scene-change', sceneId: selectedSceneId } satisfies BigScreenMsg);
+    ch.postMessage({ type: 'task-change', tasks: selectedTasks } satisfies BigScreenMsg);
+    for (const [slotId, identity] of Object.entries(slotAssignments)) {
+      ch.postMessage({ type: 'slot-assign', slotId, identity } satisfies BigScreenMsg);
+    }
+    if (connectedRoom && teacherVrmSourceId) {
+      const identity = connectedRoom.localParticipant.identity;
+      const vrmUrl = (VRM_SOURCES[teacherVrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      ch.postMessage({ type: 'vrm-identity-change', identity, vrmUrl } satisfies BigScreenMsg);
+    }
+    for (const [identity, vrmSourceId] of Object.entries(studentRoles)) {
+      const vrmUrl = (VRM_SOURCES[vrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      ch.postMessage({ type: 'vrm-identity-change', identity, vrmUrl } satisfies BigScreenMsg);
+    }
+  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles]);
+
+  const toggleBigScreenPreview = useCallback(() => {
+    setShowBigScreenPreview(prev => {
+      if (!prev) {
+        // 延遲 1s 等 iframe 內的 BigScreen React app 掛載完成後再 sync
+        setTimeout(syncBigScreenState, 1000);
+      }
+      return !prev;
+    });
+  }, [syncBigScreenState]);
+
   // Ensure teacher's VRM is broadcasted when room connects initially
   useEffect(() => {
     if (connectedRoom && teacherVrmSourceId) {
@@ -808,6 +841,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           </button>
 
           <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
+
+          <button
+            className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--active' : ''}`}
+            onClick={toggleBigScreenPreview}
+            title={showBigScreenPreview ? '關閉大屏預覽' : '開啟大屏預覽'}
+          >
+            <span className="hs-action-icon">🖥️</span>
+            <span className="hs-action-label">預覽</span>
+            <span className={`hs-badge ${showBigScreenPreview ? 'hs-badge--on' : 'hs-badge--off'}`}>
+              {showBigScreenPreview ? 'ON' : 'OFF'}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1008,8 +1053,24 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             );
           })()}
 
+          {/* BigScreen embedded preview */}
+          {showBigScreenPreview && (
+            <div className="hs-preview-pane">
+              <div className="hs-preview-header">
+                <span className="hs-preview-title">🖥️ 大屏預覽</span>
+                <button className="hs-preview-close" onClick={toggleBigScreenPreview} title="關閉預覽">✕</button>
+              </div>
+              <iframe
+                className="hs-preview-iframe"
+                src={`${window.location.origin}/?screen=bigscreen`}
+                title="BigScreen Preview"
+                allow="camera; microphone"
+              />
+            </div>
+          )}
+
           {/* Video grid */}
-          <div className="hs-grid">
+          <div className={`hs-grid ${showBigScreenPreview ? 'hs-grid--with-preview' : ''}`}>
 
             {/* ── Teacher card ── */}
             {connectedRoom && (() => {
