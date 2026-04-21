@@ -1003,17 +1003,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     />
                   </div>
                   <div className="hs-task-preview-list">
-                    {selectedTasks.slice(0, 4).map((task, idx) => (
+                    {selectedTasks.map((task, idx) => (
                       <label
                         key={task.id}
                         className={`hs-task-preview-row ${task.completed ? 'completed' : idx === currentTaskIndex ? 'current' : ''}`}
-                        onClick={e => { e.stopPropagation(); toggleTaskCompletion(task.id); }}
+                        onClick={e => { e.stopPropagation(); if (!task.completed && idx !== currentTaskIndex) return; toggleTaskCompletion(task.id); }}
                       >
-                        <input type="checkbox" checked={task.completed} readOnly onClick={e => e.stopPropagation()} />
+                        <input type="checkbox" checked={task.completed} disabled={!task.completed && idx !== currentTaskIndex} readOnly />
                         <span>{task.label}</span>
                       </label>
                     ))}
-                    {selectedTasks.length > 4 && <div className="hs-task-more">+{selectedTasks.length - 4} 更多</div>}
+                    <div className="hs-task-more">+更多</div>
+                    {/* {selectedTasks.length > 4 && <div className="hs-task-more">+{selectedTasks.length - 4} 更多</div>} */}
                   </div>
                 </div>
               ) : (

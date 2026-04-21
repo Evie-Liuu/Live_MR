@@ -1676,7 +1676,7 @@ button:disabled {
   z-index: 2;
   width: 280px;
   background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(12px);
+  /* backdrop-filter: blur(12px); */
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 16px;
@@ -1709,6 +1709,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-top: 10px;
 }
 
 .bigscreen-task-item {
@@ -1718,6 +1719,15 @@ button:disabled {
   padding: 8px;
   border-radius: 12px;
   transition: all 0.3s ease;
+}
+
+.bigscreen-tasks-progress-header {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  text-align: center;
 }
 
 .bigscreen-task-status {
@@ -1734,6 +1744,14 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.bigscreen-tasks-progress-bg {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
 .bigscreen-task-label {
   font-size: 14px;
   color: #fff;
@@ -1742,19 +1760,11 @@ button:disabled {
   text-align: left;
 }
 
-.bigscreen-task-item.completed {
-  background: rgba(76, 175, 80, 0.1);
-  opacity: 0.6;
-}
-
-.bigscreen-task-item.completed .bigscreen-task-status {
-  background: #4caf50;
-  color: #fff;
-}
-
-.bigscreen-task-item.completed .bigscreen-task-label {
-  text-decoration: line-through;
-  color: rgba(255, 255, 255, 0.4);
+.bigscreen-tasks-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #533483, #e94560);
+  border-radius: 4px;
+  transition: width 0.5s ease;
 }
 
 /* ===== Current Task Focus (Top-Middle) ===== */
@@ -2888,11 +2898,12 @@ button:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 }
 
 .hs-task-preview-row.completed {
   color: rgba(255, 255, 255, 0.28);
-  text-decoration: line-through;
+  /* text-decoration: line-through; */
 }
 
 .hs-task-preview-row.current {

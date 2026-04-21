@@ -585,7 +585,7 @@ export default function BigScreen() {
 
       {activeTasks.length > 0 && (() => {
         const currentTask = activeTasks.find(t => !t.completed);
-        const otherTasks = activeTasks.filter(t => t.id !== currentTask?.id);
+        const otherTasks = activeTasks.filter(t => t.id !== currentTask?.id && !t.completed);
 
         return (
           <>
@@ -596,6 +596,15 @@ export default function BigScreen() {
             )}
 
             <div className="bigscreen-tasks-container">
+              <div className="bigscreen-tasks-progress-header">
+                對話進度 ({activeTasks.filter(t => t.completed).length}/{activeTasks.length})
+              </div>
+              <div className="bigscreen-tasks-progress-bg">
+                <div
+                  className="bigscreen-tasks-progress-fill"
+                  style={{ width: `${activeTasks.length > 0 ? (activeTasks.filter(t => t.completed).length / activeTasks.length) * 100 : 0}%` }}
+                />
+              </div>
               <div className="bigscreen-tasks-list">
                 {otherTasks.map((t, idx) => {
                   // Re-calculate the original index for display
@@ -606,7 +615,7 @@ export default function BigScreen() {
                       className={`bigscreen-task-item ${t.completed ? 'completed' : ''}`}
                     >
                       <div className="bigscreen-task-status">
-                        {t.completed ? '✓' : originalIndex + 1}
+                        {t.completed ? '✓' : '?'}
                       </div>
                       <div className="bigscreen-task-label">{t.label}</div>
                     </div>
@@ -692,6 +701,6 @@ export default function BigScreen() {
       <PerformanceMonitor label="Render FPS" position="top-right" />
       <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
       {showStats && statsData && <StatsPanel data={statsData} />}
-    </div>
+    </div >
   );
 }
