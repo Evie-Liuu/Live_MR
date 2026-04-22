@@ -61,10 +61,11 @@ uniform float uTime;
     );
 
     // Inject rim contribution after the final colour resolve.
+    // Three.js r163+ renamed output_fragment → opaque_fragment.
     shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <output_fragment>',
+      '#include <opaque_fragment>',
       /* glsl */`
-#include <output_fragment>
+#include <opaque_fragment>
 if (uRimEnabled > 0.5) {
   // vNormal and vViewPosition are both in view-space.
   vec3  N   = normalize(vNormal);
@@ -72,7 +73,7 @@ if (uRimEnabled > 0.5) {
   float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.5);
   float pulse = 0.55 + 0.45 * sin(uTime * 3.0);
   // Cyan-white electric edge: tweak RGB to taste.
-  gl_FragColor.rgb += vec3(0.15, 0.85, 1.0) * rim * 2.0 * pulse;
+  gl_FragColor.rgb += vec3(0.35, 0.35, 0.0) * rim * 2.0 * pulse;
 }
 `,
     );
@@ -113,15 +114,22 @@ export function highlightProp(
     for (const mat of mats) {
       const m = mat as THREE.MeshStandardMaterial;
       if (!m.isMeshStandardMaterial) continue;
+// if (enabled) {
+//         m.emissive.setRGB(1, 0.8, 0.2);
+//         m.emissiveIntensity = 0.3 + 0.35 * Math.sin(elapsedTime * 1.5);
+//       } else {
+//         m.emissiveIntensity = 0;
+//       }
       if (enabled) {
-        m.emissive.setRGB(1, 0.8, 0.2);
-        m.emissiveIntensity = 0.3 + 0.35 * Math.sin(elapsedTime * 1.5);
+        const u = ensureFresnelPatch(m);
+        u.uRimEnabled.value = 1;
+        u.uTime.value = elapsedTime;
       } else {
-        m.emissiveIntensity = 0;
+        // Only update uniforms if the patch was already applied — avoids
+        // triggering a shader recompile just to turn off a rim that was never on.
+        const u = _fresnelUniformsMap.get(m);
+        if (u) u.uRimEnabled.value = 0;
       }
-      // const u = ensureFresnelPatch(m);
-      // u.uRimEnabled.value = enabled ? 1 : 0;
-      // u.uTime.value = elapsedTime;
     }
   });
 }
