@@ -339,7 +339,21 @@ export function useBigScreenScene(
           if (ia.propState === 'displayed') {
             // Only highlight when no other slot is currently holding this prop;
             // otherwise a later slot would re-enable the glow on an already-held prop.
-            if (!heldByIdentityRef.current.has(taskId)) {
+            const heldBy = heldByIdentityRef.current.get(taskId);
+            const isHolderActive = heldBy ? avatarsRef.current.has(heldBy) : false;
+
+            // Self-heal if the holder left the room without dropping the prop
+            if (heldBy && !isHolderActive) {
+              heldByIdentityRef.current.delete(taskId);
+              // Snap orphaned prop back to display pos
+              const dpCfg = presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
+              if (dpCfg) _displayPosVec.set(...dpCfg), prop.position.copy(_displayPosVec);
+            }
+
+            console.log(heldBy);
+            console.log(isHolderActive);
+
+            if (!heldBy || !isHolderActive) {
               highlightProp(prop, true, elapsedRef.current);
             }
 

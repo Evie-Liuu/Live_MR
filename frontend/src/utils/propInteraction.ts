@@ -14,7 +14,7 @@ const _offsetVec = new THREE.Vector3();
 /** Per-material uniforms injected by ensureFresnelPatch(). */
 interface FresnelUniforms {
   uRimEnabled: { value: number };
-  uTime:       { value: number };
+  uTime: { value: number };
 }
 
 /**
@@ -42,13 +42,13 @@ function ensureFresnelPatch(mat: THREE.MeshStandardMaterial): FresnelUniforms {
 
   const uniforms: FresnelUniforms = {
     uRimEnabled: { value: 0 },
-    uTime:       { value: 0 },
+    uTime: { value: 0 },
   };
 
   mat.onBeforeCompile = (shader) => {
     // Expose uniforms to the shader.
     shader.uniforms.uRimEnabled = uniforms.uRimEnabled;
-    shader.uniforms.uTime       = uniforms.uTime;
+    shader.uniforms.uTime = uniforms.uTime;
 
     // Declare uniforms at the top of the fragment shader.
     shader.fragmentShader = shader.fragmentShader.replace(
@@ -115,13 +115,13 @@ export function highlightProp(
       if (!m.isMeshStandardMaterial) continue;
       if (enabled) {
         m.emissive.setRGB(1, 0.8, 0.2);
-        m.emissiveIntensity = 0.4 + 0.35 * Math.sin(elapsedTime * 2.5);
+        m.emissiveIntensity = 0.3 + 0.35 * Math.sin(elapsedTime * 1.5);
       } else {
         m.emissiveIntensity = 0;
       }
       // const u = ensureFresnelPatch(m);
       // u.uRimEnabled.value = enabled ? 1 : 0;
-      // u.uTime.value       = elapsedTime;
+      // u.uTime.value = elapsedTime;
     }
   });
 }

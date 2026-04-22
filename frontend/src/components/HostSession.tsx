@@ -418,6 +418,14 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     [broadcastTaskChange],
   );
 
+  const resetAllTasks = useCallback(() => {
+    setSelectedTasks((prev) => {
+      const next = prev.map((t) => ({ ...t, completed: false }));
+      broadcastTaskChange(next);
+      return next;
+    });
+  }, [broadcastTaskChange]);
+
   // ─── Drag-to-reorder for 已選任務 ────────────────────────────────────────
   const dragIndexRef = useRef<number | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ index: number; position: 'before' | 'after' } | null>(null);
@@ -1013,7 +1021,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         <span>{task.label}</span>
                       </label>
                     ))}
-                    <div className="hs-task-more">+更多</div>
+                    <div className="hs-task-reset" onClick={(e) => { e.stopPropagation(); resetAllTasks(); }}>↺ 重置全部</div>
+                    {/* <div className="hs-task-more">+更多</div> */}
                     {/* {selectedTasks.length > 4 && <div className="hs-task-more">+{selectedTasks.length - 4} 更多</div>} */}
                   </div>
                 </div>
