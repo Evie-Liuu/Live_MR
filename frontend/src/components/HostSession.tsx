@@ -166,6 +166,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     channelRef,
   );
 
+  // Keep a ref so event-handler closures (handleDataReceived) can read latest muteState
+  const muteStateRef = useRef<Record<string, { audio: boolean; video: boolean }>>({});
+  useEffect(() => { muteStateRef.current = muteState; }, [muteState]);
+
   // Track if recording was ever started this session
   useEffect(() => {
     if (isRecording) setHasRecorded(true);
@@ -618,6 +622,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       if (!participant) return;
       try {
         const data = decodePoseFrame(payload);
+
+        // If the student's camera is off, skip pose forwarding to preview/BigScreen
+        const isCameraOff = muteStateRef.current[participant.identity]?.video === true;
+        if (isCameraOff) return;
 
         updateParticipant(participant.identity, (info) => ({
           ...info,
