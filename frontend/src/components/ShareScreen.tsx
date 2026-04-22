@@ -18,16 +18,16 @@ export default function ShareScreen() {
       <div style={{ fontSize: '32px', marginBottom: '8px' }}>📱</div>
       <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '4px' }}>分享房間</div>
       <div style={{ fontSize: '14px', color: '#aaa', marginBottom: '32px' }}>邀請學生加入課堂</div>
-      
+
       <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', marginBottom: '32px' }}>
         <QRCodeSVG value={shareUrl} size={220} />
       </div>
-      
+
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
         <div style={{ color: '#7788ff', fontSize: '14px', fontWeight: 800, letterSpacing: '1px', marginBottom: '4px' }}>房間 ID</div>
-        <div style={{ color: '#fff', fontSize: '28px', fontWeight: 800 }}>{roomId}</div>
+        <div style={{ color: '#fff', fontSize: '18px', fontWeight: 800 }}>{roomId}</div>
       </div>
-      
+
       <button
         style={{
           background: '#44aaff', color: 'white', border: 'none', padding: '14px 28px',

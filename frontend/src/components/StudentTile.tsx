@@ -27,10 +27,16 @@ export default function StudentTile({
   const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId })
   const [_, setVideoSize] = useState({ width: 320, height: 240 })
 
+  const isCameraOff = muteState?.video === true
+
   // Attach video track
   useEffect(() => {
     const el = videoRef.current
-    if (!el || !videoTrack?.track) return
+    if (!el) return
+    if (!videoTrack?.track || isCameraOff) {
+      el.srcObject = null
+      return
+    }
     const mediaTrack = videoTrack.track.mediaStreamTrack
     const stream = new MediaStream([mediaTrack])
     el.srcObject = stream
@@ -44,21 +50,61 @@ export default function StudentTile({
       el.srcObject = null
       el.removeEventListener('loadedmetadata', handleLoadedMetadata)
     }
-  }, [videoTrack])
+  }, [videoTrack, isCameraOff])
 
   // Apply pose data to VRM
   useEffect(() => {
-    if (poseData) applyPose(poseData)
-  }, [poseData, applyPose])
+    if (poseData && !isCameraOff) applyPose(poseData)
+  }, [poseData, applyPose, isCameraOff])
 
   return (
     <div className="student-tile" style={{ position: 'relative' }}>
-      <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="tile-video"
+        style={{ display: isCameraOff ? 'none' : 'block' }}
+      />
+      {isCameraOff && (
+        <div
+          className="camera-off-placeholder"
+          style={{
+            width: '100%',
+            height: '100%',
+            background: '#1a1a2e',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: 6,
+            color: '#888',
+            fontSize: 13,
+          }}
+        >
+          {/* 鏡頭關閉且無 VRM 才顯示圖示文字 */}
+          {vrmSourceId === null && (
+            <>
+              <span style={{ fontSize: 28 }}>📷</span>
+              <span>鏡頭已關閉</span>
+            </>
+          )}
+        </div>
+      )}
+      {/* VRM canvas 永遠疊在最上層，不論鏡頭狀態 */}
       {vrmSourceId !== null && (
         <canvas
           ref={canvasRef}
           className="avatar-canvas"
-          style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            opacity: 0.9,
+          }}
         />
       )}
       <div

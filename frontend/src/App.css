@@ -1530,6 +1530,12 @@ button:disabled {
   width: 860px;
 }
 
+@media (max-width: 768px) {
+  .panel-drawer--wide {
+    width: 100%;
+  }
+}
+
 .panel-drawer-header {
   display: flex;
   align-items: center;
