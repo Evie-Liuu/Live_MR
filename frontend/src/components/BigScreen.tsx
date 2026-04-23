@@ -146,6 +146,14 @@ export default function BigScreen() {
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
   const [hasRecorded, setHasRecorded] = useState(false);
 
+  // Refs for recording overlay rendering (always reflect current state)
+  const activeTasksRef = useRef<TaskEntry[]>(activeTasks);
+  useEffect(() => { activeTasksRef.current = activeTasks; }, [activeTasks]);
+  const showSettlementRef = useRef(showSettlement);
+  useEffect(() => { showSettlementRef.current = showSettlement; }, [showSettlement]);
+  const hasRecordedRef = useRef(hasRecorded);
+  useEffect(() => { hasRecordedRef.current = hasRecorded; }, [hasRecorded]);
+
   // Flush pose count to state every 1 s so PerformanceMonitor count-mode can compute rate.
   useEffect(() => {
     const id = setInterval(() => {
@@ -183,6 +191,303 @@ export default function BigScreen() {
   const recordingSessionIdRef = useRef<string | null>(null)
   const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
   const recordingRafRef = useRef<number | null>(null)
+
+  /** Draw a rounded-rect path without relying on ctx.roundRect (avoid TS lib gaps). */
+  const rrPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+  };
+
+  /**
+   * Paint the Overlay UI Layer and Settlement overlay onto the recording canvas.
+   * Reads exclusively from refs so any render cycle's drawFrame gets fresh data.
+   */
+  const _drawOverlayOnCanvas = (ctx: CanvasRenderingContext2D, cw: number, ch: number) => {
+    const tasks = activeTasksRef.current;
+    const settlement = showSettlementRef.current;
+    ctx.save();
+
+    // ── 1. Top pill (bigscreen-overlay) ──────────────────────────────────────
+    const titleText = 'Live MR — 大屏顯示';
+    const sceneLabel = SCENE_PRESETS[sceneIdRef.current]?.label ?? '';
+    ctx.font = '600 15px system-ui, sans-serif';
+    const titleW = ctx.measureText(titleText).width;
+    ctx.font = '12px system-ui, sans-serif';
+    const labelW = sceneLabel ? ctx.measureText(sceneLabel).width : 0;
+    const pillPad = 24;
+    const pillH = 34;
+    const pillW = pillPad + titleW + (sceneLabel ? 10 + labelW : 0) + pillPad;
+    const pillX = (cw - pillW) / 2;
+    const pillY = 16;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    rrPath(ctx, pillX, pillY, pillW, pillH, 17);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    rrPath(ctx, pillX, pillY, pillW, pillH, 17);
+    ctx.stroke();
+
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '600 15px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(titleText, pillX + pillPad, pillY + pillH / 2);
+    if (sceneLabel) {
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillText(sceneLabel, pillX + pillPad + titleW + 10, pillY + pillH / 2);
+    }
+
+    // ── 2. Current-task box (bigscreen-current-task-container) ────────────────
+    const currentTask = tasks.find(t => !t.completed);
+    if (currentTask) {
+      ctx.font = '800 24px system-ui, sans-serif';
+      const maxLW = Math.min(cw * 0.8, 860);
+      const boxW = Math.max(480, Math.min(ctx.measureText(currentTask.label).width + 80, maxLW + 80));
+      const boxH = 80;
+      const boxX = (cw - boxW) / 2;
+      const boxY = 96;
+
+      ctx.fillStyle = 'rgba(15,23,42,0.8)';
+      rrPath(ctx, boxX, boxY, boxW, boxH, 24);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      rrPath(ctx, boxX, boxY, boxW, boxH, 24);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(currentTask.label, cw / 2, boxY + boxH / 2, maxLW);
+      ctx.textAlign = 'left';
+    }
+
+    // ── 3. Tasks panel (bigscreen-tasks-container, top-right) ─────────────────
+    if (tasks.length > 0) {
+      const completedCount = tasks.filter(t => t.completed).length;
+      const otherTasks = tasks.filter(t => t.id !== currentTask?.id && !t.completed);
+      const panelW = 280;
+      const pad = 16;
+      const itemH = 32;
+      const panelX = cw - 24 - panelW;
+      const panelY = 96;
+      const panelH = pad + 22 + 12 + 8 + 12 + (otherTasks.length > 0 ? otherTasks.length * itemH + 10 : 0) + pad;
+
+      ctx.fillStyle = 'rgba(15,23,42,0.5)';
+      rrPath(ctx, panelX, panelY, panelW, panelH, 20);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
+      rrPath(ctx, panelX, panelY, panelW, panelH, 20);
+      ctx.stroke();
+
+      let ry = panelY + pad;
+
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '600 13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`對話進度 (${completedCount}/${tasks.length})`, panelX + panelW / 2, ry);
+      ry += 22 + 12;
+
+      const barX = panelX + pad;
+      const barW = panelW - pad * 2;
+      const barH = 8;
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      rrPath(ctx, barX, ry, barW, barH, 4);
+      ctx.fill();
+      const ratio = tasks.length > 0 ? completedCount / tasks.length : 0;
+      if (ratio > 0) {
+        ctx.fillStyle = '#6366f1';
+        rrPath(ctx, barX, ry, barW * ratio, barH, 4);
+        ctx.fill();
+      }
+      ry += barH + 12;
+
+      ctx.textAlign = 'left';
+      for (const t of otherTasks) {
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.beginPath();
+        ctx.arc(panelX + pad + 11, ry + 11, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('?', panelX + pad + 11, ry + 11);
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(t.label, panelX + pad + 22 + 8, ry + 11, panelW - pad - 22 - 8 - pad);
+        ry += itemH;
+      }
+    }
+
+    // ── 4. Settlement overlay (bs-settlement-overlay) ─────────────────────────
+    if (settlement) {
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.fillRect(0, 0, cw, ch);
+
+      const pw = Math.min(900, cw * 0.9);
+      const ph = Math.min(580, ch * 0.85);
+      const px = (cw - pw) / 2;
+      const py = (ch - ph) / 2;
+
+      ctx.fillStyle = 'rgba(8,8,28,0.97)';
+      rrPath(ctx, px, py, pw, ph, 28);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(200,200,255,0.15)';
+      ctx.lineWidth = 1;
+      rrPath(ctx, px, py, pw, ph, 28);
+      ctx.stroke();
+
+      let sy = py + 40;
+
+      ctx.font = '48px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText('🏆', cw / 2, sy);
+      sy += 60;
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 30px system-ui, sans-serif';
+      ctx.fillText('情境對話結束', cw / 2, sy);
+      sy += 42;
+
+      ctx.fillStyle = '#7788ff';
+      ctx.font = '600 14px system-ui, sans-serif';
+      ctx.fillText('所有任務已完成！', cw / 2, sy);
+      sy += 36;
+
+      ctx.strokeStyle = 'rgba(119,136,255,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px + 44, sy);
+      ctx.lineTo(px + pw - 44, sy);
+      ctx.stroke();
+      sy += 16;
+
+      // Three columns
+      const colPad = 44;
+      const colGap = 24;
+      const totalW = pw - colPad * 2 - colGap * 2;
+      const unitW = totalW / 3.5;
+      const col1W = unitW, col2W = unitW, col3W = unitW * 1.5;
+      const col1X = px + colPad, col2X = col1X + col1W + colGap, col3X = col2X + col2W + colGap;
+
+      const drawColTitle = (text: string, x: number, w: number) => {
+        ctx.fillStyle = '#7788ff';
+        ctx.font = '800 11px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(text, x, sy);
+        ctx.strokeStyle = 'rgba(119,136,255,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, sy + 18);
+        ctx.lineTo(x + w, sy + 18);
+        ctx.stroke();
+      };
+      drawColTitle('👥 參與人員', col1X, col1W);
+      drawColTitle('🎬 錄製', col2X, col2W);
+      drawColTitle('📋 任務清單', col3X, col3W);
+
+      let rowY = sy + 28;
+
+      // Col 1: Participants
+      const participants = Array.from(participantNamesRef.current.entries());
+      if (participants.length === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText('—', col1X, rowY);
+      } else {
+        let iy = rowY;
+        for (const [identity, name] of participants) {
+          const isHost = identity.startsWith('host-');
+          ctx.fillStyle = isHost ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.06)';
+          rrPath(ctx, col1X, iy, col1W, 28, 8);
+          ctx.fill();
+          ctx.fillStyle = isHost ? '#818cf8' : '#e2e8f0';
+          ctx.font = '13px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`${isHost ? '👨‍🏫' : '👤'} ${name}`, col1X + 8, iy + 14, col1W - 16);
+          iy += 34;
+        }
+      }
+
+      // Col 2: Recording status
+      const isRecording = mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      if (isRecording) {
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(col2X + 8, rowY + 10, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = '14px system-ui, sans-serif';
+        ctx.fillText('錄製中', col2X + 20, rowY + 10);
+      } else if (hasRecordedRef.current) {
+        ctx.fillStyle = '#4ade80';
+        ctx.font = '14px system-ui, sans-serif';
+        ctx.fillText('✓ 已保存錄製', col2X, rowY + 10);
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '14px system-ui, sans-serif';
+        ctx.fillText('✕ 無錄製', col2X, rowY + 10);
+      }
+
+      // Col 3: Task list
+      let ty = rowY;
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i];
+        const isDone = task.completed;
+        ctx.fillStyle = isDone ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)';
+        rrPath(ctx, col3X, ty, col3W, 28, 8);
+        ctx.fill();
+        ctx.strokeStyle = isDone ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        rrPath(ctx, col3X, ty, col3W, 28, 8);
+        ctx.stroke();
+
+        ctx.fillStyle = isDone ? '#4ade80' : 'rgba(255,255,255,0.15)';
+        ctx.beginPath();
+        ctx.arc(col3X + 16, ty + 14, 11, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = isDone ? '#052e16' : '#fff';
+        ctx.font = '700 11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(i + 1), col3X + 16, ty + 14);
+
+        ctx.fillStyle = isDone ? '#4ade80' : 'rgba(255,255,255,0.85)';
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(task.label, col3X + 32, ty + 14, col3W - 56);
+
+        ctx.fillStyle = isDone ? '#4ade80' : 'rgba(255,255,255,0.25)';
+        ctx.textAlign = 'right';
+        ctx.fillText(isDone ? '✓' : '✕', col3X + col3W - 8, ty + 14);
+
+        ty += 34;
+      }
+    }
+
+    ctx.restore();
+  };
 
   const startCompositeStream = (sourceCanvas: HTMLCanvasElement): MediaStream => {
     const compositeCanvas = document.createElement('canvas');
@@ -251,6 +556,9 @@ export default function BigScreen() {
 
       // 2. Draw 3D Canvas
       ctx.drawImage(sourceCanvas, 0, 0, cw, ch);
+
+      // 3. Draw Overlay UI Layer + Settlement overlay
+      _drawOverlayOnCanvas(ctx, cw, ch);
 
       recordingRafRef.current = requestAnimationFrame(drawFrame);
     };
@@ -340,6 +648,53 @@ export default function BigScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once after mount
+
+  const stopRecordingAndUpload = () => {
+    const mr = mediaRecorderRef.current
+    if (recordingRafRef.current) {
+      cancelAnimationFrame(recordingRafRef.current)
+      recordingRafRef.current = null
+    }
+    if (!mr || mr.state === 'inactive') return
+    mr.onstop = async () => {
+      const blob = new Blob(recordingChunksRef.current, { type: 'video/webm' })
+      const sessionId = recordingSessionIdRef.current
+      const roomId = roomIdRef.current
+      if (!sessionId || !roomId) {
+        console.warn('[BigScreen] Cannot upload: missing sessionId or roomId')
+        return
+      }
+      // Audio is recorded server-side per-participant; this blob is video-only.
+      try {
+        const res = await fetch(`/api/rooms/${roomId}/recording/bigscreen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'video/webm', 'X-Session-Id': sessionId },
+          body: blob,
+        })
+        if (!res.ok) console.error('[BigScreen] Upload failed:', res.status)
+      } catch (err) {
+        console.error('[BigScreen] Failed to upload recording:', err)
+      }
+      mediaRecorderRef.current = null
+      recordingChunksRef.current = []
+      recordingSessionIdRef.current = null
+    }
+    mr.stop()
+  }
+  const stopRecordingAndUploadRef = useRef(stopRecordingAndUpload)
+  stopRecordingAndUploadRef.current = stopRecordingAndUpload
+
+  // Auto-stop recording 3 s after the settlement overlay appears,
+  // so the overlay is captured in the video before the stream closes.
+  useEffect(() => {
+    if (!showSettlement) return
+    const mr = mediaRecorderRef.current
+    if (!mr || mr.state === 'inactive') return
+    const timer = setTimeout(() => {
+      stopRecordingAndUploadRef.current()
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [showSettlement])
 
   // Listen for ongoing pose/leave/scene-change updates
   useEffect(() => {
@@ -498,40 +853,7 @@ export default function BigScreen() {
           console.error('[BigScreen] Failed to start canvas recording:', err)
         }
       } else if (msg.type === 'recording-stop') {
-        const mr = mediaRecorderRef.current
-        if (recordingRafRef.current) {
-          cancelAnimationFrame(recordingRafRef.current)
-          recordingRafRef.current = null
-        }
-        if (!mr || mr.state === 'inactive') return
-        mr.onstop = async () => {
-          const blob = new Blob(recordingChunksRef.current, { type: 'video/webm' })
-          const sessionId = recordingSessionIdRef.current
-          const roomId = roomIdRef.current
-          if (!sessionId || !roomId) {
-            console.warn('[BigScreen] Cannot upload: missing sessionId or roomId')
-            return
-          }
-          // Audio is recorded server-side per-participant; this blob is video-only.
-          // Note: no size limit — assumes sessions are under ~10 minutes per design.
-          try {
-            const res = await fetch(`/api/rooms/${roomId}/recording/bigscreen`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'video/webm',
-                'X-Session-Id': sessionId,
-              },
-              body: blob,
-            })
-            if (!res.ok) console.error('[BigScreen] Upload failed:', res.status)
-          } catch (err) {
-            console.error('[BigScreen] Failed to upload recording:', err)
-          }
-          mediaRecorderRef.current = null
-          recordingChunksRef.current = []
-          recordingSessionIdRef.current = null
-        }
-        mr.stop()
+        stopRecordingAndUploadRef.current()
       }
     };
 
