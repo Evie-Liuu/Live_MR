@@ -126,7 +126,7 @@ export function solveWithKalidokit(
     normalizedLandmarks as Array<{ x: number; y: number; z: number; visibility?: number }>,
     {
       runtime: 'mediapipe',
-      enableLegs: true,
+      enableLegs: false,
     },
   ) as KalidokitPoseResult | undefined
 
