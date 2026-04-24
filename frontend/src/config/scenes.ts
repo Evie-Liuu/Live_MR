@@ -154,16 +154,16 @@ export const THEMES: ThemeConfig[] = [
           policy: 'auto-swap',
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
-            { id: 'cashier_counter', url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [2.5, -0.7, -1], rotation: [0, Math.PI / 30, 0], scale: 1.0 },
-            { id: 'rack', url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 1.0 },
+            { id: 'cashier_counter', url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [3.0, -0.65, -1], rotation: [0, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'rack', url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
-            'ask_price_1': { url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
-            'ask_price_2': { url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
-            'ask_price_3': { url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
-            'ask_price_4': { url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
-            'ask_price_5': { url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.22, -3], rotation: [0, Math.PI / 2, 0] },
+            'ask_price_1': { url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'ask_price_2': { url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'ask_price_3': { url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'ask_price_4': { url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'ask_price_5': { url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
           },
         },
       },
@@ -248,10 +248,13 @@ const CLOTHING_STORE_BASE: Omit<SceneConfig, 'id' | 'label' | 'slots' | 'allowed
     { type: 'directional', color: 0xffffff, intensity: 0.9, position: [0, 4, 10], target: [0, 0, 0] },
     { type: 'directional', color: 0x8888ff, intensity: 0.6, position: [0.5, 2, 0.5], target: [-3, 0, -3] },
   ],
-  backgroundType: 'image',
-  backgroundValue: '/images/clothingStore.png',
+  // backgroundType: 'image',
+  // backgroundValue: '/images/clothingStore.png',
+  backgroundType: 'video',
+  backgroundValue: '/video/clothingStore.mp4',
+  videoLoopInterval: 5, // Replay every 5 seconds after video ends
   grid: { size: 20, divisions: 20, color: 0x2a2a4a },
-  avatarDefaults: { position: [0, 0, 0], scale: 1 },
+  avatarDefaults: { position: [0, 0, 0], scale: 1.2 },
   avatarSpacing: 1.6,
 };
 

@@ -45,6 +45,45 @@ export interface BigScreenMsg {
  *
  * Scene preset can be switched at runtime via a 'scene-change' message.
  */
+// ─── Video Background Sub-Component ───────────────────────────────────────────
+function VideoBackground({ src, interval }: { src: string; interval?: number }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Reset video when src changes
+    video.currentTime = 0;
+    
+    if (interval === undefined || interval <= 0) {
+      video.loop = true;
+      video.play().catch(() => {/* ignore */});
+      return;
+    }
+
+    video.loop = false;
+    
+    const handleEnded = () => {
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.play().catch(() => {/* ignore */});
+        }
+      }, interval * 1000);
+    };
+
+    video.addEventListener('ended', handleEnded);
+    video.play().catch(() => {/* ignore */});
+
+    return () => {
+      video.removeEventListener('ended', handleEnded);
+    };
+  }, [src, interval]);
+
+  return <video ref={videoRef} src={src} muted playsInline />;
+}
+
 // ─── Camera Background Sub-Component ──────────────────────────────────────────
 function CameraBackground() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -715,7 +754,7 @@ export default function BigScreen() {
     const timer = setTimeout(() => {
       // Pass notifyDone as onDone so it runs after upload completes
       stopRecordingAndUploadRef.current(notifyDone)
-    }, 3000)
+    }, 2000)
     return () => {
       clearTimeout(timer)
       channelForDone.close()
@@ -913,7 +952,7 @@ export default function BigScreen() {
             <img src={currentPreset.backgroundValue} alt="Background" />
           )}
           {currentPreset.backgroundType === 'video' && currentPreset.backgroundValue && (
-            <video src={currentPreset.backgroundValue} autoPlay loop muted playsInline />
+            <VideoBackground src={currentPreset.backgroundValue} interval={currentPreset.videoLoopInterval} />
           )}
           {currentPreset.backgroundType === 'camera' && <CameraBackground />}
         </div>

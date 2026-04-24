@@ -75,6 +75,8 @@ export interface SceneConfig {
   backgroundType?: 'image' | 'video' | 'camera' | 'color' | 'none';
   /** Value for the background: URL for image/video, or CSS color string for color */
   backgroundValue?: string;
+  /** Replay interval for video backgrounds (seconds). If set, video will wait this long before looping. */
+  videoLoopInterval?: number;
   /** Floor grid: true = default 20×20, or explicit size/divisions */
   grid?: boolean | { size: number; divisions: number; color?: number };
   /** Restricted list of allowed VRM source IDs for this scene. If undefined, all are allowed. */
