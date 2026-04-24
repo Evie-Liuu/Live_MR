@@ -55,26 +55,26 @@ function VideoBackground({ src, interval }: { src: string; interval?: number }) 
 
     // Reset video when src changes
     video.currentTime = 0;
-    
+
     if (interval === undefined || interval <= 0) {
       video.loop = true;
-      video.play().catch(() => {/* ignore */});
-      return;
+      video.play().catch(() => {/* ignore */ });
+      return
     }
 
     video.loop = false;
-    
+
     const handleEnded = () => {
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.currentTime = 0;
-          videoRef.current.play().catch(() => {/* ignore */});
+          videoRef.current.play().catch(() => {/* ignore */ });
         }
       }, interval * 1000);
     };
 
     video.addEventListener('ended', handleEnded);
-    video.play().catch(() => {/* ignore */});
+    video.play().catch(() => {/* ignore */ });
 
     return () => {
       video.removeEventListener('ended', handleEnded);
@@ -313,6 +313,39 @@ export default function BigScreen() {
       ctx.fillText(currentTask.label, cw / 2, boxY + boxH / 2, maxLW);
       ctx.textAlign = 'left';
     }
+
+    // ── 2.5. Recording Indicator ──────────────────────────────────────────────
+    // const isCanvasRecording = mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive';
+    // if (isCanvasRecording) {
+    //   const recText = '錄製中';
+    //   ctx.font = 'bold 16px system-ui, sans-serif';
+    //   const recTextW = ctx.measureText(recText).width;
+    //   const recPad = 16;
+    //   const recW = recPad + 10 + 8 + recTextW + recPad;
+    //   const recH = 36;
+    //   const recX = cw - recW - 30; // 30px from right
+    //   const recY = 20; // 20px from top
+
+    //   ctx.fillStyle = 'rgba(15,23,42,0.7)';
+    //   rrPath(ctx, recX, recY, recW, recH, 18);
+    //   ctx.fill();
+    //   ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    //   ctx.lineWidth = 1;
+    //   rrPath(ctx, recX, recY, recW, recH, 18);
+    //   ctx.stroke();
+
+    //   const t = performance.now();
+    //   const pulse = Math.sin(t / 200) * 0.5 + 0.5;
+    //   ctx.fillStyle = `rgba(239, 68, 68, ${0.5 + pulse * 0.5})`;
+    //   ctx.beginPath();
+    //   ctx.arc(recX + recPad + 5, recY + recH / 2, 5, 0, Math.PI * 2);
+    //   ctx.fill();
+
+    //   ctx.fillStyle = '#ef4444';
+    //   ctx.textAlign = 'left';
+    //   ctx.textBaseline = 'middle';
+    //   ctx.fillText(recText, recX + recPad + 18, recY + recH / 2);
+    // }
 
     // ── 3. Tasks panel (bigscreen-tasks-container, top-right) ─────────────────
     if (tasks.length > 0) {
@@ -970,6 +1003,32 @@ export default function BigScreen() {
         <span className="bigscreen-title">Live MR — 大屏顯示</span>
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
+
+      {isActivelyRecording && (
+        <div
+          className="bigscreen-recording-indicator"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '30px',
+            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            padding: '8px 16px',
+            borderRadius: '18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            color: '#ef4444',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            zIndex: 100,
+            backdropFilter: 'blur(4px)'
+          }}
+        >
+          <span className="recording-dot" />
+          錄製中
+        </div>
+      )}
 
       {activeTasks.length > 0 && (() => {
         const currentTask = activeTasks.find(t => !t.completed);
