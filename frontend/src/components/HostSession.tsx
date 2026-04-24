@@ -175,15 +175,52 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (isRecording) setHasRecorded(true);
   }, [isRecording]);
 
-  // Force stop recording when all tasks are completed
+  // Keep a stable ref to stop() so the channel handler always calls the latest closure
+  const stopRef = useRef(stop);
+  useEffect(() => { stopRef.current = stop; }, [stop]);
+
+  // Stop recording after BigScreen has finished capturing the settlement overlay.
+  // BigScreen broadcasts 'settlement-done' after its own recording stops (≈3 s after
+  // the settlement panel appears). We listen for that signal here and stop the backend
+  // recording only then, so the settlement overlay is included in the video.
+  //
+  // Fallback: if BigScreen is not open (or sends the signal before we set up the
+  // listener), we fall back to stopping 5 s after all tasks are done, which gives
+  // BigScreen enough time to show and record the settlement panel.
   useEffect(() => {
-    if (selectedTasks.length > 0) {
-      const allDone = selectedTasks.every(t => t.completed);
-      if (allDone && isRecording) {
-        stop();
+    if (selectedTasks.length === 0) return;
+    const allDone = selectedTasks.every(t => t.completed);
+    if (!allDone || !isRecording) return;
+
+    let stopped = false;
+    const doStop = () => {
+      if (stopped) return;
+      stopped = true;
+      stopRef.current();
+    };
+
+    // Listen for BigScreen's settlement-done signal on the same BroadcastChannel
+    const settlementChannel = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME);
+    settlementChannel.onmessage = (ev: MessageEvent<BigScreenMsg>) => {
+      if (ev.data?.type === 'settlement-done') {
+        doStop();
+        settlementChannel.close();
+        clearTimeout(fallbackTimer);
       }
-    }
-  }, [selectedTasks, isRecording, stop]);
+    };
+
+    // Fallback: stop after 5 s if BigScreen never responds
+    // (e.g. BigScreen window is not open, or no canvas recording was started)
+    const fallbackTimer = setTimeout(() => {
+      doStop();
+      settlementChannel.close();
+    }, 5000);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      settlementChannel.close();
+    };
+  }, [selectedTasks, isRecording]);
 
   // Broadcast scene/VRM changes to any open BigScreen window
   const broadcastSceneChange = useCallback((sceneId: string) => {

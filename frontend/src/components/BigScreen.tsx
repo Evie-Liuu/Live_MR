@@ -15,7 +15,7 @@ export interface TaskEntry {
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -145,6 +145,8 @@ export default function BigScreen() {
   const poseCountRef = useRef(0);
   const [poseUpdateCount, setPoseUpdateCount] = useState(0);
   const [hasRecorded, setHasRecorded] = useState(false);
+  // Reactive flag for settlement panel rendering (mediaRecorderRef is a ref, won't trigger re-render)
+  const [isActivelyRecording, setIsActivelyRecording] = useState(false);
 
   // Refs for recording overlay rendering (always reflect current state)
   const activeTasksRef = useRef<TaskEntry[]>(activeTasks);
@@ -592,6 +594,7 @@ export default function BigScreen() {
             }
             mr.start(1000)
             mediaRecorderRef.current = mr
+            setIsActivelyRecording(true)
           } catch (err) {
             console.error('[BigScreen] Failed to restore canvas recording on mount:', err)
           }
@@ -649,19 +652,25 @@ export default function BigScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once after mount
 
-  const stopRecordingAndUpload = () => {
+  const stopRecordingAndUpload = (onDone?: () => void) => {
     const mr = mediaRecorderRef.current
     if (recordingRafRef.current) {
       cancelAnimationFrame(recordingRafRef.current)
       recordingRafRef.current = null
     }
-    if (!mr || mr.state === 'inactive') return
+    if (!mr || mr.state === 'inactive') {
+      setIsActivelyRecording(false)
+      onDone?.()
+      return
+    }
     mr.onstop = async () => {
       const blob = new Blob(recordingChunksRef.current, { type: 'video/webm' })
       const sessionId = recordingSessionIdRef.current
       const roomId = roomIdRef.current
       if (!sessionId || !roomId) {
         console.warn('[BigScreen] Cannot upload: missing sessionId or roomId')
+        setIsActivelyRecording(false)
+        onDone?.()
         return
       }
       // Audio is recorded server-side per-participant; this blob is video-only.
@@ -678,6 +687,8 @@ export default function BigScreen() {
       mediaRecorderRef.current = null
       recordingChunksRef.current = []
       recordingSessionIdRef.current = null
+      setIsActivelyRecording(false)
+      onDone?.()
     }
     mr.stop()
   }
@@ -686,14 +697,29 @@ export default function BigScreen() {
 
   // Auto-stop recording 3 s after the settlement overlay appears,
   // so the overlay is captured in the video before the stream closes.
+  // After stopping (or if no recording), broadcast 'settlement-done' so HostSession
+  // can stop the backend recording at the right time.
   useEffect(() => {
     if (!showSettlement) return
     const mr = mediaRecorderRef.current
-    if (!mr || mr.state === 'inactive') return
+    const channelForDone = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME)
+    const notifyDone = () => {
+      channelForDone.postMessage({ type: 'settlement-done' } satisfies BigScreenMsg)
+      channelForDone.close()
+    }
+    if (!mr || mr.state === 'inactive') {
+      // No active BigScreen recording — notify HostSession immediately
+      notifyDone()
+      return
+    }
     const timer = setTimeout(() => {
-      stopRecordingAndUploadRef.current()
+      // Pass notifyDone as onDone so it runs after upload completes
+      stopRecordingAndUploadRef.current(notifyDone)
     }, 3000)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      channelForDone.close()
+    }
   }, [showSettlement])
 
   // Listen for ongoing pose/leave/scene-change updates
@@ -849,6 +875,7 @@ export default function BigScreen() {
           }
           mr.start(1000)
           mediaRecorderRef.current = mr
+          setIsActivelyRecording(true)
         } catch (err) {
           console.error('[BigScreen] Failed to start canvas recording:', err)
         }
@@ -985,7 +1012,7 @@ export default function BigScreen() {
               <div className="bs-settlement-col">
                 <div className="bs-settlement-col-title">🎬 錄製</div>
                 <div className="bs-settlement-rec">
-                  {mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive' ? (
+                  {isActivelyRecording ? (
                     <div className="bs-rec-active">
                       <span className="recording-dot" />
                       <span>錄製中</span>
