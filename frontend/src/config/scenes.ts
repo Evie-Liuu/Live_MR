@@ -33,16 +33,17 @@ export const THEMES: ThemeConfig[] = [
             id: 'cashier',
             label: '收銀員',
             icon: '🏪',
-            position: [0.6, 0.2, -1.5],
-            rotation: [0, -Math.PI / 3, 0],
+            // position: [0.6, 1.0, -1.5],
+            position: [2.0, 1.0, -1.5],
+            rotation: [0, -Math.PI / 4, 0],
             defaultVrmId: 'clothingStoreStaff_female',
           },
           {
             id: 'customer',
             label: '顧客',
             icon: '🛍️',
-            position: [-1.4, 0, -1.5],
-            rotation: [0, Math.PI / 3, 0],
+            position: [-1.4, 0.5, -1.5],
+            rotation: [0, Math.PI / 4, 0],
             defaultVrmId: 'student_male',
           },
         ],
@@ -154,7 +155,7 @@ export const THEMES: ThemeConfig[] = [
           policy: 'auto-swap',
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
-            { id: 'cashier_counter', url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [3.0, -0.65, -1], rotation: [0, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'cashier_counter', url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.9, -0.6, -1], rotation: [0, Math.PI / 30, 0], scale: 1.2 },
             { id: 'rack', url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
           ],
           taskProps: {

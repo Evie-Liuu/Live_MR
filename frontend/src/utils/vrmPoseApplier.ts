@@ -94,6 +94,21 @@ const FIST_FINGER_R = { x: 0, y: 0, z: 0.9 }  // VRM right fingers
 const FIST_THUMB_L = { x: 0.6, y: 0.2, z: -0.3 }  // VRM left thumb
 const FIST_THUMB_R = { x: 0.6, y: -0.2, z: 0.3 }  // VRM right thumb
 
+// ─── Lower body bone list ────────────────────────────────────────────────────
+// Bones whose rotation is suppressed when lowerBodyEnabled = false.
+// Hips position (translation) is still applied so the avatar stays grounded.
+const LOWER_BODY_BONES = new Set([
+  'hips',
+  'leftUpperLeg',
+  'rightUpperLeg',
+  'leftLowerLeg',
+  'rightLowerLeg',
+  'leftFoot',
+  'rightFoot',
+  'leftToes',
+  'rightToes',
+]);
+
 // ─── Reusable THREE objects – avoids per-frame allocations ────────────────────
 
 const _targetQuat = new THREE.Quaternion();
@@ -234,6 +249,12 @@ export interface ApplyPoseOptions {
   /** Whether to apply hand movements using the built-in gesture solver */
   handEnabled?: boolean;
   /**
+   * Whether to apply lower-body bone rotations (hips, legs, feet).
+   * Defaults to false – lower body is locked so only the upper body animates.
+   * Hips position (translation) is still applied regardless of this flag.
+   */
+  lowerBodyEnabled?: boolean;
+  /**
    * Skip the kalidokit solver and reuse the last cached bone targets.
    * Use this for mid-frame re-lerps (60 fps render between 30 fps pose frames)
    * to avoid redundant heavy computation while keeping animation smooth.
@@ -248,6 +269,7 @@ const DEFAULT_OPTS: Required<ApplyPoseOptions> = {
   mirror: true,
   faceEnabled: true,
   handEnabled: true,
+  lowerBodyEnabled: false,
   reuseLastSolve: false,
 };
 
@@ -301,7 +323,7 @@ export function applyPoseToVrm(
 ): void {
   if (!frame.landmarks || frame.landmarks.length < 33) return;
 
-  const { lerpSpeed, maxLerpT, solverSmoothing, mirror, faceEnabled, handEnabled, reuseLastSolve } = {
+  const { lerpSpeed, maxLerpT, solverSmoothing, mirror, faceEnabled, handEnabled, lowerBodyEnabled, reuseLastSolve } = {
     ...DEFAULT_OPTS,
     ...opts,
   };
@@ -342,12 +364,18 @@ export function applyPoseToVrm(
     const bone = humanoid.getNormalizedBoneNode(boneName as never);
     if (!bone) continue;
 
+    const isLowerBody = LOWER_BODY_BONES.has(boneName);
+
     // 鏡像已在 solver 的歐拉角空間完成（轉四元數之前），
     // 此處直接套用，不再於四元數空間做近似反轉。
-    _targetQuat.set(rot.x, rot.y, rot.z, rot.w);
-    bone.quaternion.slerp(_targetQuat, t);
+    // Skip rotation for lower-body bones when lowerBodyEnabled is false.
+    if (!isLowerBody || lowerBodyEnabled) {
+      _targetQuat.set(rot.x, rot.y, rot.z, rot.w);
+      bone.quaternion.slerp(_targetQuat, t);
+    }
 
-    // Apply Hips translation
+    // Always apply Hips translation so the avatar stays grounded,
+    // regardless of lowerBodyEnabled.
     if (boneName === 'hips' && hipsPosition) {
       const mirrorX = mirror ? -1 : 1;
       bone.position.x = THREE.MathUtils.lerp(bone.position.x, mirrorX * hipsPosition.x * 0.1, t);
