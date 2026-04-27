@@ -34,7 +34,7 @@ export const THEMES: ThemeConfig[] = [
             label: '收銀員',
             icon: '🏪',
             position: [0.6, 0.2, -1.5],
-            // rotation: [0, -Math.PI / 3, 0],
+            rotation: [0, -Math.PI / 3, 0],
             defaultVrmId: 'clothingStoreStaff_female',
           },
           {
@@ -42,7 +42,7 @@ export const THEMES: ThemeConfig[] = [
             label: '顧客',
             icon: '🛍️',
             position: [-1.4, 0, -1.5],
-            // rotation: [0, Math.PI / 3, 0],
+            rotation: [0, Math.PI / 3, 0],
             defaultVrmId: 'student_male',
           },
         ],

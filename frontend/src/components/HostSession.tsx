@@ -1000,8 +1000,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <div className="hs-scene-preview">
               <div
                 className={`hs-scene-thumb ${!currentScenePreset.backgroundValue ? 'hs-scene-thumb--no-img' : ''}`}
-                style={currentScenePreset.backgroundValue ? { backgroundImage: `url(${currentScenePreset.backgroundValue})` } : undefined}
+                style={currentScenePreset.backgroundValue && currentScenePreset.backgroundType !== 'video' ? { backgroundImage: `url(${currentScenePreset.backgroundValue})` } : undefined}
               >
+                {currentScenePreset.backgroundValue && currentScenePreset.backgroundType === 'video' && (
+                  <video
+                    src={currentScenePreset.backgroundValue}
+                    // autoPlay
+                    // loop
+                    muted
+                    playsInline
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                )}
                 {currentScenePreset.backgroundValue && <div className="hs-scene-thumb-overlay" />}
                 <span className="hs-scene-thumb-icon">{currentSceneVariant?.icon ?? '🎬'}</span>
               </div>
@@ -1242,10 +1252,21 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     className={`scene-option-btn ${selectedSceneId === scene.id ? 'active' : ''}`}
                     onClick={() => { handleSceneChange(scene.id); setShowScenePanel(false); }}
                   >
-                    {SCENE_PRESETS[scene.id]?.backgroundValue && (
+                    {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType !== 'video' && (
                       <div
                         className="scene-option-img-bg"
                         style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }}
+                      />
+                    )}
+                    {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType === 'video' && (
+                      <video
+                        className="scene-option-img-bg"
+                        src={SCENE_PRESETS[scene.id].backgroundValue}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        style={{ objectFit: 'cover' }}
                       />
                     )}
                     {scene.icon && <span>{scene.icon}</span>}
