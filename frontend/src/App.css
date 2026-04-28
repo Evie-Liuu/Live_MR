@@ -14,13 +14,18 @@
   /* Brand primary (also available as Tailwind utilities above) */
   --primary: #F76E12;
   --primary-light: #fff;
+  --primary-light2: #FCE9D7;
   --secondary: #00A99D;
+  --secondary-light: #FEFFEA;
   --third: #95CC4D;
 
   /* --bg: #1a1a2e; */
   --bg: var(--primary-light);
-  --bg-card: #16213e;
+  /* --bg-card: #16213e; */
+  --bg-card: var(--primary-light);
   --bg-topbar: var(--primary-light);
+  --bg-sidebar: var(--primary-light);
+  --bg-header: #FFF8BD;
   /* --text: #e0e0e0; */
   --text: #482607;
   --text-h: #ffffff;
@@ -1534,7 +1539,8 @@ button:disabled {
   right: 0;
   height: 100vh;
   width: 300px;
-  background: #0c0c1e;
+  /* background: #0c0c1e; */
+  background: var(--primary-light);
   border-left: 1px solid #1e1e3a;
   z-index: 201;
   display: flex;
@@ -1564,11 +1570,12 @@ button:disabled {
   gap: 10px;
   padding: 14px 18px;
   border-bottom: 1px solid #1e1e3a;
-  font-size: 13px;
+  /* font-size: 13px; */
   font-weight: 700;
-  color: var(--text-h);
+  color: var(--primary);
   flex-shrink: 0;
-  background: #0e0e22;
+  /* background: #0e0e22; */
+  background: var(--bg-header);
 }
 
 .panel-close-btn {
@@ -1585,7 +1592,7 @@ button:disabled {
 }
 
 .panel-close-btn:hover {
-  color: var(--text-h);
+  color: var(--text);
   background: rgba(255, 255, 255, 0.08);
   border-color: #2a2a4a;
 }
@@ -1602,10 +1609,11 @@ button:disabled {
 }
 
 .scene-group-label {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 1.8px;
-  color: #445;
+  /* color: #445; */
+  color: var(--text);
   text-transform: uppercase;
   padding-bottom: 6px;
   margin-bottom: 6px;
@@ -1666,8 +1674,10 @@ button:disabled {
 
 .scene-option-btn.active {
   background: rgba(119, 136, 255, 0.12);
-  border-color: rgba(119, 136, 255, 0.35);
-  color: #aabbff;
+  /* border-color: rgba(119, 136, 255, 0.35);
+  color: #aabbff; */
+  border-color: var(--primary);
+  color: var(--primary);
   z-index: 1;
 }
 
@@ -2679,18 +2689,23 @@ button:disabled {
   width: 248px;
   min-width: 248px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #0d1e40 0%, #091526 100%);
+  /* background: linear-gradient(180deg, #0d1e40 0%, #091526 100%); */
+  /* background: var(--primary-light); */
+  background: url("/images/UI/card_background.png");
   border-right: 1.5px solid rgba(255, 255, 255, 0.06);
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   overflow-y: auto;
+  background-size: cover;
+  background-position: center;
 }
 
 /* Cards */
 .hs-card {
-  background: linear-gradient(145deg, #122040, #0d1830);
+  /* background: linear-gradient(145deg, #122040, #0d1830); */
+  background: var(--primary-light);
   border: 2px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 14px;
@@ -2713,15 +2728,18 @@ button:disabled {
 }
 
 .hs-card--scene::before {
-  background: linear-gradient(90deg, #74b9ff, #0984e3);
+  /* background: linear-gradient(90deg, #74b9ff, #0984e3); */
+  background: linear-gradient(90deg, var(--primary-light2), var(--primary));
 }
 
 .hs-card--character::before {
-  background: linear-gradient(90deg, #c77dff, #9b59b6);
+  /* background: linear-gradient(90deg, #c77dff, #9b59b6); */
+  background: linear-gradient(90deg, var(--secondary-light), var(--secondary));
 }
 
 .hs-card--task::before {
-  background: linear-gradient(90deg, #ffd60a, #fdcb6e);
+  /* background: linear-gradient(90deg, #ffd60a, #fdcb6e); */
+  background: linear-gradient(90deg, var(--secondary-light), var(--third));
 }
 
 .hs-card:hover {
@@ -2735,18 +2753,24 @@ button:disabled {
 }
 
 .hs-card--scene.hs-card--open {
-  border-color: rgba(116, 185, 255, 0.5);
-  background: linear-gradient(145deg, #122a4c, #0c1f3a);
+  /* border-color: rgba(116, 185, 255, 0.5);
+  background: linear-gradient(145deg, #122a4c, #0c1f3a); */
+  border-color: var(--primary);
+  background: var(--secondary-light);
 }
 
 .hs-card--character.hs-card--open {
-  border-color: rgba(199, 125, 255, 0.5);
-  background: linear-gradient(145deg, #1d1240, #140d32);
+  /* border-color: rgba(199, 125, 255, 0.5);
+  background: linear-gradient(145deg, #1d1240, #140d32); */
+  border-color: var(--secondary);
+  background: var(--secondary-light);
 }
 
 .hs-card--task.hs-card--open {
-  border-color: rgba(255, 214, 10, 0.4);
-  background: linear-gradient(145deg, #201e08, #151208);
+  /* border-color: rgba(255, 214, 10, 0.4);
+  background: linear-gradient(145deg, #201e08, #151208); */
+  border-color: var(--third);
+  background: var(--secondary-light);
 }
 
 .hs-card-header {
@@ -2762,9 +2786,8 @@ button:disabled {
 }
 
 .hs-card-title {
-  font-size: 13px;
   font-weight: 900;
-  color: #fff;
+  color: var(--primary);
   letter-spacing: 0.5px;
   flex: 1;
 }
@@ -2818,7 +2841,8 @@ button:disabled {
 .hs-scene-label {
   font-size: 12px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.78);
+  /* color: rgba(255, 255, 255, 0.78); */
+  color: var(--text);
   text-align: center;
   letter-spacing: 0.3px;
 }
@@ -2863,7 +2887,8 @@ button:disabled {
 
 .hs-slot-label {
   flex: 1;
-  color: rgba(255, 255, 255, 0.7);
+  /* color: rgba(255, 255, 255, 0.7); */
+  color: var(--text);
   font-weight: 700;
   font-size: 11px;
 }
@@ -2974,7 +2999,8 @@ button:disabled {
 
 .hs-task-empty {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.22);
+  /* color: rgba(255, 255, 255, 0.22); */
+  color: var(--text);
   text-align: center;
   padding: 8px 0;
   font-style: italic;
