@@ -1,17 +1,38 @@
 @import "tailwindcss";
 
+/* ===== Brand Primary Colors ===== */
+/* Usage (CSS var): var(--primary-orange) / var(--primary-teal) / var(--primary-green) */
+/* Usage (Tailwind): bg-primary-orange / text-primary-teal / border-primary-green etc. */
+@theme {
+  --color-primary: #F76E12;
+  --color-secondary: #00A99D;
+  --color-third: #95CC4D;
+}
+
 /* ===== Global / Dark Theme ===== */
 :root {
-  --bg: #1a1a2e;
+  /* Brand primary (also available as Tailwind utilities above) */
+  --primary: #F76E12;
+  --primary-light: #fff;
+  --secondary: #00A99D;
+  --third: #95CC4D;
+
+  /* --bg: #1a1a2e; */
+  --bg: var(--primary-light);
   --bg-card: #16213e;
-  --text: #e0e0e0;
+  --bg-topbar: var(--primary-light);
+  /* --text: #e0e0e0; */
+  --text: #482607;
   --text-h: #ffffff;
   --accent: #0f3460;
   --accent-light: #533483;
   --accent-bright: #e94560;
-  --border: #2a2a4a;
+  /* --border: #2a2a4a; */
+  --border: var(--primary);
   --success: #4caf50;
   --danger: #e94560;
+
+  --text-size-primary: 14px;
 }
 
 * {
@@ -729,8 +750,8 @@ button:disabled {
   border: 1px solid var(--border);
   color: var(--text);
   padding: 4px 12px;
-  font-size: 12px;
-  border-radius: 6px;
+  font-size: var(--text-size-primary);
+  border-radius: 24px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -768,7 +789,8 @@ button:disabled {
 }
 
 .recording-start {
-  background: #1a6b1a;
+  /* background: #1a6b1a; */
+  background: var(--primary);
   color: #fff;
 }
 
@@ -2487,7 +2509,8 @@ button:disabled {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #0b1527;
+  /* background: #0b1527; */
+  background: var(--bg);
   font-family: 'Nunito', 'Segoe UI', system-ui, sans-serif;
   position: relative;
 }
@@ -2500,7 +2523,8 @@ button:disabled {
   align-items: center;
   padding: 0 16px;
   gap: 10px;
-  background: linear-gradient(90deg, #0c1b3a 0%, #091424 100%);
+  /* background: linear-gradient(90deg, #0c1b3a 0%, #091424 100%); */
+  background: var(--bg-topbar);
   border-bottom: 1.5px solid rgba(255, 255, 255, 0.07);
   position: relative;
   z-index: 10;
@@ -2553,10 +2577,10 @@ button:disabled {
   gap: 5px;
   padding: 5px 12px;
   border-radius: 24px;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border: 2.5px solid var(--border);
   background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 12px;
+  /* color: rgba(255, 255, 255, 0.72); */
+  /* font-size: var(--text-size-primary); */
   font-weight: 700;
   font-family: 'Nunito', inherit;
   cursor: pointer;
@@ -2565,8 +2589,8 @@ button:disabled {
 }
 
 .hs-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: var(--primary);
+  /* border-color: rgba(255, 255, 255, 0.28); */
   color: #fff;
   transform: translateY(-1px);
 }
@@ -2576,7 +2600,7 @@ button:disabled {
 }
 
 .hs-action-label {
-  font-size: 11px;
+  font-size: var(--text-size-primary);
   font-weight: 700;
 }
 
@@ -2593,9 +2617,11 @@ button:disabled {
 }
 
 .hs-action--on {
-  border-color: rgba(78, 205, 196, 0.6) !important;
+  /* border-color: rgba(78, 205, 196, 0.6) !important; */
+  border-color: var(--secondary) !important;
   background: rgba(78, 205, 196, 0.1) !important;
-  color: #4ecdc4 !important;
+  /* color: #4ecdc4 !important; */
+  color: var(--secondary) !important;
 }
 
 .hs-action--off {
