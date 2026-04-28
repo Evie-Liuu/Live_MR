@@ -1211,11 +1211,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         </div>
         <div className="panel-drawer-body">
           <div className="pending-list" style={{ padding: '0 16px' }}>
-            <h3 style={{ marginTop: '16px', marginBottom: '8px', color: '#ccc', fontSize: '14px' }}>待審核學生 ({pending.length})</h3>
-            {pending.length === 0 && <div style={{ color: '#666', fontSize: '13px' }}>目前沒有加入請求</div>}
+            <h3 style={{ marginTop: '16px', marginBottom: '8px', color: 'var(--text)', fontSize: '14px', fontWeight: 700 }}>待審核學生 ({pending.length})</h3>
+            {pending.length === 0 && <div style={{ color: 'rgba(72,38,7,0.5)', fontSize: '13px' }}>目前沒有加入請求</div>}
             {pending.map((s) => (
-              <div key={s.requestId} className="pending-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 'bold' }}>{s.name}</span>
+              <div key={s.requestId} className="pending-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-light2)', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(247,110,18,0.2)' }}>
+                <span style={{ fontWeight: 'bold', color: 'var(--text)' }}>{s.name}</span>
                 <div className="pending-actions" style={{ display: 'flex', gap: '8px' }}>
                   <button className="approve-btn" style={{ background: '#4CAF50', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleApprove(s.requestId)}>允許</button>
                   <button className="reject-btn" style={{ background: '#F44336', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleReject(s.requestId)}>拒絕</button>
@@ -1223,12 +1223,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               </div>
             ))}
 
-            <h3 style={{ marginTop: '24px', marginBottom: '8px', color: '#ccc', fontSize: '14px' }}>已加入學生 ({studentList.length})</h3>
-            {studentList.length === 0 && <div style={{ color: '#666', fontSize: '13px' }}>目前沒有學生加入</div>}
+            <h3 style={{ marginTop: '24px', marginBottom: '8px', color: 'var(--text)', fontSize: '14px', fontWeight: 700 }}>已加入學生 ({studentList.length})</h3>
+            {studentList.length === 0 && <div style={{ color: 'rgba(72,38,7,0.5)', fontSize: '13px' }}>目前沒有學生加入</div>}
             {studentList.map((info) => (
-              <div key={info.participant.identity} style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+              <div key={info.participant.identity} style={{ display: 'flex', alignItems: 'center', background: 'rgba(149,204,77,0.1)', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(149,204,77,0.2)' }}>
                 <span style={{ marginRight: '8px' }}>👤</span>
-                <span>{info.participant.name || info.participant.identity}</span>
+                <span style={{ color: 'var(--text)' }}>{info.participant.name || info.participant.identity}</span>
               </div>
             ))}
           </div>
