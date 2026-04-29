@@ -428,10 +428,15 @@ export default function BigScreen() {
 
       let sy = py + 40;
 
-      ctx.font = '48px system-ui, sans-serif';
+      const gradient = ctx.createLinearGradient(cw / 2 - 32, sy, cw / 2 + 32, sy + 64);
+      gradient.addColorStop(0, '#EAD08C');
+      gradient.addColorStop(0.5, '#CBA358');
+      gradient.addColorStop(1, '#A67C00');
+      ctx.fillStyle = gradient;
+      ctx.font = '500 64px "Material Symbols Outlined"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText('🏆', cw / 2, sy);
+      ctx.fillText('social_leaderboard', cw / 2, sy);
       sy += 60;
 
       ctx.fillStyle = '#ffffff';
@@ -1081,7 +1086,7 @@ export default function BigScreen() {
             {/* Header */}
             <div className="bs-settlement-header">
               <div className="bs-settlement-trophy">
-                <img src="/images/medal.png" alt="Medal" />
+                <span className="material-symbols-outlined bs-settlement-trophy-icon">social_leaderboard</span>
               </div>
               <div className="bs-settlement-title">情境對話結束</div>
               <div className="bs-settlement-subtitle">所有任務已完成！</div>

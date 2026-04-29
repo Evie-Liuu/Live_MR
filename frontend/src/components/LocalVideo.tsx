@@ -73,10 +73,10 @@ export default function LocalVideo({ room, poseData, vrmSourceId }: LocalVideoPr
   const landmarks = (poseData as PoseFrame | null)?.landmarks;
 
   return (
-    <div className="teacher-tile" style={{ position: 'relative' }}>
+    <div className="teacher-tile">
       <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
       {vrmSourceId !== null && (
-        <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
+        <canvas ref={canvasRef} className="avatar-canvas" />
       )}
       {landmarks && (
         <PoseDebugOverlay
@@ -85,7 +85,7 @@ export default function LocalVideo({ room, poseData, vrmSourceId }: LocalVideoPr
           height={videoSize.height}
         />
       )}
-      <div className="student-name" style={{ position: 'absolute', bottom: 5, right: 5, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '2px 5px' }}>
+      <div className="student-name">
         {room.localParticipant.name || room.localParticipant.identity}
       </div>
     </div>

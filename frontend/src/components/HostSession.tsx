@@ -1194,7 +1194,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
       {/* ── Big Screen FAB (bottom-right) ────────────────────────────────────── */}
       <button id="open-bigscreen-btn" className="hs-bigscreen-fab" onClick={openBigScreen} title="在新視窗開啟大屏顯示">
-        <span className="hs-fab-icon">🖥️</span>
+        {/* <span className="hs-fab-icon"></span> */}
+        <span className="material-symbols-outlined">rocket_launch</span>
         <span className="hs-fab-label">開啟大屏</span>
       </button>
 

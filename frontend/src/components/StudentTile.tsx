@@ -58,7 +58,7 @@ export default function StudentTile({
   }, [poseData, applyPose, isCameraOff])
 
   return (
-    <div className="student-tile" style={{ position: 'relative' }}>
+    <div className="student-tile">
       <video
         ref={videoRef}
         autoPlay
@@ -68,21 +68,7 @@ export default function StudentTile({
         style={{ display: isCameraOff ? 'none' : 'block' }}
       />
       {isCameraOff && (
-        <div
-          className="camera-off-placeholder"
-          style={{
-            width: '100%',
-            height: '100%',
-            background: '#1a1a2e',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'column',
-            gap: 6,
-            color: '#888',
-            fontSize: 13,
-          }}
-        >
+        <div className="camera-off-placeholder">
           {/* 鏡頭關閉且無 VRM 才顯示圖示文字 */}
           {vrmSourceId === null && (
             <>
@@ -94,44 +80,14 @@ export default function StudentTile({
       )}
       {/* VRM canvas 永遠疊在最上層，不論鏡頭狀態 */}
       {vrmSourceId !== null && (
-        <canvas
-          ref={canvasRef}
-          className="avatar-canvas"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            opacity: 0.9,
-          }}
-        />
+        <canvas ref={canvasRef} className="avatar-canvas" />
       )}
-      <div
-        className="student-name"
-        style={{
-          position: 'absolute',
-          bottom: 5,
-          right: 5,
-          background: 'rgba(0,0,0,0.5)',
-          color: '#fff',
-          padding: '2px 5px',
-        }}
-      >
+      <div className="student-name">
         {participant.identity}
       </div>
 
       {onToggleMute && (
-        <div
-          className="mute-controls"
-          style={{
-            position: 'absolute',
-            bottom: 5,
-            left: 5,
-            display: 'flex',
-            gap: 4,
-          }}
-        >
+        <div className="mute-controls">
           <button
             className={`mute-btn ${muteState?.audio ? 'muted' : 'active'}`}
             onClick={() => onToggleMute(participant.identity, 'audio')}
