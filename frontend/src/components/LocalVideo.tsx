@@ -9,13 +9,14 @@ interface LocalVideoProps {
   room: Room;
   poseData?: unknown;
   vrmSourceId?: string | null;
+  slotLabel?: string | null;
 }
 
 /**
  * Teacher self-view tile: attaches the local camera track to a <video>
  * and overlays the pose debug skeleton if poseData is available.
  */
-export default function LocalVideo({ room, poseData, vrmSourceId }: LocalVideoProps) {
+export default function LocalVideo({ room, poseData, vrmSourceId, slotLabel }: LocalVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId });
@@ -71,22 +72,38 @@ export default function LocalVideo({ room, poseData, vrmSourceId }: LocalVideoPr
   }, [poseData]);
 
   const landmarks = (poseData as PoseFrame | null)?.landmarks;
+  const identityText = room.localParticipant.name || room.localParticipant.identity;
+  const labelText = slotLabel || '未指派';
 
   return (
-    <div className="teacher-tile">
-      <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
-      {vrmSourceId !== null && (
-        <canvas ref={canvasRef} className="avatar-canvas" />
-      )}
-      {landmarks && (
-        <PoseDebugOverlay
-          landmarks={[landmarks as never]}
-          width={videoSize.width}
-          height={videoSize.height}
-        />
-      )}
-      <div className="student-name">
-        {room.localParticipant.name || room.localParticipant.identity}
+    <div className="student-tile-new teacher-tile-new">
+      <div className="tile-main-view">
+        <video ref={videoRef} autoPlay playsInline muted className="tile-video-new" />
+
+        {vrmSourceId !== null && (
+          <canvas ref={canvasRef} className="avatar-canvas-new" />
+        )}
+
+        {landmarks && (
+          <PoseDebugOverlay
+            landmarks={[landmarks as never]}
+            width={videoSize.width}
+            height={videoSize.height}
+          />
+        )}
+
+        {/* Top Overlay Bar - Matching StudentTile's current state (commented out) */}
+        {/* 
+        <div className="tile-top-overlay">
+          <span className="tile-id-badge">{identityText}</span>
+          <span className="tile-status-badge">{labelText}</span>
+        </div> 
+        */}
+      </div>
+
+      <div className="tile-footer-bar">
+        <span className="footer-id">👨‍🏫 {identityText}</span>
+        <span className="footer-status">{labelText}</span>
       </div>
     </div>
   );

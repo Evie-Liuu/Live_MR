@@ -899,7 +899,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
 
           <button
-            className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--active' : ''}`}
+            className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--on' : 'hs-action--off'}`}
             onClick={toggleBigScreenPreview}
             title={showBigScreenPreview ? '關閉大屏預覽' : '開啟大屏預覽'}
           >
@@ -1154,10 +1154,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                   className={`hs-video-card hs-teacher-card${isTeacherSpeaking ? ' hs-video-card--speaking' : ''}`}
                   style={{ opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
                 >
-                  <LocalVideo room={connectedRoom} poseData={teacherPoseData} vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId} />
-                  <div className="hs-video-tag hs-video-tag--teacher">👨‍🏫 老師</div>
-                  {teacherSlot && <div className="hs-video-slot-badge">{teacherSlot.icon} {teacherSlot.label}</div>}
-                  {!teacherSlot && hasSlots && <div className="hs-video-slot-badge hs-video-slot-badge--unassigned">未指派</div>}
+                  <LocalVideo
+                    room={connectedRoom}
+                    poseData={teacherPoseData}
+                    vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId}
+                    slotLabel={teacherSlot?.label}
+                  />
                 </div>
               );
             })()}

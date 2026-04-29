@@ -401,14 +401,7 @@ button:disabled {
   opacity: 0.85;
 }
 
-.teacher-tile {
-  position: relative;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-}
+
 
 /* ===== Student Tile (New Design) ===== */
 .student-tile-new {
@@ -2801,7 +2794,7 @@ button:disabled {
   background: var(--primary);
   /* border-color: rgba(255, 255, 255, 0.28); */
   color: #fff;
-  transform: translateY(-1px);
+  /* transform: translateY(-1px); */
 }
 
 .hs-action-icon {
@@ -2828,13 +2821,18 @@ button:disabled {
 .hs-action--on {
   /* border-color: rgba(78, 205, 196, 0.6) !important; */
   border-color: var(--secondary) !important;
-  background: rgba(78, 205, 196, 0.1) !important;
+  background: rgba(78, 205, 196, 0.2) !important;
   /* color: #4ecdc4 !important; */
   color: var(--secondary) !important;
 }
 
 .hs-action--off {
   opacity: 0.5;
+}
+
+.hs-action--on:hover {
+  background: var(--secondary) !important;
+  color: #fff !important;
 }
 
 .hs-badge {
