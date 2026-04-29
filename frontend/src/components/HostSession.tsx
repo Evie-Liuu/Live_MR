@@ -1368,14 +1368,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {hasModules && (
         <div className={`panel-drawer panel-drawer--wide ${showTaskPanel ? 'panel-drawer--open' : ''}`}>
           <div className="panel-drawer-header">
-            <span>📋 任務管理</span>
-            <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>✕</button>
+            <span>任務管理</span>
+            <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
           <div className="panel-drawer-body task-manager-drawer">
             {/* Left: Task Bank */}
             <div className="task-bank">
               <div className="task-bank-header">
-                <span>📚 任務庫</span>
+                <span>任務庫</span>
               </div>
               <div className="task-bank-tree">
                 {currentScenePreset.modules!.map((mod) => (
@@ -1386,7 +1388,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     >
                       <span className="module-icon">{mod.icon || '📁'}</span>
                       <span className="module-label">{mod.label}</span>
-                      <span className="module-arrow">{expandedModuleIds.has(mod.id) ? '▼' : '▶'}</span>
+                      <span className="module-arrow material-symbols-outlined">
+                        {expandedModuleIds.has(mod.id) ? 'expand_less' : 'expand_more'}
+                      </span>
                     </div>
                     {expandedModuleIds.has(mod.id) && (
                       <div className="module-tasks">
@@ -1399,7 +1403,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                               onClick={() => toggleTaskSelection(task.id, task.label)}
                               disabled={!isSelected && selectedTasks.length >= 7}
                             >
-                              <div className="btn-check">{isSelected ? '✓' : ''}</div>
+                              <div className="btn-check">
+                                {isSelected && <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>}
+                              </div>
                               <span className="btn-label">{task.label}</span>
                             </button>
                           );
@@ -1414,7 +1420,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             {/* Right: Selected task list + clear */}
             <div className="active-tasks">
               <div className="active-tasks-header">
-                <span>⚡ 已選任務</span>
+                <span>已選任務</span>
                 <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>{selectedTasks.length}/7</span>
               </div>
               {selectedTasks.length === 0 ? (
@@ -1433,7 +1439,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                       onDrop={(e) => handleTaskDrop(e, idx)}
                       onDragEnd={handleTaskDragEnd}
                     >
-                      <span className="task-drag-handle" title="拖曳排序">⠿</span>
                       <div className="task-index">{idx + 1}</div>
                       <div className="task-info">
                         <span className="task-label">{task.label}</span>
@@ -1442,14 +1447,17 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         className="task-remove-btn"
                         title="移除此任務"
                         onClick={() => toggleTaskSelection(task.id, task.label)}
-                      >✕</button>
+                      >
+                        <span className="material-symbols-outlined">close</span>
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
               {selectedTasks.length > 0 && (
                 <button className="clear-tasks-btn" onClick={() => { setSelectedTasks([]); broadcastTaskChange([]); }}>
-                  🗑️ 清空所有任務
+                  <span className="material-symbols-outlined">delete_sweep</span>
+                  清空所有任務
                 </button>
               )}
             </div>

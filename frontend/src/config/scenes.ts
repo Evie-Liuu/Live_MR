@@ -67,8 +67,8 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'ask_size',
-            label: 'Ask about Sizes',
-            icon: '📏',
+            label: 'Sizes',
+            icon: '✏️',
             tasks: [
               { id: 'ask_size_1', label: 'Ask for a medium T-shirt.' },
               { id: 'ask_size_2', label: 'Ask whether the jacket comes in large.' },
@@ -84,7 +84,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'ask_color',
-            label: 'Ask for another color',
+            label: 'Color',
             icon: '🎨',
             tasks: [
               { id: 'ask_color_1', label: 'Ask whether the T-shirt comes in blue.' },
@@ -101,7 +101,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'ask_sale',
-            label: 'Ask whether the item is on sale',
+            label: 'Sale',
             icon: '🏷️',
             tasks: [
               { id: 'ask_sale_1', label: 'Ask whether this item is on sale.' },
@@ -118,7 +118,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'compare_items',
-            label: 'Compare two items',
+            label: 'Compare',
             icon: '⚖️',
             tasks: [
               { id: 'compare_items_1', label: 'Compare two T-shirts by price.' },
@@ -135,7 +135,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'confirm_availability',
-            label: 'Confirm whether the item is available',
+            label: 'Availability',
             icon: '📦',
             tasks: [
               { id: 'confirm_availability_1', label: 'Ask whether the blue T-shirt is available.' },
