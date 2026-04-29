@@ -995,7 +995,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <div className="hs-card-header">
               <span className="hs-card-icon">🎬</span>
               <span className="hs-card-title">場景</span>
-              <span className="hs-card-arrow">{showScenePanel ? '▲' : '▼'}</span>
+              <span className="hs-badge hs-badge--info" >{showScenePanel ? '▲' : '▼'}</span>
+              {/* <span className="hs-card-arrow">{showScenePanel ? '▲' : '▼'}</span> */}
             </div>
             <div className="hs-scene-preview">
               <div
