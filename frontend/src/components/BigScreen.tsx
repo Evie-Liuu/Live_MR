@@ -1011,8 +1011,8 @@ export default function BigScreen() {
             position: 'absolute',
             top: '20px',
             left: '30px',
-            backgroundColor: 'rgba(15, 23, 42, 0.7)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'rgba(252, 233, 215, 0.9)',
+            border: '1px solid rgba(247, 110, 18, 0.3)',
             padding: '8px 16px',
             borderRadius: '18px',
             display: 'flex',
@@ -1022,7 +1022,7 @@ export default function BigScreen() {
             fontSize: '16px',
             fontWeight: 'bold',
             zIndex: 100,
-            backdropFilter: 'blur(4px)'
+            backdropFilter: 'blur(6px)'
           }}
         >
           <span className="recording-dot" />

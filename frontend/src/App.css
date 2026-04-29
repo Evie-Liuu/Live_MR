@@ -28,6 +28,7 @@
   --bg-header: #FFF8BD;
   /* --text: #e0e0e0; */
   --text: #482607;
+  --text-light: #A69688;
   --text-h: #ffffff;
   --accent: #0f3460;
   --accent-light: #533483;
@@ -539,14 +540,14 @@ button:disabled {
 }
 
 .bigscreen-title {
-  color: #fff;
+  color: var(--primary);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .bigscreen-scene-label {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-light);
   font-size: 12px;
   margin-left: 10px;
 }
@@ -1713,11 +1714,15 @@ button:disabled {
   right: 24px;
   z-index: 2;
   width: 280px;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(151, 147, 144, 0.4);
   /* backdrop-filter: blur(12px); */
   border: 1px solid rgba(255, 255, 255, 0.1);
+  /* background: rgba(252, 233, 215, 0.88);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(247, 110, 18, 0.25); */
   border-radius: 20px;
   padding: 16px;
+  box-shadow: 0 8px 28px rgba(247, 110, 18, 0.12);
   animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1734,7 +1739,7 @@ button:disabled {
 }
 
 .bigscreen-tasks-header {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(72, 38, 7, 0.55);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 2px;
@@ -1760,9 +1765,9 @@ button:disabled {
 }
 
 .bigscreen-tasks-progress-header {
-  color: rgba(255, 255, 255, 0.8);
+  color: #fff;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 1px;
   margin-bottom: 12px;
   text-align: center;
@@ -1771,21 +1776,21 @@ button:disabled {
 .bigscreen-task-status {
   width: 22px;
   height: 22px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(247, 110, 18, 0.15);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
+  color: var(--primary);
   flex-shrink: 0;
 }
 
 .bigscreen-tasks-progress-bg {
   width: 100%;
   height: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.4);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -1794,13 +1799,13 @@ button:disabled {
   font-size: 14px;
   color: #fff;
   line-height: 1.4;
-  font-weight: 500;
+  font-weight: 600;
   text-align: left;
 }
 
 .bigscreen-tasks-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #533483, #e94560);
+  background: linear-gradient(90deg, var(--third), var(--secondary));
   border-radius: 4px;
   transition: width 0.5s ease;
 }
@@ -1815,9 +1820,11 @@ button:disabled {
   width: auto;
   min-width: 480px;
   max-width: 900px;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
+  /* background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8)); */
+  background: rgba(252, 233, 215, 0.92);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* border: 1px solid rgba(255, 255, 255, 0.2); */
+  border: 1px solid rgba(247, 110, 18, 0.3);
   border-radius: 24px;
   padding: 20px 40px;
   display: flex;
@@ -1825,6 +1832,7 @@ button:disabled {
   align-items: center;
   gap: 10px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(79, 70, 229, 0.15);
+  /* box-shadow: 0 16px 48px rgba(247, 110, 18, 0.18), 0 0 28px rgba(0, 169, 157, 0.1); */
   animation: slideDownFade 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -1841,7 +1849,7 @@ button:disabled {
 }
 
 .bigscreen-current-task-tag {
-  color: #818cf8;
+  color: var(--primary);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 3px;
@@ -1862,11 +1870,10 @@ button:disabled {
 }
 
 .bigscreen-current-task-label {
-  color: #fff;
+  color: var(--text);
   font-size: 24px;
   font-weight: 800;
   text-align: center;
-  text-shadow: 0 2px 15px rgba(0, 0, 0, 0.6);
   letter-spacing: 0.5px;
 }
 
@@ -1874,9 +1881,9 @@ button:disabled {
 .settlement-trigger-btn {
   margin-left: 10px;
   padding: 3px 12px;
-  background: rgba(119, 136, 255, 0.18);
-  border: 1px solid rgba(119, 136, 255, 0.45);
-  color: #aabbff;
+  background: rgba(0, 169, 157, 0.15);
+  border: 1px solid rgba(0, 169, 157, 0.4);
+  color: var(--secondary);
   border-radius: 8px;
   font-size: 12px;
   font-weight: 700;
@@ -1885,9 +1892,9 @@ button:disabled {
 }
 
 .settlement-trigger-btn:hover {
-  background: rgba(119, 136, 255, 0.32);
-  border-color: #7788ff;
-  color: #fff;
+  background: rgba(0, 169, 157, 0.28);
+  border-color: var(--secondary);
+  color: var(--secondary);
 }
 
 /* ===== HostSession Settlement Modal ===== */
@@ -2211,8 +2218,8 @@ button:disabled {
 
 .bs-settlement-panel {
   position: relative;
-  background: linear-gradient(155deg, rgba(8, 8, 28, 0.95), rgba(14, 14, 42, 0.97));
-  border: 1px solid rgba(200, 200, 255, 0.15);
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(247, 110, 18, 0.22);
   border-radius: 28px;
   width: min(900px, 90vw);
   max-height: 85vh;
@@ -2220,7 +2227,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 28px;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8), 0 0 60px rgba(100, 110, 255, 0.15);
+  box-shadow: 0 30px 80px rgba(247, 110, 18, 0.18), 0 0 40px rgba(0, 169, 157, 0.08);
   animation: settlementIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 }
@@ -2229,9 +2236,9 @@ button:disabled {
   position: absolute;
   top: 18px;
   right: 20px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #778;
+  background: rgba(247, 110, 18, 0.07);
+  border: 1px solid rgba(247, 110, 18, 0.18);
+  color: rgba(72, 38, 7, 0.45);
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -2244,8 +2251,8 @@ button:disabled {
 }
 
 .bs-settlement-close:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+  background: rgba(247, 110, 18, 0.15);
 }
 
 .bs-settlement-header {
@@ -2262,14 +2269,13 @@ button:disabled {
 .bs-settlement-title {
   font-size: 32px;
   font-weight: 900;
-  color: #fff;
+  color: var(--text);
   letter-spacing: 1px;
-  text-shadow: 0 0 30px rgba(150, 170, 255, 0.5);
 }
 
 .bs-settlement-subtitle {
   font-size: 15px;
-  color: #7788ff;
+  color: var(--secondary);
   margin-top: 6px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -2299,9 +2305,9 @@ button:disabled {
   font-weight: 800;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #7788ff;
+  color: var(--primary);
   padding-bottom: 6px;
-  border-bottom: 1px solid rgba(119, 136, 255, 0.18);
+  border-bottom: 1px solid var(--primary-light2);
   flex-shrink: 0;
 }
 
@@ -2317,16 +2323,16 @@ button:disabled {
   align-items: center;
   gap: 10px;
   padding: 9px 14px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(149, 204, 77, 0.08);
   border-radius: 10px;
   font-size: 14px;
-  color: #ddd;
+  color: var(--text);
 }
 
 .bs-settlement-participant.host {
-  background: rgba(119, 136, 255, 0.1);
-  border: 1px solid rgba(119, 136, 255, 0.25);
-  color: #aabbff;
+  background: rgba(247, 110, 18, 0.08);
+  border: 1px solid rgba(247, 110, 18, 0.22);
+  color: var(--primary);
 }
 
 .bs-participant-tag {
@@ -2334,13 +2340,13 @@ button:disabled {
   font-size: 10px;
   font-weight: 700;
   padding: 2px 8px;
-  background: rgba(119, 136, 255, 0.18);
-  color: #7788ff;
+  background: rgba(247, 110, 18, 0.15);
+  color: var(--primary);
   border-radius: 10px;
 }
 
 .bs-settlement-empty {
-  color: #445;
+  color: rgba(72, 38, 7, 0.45);
   font-size: 13px;
   font-style: italic;
 }
@@ -2375,10 +2381,10 @@ button:disabled {
 
 .bs-rec-none {
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(72, 38, 7, 0.05);
+  border: 1px solid rgba(72, 38, 7, 0.1);
   border-radius: 10px;
-  color: #556;
+  color: rgba(72, 38, 7, 0.5);
   font-size: 15px;
   font-weight: 700;
 }
@@ -2430,22 +2436,22 @@ button:disabled {
 }
 
 .bs-settlement-task.undone {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.07);
-  opacity: 0.6;
+  background: var(--primary-light2);
+  border-color: rgba(247, 110, 18, 0.14);
+  opacity: 0.75;
 }
 
 .bs-task-num {
   width: 26px;
   height: 26px;
-  background: #1e1e3e;
+  background: rgba(247, 110, 18, 0.15);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 800;
-  color: #556;
+  color: var(--primary);
   flex-shrink: 0;
 }
 
@@ -2457,11 +2463,11 @@ button:disabled {
 .bs-task-label {
   flex: 1;
   font-size: 14px;
-  color: #ccc;
+  color: var(--text);
 }
 
 .bs-settlement-task.done .bs-task-label {
-  color: #ddd;
+  color: rgba(72, 38, 7, 0.75);
 }
 
 .bs-task-check {
@@ -2486,9 +2492,9 @@ button:disabled {
 
 .bs-settlement-dismiss {
   padding: 10px 40px;
-  background: rgba(119, 136, 255, 0.15);
-  border: 1px solid rgba(119, 136, 255, 0.4);
-  color: #aabbff;
+  background: var(--primary);
+  border: 1px solid var(--primary);
+  color: #fff;
   border-radius: 12px;
   font-size: 15px;
   font-weight: 800;
@@ -2498,8 +2504,8 @@ button:disabled {
 }
 
 .bs-settlement-dismiss:hover {
-  background: rgba(119, 136, 255, 0.28);
-  border-color: #7788ff;
+  background: var(--secondary);
+  border-color: var(--secondary);
   color: #fff;
   transform: translateY(-1px);
 }
