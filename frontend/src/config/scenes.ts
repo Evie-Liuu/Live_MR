@@ -20,7 +20,9 @@ export const THEMES: ThemeConfig[] = [
       {
         id: 'clothingStore_cashier',
         label: '收銀台',
-        icon: '🏪',
+        labelEn: 'Cashier',
+        // icon: '🏪',
+        icon: 'point_of_sale',
         allowedVrmIds: [
           'default',
           'student_male',
@@ -173,6 +175,7 @@ export const THEMES: ThemeConfig[] = [
       // {
       //   id: 'clothingStore_fitting',
       //   label: '試衣間',
+      //   labelEn: 'Fitting Room',
       //   icon: '🪞',
       //   allowedVrmIds: [
       //     'default',
@@ -274,6 +277,7 @@ function buildScenePresets(): Record<string, SceneConfig> {
         ...base,
         id: variant.id,
         label: `${theme.label} · ${variant.label}`,
+        labelEn: variant.labelEn,
         slots: variant.slots,
         allowedVrmIds: variant.allowedVrmIds,
         modules: variant.modules,

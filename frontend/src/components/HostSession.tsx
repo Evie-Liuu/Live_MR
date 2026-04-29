@@ -1240,41 +1240,53 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {/* ── Scene Drawer ─────────────────────────────────────────────────────── */}
       <div className={`panel-drawer ${showScenePanel ? 'panel-drawer--open' : ''}`}>
         <div className="panel-drawer-header">
-          <span>🎬 場景選擇</span>
+          <div className="slot-drawer-title">
+            <span className="orange">場景選擇</span> <span className="teal">SCENES</span>
+          </div>
           <button className="panel-close-btn" onClick={() => setShowScenePanel(false)}>✕</button>
         </div>
         <div className="panel-drawer-body">
           {THEMES.map((theme) => (
             <div key={theme.id} className="scene-group">
               <div className="scene-group-label">{theme.icon} {theme.label}</div>
-              <div className="scene-options">
+              <div className="scene-options-grid">
                 {theme.scenes.map((scene) => (
-                  <button
+                  <div
                     key={scene.id}
-                    className={`scene-option-btn ${selectedSceneId === scene.id ? 'active' : ''}`}
+                    className={`scene-card-btn ${selectedSceneId === scene.id ? 'active' : ''}`}
                     onClick={() => { handleSceneChange(scene.id); setShowScenePanel(false); }}
                   >
-                    {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType !== 'video' && (
-                      <div
-                        className="scene-option-img-bg"
-                        style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }}
-                      />
-                    )}
-                    {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType === 'video' && (
-                      <video
-                        className="scene-option-img-bg"
-                        src={SCENE_PRESETS[scene.id].backgroundValue}
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        style={{ objectFit: 'cover' }}
-                      />
-                    )}
-                    {scene.icon && <span>{scene.icon}</span>}
-                    <span>{scene.label}</span>
-                    {selectedSceneId === scene.id && <span className="scene-check">✓</span>}
-                  </button>
+                    <div className="scene-card-preview">
+                      {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType !== 'video' && (
+                        <div
+                          className="scene-card-img"
+                          style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }}
+                        />
+                      )}
+                      {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType === 'video' && (
+                        <video
+                          className="scene-card-img"
+                          src={SCENE_PRESETS[scene.id].backgroundValue}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                        />
+                      )}
+                      <div className="scene-card-tag">
+                        {scene.icon && <span className="scene-tag-icon"><span className="material-symbols-outlined">{scene.icon}</span></span>}
+                        <span className="scene-tag-label">{scene.label}</span>
+                      </div>
+                    </div>
+                    <div className="scene-card-info">
+                      <span className="scene-card-label-en">{scene.labelEn || scene.label}</span>
+                      {selectedSceneId === scene.id && (
+                        <div className="scene-card-check">
+                          <span className="material-symbols-outlined">check_circle</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -1368,7 +1380,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {hasModules && (
         <div className={`panel-drawer panel-drawer--wide ${showTaskPanel ? 'panel-drawer--open' : ''}`}>
           <div className="panel-drawer-header">
-            <span>任務管理</span>
+            <div className="slot-drawer-title">
+              <span className="orange">任務管理</span> <span className="teal">TASK</span>
+            </div>
             <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>
               <span className="material-symbols-outlined">close</span>
             </button>

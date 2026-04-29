@@ -69,6 +69,7 @@ export interface AvatarSpawnConfig {
 export interface SceneConfig {
   id: string;
   label: string;
+  labelEn?: string;
   camera: CameraConfig;
   lights: LightConfig[];
   /** Layered background type: render as child of a DOM container under the canvas */
@@ -140,6 +141,7 @@ export interface ScenePropSystem {
 export interface SceneVariant {
   id: string;
   label: string;
+  labelEn?: string;
   icon?: string;
   /** Fixed participant positions for THIS scene variant */
   slots?: SceneSlot[];
