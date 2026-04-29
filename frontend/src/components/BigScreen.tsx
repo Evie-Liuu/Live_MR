@@ -1078,60 +1078,68 @@ export default function BigScreen() {
       {showSettlement && (
         <div className="bs-settlement-overlay">
           <div className="bs-settlement-panel">
-            {/* Close button */}
-            <button className="bs-settlement-close" onClick={() => setShowSettlement(false)}>✕</button>
-
-            {/* Trophy header */}
+            {/* Header */}
             <div className="bs-settlement-header">
-              <div className="bs-settlement-trophy">🏆</div>
+              <div className="bs-settlement-trophy">
+                <img src="/images/medal.png" alt="Medal" />
+              </div>
               <div className="bs-settlement-title">情境對話結束</div>
               <div className="bs-settlement-subtitle">所有任務已完成！</div>
             </div>
 
             <div className="bs-settlement-columns">
-              {/* Left: Participants */}
-              <div className="bs-settlement-col">
-                <div className="bs-settlement-col-title">👥 參與人員</div>
-                <div className="bs-settlement-participants">
-                  {Array.from(participantNames.entries()).map(([identity, name]) => (
-                    <div key={identity} className={`bs-settlement-participant ${identity.startsWith('host-') ? 'host' : ''}`}>
-                      <span>{identity.startsWith('host-') ? '👨‍🏫' : '👤'}</span>
-                      <span>{name}</span>
-                      {identity.startsWith('host-') && <span className="bs-participant-tag">老師</span>}
-                    </div>
-                  ))}
-                  {participantNames.size === 0 && (
-                    <div className="bs-settlement-empty">—</div>
-                  )}
+              <div className="bs-settlement-grid">
+                {/* Left: Participants */}
+                <div className="bs-settlement-col">
+                  <div className="bs-settlement-col-title">參與人員</div>
+                  <div className="bs-settlement-participants">
+                    {Array.from(participantNames.entries()).map(([identity, name]) => (
+                      <div key={identity} className="bs-settlement-participant">
+                        <span>👤</span>
+                        <span>{name}</span>
+                      </div>
+                    ))}
+                    {participantNames.size === 0 && (
+                      <div className="bs-settlement-participant">
+                        <span>—</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Middle: Recording */}
+                <div className="bs-settlement-col">
+                  <div className="bs-settlement-col-title">錄製</div>
+                  <div className={`bs-rec-status ${isActivelyRecording ? 'active' : hasRecorded ? 'done' : ''}`}>
+                    {isActivelyRecording ? (
+                      <>
+                        <span className="recording-dot" />
+                        <span>錄製中</span>
+                      </>
+                    ) : hasRecorded ? (
+                      <>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>check</span>
+                        <span>已保存錄製</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>videocam_off</span>
+                        <span>無錄製</span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Middle: Recording */}
+              {/* Tasks List */}
               <div className="bs-settlement-col">
-                <div className="bs-settlement-col-title">🎬 錄製</div>
-                <div className="bs-settlement-rec">
-                  {isActivelyRecording ? (
-                    <div className="bs-rec-active">
-                      <span className="recording-dot" />
-                      <span>錄製中</span>
-                    </div>
-                  ) : hasRecorded ? (
-                    <div className="bs-rec-done">✓ 已保存錄製</div>
-                  ) : (
-                    <div className="bs-rec-none">✕ 無錄製</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: Tasks */}
-              <div className="bs-settlement-col bs-settlement-col--tasks">
-                <div className="bs-settlement-col-title">📋 任務清單</div>
+                <div className="bs-settlement-col-title">任務清單</div>
                 <div className="bs-settlement-tasklist">
                   {activeTasks.map((task, idx) => (
-                    <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
-                      <div className="bs-task-num">{idx + 1}</div>
+                    <div key={task.id} className="bs-settlement-task">
+                      <div className="bs-task-num">{idx + 1}.</div>
                       <span className="bs-task-label">{task.label}</span>
-                      <span className="bs-task-check">{task.completed ? '✓' : '✕'}</span>
+                      <span className="bs-task-check">✓</span>
                     </div>
                   ))}
                 </div>
