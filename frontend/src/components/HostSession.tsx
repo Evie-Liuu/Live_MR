@@ -1285,7 +1285,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {hasSlots && (
         <div className={`panel-drawer ${showSlotPanel ? 'panel-drawer--open' : ''}`}>
           <div className="panel-drawer-header">
-            <span>🎭 角色配置 SLOTS</span>
+            <div className="slot-drawer-title">
+              <span className="orange">角色配置</span> <span className="teal">SLOTS</span>
+            </div>
             <button className="panel-close-btn" onClick={() => setShowSlotPanel(false)}>✕</button>
           </div>
           <div className="panel-drawer-body">
@@ -1297,64 +1299,66 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                   : (studentRoles[assignedIdentity] ?? sceneSlot.defaultVrmId ?? selectedVrmSourceId))
                 : (sceneSlot.defaultVrmId ?? selectedVrmSourceId);
               return (
-                <div
-                  key={sceneSlot.id}
-                  className="slot-block"
-                  style={{ '--slot-color': SLOT_COLORS[slotIndex % SLOT_COLORS.length] } as React.CSSProperties}
-                >
-                  <div className="slot-block-title">
-                    {sceneSlot.icon && <span style={{ fontSize: '18px' }}>{sceneSlot.icon}</span>}
-                    <div>
-                      <div style={{ color: SLOT_COLORS[slotIndex % SLOT_COLORS.length], fontSize: '12px', fontWeight: 700 }}>
-                        {sceneSlot.label}
+                <div key={sceneSlot.id} className="slot-card">
+                  <div className="slot-card-top">
+                    <div className="slot-icon-container">
+                      {sceneSlot.icon}
+                    </div>
+                    <div className="slot-info">
+                      <div className="slot-name">{sceneSlot.label}</div>
+                      <div className="slot-status-badge">
+                        {assignedIdentity ? '已指派' : '未指派'}
                       </div>
-                      <div className="slot-block-position-hint">
+                      <div className="slot-pos-hint">
                         位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'} (x={sceneSlot.position[0]})
                       </div>
                     </div>
-                    <span className={`slot-status ${assignedIdentity ? 'assigned' : 'unassigned'}`}>
-                      {assignedIdentity ? '● 已指派' : '未指派'}
-                    </span>
                   </div>
-                  <label className="slot-field-label">指派給</label>
-                  <select
-                    className="control-select slot-select"
-                    value={assignedIdentity ?? ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      handleSlotAssign(sceneSlot.id, val === '' ? null : val);
-                    }}
-                  >
-                    <option value="">─ 移除指派</option>
-                    {allParticipantOptions.map(opt => (
-                      <option key={opt.identity} value={opt.identity}>{opt.label}</option>
-                    ))}
-                  </select>
-                  <label className="slot-field-label">角色模型</label>
-                  <select
-                    className="control-select slot-select"
-                    value={assignedVrmId ?? ''}
-                    disabled={!assignedIdentity}
-                    onChange={(e) => {
-                      if (assignedIdentity) {
-                        if (assignedIdentity === teacherIdentity) {
-                          handleTeacherVrmChange(e.target.value);
-                        } else {
-                          handleStudentRoleChange(assignedIdentity, e.target.value);
+
+                  <div className="slot-field">
+                    <label className="slot-field-label">指派給</label>
+                    <select
+                      className="slot-select-ui"
+                      value={assignedIdentity ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleSlotAssign(sceneSlot.id, val === '' ? null : val);
+                      }}
+                    >
+                      <option value="">─ 移除指派</option>
+                      {allParticipantOptions.map(opt => (
+                        <option key={opt.identity} value={opt.identity}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="slot-field">
+                    <label className="slot-field-label">角色模型</label>
+                    <select
+                      className="slot-select-ui"
+                      value={assignedVrmId ?? ''}
+                      disabled={!assignedIdentity}
+                      onChange={(e) => {
+                        if (assignedIdentity) {
+                          if (assignedIdentity === teacherIdentity) {
+                            handleTeacherVrmChange(e.target.value);
+                          } else {
+                            handleStudentRoleChange(assignedIdentity, e.target.value);
+                          }
                         }
-                      }
-                    }}
-                  >
-                    {allowedVrms.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.id === sceneSlot.defaultVrmId ? `★ ${s.label}` : s.label}
-                      </option>
-                    ))}
-                  </select>
+                      }}
+                    >
+                      {allowedVrms.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.id === sceneSlot.defaultVrmId ? `★ ${s.label}` : s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               );
             })}
-            <div className="slot-panel-footer">未指派者不出現在大屏</div>
+            <div className="slot-drawer-footer">未指派者不出現在大屏</div>
           </div>
         </div>
       )}
