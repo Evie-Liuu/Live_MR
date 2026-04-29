@@ -1183,9 +1183,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
                     muteState={muteState[info.participant.identity]}
                     onToggleMute={toggleMute}
+                    slotLabel={assignedSlot?.label}
                   />
-                  {assignedSlot && <div className="hs-video-slot-badge">{assignedSlot.icon} {assignedSlot.label}</div>}
-                  {!assignedSlot && hasSlots && <div className="hs-video-slot-badge hs-video-slot-badge--unassigned">未指派</div>}
                 </div>
               );
             })}

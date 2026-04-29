@@ -12,6 +12,7 @@ interface StudentTileProps {
   vrmSourceId?: string | null
   muteState?: MuteState
   onToggleMute?: (identity: string, trackType: 'audio' | 'video') => void
+  slotLabel?: string | null
 }
 
 export default function StudentTile({
@@ -21,6 +22,7 @@ export default function StudentTile({
   vrmSourceId,
   muteState,
   onToggleMute,
+  slotLabel,
 }: StudentTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -57,53 +59,73 @@ export default function StudentTile({
     if (poseData && !isCameraOff) applyPose(poseData)
   }, [poseData, applyPose, isCameraOff])
 
+  const labelText = slotLabel || '未指派'
+  const identityText = participant.identity
+
   return (
-    <div className="student-tile">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        className="tile-video"
-        style={{ display: isCameraOff ? 'none' : 'block' }}
-      />
-      {isCameraOff && (
-        <div className="camera-off-placeholder">
-          {/* 鏡頭關閉且無 VRM 才顯示圖示文字 */}
-          {vrmSourceId === null && (
-            <>
-              <span style={{ fontSize: 28 }}>📷</span>
-              <span>鏡頭已關閉</span>
-            </>
-          )}
-        </div>
-      )}
-      {/* VRM canvas 永遠疊在最上層，不論鏡頭狀態 */}
-      {vrmSourceId !== null && (
-        <canvas ref={canvasRef} className="avatar-canvas" />
-      )}
-      <div className="student-name">
-        {participant.identity}
+    <div className="student-tile-new">
+      {/* Top Video Area */}
+      <div className="tile-main-view">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="tile-video-new"
+          style={{ display: isCameraOff ? 'none' : 'block' }}
+        />
+
+        {isCameraOff && (
+          <div className="camera-off-placeholder-new">
+            {vrmSourceId === null && (
+              <div className="placeholder-center-icon">
+                <div className="rounded-rect" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VRM canvas */}
+        {vrmSourceId !== null && (
+          <canvas ref={canvasRef} className="avatar-canvas-new" />
+        )}
+
+        {/* Top Overlay Bar */}
+        {/* <div className="tile-top-overlay">
+          <span className="tile-id-badge">{identityText}</span>
+          <span className="tile-status-badge">{labelText}</span>
+        </div> */}
+
+        {/* Bottom Right Mute Controls */}
+        {onToggleMute && (
+          <div className="tile-action-controls">
+            <button
+              className={`tile-action-btn ${muteState?.audio ? 'muted' : 'active'}`}
+              onClick={() => onToggleMute(participant.identity, 'audio')}
+              title={muteState?.audio ? '取消靜音' : '靜音'}
+            >
+              <span className="material-symbols-outlined">
+                {muteState?.audio ? 'mic_off' : 'mic'}
+              </span>
+            </button>
+            <button
+              className={`tile-action-btn ${muteState?.video ? 'muted' : 'active'}`}
+              onClick={() => onToggleMute(participant.identity, 'video')}
+              title={muteState?.video ? '開啟鏡頭' : '關閉鏡頭'}
+            >
+              <span className="material-symbols-outlined">
+                {muteState?.video ? 'videocam_off' : 'videocam'}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {onToggleMute && (
-        <div className="mute-controls">
-          <button
-            className={`mute-btn ${muteState?.audio ? 'muted' : 'active'}`}
-            onClick={() => onToggleMute(participant.identity, 'audio')}
-            title={muteState?.audio ? '取消靜音' : '靜音'}
-          >
-            {muteState?.audio ? '🔇' : '🎤'}
-          </button>
-          <button
-            className={`mute-btn ${muteState?.video ? 'muted' : 'active'}`}
-            onClick={() => onToggleMute(participant.identity, 'video')}
-            title={muteState?.video ? '開啟鏡頭' : '關閉鏡頭'}
-          >
-            {muteState?.video ? '📷' : '📹'}
-          </button>
-        </div>
-      )}
+      {/* Bottom Info Bar */}
+      <div className="tile-footer-bar">
+        <span className="footer-id">{identityText}</span>
+        <span className="footer-status">{labelText}</span>
+      </div>
     </div>
   )
 }
