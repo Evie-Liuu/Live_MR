@@ -203,74 +203,72 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
     }
   }, [facingMode, isSwitchingCamera]);
 
+  const initials = name ? name.substring(0, 2).toLowerCase() : 'ss';
+
   return (
-    <div className="student-session">
-      <div className="session-header">
-        <h2>課堂進行中</h2>
-        <span className="room-badge">房間: {roomId}</span>
-        <span className="name-badge">{name}</span>
-        <span className={`status-badge ${connected ? 'connected' : 'disconnected'}`}>
+    <div className="student-session-container">
+      <div className="student-session-header">
+        <div className="room-id-box">
+          房間：{roomId}
+        </div>
+        <div className="connection-status-pill">
           {connected ? '已連線' : connectionError ? '連線失敗' : '連線中...'}
-        </span>
-        {connectionError && (
-          <span style={{ color: '#f87171', fontSize: '0.75em', marginLeft: 8 }}>
-            {connectionError}
-          </span>
-        )}
+        </div>
+        <div className="user-initials-circle">
+          {initials}
+        </div>
       </div>
-      <div className="self-view" style={{ position: 'relative', display: 'inline-block' }}>
-        <video ref={videoRef} autoPlay playsInline muted />
-        {landmarks && (
-          <PoseDebugOverlay
-            landmarks={[landmarks]}
-            width={videoSize.width}
-            height={videoSize.height}
+
+      <div className="student-main-card">
+        <div className="video-container-new">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ display: connected ? 'block' : 'none' }}
           />
-        )}
-        {/* 連線後顯示切換鏡頭按鈕（行動裝置前/後鏡頭；桌機視裝置支援情況）*/}
-        {false && connected && (
-          <button
-            onClick={switchCamera}
-            disabled={isSwitchingCamera}
-            title={facingMode === 'user' ? '切換到後鏡頭（外）' : '切換到前鏡頭（內）'}
-            style={{
-              position: 'absolute',
-              bottom: '8px',
-              right: '8px',
-              background: 'rgba(0,0,0,0.55)',
-              border: '1.5px solid rgba(255,255,255,0.35)',
-              borderRadius: '50%',
-              width: '44px',
-              height: '44px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: isSwitchingCamera ? 'not-allowed' : 'pointer',
-              opacity: isSwitchingCamera ? 0.5 : 1,
-              transition: 'opacity 0.2s',
-              zIndex: 10,
-            }}
-          >
-            {/* 相機旋轉 SVG icon */}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+
+          {(!connected || !videoRef.current?.srcObject) && (
+            <div className="video-placeholder-new">
+              <span className="material-symbols-outlined no-video-icon">
+                videocam_off
+              </span>
+            </div>
+          )}
+
+          {landmarks && (
+            <PoseDebugOverlay
+              landmarks={[landmarks]}
+              width={videoSize.width}
+              height={videoSize.height}
+            />
+          )}
+
+          {/* 切換鏡頭按鈕（保留功能但隱藏，如圖所示）*/}
+          {false && connected && (
+            <button
+              onClick={switchCamera}
+              disabled={isSwitchingCamera}
+              className="tile-action-btn"
+              style={{
+                position: 'absolute',
+                bottom: '16px',
+                right: '16px',
+                zIndex: 10,
+              }}
             >
-              <path d="M20 7h-3.5l-2-3h-5l-2 3H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="13" r="3" />
-              <path d="M15 3l2 2-2 2" />
-              <path d="M9 3L7 5l2 2" />
-            </svg>
-          </button>
-        )}
+              <span className="material-symbols-outlined">flip_camera_ios</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {connectionError && (
+        <div style={{ color: '#f87171', fontSize: '0.9rem', marginTop: 12 }}>
+          錯誤: {connectionError}
+        </div>
+      )}
     </div>
   );
 }

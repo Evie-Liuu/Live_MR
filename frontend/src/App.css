@@ -646,24 +646,106 @@ button:disabled {
   gap: 4px;
 }
 
-/* ===== Student Session ===== */
-.student-session {
-  width: 100%;
-  max-width: 640px;
+/* ===== Student Session (New Design) ===== */
+.student-session-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* min-height: 100vh; */
+  background-color: #ffffff;
+  padding: 20px;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
 }
 
-.self-view {
-  border-radius: 12px;
+.student-session-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 30px;
+  width: 100%;
+  max-width: 800px;
+  justify-content: center;
+}
+
+.room-id-box {
+  border: 2px solid #C69E6D;
+  border-radius: 50px;
+  padding: 8px 24px;
+  color: #136B6D;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  background: white;
+}
+
+.connection-status-pill {
+  background-color: #136B6D;
+  color: white;
+  border-radius: 50px;
+  padding: 8px 24px;
+  font-size: 1.0rem;
+  font-weight: 500;
+}
+
+.user-initials-circle {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: 2px solid #C69E6D;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #136B6D;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.student-main-card {
+  background: white;
+  border-radius: 40px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 840px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.video-container-new {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #14142B;
+  border: 2px solid #C69E6D;
+  border-radius: 20px;
   overflow: hidden;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  position: relative;
 }
 
-.self-view video {
+.video-container-new video {
   width: 100%;
-  display: block;
-  aspect-ratio: 4 / 3;
+  height: 100%;
   object-fit: cover;
+}
+
+.video-placeholder-new {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.no-video-icon {
+  font-size: 80px;
+  color: white;
+  opacity: 0.9;
 }
 
 /* ===== Rejected / Error screens ===== */
