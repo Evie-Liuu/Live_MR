@@ -1210,7 +1210,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       <div className={`panel-drawer ${showPendingPanel ? 'panel-drawer--open' : ''}`}>
         <div className="panel-drawer-header">
           <div className="slot-drawer-title">
-            <span className="orange">加入和申請</span><span className="teal">清單</span>
+            <span className="orange">學生管理</span><span className="teal">STUDENTS</span>
           </div>
           <button className="panel-close-btn" onClick={() => setShowPendingPanel(false)}>✕</button>
         </div>
@@ -1412,7 +1412,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         <div className={`panel-drawer panel-drawer--wide ${showTaskPanel ? 'panel-drawer--open' : ''}`}>
           <div className="panel-drawer-header">
             <div className="slot-drawer-title">
-              <span className="orange">任務管理</span> <span className="teal">TASK</span>
+              <span className="orange">任務管理</span> <span className="teal">TASKS</span>
             </div>
             <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>
               <span className="material-symbols-outlined">close</span>

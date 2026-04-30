@@ -65,8 +65,9 @@ body {
   padding: 20px;
 }
 
-/* Strip padding/centering when full-screen host session is active */
-.app:has(.host-session) {
+/* Strip padding/centering when full-screen host session or role select is active */
+.app:has(.host-session),
+.app:has(.role-select-screen) {
   padding: 0;
   align-items: stretch;
   justify-content: flex-start;
@@ -96,45 +97,118 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* ===== Role Select ===== */
-.role-select {
-  text-align: center;
-}
-
-.role-select h1 {
-  font-size: 48px;
-  color: var(--text-h);
-  margin-bottom: 8px;
-}
-
-.role-select p {
-  margin-bottom: 32px;
-  font-size: 18px;
-}
-
-.role-buttons {
+/* ===== Role Select (New Design) ===== */
+.role-select-screen {
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  min-height: 100vh;
+  background-color: #f5f7f9;
+  padding: 40px 20px;
 }
 
-.role-btn {
-  padding: 20px 40px;
-  font-size: 20px;
-  font-weight: 600;
-  border-radius: 12px;
-  min-width: 160px;
+.role-select-title {
+  font-size: 3.0rem;
+  font-weight: 800;
+  margin-bottom: 48px;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  letter-spacing: 2px;
 }
 
-.host-btn {
-  background: var(--accent);
-  color: var(--text-h);
+.role-title-highlight-orange {
+  color: #D97706;
+  /* Orange/Brownish */
 }
 
-.student-btn {
-  background: var(--accent-light);
-  color: var(--text-h);
+.role-title-highlight-teal {
+  color: #008080;
+  /* Teal */
 }
+
+.role-cards-container {
+  display: flex;
+  gap: 32px;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 1000px;
+}
+
+.role-card {
+  background: white;
+  border-radius: 24px;
+  padding: 30px 48px 40px 48px;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 5px 10px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.role-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+}
+
+.role-icon-wrapper {
+  background-color: #e9ecef;
+  width: 160px;
+  height: 160px;
+  border-radius: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 26px;
+  overflow: hidden;
+}
+
+.role-icon-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.role-card-label {
+  font-size: 2.0rem;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 26px;
+}
+
+.role-select-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  border-radius: 50px;
+  background: transparent;
+  border: 2.5px solid;
+  transition: all 0.2s ease;
+}
+
+.role-select-btn:hover {
+  transform: scale(1.02);
+}
+
+.role-select-btn.teacher {
+  color: #008080;
+  border-color: #008080;
+}
+
+.role-select-btn.teacher:hover {
+  background-color: rgba(0, 128, 128, 0.05);
+}
+
+.role-select-btn.student {
+  color: #8b5cf6;
+  border-color: #8b5cf6;
+}
+
+.role-select-btn.student:hover {
+  background-color: rgba(139, 92, 246, 0.05);
+}
+
 
 /* ===== Host Lobby ===== */
 .host-lobby {
