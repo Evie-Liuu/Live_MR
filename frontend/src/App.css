@@ -425,14 +425,28 @@ button:disabled {
 }
 
 .gradient-spinner {
-  width: 100px;
-  height: 100px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, #F76E12, #00A99D);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #fff 0);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 10px), #fff 0);
+  background: conic-gradient(from 0deg, transparent 0%, #F76E12 35%, #00A99D 100%);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #fff 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 9px), #fff 0);
+  /* animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite; */
   animation: spin 1.2s linear infinite;
   margin-bottom: 25px;
+  position: relative;
+}
+
+.gradient-spinner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(50% - 4.5px);
+  width: 9px;
+  height: 9px;
+  background-color: #00A99D;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0, 169, 157, 0.5);
 }
 
 .waiting-text {
@@ -441,10 +455,15 @@ button:disabled {
   color: #136B6D;
   font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
   letter-spacing: 2px;
+  margin-bottom: 15px;
 }
 
 @keyframes spin {
-  to {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
     transform: rotate(360deg);
   }
 }
