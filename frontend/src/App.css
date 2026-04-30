@@ -403,7 +403,103 @@ button:disabled {
   cursor: not-allowed;
 }
 
+
+/* ===== Share Screen (New Design) ===== */
+.share-screen-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--primary-light);
+  /* Consistent with other screens */
+  padding: 40px 20px;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', 'Microsoft YaHei', sans-serif;
+}
+
+.share-screen-title {
+  font-size: 2.4rem;
+  font-weight: 800;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+.share-title-orange {
+  color: var(--primary);
+}
+
+.share-title-teal {
+  color: #136B6D;
+}
+
+.share-screen-subtitle {
+  color: #666;
+  font-size: 1.3rem;
+  margin-bottom: 26px;
+  font-weight: 600;
+}
+
+.share-qr-card {
+  background: white;
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.2);
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-room-info {
+  text-align: center;
+  margin-bottom: 24px;
+  width: 100%;
+  max-width: 440px;
+}
+
+.share-room-label {
+  color: #136B6D;
+  font-size: 1.0rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.share-room-id {
+  color: #136B6D;
+  font-size: 1.25rem;
+  font-weight: 600;
+  word-break: break-all;
+  line-height: 1.4;
+  padding: 0 20px;
+}
+
+.share-copy-btn {
+  background-color: #136B6D;
+  color: white;
+  padding: 20px 48px;
+  font-size: 1.3em;
+  font-weight: 700;
+  border-radius: 100px;
+  width: 100%;
+  max-width: 280px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: none;
+  cursor: pointer;
+}
+
+.share-copy-btn:hover {
+  background-color: #0d4d4f;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.share-copy-btn:active {
+  transform: translateY(0);
+}
+
 /* ===== Student Join (New Design) ===== */
+
 .student-join-screen {
   display: flex;
   flex-direction: column;
