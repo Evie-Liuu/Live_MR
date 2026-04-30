@@ -866,13 +866,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {/* ── Top Bar ──────────────────────────────────────────────────────────── */}
       <div className="hs-topbar">
         <div className="hs-brand">
-          <div className="hs-brand-dot" />
-          <span className="hs-brand-title">MR 雙語角</span>
+          {/* <div className="hs-brand-dot" /> */}
+          <div className="hs-brand-logo-wrapper">
+            <img src="/logo.webp" alt="Logo" />
+          </div>
+          <span className="hs-brand-title"><span className="orange">MR</span> <span className="teal">雙語角</span></span>
         </div>
 
         <div className="hs-topbar-actions">
           <button className="hs-action-btn" onClick={openShareWindow} title="在新視窗分享房間 QR Code">
-            <span className="hs-action-icon">📱</span>
+            {/* <span className="hs-action-icon">📱</span> */}
             <span className="hs-action-label">分享</span>
           </button>
 
@@ -881,7 +884,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             onClick={openPending}
             title="學生管理"
           >
-            <span className="hs-action-icon">👥</span>
+            {/* <span className="hs-action-icon">👥</span> */}
             <span className="hs-action-label">{studentList.length} 位學生</span>
             {pending.length > 0 && <span className="hs-badge hs-badge--alert">{pending.length}</span>}
           </button>
@@ -893,9 +896,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             onClick={() => setFaceEnabled(v => !v)}
             title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
           >
-            <span className="hs-action-icon">{faceEnabled ? '😊' : '😶'}</span>
+            {/* <span className="hs-action-icon">{faceEnabled ? '😊' : '😶'}</span> */}
             <span className="hs-action-label">臉部</span>
-            <span className={`hs-badge ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
+            <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
           <button
@@ -903,9 +906,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             onClick={toggleBigScreenPreview}
             title={showBigScreenPreview ? '關閉大屏預覽' : '開啟大屏預覽'}
           >
-            <span className="hs-action-icon">🖥️</span>
+            {/* <span className="hs-action-icon">🖥️</span> */}
             <span className="hs-action-label">預覽</span>
-            <span className={`hs-badge ${showBigScreenPreview ? 'hs-badge--on' : 'hs-badge--off'}`}>
+            <span className={`hs-badge-btn ${showBigScreenPreview ? 'hs-badge--on' : 'hs-badge--off'}`}>
               {showBigScreenPreview ? 'ON' : 'OFF'}
             </span>
           </button>
@@ -1330,7 +1333,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         <div className={`panel-drawer ${showSlotPanel ? 'panel-drawer--open' : ''}`}>
           <div className="panel-drawer-header">
             <div className="slot-drawer-title">
-              <span className="orange">角色配置</span> <span className="teal">SLOTS</span>
+              <span className="orange">角色配置</span> <span className="teal">ROLES</span>
             </div>
             <button className="panel-close-btn" onClick={() => setShowSlotPanel(false)}>✕</button>
           </div>

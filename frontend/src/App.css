@@ -2138,7 +2138,6 @@ button:disabled {
   flex-direction: column;
   transform: translateX(100%);
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: -6px 0 32px rgba(0, 0, 0, 0.6);
 }
 
 .panel-drawer--open {
@@ -3227,6 +3226,20 @@ button:disabled {
   animation: livePulse 2s ease-in-out infinite;
 }
 
+.hs-brand-logo-wrapper {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hs-brand-logo-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 @keyframes livePulse {
 
   0%,
@@ -3240,10 +3253,18 @@ button:disabled {
 }
 
 .hs-brand-title {
-  font-size: 16px;
-  font-weight: 900;
-  color: var(--primary);
   letter-spacing: 0.5px;
+  font-size: 35px;
+  font-weight: 900;
+  font-family: 'Nunito', sans-serif;
+}
+
+.hs-brand-title .orange {
+  color: #F76E12;
+}
+
+.hs-brand-title .teal {
+  color: #00A99D;
 }
 
 .hs-topbar-actions {
@@ -3319,10 +3340,10 @@ button:disabled {
   color: #fff !important;
 }
 
-.hs-badge {
-  padding: 1px 6px;
+.hs-badge-btn {
+  padding: 0px 6px;
   border-radius: 12px;
-  font-size: 10px;
+  font-size: 16px !important;
   font-weight: 800;
   letter-spacing: 0.2px;
 }
@@ -3396,8 +3417,8 @@ button:disabled {
   transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s;
   user-select: none;
   position: relative;
-  border: 6px solid var(--card-color);
-  box-shadow: 0 10px 0 var(--card-shadow);
+  border: 4px solid var(--card-color);
+  /* box-shadow: 0 10px 0 var(--card-shadow); */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -3424,7 +3445,7 @@ button:disabled {
 
 .hs-card:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 14px 0 var(--card-shadow);
+  /* box-shadow: 0 14px 0 var(--card-shadow); */
 }
 
 .hs-card--open {
@@ -3467,9 +3488,9 @@ button:disabled {
 }
 
 .hs-badge {
-  padding: 6px 16px;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 900;
   font-family: 'Nunito', sans-serif;
   color: #fff !important;
@@ -3492,7 +3513,7 @@ button:disabled {
   position: relative;
   background: #FDF1D3;
   /* light yellowish inner background like the image */
-  border: 6px solid #F76E12;
+  border: 4px solid #F76E12;
   border-radius: 24px;
   box-shadow: inset 0 8px 0 rgba(0, 0, 0, 0.05);
   overflow: hidden;
@@ -3554,16 +3575,16 @@ button:disabled {
   padding: 10px 16px;
   border-radius: 40px;
   background: #ffffff;
-  border: 6px solid #F76E12;
+  border: 4px solid #F76E12;
   /* Using theme orange for slots like in image */
-  box-shadow: 0 6px 0 #c4560d;
+  /* box-shadow: 0 6px 0 #c4560d; */
   font-size: 20px;
   transition: transform 0.1s;
 }
 
 .hs-slot-row:active {
   transform: translateY(2px);
-  box-shadow: 0 4px 0 #c4560d;
+  /* box-shadow: 0 4px 0 #c4560d; */
 }
 
 .hs-slot-row--filled {
@@ -3578,7 +3599,7 @@ button:disabled {
   flex: 1;
   color: #482607;
   font-weight: 900;
-  font-size: 24px;
+  font-size: 22px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3639,9 +3660,9 @@ button:disabled {
   padding: 10px 16px;
   border-radius: 40px;
   background: #ffffff;
-  border: 6px solid #95CC4D;
-  box-shadow: 0 6px 0 #76a23d;
-  font-size: 20px;
+  border: 4px solid #95CC4D;
+  /* box-shadow: 0 6px 0 #76a23d; */
+  font-size: 18px;
   color: #482607;
   font-weight: 900;
 }
@@ -3663,14 +3684,14 @@ button:disabled {
   border-radius: 40px;
   background: #ff6b6b;
   border: 4px solid #c44545;
-  box-shadow: 0 6px 0 #a33232;
+  /* box-shadow: 0 6px 0 #a33232; */
   margin-top: 10px;
   font-weight: 900;
 }
 
 .hs-task-reset:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 0 #a33232;
+  /* box-shadow: 0 8px 0 #a33232; */
 }
 
 .hs-task-empty {
@@ -3799,7 +3820,6 @@ button:disabled {
   overflow: hidden;
   background: #fff;
   transition: border-color 0.15s, box-shadow 0.15s;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .hs-teacher-card {
@@ -3899,7 +3919,6 @@ button:disabled {
   border: none;
   cursor: pointer;
   font-family: 'Nunito', inherit;
-  box-shadow: 0 6px 24px rgba(247, 110, 18, 0.38), 0 2px 8px rgba(0, 0, 0, 0.18);
   transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   letter-spacing: 0.3px;
 }
