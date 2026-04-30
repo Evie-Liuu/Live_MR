@@ -63,10 +63,10 @@ export default function StudentWaiting({
   }, [roomId, requestId, onApproved, onRejected, onError]);
 
   return (
-    <div className="student-waiting">
-      <div className="spinner" />
-      <h2>等待老師允許</h2>
-      <p>{name}，請稍候...</p>
+    <div className="student-waiting-screen">
+      <div className="gradient-spinner" />
+      <h2 className="waiting-text">等待老師允許</h2>
+      <p className="waiting-text">{name}，請稍候...</p>
     </div>
   );
 }
