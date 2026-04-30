@@ -61,7 +61,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // QR Code share modal (now opened in separate window)
   const openShareWindow = useCallback(() => {
     const url = `${window.location.origin}/?screen=share&roomId=${roomId}`;
-    window.open(url, 'live-mr-share', 'width=480,height=600,menubar=no,toolbar=no');
+    window.open(url, 'live-mr-share', 'width=500,height=650,menubar=no,toolbar=no');
   }, [roomId]);
   // Track whether a recording was ever started this session
   const [hasRecorded, setHasRecorded] = useState(false);
@@ -860,14 +860,14 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {/* Hidden video for teacher pose detection */}
       <video ref={teacherVideoRef} autoPlay playsInline muted style={{ display: 'none' }} aria-hidden="true" />
 
-      <PerformanceMonitor label="App Render FPS" position="top-left" />
-      <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" />
+      {/* <PerformanceMonitor label="App Render FPS" position="top-left" />
+      <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" /> */}
 
       {/* ── Top Bar ──────────────────────────────────────────────────────────── */}
       <div className="hs-topbar">
         <div className="hs-brand">
           <div className="hs-brand-dot" />
-          <span className="hs-brand-title">課堂進行中</span>
+          <span className="hs-brand-title">MR 雙語角</span>
         </div>
 
         <div className="hs-topbar-actions">
