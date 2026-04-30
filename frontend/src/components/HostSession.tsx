@@ -886,6 +886,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             {pending.length > 0 && <span className="hs-badge hs-badge--alert">{pending.length}</span>}
           </button>
 
+          <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
+
           <button
             className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
             onClick={() => setFaceEnabled(v => !v)}
@@ -895,8 +897,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <span className="hs-action-label">臉部</span>
             <span className={`hs-badge ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
           </button>
-
-          <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
 
           <button
             className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--on' : 'hs-action--off'}`}
@@ -1209,32 +1209,62 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {/* ── Pending Requests Drawer ───────────────────────────────────────────── */}
       <div className={`panel-drawer ${showPendingPanel ? 'panel-drawer--open' : ''}`}>
         <div className="panel-drawer-header">
-          <span>🔔 加入和申請清單</span>
+          <div className="slot-drawer-title">
+            <span className="orange">加入和申請</span><span className="teal">清單</span>
+          </div>
           <button className="panel-close-btn" onClick={() => setShowPendingPanel(false)}>✕</button>
         </div>
         <div className="panel-drawer-body">
-          <div className="pending-list" style={{ padding: '0 16px' }}>
-            <h3 style={{ marginTop: '16px', marginBottom: '8px', color: 'var(--text)', fontSize: '14px', fontWeight: 700 }}>待審核學生 ({pending.length})</h3>
-            {pending.length === 0 && <div style={{ color: 'rgba(72,38,7,0.5)', fontSize: '13px' }}>目前沒有加入請求</div>}
-            {pending.map((s) => (
-              <div key={s.requestId} className="pending-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-light2)', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(247,110,18,0.2)' }}>
-                <span style={{ fontWeight: 'bold', color: 'var(--text)' }}>{s.name}</span>
-                <div className="pending-actions" style={{ display: 'flex', gap: '8px' }}>
-                  <button className="approve-btn" style={{ background: '#4CAF50', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleApprove(s.requestId)}>允許</button>
-                  <button className="reject-btn" style={{ background: '#F44336', color: 'white', border: 'none', padding: '4px 12px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => handleReject(s.requestId)}>拒絕</button>
+          <div className="pending-section-header">
+            <span>待審核學生</span>
+            <span className="pending-section-count">({pending.length})</span>
+          </div>
+
+          {pending.length === 0 && (
+            <div className='pending-section-description'>
+              目前沒有加入請求
+            </div>
+          )}
+
+          {pending.map((s) => (
+            <div key={s.requestId} className="pending-student-card">
+              <div className="pending-avatar-container">
+                <span className="material-symbols-outlined pending-avatar-icon">person</span>
+              </div>
+              <div className="pending-student-info">
+                <span className="pending-student-name">{s.name}</span>
+                <div className="pending-card-actions">
+                  <button className="pending-btn pending-btn-allow" onClick={() => handleApprove(s.requestId)}>允許</button>
+                  <button className="pending-btn pending-btn-reject" onClick={() => handleReject(s.requestId)}>拒絕</button>
                 </div>
               </div>
-            ))}
+            </div>
+          ))}
 
-            <h3 style={{ marginTop: '24px', marginBottom: '8px', color: 'var(--text)', fontSize: '14px', fontWeight: 700 }}>已加入學生 ({studentList.length})</h3>
-            {studentList.length === 0 && <div style={{ color: 'rgba(72,38,7,0.5)', fontSize: '13px' }}>目前沒有學生加入</div>}
-            {studentList.map((info) => (
-              <div key={info.participant.identity} style={{ display: 'flex', alignItems: 'center', background: 'rgba(149,204,77,0.1)', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid rgba(149,204,77,0.2)' }}>
-                <span style={{ marginRight: '8px' }}>👤</span>
-                <span style={{ color: 'var(--text)' }}>{info.participant.name || info.participant.identity}</span>
-              </div>
-            ))}
+          <div className="pending-section-header">
+            <span>已加入學生</span>
+            <span className="pending-section-count">({studentList.length})</span>
           </div>
+
+          {studentList.length === 0 && (
+            <div className='pending-section-description'>
+              目前沒有學生加入
+            </div>
+          )}
+
+          {studentList.map((info) => (
+            <div key={info.participant.identity} className="pending-student-card">
+              <div className="pending-avatar-container">
+                <span className="material-symbols-outlined pending-avatar-icon">
+                  {/* Ideally different icons for different students, but generic for now */}
+                  person
+                </span>
+              </div>
+              <div className="pending-student-info">
+                <span className="pending-student-name">{info.participant.name || info.participant.identity}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -188,7 +188,7 @@ button:disabled {
 }
 
 .pending-list h3 {
-  color: var(--text-h);
+  color: var(--text);
   margin-bottom: 12px;
   text-align: center;
 }
@@ -246,7 +246,7 @@ button:disabled {
 }
 
 .student-join h2 {
-  color: var(--text-h);
+  color: var(--text);
   margin-bottom: 8px;
 }
 
@@ -268,7 +268,7 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-card);
-  color: var(--text-h);
+  color: var(--text);
   outline: none;
 }
 
@@ -2721,7 +2721,7 @@ button:disabled {
 
 /* ── Top Bar ─────────────────────────────────────────────────── */
 .hs-topbar {
-  height: 54px;
+  height: 64px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2814,7 +2814,7 @@ button:disabled {
 
 .hs-action--alert {
   border-color: rgba(255, 107, 107, 0.65) !important;
-  background: rgba(255, 107, 107, 0.1) !important;
+  background: rgba(255, 107, 107, 0.12) !important;
   color: #ff8080 !important;
 }
 
@@ -2832,6 +2832,11 @@ button:disabled {
 
 .hs-action--on:hover {
   background: var(--secondary) !important;
+  color: #fff !important;
+}
+
+.hs-action--alert:hover {
+  background: #ff8080 !important;
   color: #fff !important;
 }
 
@@ -2894,7 +2899,7 @@ button:disabled {
       #ffc078 40px,
       #ffc078 80px); */
   border-right: 2px solid rgba(0, 0, 0, 0.05);
-  padding: 20px 16px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -3190,7 +3195,7 @@ button:disabled {
 }
 
 .hs-task-empty {
-  font-size: 32px;
+  font-size: 26px;
   color: #482607;
   text-align: center;
   padding: 30px 0;
@@ -3300,7 +3305,9 @@ button:disabled {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  /* grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); */
+  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  margin-top: 10px;
   gap: 12px;
   overflow-y: auto;
   align-content: start;
@@ -3519,6 +3526,7 @@ button:disabled {
   max-height: 220px;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   overflow-y: auto;
+  margin: 0;
 }
 
 /* ===== New Slot Drawer UI ===== */
@@ -3651,6 +3659,116 @@ button:disabled {
 .slot-drawer-footer {
   padding: 32px 0 16px;
   text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #666;
+}
+
+/* ===== Pending Requests Drawer UI ===== */
+.pending-section-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #000;
+}
+
+.pending-section-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.pending-section-description {
+  font-size: 16px;
+  /* font-weight: 600; */
+  color: #000;
+  padding: 5px 16px 20px 16px;
+  text-align: start;
+}
+
+.pending-student-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 20px;
+  /* margin-bottom: 16px; */
+  margin: 0 16px 16px 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.pending-avatar-container {
+  width: 64px;
+  height: 64px;
+  background: #f0f2f5;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.pending-avatar-icon {
+  font-size: 44px;
+  color: var(--primary);
+}
+
+.pending-student-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-items: center;
+  gap: 12px;
+  margin: auto;
+}
+
+.pending-student-name {
+  font-size: 22px;
+  font-weight: 900;
+  color: #000;
+  margin-top: 4px;
+}
+
+.pending-card-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.pending-btn {
+  padding: 8px 24px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.2s;
+  min-width: 90px;
+}
+
+.pending-btn-allow {
+  background: var(--secondary);
+}
+
+.pending-btn-reject {
+  background: var(--primary);
+}
+
+.pending-btn:active {
+  transform: scale(0.96);
+}
+
+.pending-footer-hint {
+  text-align: center;
+  padding: 40px 0 20px;
   font-size: 16px;
   font-weight: 700;
   color: #666;
