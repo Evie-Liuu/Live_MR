@@ -13,7 +13,8 @@
 :root {
   /* Brand primary (also available as Tailwind utilities above) */
   --primary: #F76E12;
-  --primary-light: #F1F1F1;
+  /* --primary-light: #F1F1F1; */
+  --primary-light: #f5f7f9;
   --primary-light2: #FCE9D7;
   --secondary: #00A99D;
   --secondary-light: #FEFFEA;
@@ -68,7 +69,8 @@ body {
 /* Strip padding/centering when full-screen host session or role select is active */
 .app:has(.host-session),
 .app:has(.role-select-screen),
-.app:has(.student-join-screen) {
+.app:has(.student-join-screen),
+.app:has(.host-lobby-screen) {
   padding: 0;
   align-items: stretch;
   justify-content: flex-start;
@@ -105,7 +107,6 @@ button:disabled {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #f5f7f9;
   padding: 40px 20px;
 }
 
@@ -211,106 +212,195 @@ button:disabled {
 }
 
 
-/* ===== Host Lobby ===== */
-.host-lobby {
-  width: 100%;
-  max-width: 600px;
-  text-align: center;
-}
-
-.host-lobby h2 {
-  color: var(--text-h);
-  margin-bottom: 20px;
-}
-
-.qr-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
+/* ===== Host Lobby (New Design) ===== */
+.host-lobby-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 20px;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
 }
 
-.qr-section svg {
-  border-radius: 8px;
-  background: #fff;
-  padding: 8px;
+.host-lobby-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #136B6D;
+  margin-bottom: 18px;
+  letter-spacing: 1px;
 }
 
-.room-id {
-  font-size: 14px;
-  color: var(--text);
+.host-lobby-card {
+  background: white;
+  border-radius: 24px;
+  padding: 20px 48px 25px 48px;
+  width: 100%;
+  max-width: 640px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
-.join-url {
-  font-size: 12px;
-  color: var(--text);
-  opacity: 0.7;
-  word-break: break-all;
+.qr-container {
+  background: white;
+  padding: 12px;
+  margin-bottom: 15px;
 }
 
-.pending-list {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+.room-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 20px;
-  text-align: left;
 }
 
-.pending-list h3 {
-  color: var(--text);
-  margin-bottom: 12px;
+.room-id-label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #136B6D;
+}
+
+.room-id-value {
+  color: #333;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.copy-btn {
+  background: transparent;
+  color: #136B6D;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.copy-btn:hover {
+  background-color: rgba(19, 107, 109, 0.1);
+}
+
+.join-url-text {
+  font-size: 0.9rem;
+  color: #999;
+  word-break: break-all;
+  max-width: 100%;
   text-align: center;
 }
 
-.pending-item {
+.host-lobby-pending-bar {
+  background: white;
+  border-radius: 16px;
+  padding: 16px 24px;
+  width: 100%;
+  max-width: 640px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  margin-bottom: 12px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #333;
 }
 
-.pending-item:last-child {
-  border-bottom: none;
+.pending-badge {
+  background-color: #136B6D;
+  color: white;
+  padding: 2px 12px;
+  border-radius: 20px;
+  font-size: 1rem;
 }
 
-.pending-actions {
+.host-lobby-pending-list {
+  width: 100%;
+  max-width: 640px;
   display: flex;
+  flex-direction: column;
   gap: 8px;
+  margin-bottom: 32px;
 }
 
-.approve-btn {
-  background: var(--success);
-  color: #fff;
+.pending-item-new {
+  background: white;
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.pending-item-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.pending-item-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.approve-btn-new {
+  background-color: #136B6D;
+  color: white;
   padding: 6px 16px;
-  font-size: 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
-.reject-btn {
-  background: var(--danger);
-  color: #fff;
+.reject-btn-new {
+  background-color: #e94560;
+  color: white;
   padding: 6px 16px;
-  font-size: 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
-.lobby-footer {
+.host-lobby-footer {
+  width: 100%;
+  max-width: 640px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-top: 20px;
 }
 
-.start-btn {
-  background: var(--success);
-  color: #fff;
+.allowed-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.allowed-count .material-symbols-outlined {
+  color: #136B6D;
+}
+
+.start-class-btn {
+  background-color: #136B6D;
+  color: white;
   padding: 12px 32px;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.start-class-btn:hover:not(:disabled) {
+  background-color: #0d4d4f;
+  transform: translateY(-2px);
+}
+
+.start-class-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 /* ===== Student Join (New Design) ===== */
@@ -320,7 +410,6 @@ button:disabled {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: #f5f7f9;
   padding: 20px;
 }
 
