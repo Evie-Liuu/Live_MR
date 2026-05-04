@@ -2552,17 +2552,19 @@ button:disabled {
 }
 
 .settlement-modal {
-  background: var(--primary-light);
-  border: 1px solid var(--primary-light2);
-  border-radius: 18px;
-  width: 520px;
-  max-width: 95vw;
-  max-height: 85vh;
+  position: relative;
+  background: #ffffff;
+  border: none;
+  border-radius: 24px;
+  width: min(560px, 95vw);
+  max-height: 90vh;
+  padding: 48px 40px 40px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(247, 110, 18, 0.15), 0 4px 16px rgba(0, 0, 0, 0.12);
+  gap: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   animation: settlementIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 @keyframes settlementIn {
@@ -2620,21 +2622,27 @@ button:disabled {
 }
 
 .settlement-close {
-  margin-left: auto;
-  background: transparent;
-  border: 1px solid transparent;
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  background: rgba(247, 110, 18, 0.07);
+  border: 1px solid rgba(247, 110, 18, 0.18);
   color: rgba(72, 38, 7, 0.45);
-  font-size: 16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 15px;
   cursor: pointer;
-  padding: 4px 9px;
-  border-radius: 6px;
-  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, background 0.2s;
+  padding: 0;
 }
 
 .settlement-close:hover {
   color: var(--text);
-  background: rgba(247, 110, 18, 0.08);
-  border-color: var(--primary-light2);
+  background: rgba(247, 110, 18, 0.15);
 }
 
 .settlement-body {
@@ -2989,6 +2997,15 @@ button:disabled {
   background: #f0f0f0;
   border-radius: 50%;
   padding: 4px;
+}
+
+.bs-participant-name {
+  flex: 1;
+  font-size: 15px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .bs-teacher-label {

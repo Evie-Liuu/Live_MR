@@ -923,69 +923,91 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {showSettlement && (
         <div className="settlement-backdrop" onClick={() => setShowSettlement(false)}>
           <div className="settlement-modal" onClick={e => e.stopPropagation()}>
-            <div className="settlement-header">
-              <span className="settlement-trophy">🏆</span>
-              <div>
-                <div className="settlement-title">課堂結算</div>
-                <div className="settlement-subtitle">所有任務已完成</div>
+            {/* Close button */}
+            <button className="settlement-close" onClick={() => setShowSettlement(false)}>✕</button>
+
+            {/* Header — matches BigScreen style */}
+            <div className="bs-settlement-header">
+              <div className="bs-settlement-trophy">
+                <img src="/images/medal.png" alt="Trophy" />
               </div>
-              <button className="settlement-close" onClick={() => setShowSettlement(false)}>✕</button>
+              <div className="bs-settlement-title">情境對話結束</div>
+              <div className="bs-settlement-subtitle">所有任務已完成！</div>
             </div>
 
-            <div className="settlement-body">
-              <div className="settlement-section">
-                <div className="settlement-section-title">👥 參與人員</div>
-                <div className="settlement-participants">
-                  {connectedRoom && (
-                    <div className="settlement-participant settlement-participant--host">
-                      <span className="settlement-participant-icon">👨‍🏫</span>
-                      <span>{connectedRoom.localParticipant.name || connectedRoom.localParticipant.identity}</span>
-                      <span className="settlement-participant-role">老師</span>
-                    </div>
+            <div className="bs-settlement-columns">
+              <div className="bs-settlement-grid">
+                {/* Left: Participants */}
+                <div className="bs-settlement-col">
+                  <div className="bs-settlement-col-title">參與人員</div>
+                  <div className="bs-settlement-participants">
+                    {connectedRoom && (
+                      <div className="bs-settlement-participant host">
+                        <span className="material-icons bs-participant-icon">school</span>
+                        <span className="bs-participant-name">
+                          {connectedRoom.localParticipant.name || connectedRoom.localParticipant.identity}
+                          <span className="bs-teacher-label">老師</span>
+                        </span>
+                      </div>
+                    )}
+                    {studentList.map(info => (
+                      <div key={info.participant.identity} className="bs-settlement-participant">
+                        <span className="material-icons bs-participant-icon">person</span>
+                        <span className="bs-participant-name">{info.participant.name || info.participant.identity}</span>
+                      </div>
+                    ))}
+                    {studentList.length === 0 && <div className="bs-settlement-participant"><span>—</span></div>}
+                  </div>
+                </div>
+
+                {/* Right: Recording */}
+                <div className="bs-settlement-col">
+                  <div className="bs-settlement-col-title">錄製</div>
+                  <div className={`bs-rec-status ${isRecording ? 'active' : hasRecorded ? 'done' : ''}`}>
+                    {isRecording ? (
+                      <>
+                        <span className="recording-dot" />
+                        <span>錄製中</span>
+                      </>
+                    ) : hasRecorded ? (
+                      <>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>check</span>
+                        <span>已保存錄製</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>videocam_off</span>
+                        <span>無錄製</span>
+                      </>
+                    )}
+                  </div>
+                  {isRecording && (
+                    <button className="settlement-stop-btn" onClick={async () => { await stop(); }}>⏹ 停止錄製</button>
                   )}
-                  {studentList.map(info => (
-                    <div key={info.participant.identity} className="settlement-participant">
-                      <span className="settlement-participant-icon">👤</span>
-                      <span>{info.participant.name || info.participant.identity}</span>
-                    </div>
-                  ))}
-                  {studentList.length === 0 && <div className="settlement-empty">無學生參與</div>}
                 </div>
               </div>
 
-              <div className="settlement-section">
-                <div className="settlement-section-title">🎬 錄製狀態</div>
-                <div className="settlement-recording">
-                  {isRecording ? (
-                    <div className="settlement-recording-row settlement-recording--active">
-                      <span className="recording-dot" />
-                      <span>錄製中</span>
-                      <button className="settlement-stop-btn" onClick={async () => { await stop(); }}>⏹ 停止錄製</button>
-                    </div>
-                  ) : hasRecorded ? (
-                    <div className="settlement-recording-row settlement-recording--done"><span>✓</span><span>已保存錄製</span></div>
-                  ) : (
-                    <div className="settlement-recording-row settlement-recording--none"><span>✕</span><span>無錄製</span></div>
-                  )}
-                </div>
-              </div>
-
-              <div className="settlement-section">
-                <div className="settlement-section-title">📋 任務清單</div>
-                <div className="settlement-tasks">
+              {/* Tasks List */}
+              <div className="bs-settlement-col">
+                <div className="bs-settlement-col-title">任務清單</div>
+                <div className="bs-settlement-tasklist">
                   {selectedTasks.map((task, idx) => (
-                    <div key={task.id} className={`settlement-task-row ${task.completed ? 'completed' : 'incomplete'}`}>
-                      <div className="settlement-task-num">{idx + 1}</div>
-                      <span className="settlement-task-label">{task.label}</span>
-                      <span className="settlement-task-status">{task.completed ? '✓' : '✕'}</span>
+                    <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
+                      <div className="bs-task-num">{idx + 1}</div>
+                      <span className="bs-task-label">{task.label}</span>
+                      <span className="bs-task-check">
+                        {task.completed
+                          ? <span className="material-symbols-outlined">check</span>
+                          : <span className="material-symbols-outlined">close</span>}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="settlement-footer">
-              <button className="settlement-dismiss-btn" onClick={() => setShowSettlement(false)}>關閉</button>
+            <div className="bs-settlement-footer">
+              <button className="bs-settlement-dismiss" onClick={() => setShowSettlement(false)}>關閉</button>
             </div>
           </div>
         </div>
