@@ -3401,7 +3401,7 @@ button:disabled {
 
 /* ── Left Sidebar ────────────────────────────────────────────── */
 .hs-sidebar {
-  width: 360px;
+  width: 380px;
   min-width: 280px;
   flex-shrink: 0;
   /* background: url("/images/UI/card_background.png"); */
@@ -3417,6 +3417,7 @@ button:disabled {
   flex-direction: column;
   gap: 20px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   /* background-size: cover;
   background-position: center; */
 }
