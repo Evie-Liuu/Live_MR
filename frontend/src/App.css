@@ -2879,12 +2879,12 @@ button:disabled {
   background: #ffffff;
   border: none;
   border-radius: 24px;
-  width: min(520px, 95vw);
+  width: min(1000px, 95vw);
   max-height: 90vh;
-  padding: 48px 40px 40px;
+  padding: 36px 36px 32px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   animation: settlementIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   overflow-y: auto;
@@ -2918,9 +2918,9 @@ button:disabled {
 }
 
 .bs-settlement-trophy {
-  width: 100px;
-  height: 100px;
-  margin: 0 auto 16px;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2939,42 +2939,48 @@ button:disabled {
 }
 
 .bs-settlement-title {
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 800;
   color: #333;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .bs-settlement-subtitle {
-  font-size: 18px;
+  font-size: 15px;
   color: #5EBAAD;
   font-weight: 600;
 }
 
 .bs-settlement-columns {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
 }
 
 .bs-settlement-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  padding-top: 12px;
-  /* border-top: 1px solid #eee; */
+  display: contents;
 }
 
 .bs-settlement-col {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 0 20px;
   border-right: 1px solid #eee;
   /* align-items: start; */
 }
 
-.bs-settlement-col:last-child {
+.bs-settlement-col:first-child {
+  padding-left: 0;
+}
+
+.bs-settlement-columns > .bs-settlement-col:last-child {
+  flex: 2.5;
   border-right: none;
+  padding-right: 0;
 }
 
 .bs-settlement-col-title {
@@ -3105,14 +3111,14 @@ button:disabled {
 .bs-settlement-tasklist {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .bs-settlement-task {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 18px;
+  padding: 10px 14px;
   border-radius: 12px;
   transition: all 0.2s ease;
 }
