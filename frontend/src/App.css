@@ -1451,6 +1451,7 @@ button:disabled {
   background: #F0F2F5;
   border-radius: 12px;
   overflow: hidden;
+  max-height: calc(100vh - 75px);
 }
 
 .task-bank-header {
@@ -1475,7 +1476,8 @@ button:disabled {
 }
 
 .task-count.limit {
-  color: #ff4444;
+  /* color: #ff4444; */
+  color: var(--text-dark);
   background: rgba(255, 68, 68, 0.1);
 }
 
@@ -1601,6 +1603,7 @@ button:disabled {
   background: #F0F2F5;
   border-radius: 12px;
   overflow: hidden;
+  max-height: calc(100vh - 75px);
 }
 
 .active-tasks-header {
@@ -1696,6 +1699,10 @@ button:disabled {
   gap: 8px;
   transition: all 0.2s;
   width: fit-content;
+}
+
+.clear-tasks-btn .material-symbols-outlined {
+  font-size: 20px !important;
 }
 
 .clear-tasks-btn:hover {
