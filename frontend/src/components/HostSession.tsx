@@ -1114,7 +1114,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                   ) : (
                     <>
                       <span className="hs-task-arrow">▸</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span className="hs-task-label">
                         {selectedTasks[currentTaskIndex]?.label}
                       </span>
                       <span className="hs-task-counter">{doneCount}/{selectedTasks.length}</span>
