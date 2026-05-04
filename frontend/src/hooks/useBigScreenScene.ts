@@ -350,8 +350,8 @@ export function useBigScreenScene(
               if (dpCfg) _displayPosVec.set(...dpCfg), prop.position.copy(_displayPosVec);
             }
 
-            console.log(heldBy);
-            console.log(isHolderActive);
+            // console.log(heldBy);
+            // console.log(isHolderActive);
 
             if (!heldBy || !isHolderActive) {
               highlightProp(prop, true, elapsedRef.current);

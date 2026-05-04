@@ -1286,7 +1286,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         <div className="panel-drawer-body">
           {THEMES.map((theme) => (
             <div key={theme.id} className="scene-group">
-              <div className="scene-group-label">{theme.icon} {theme.label}</div>
+              <div className="scene-group-label"><span className="material-symbols-outlined">{theme.icon}</span> {theme.label}</div>
               <div className="scene-options-grid">
                 {theme.scenes.map((scene) => (
                   <div
@@ -1361,7 +1361,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         {assignedIdentity ? '已指派' : '未指派'}
                       </div>
                       <div className="slot-pos-hint">
-                        位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'} (x={sceneSlot.position[0]})
+                        位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'}
+                        {/* 位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'} (x={sceneSlot.position[0]}) */}
                       </div>
                     </div>
                   </div>

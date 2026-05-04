@@ -14,7 +14,7 @@ export const THEMES: ThemeConfig[] = [
   {
     id: 'clothingStore',
     label: '服飾店',
-    icon: '👗',
+    icon: 'checkroom',
     scenes: [
       // ── Scene 1：收銀台 ───────────────────────────────────────────────
       {

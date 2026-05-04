@@ -1057,7 +1057,7 @@ export default function BigScreen() {
                   style={{ width: `${activeTasks.length > 0 ? (activeTasks.filter(t => t.completed).length / activeTasks.length) * 100 : 0}%` }}
                 />
               </div>
-              <div className="bigscreen-tasks-list">
+              {/* <div className="bigscreen-tasks-list">
                 {otherTasks.map((t, idx) => {
                   // Re-calculate the original index for display
                   const originalIndex = activeTasks.findIndex(it => it.id === t.id);
@@ -1073,7 +1073,7 @@ export default function BigScreen() {
                     </div>
                   );
                 })}
-              </div>
+              </div> */}
             </div>
           </>
         );
@@ -1173,9 +1173,9 @@ export default function BigScreen() {
         </div>
       )}
 
-      <PerformanceMonitor label="Render FPS" position="top-right" />
-      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
-      {showStats && statsData && <StatsPanel data={statsData} />}
+      {/* <PerformanceMonitor label="Render FPS" position="top-right" />
+      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" /> */}
+      {/* {showStats && statsData && <StatsPanel data={statsData} />} */}
     </div >
   );
 }
