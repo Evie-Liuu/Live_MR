@@ -441,7 +441,7 @@ export default function BigScreen() {
 
       ctx.fillStyle = '#333333';
       ctx.font = '900 30px system-ui, sans-serif';
-      ctx.fillText('課堂結算', cw / 2, sy);
+      ctx.fillText('情境對話結束', cw / 2, sy);
       sy += 42;
 
       ctx.fillStyle = '#00A99D';
@@ -553,7 +553,7 @@ export default function BigScreen() {
         ctx.fillText(String(i + 1), col3X + 16, ty + 14);
 
         ctx.fillStyle = isDone ? '#4ade80' : 'rgba(255,255,255,0.85)';
-        ctx.font = '13px system-ui, sans-serif';
+        ctx.font = '500 15px "Outfit", system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(task.label, col3X + 32, ty + 14, col3W - 56);
 
@@ -1086,9 +1086,10 @@ export default function BigScreen() {
             {/* Header */}
             <div className="bs-settlement-header">
               <div className="bs-settlement-trophy">
-                <span className="material-symbols-outlined bs-settlement-trophy-icon">workspace_premium</span>
+                {/* <span className="material-symbols-outlined bs-settlement-trophy-icon">workspace_premium</span> */}
+                <img src="/images/medal.png" alt="Trophy" />
               </div>
-              <div className="bs-settlement-title">課堂結算</div>
+              <div className="bs-settlement-title">情境對話結束</div>
               <div className="bs-settlement-subtitle">所有任務已完成！</div>
             </div>
 

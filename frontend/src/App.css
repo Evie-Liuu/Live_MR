@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Iansui&family=LXGW+WenKai+TC&family=Noto+Serif+JP:wght@200..900&family=Potta+One&family=UoqMunThenKhung&family=Yuji+Boku&family=Yuji+Syuku&family=Zen+Kurenaido&display=swap');
 
 /* ===== Brand Primary Colors ===== */
 /* Usage (CSS var): var(--primary-orange) / var(--primary-teal) / var(--primary-green) */
@@ -2981,7 +2983,7 @@ button:disabled {
 .bs-teacher-label {
   margin-left: 8px;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 800;
   padding: 2px 8px;
   background: #E5E5E5;
   color: #999;
@@ -3107,9 +3109,12 @@ button:disabled {
 
 .bs-task-label {
   flex: 1;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   color: #333;
+  /* font-family: 'Outfit', 'Segoe UI', sans-serif !important; */
+  font-family: "Google Sans Flex", sans-serif;
+  letter-spacing: 0.1px;
 }
 
 .bs-task-check {
