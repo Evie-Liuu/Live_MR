@@ -3662,7 +3662,7 @@ button:disabled {
   align-items: center;
   gap: 10px;
   padding: 5px 8px;
-  border-radius: 40px;
+  border-radius: 30px;
   background: #ffffff;
   border: 4px solid #95CC4D;
   /* box-shadow: 0 6px 0 #76a23d; */
@@ -3724,6 +3724,9 @@ button:disabled {
   overflow: hidden;
   padding: 12px;
   gap: 10px;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)), url("/images/UI/card_background.png");
+  background-size: cover;
+  background-position: center;
 }
 
 /* Task banner */
