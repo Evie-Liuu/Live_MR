@@ -3709,7 +3709,7 @@ button:disabled {
 
 .hs-task-banner--done {
   border-color: rgba(0, 169, 157, 0.45);
-  background: var(--secondary-light);
+  background: #EBFBEE;
 }
 
 .hs-task-banner-bar {
@@ -3774,9 +3774,10 @@ button:disabled {
 .hs-settlement-btn {
   margin-left: auto;
   padding: 0px 14px;
-  background: rgba(0, 169, 157, 0.12);
+  /* background: rgba(0, 169, 157, 0.12); */
+  background: var(--secondary);
   border: 1.5px solid rgba(0, 169, 157, 0.45);
-  color: var(--secondary);
+  color: #fff;
   border-radius: 10px;
   font-size: var(--text-size-primary) !important;
   font-weight: 900 !important;
@@ -3787,12 +3788,15 @@ button:disabled {
 }
 
 .hs-settlement-btn:hover {
-  background: rgba(0, 169, 157, 0.22);
-  /* transform: scale(1.04); */
+  /* background: rgba(0, 169, 157, 0.22); */
+  /* transform: translateY(-1px); */
 }
 
-.hs-task-banner-btn-icon {
-  transform: translateY(2px);
+.hs-settlement-btn:has(.material-symbols-outlined) {
+  display: flex;
+  justify-content: center;
+  gap: 5px
+    /* transform: translateY(2px); */
 }
 
 /* Video grid */
@@ -3983,11 +3987,17 @@ button:disabled {
 }
 
 .hs-preview-title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
-  color: var(--primary);
+  color: var(--text-dark);
   flex: 1;
   letter-spacing: 0.3px;
+}
+
+.hs-preview-title:has(.material-icons) {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
 }
 
 .hs-preview-close {

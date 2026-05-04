@@ -875,7 +875,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
         <div className="hs-topbar-actions">
           <button className="hs-action-btn" onClick={openShareWindow} title="在新視窗分享房間 QR Code">
-            {/* <span className="hs-action-icon">📱</span> */}
+            <span className="material-icons hs-action-icon">share</span>
             <span className="hs-action-label">分享</span>
           </button>
 
@@ -897,6 +897,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
           >
             {/* <span className="hs-action-icon">{faceEnabled ? '😊' : '😶'}</span> */}
+            <span className="material-symbols-outlined">ar_on_you</span>
             <span className="hs-action-label">臉部</span>
             <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
           </button>
@@ -907,6 +908,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             title={showBigScreenPreview ? '關閉大屏預覽' : '開啟大屏預覽'}
           >
             {/* <span className="hs-action-icon">🖥️</span> */}
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+              preview
+            </span>
             <span className="hs-action-label">預覽</span>
             <span className={`hs-badge-btn ${showBigScreenPreview ? 'hs-badge--on' : 'hs-badge--off'}`}>
               {showBigScreenPreview ? 'ON' : 'OFF'}
@@ -1109,7 +1113,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                   {allDone ? (
                     <>
                       <span>✓ 所有任務完成！</span>
-                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setShowSettlement(true); }}><span className="material-symbols-outlined hs-task-banner-btn-icon">finance</span> 結算</button>
+                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setShowSettlement(true); }}><span className="material-symbols-outlined">finance</span>結算</button>
                     </>
                   ) : (
                     <>
@@ -1129,7 +1133,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           {showBigScreenPreview && (
             <div className="hs-preview-pane">
               <div className="hs-preview-header">
-                <span className="hs-preview-title">🖥️ 大屏預覽</span>
+                <span className="hs-preview-title"><span className="material-icons">preview</span>大屏預覽</span>
                 <button className="hs-preview-close" onClick={toggleBigScreenPreview} title="關閉預覽">✕</button>
               </div>
               <iframe
