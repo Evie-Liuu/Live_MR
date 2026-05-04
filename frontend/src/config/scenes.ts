@@ -120,7 +120,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'compare_items',
-            label: 'Compare',
+            label: 'Comparison',
             icon: '⚖️',
             tasks: [
               { id: 'compare_items_1', label: 'Compare two T-shirts by price.' },

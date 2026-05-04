@@ -436,15 +436,15 @@ export default function BigScreen() {
       ctx.font = '500 64px "Material Symbols Outlined"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText('social_leaderboard', cw / 2, sy);
+      ctx.fillText('workspace_premium', cw / 2, sy);
       sy += 60;
 
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#333333';
       ctx.font = '900 30px system-ui, sans-serif';
-      ctx.fillText('情境對話結束', cw / 2, sy);
+      ctx.fillText('課堂結算', cw / 2, sy);
       sy += 42;
 
-      ctx.fillStyle = '#7788ff';
+      ctx.fillStyle = '#00A99D';
       ctx.font = '600 14px system-ui, sans-serif';
       ctx.fillText('所有任務已完成！', cw / 2, sy);
       sy += 36;
@@ -466,7 +466,7 @@ export default function BigScreen() {
       const col1X = px + colPad, col2X = col1X + col1W + colGap, col3X = col2X + col2W + colGap;
 
       const drawColTitle = (text: string, x: number, w: number) => {
-        ctx.fillStyle = '#7788ff';
+        ctx.fillStyle = '#999999';
         ctx.font = '800 11px system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
@@ -1086,9 +1086,9 @@ export default function BigScreen() {
             {/* Header */}
             <div className="bs-settlement-header">
               <div className="bs-settlement-trophy">
-                <span className="material-symbols-outlined bs-settlement-trophy-icon">social_leaderboard</span>
+                <span className="material-symbols-outlined bs-settlement-trophy-icon">workspace_premium</span>
               </div>
-              <div className="bs-settlement-title">情境對話結束</div>
+              <div className="bs-settlement-title">課堂結算</div>
               <div className="bs-settlement-subtitle">所有任務已完成！</div>
             </div>
 
@@ -1101,11 +1101,13 @@ export default function BigScreen() {
                     {Array.from(participantNames.entries()).map(([identity, name]) => {
                       const isHost = identity.startsWith('host-');
                       return (
-                        <div key={identity} className="bs-settlement-participant">
-                          <span>👤</span>
-                          <span>
+                        <div key={identity} className={`bs-settlement-participant ${isHost ? 'host' : ''}`}>
+                          <span className="material-icons bs-participant-icon">
+                            {isHost ? 'school' : 'person'}
+                          </span>
+                          <span className="bs-participant-name">
                             {name}
-                            {isHost && <span style={{ marginLeft: '6px', fontSize: '11px', backgroundColor: 'rgba(99,102,241,0.2)', color: '#818cf8', padding: '2px 6px', borderRadius: '4px', verticalAlign: 'middle' }}>老師</span>}
+                            {isHost && <span className="bs-teacher-label">老師</span>}
                           </span>
                         </div>
                       );
@@ -1147,10 +1149,16 @@ export default function BigScreen() {
                 <div className="bs-settlement-col-title">任務清單</div>
                 <div className="bs-settlement-tasklist">
                   {activeTasks.map((task, idx) => (
-                    <div key={task.id} className="bs-settlement-task">
-                      <div className="bs-task-num">{idx + 1}.</div>
+                    <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
+                      <div className="bs-task-num">{idx + 1}</div>
                       <span className="bs-task-label">{task.label}</span>
-                      <span className="bs-task-check">✓</span>
+                      <span className="bs-task-check">
+                        {task.completed ? <span className="material-symbols-outlined">
+                          check
+                        </span> : <span className="material-symbols-outlined">
+                          close
+                        </span>}
+                      </span>
                     </div>
                   ))}
                 </div>
