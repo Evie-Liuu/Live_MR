@@ -1649,6 +1649,7 @@ button:disabled {
   border: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: grab !important;
 }
 
 .active-task-row.completed {
@@ -3867,7 +3868,7 @@ button:disabled {
 }
 
 .hs-teacher-card.hs-video-card--speaking {
-  border-color: rgba(199, 125, 255, 0.85) !important;
+  border-color: rgba(247, 110, 18, 0.85) !important;
   animation: hsTeacherSpeakingPulse 0.9s ease-in-out infinite;
 }
 
@@ -3887,11 +3888,11 @@ button:disabled {
 
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(199, 125, 255, 0.7), 0 0 0 2px rgba(199, 125, 255, 0.32);
+    box-shadow: 0 0 0 0 rgba(247, 110, 18, 0.7), 0 0 0 2px rgba(247, 110, 18, 0.32);
   }
 
   50% {
-    box-shadow: 0 0 0 5px rgba(199, 125, 255, 0.18), 0 0 18px 5px rgba(199, 125, 255, 0.32);
+    box-shadow: 0 0 0 5px rgba(247, 110, 18, 0.18), 0 0 18px 5px rgba(247, 110, 18, 0.32);
   }
 }
 

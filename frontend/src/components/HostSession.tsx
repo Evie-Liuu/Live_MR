@@ -1181,7 +1181,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               return (
                 <div
                   className={`hs-video-card hs-teacher-card${isTeacherSpeaking ? ' hs-video-card--speaking' : ''}`}
-                  style={{ opacity: hasSlots && !teacherSlot ? 0.5 : 1 }}
+                  style={{ opacity: hasSlots && !teacherSlot ? 0.8 : 1 }}
                 >
                   <LocalVideo
                     room={connectedRoom}
@@ -1205,7 +1205,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                 <div
                   key={info.participant.identity}
                   className={`hs-video-card${isStudentSpeaking ? ' hs-video-card--speaking' : ''}`}
-                  style={{ opacity: hasSlots && !assignedSlot ? 0.5 : 1 }}
+                  style={{ opacity: hasSlots && !assignedSlot ? 0.8 : 1 }}
                 >
                   <StudentTile
                     participant={info.participant}
