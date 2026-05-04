@@ -1109,7 +1109,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                   {allDone ? (
                     <>
                       <span>✓ 所有任務完成！</span>
-                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setShowSettlement(true); }}>📊 結算</button>
+                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setShowSettlement(true); }}><span className="material-symbols-outlined hs-task-banner-btn-icon">finance</span> 結算</button>
                     </>
                   ) : (
                     <>

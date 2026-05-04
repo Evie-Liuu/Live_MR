@@ -1005,7 +1005,7 @@ export default function BigScreen() {
 
       {/* 3. Overlay UI Layer */}
       <div className="bigscreen-overlay">
-        <span className="bigscreen-title">Live MR — 大屏顯示</span>
+        <span className="bigscreen-title">MR 雙語角 — 大屏顯示</span>
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
 

@@ -30,7 +30,7 @@
   --bg-sidebar: var(--primary-light);
   --bg-header: #FFF8BD;
   --text: #000;
-  /* --text: #482607; */
+  --text-dark: #482607;
   --text-light: #A69688;
   --text-h: #ffffff;
   --accent: #0f3460;
@@ -1154,7 +1154,8 @@ button:disabled {
 
 .bigscreen-scene-label {
   color: var(--text-light);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 800;
   margin-left: 10px;
 }
 
@@ -2343,8 +2344,8 @@ button:disabled {
   top: 96px;
   right: 24px;
   z-index: 2;
-  width: 280px;
-  background: rgba(151, 147, 144, 0.4);
+  width: 400px;
+  background: rgba(151, 147, 144, 0.5);
   /* backdrop-filter: blur(12px); */
   border: 1px solid rgba(255, 255, 255, 0.1);
   /* background: rgba(252, 233, 215, 0.88);
@@ -2396,7 +2397,7 @@ button:disabled {
 
 .bigscreen-tasks-progress-header {
   color: #fff;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 1px;
   margin-bottom: 12px;
@@ -2406,12 +2407,13 @@ button:disabled {
 .bigscreen-task-status {
   width: 22px;
   height: 22px;
-  background: rgba(247, 110, 18, 0.15);
+  /* background: rgba(247, 110, 18, 0.25); */
+  background: rgba(72, 38, 7, 0.6);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--primary);
   flex-shrink: 0;
@@ -2426,16 +2428,18 @@ button:disabled {
 }
 
 .bigscreen-task-label {
-  font-size: 14px;
+  font-size: 15px;
   color: #fff;
   line-height: 1.4;
   font-weight: 600;
   text-align: left;
+  font-family: 'Nunito', sans-serif;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .bigscreen-tasks-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--third), var(--secondary));
+  background: linear-gradient(90deg, var(--third), #00BF23);
   border-radius: 4px;
   transition: width 0.5s ease;
 }
@@ -3696,7 +3700,7 @@ button:disabled {
   background: var(--primary-light2);
   border: 1.5px solid rgba(247, 110, 18, 0.35);
   border-radius: 14px;
-  padding: 8px 16px;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -3710,7 +3714,7 @@ button:disabled {
 
 .hs-task-banner-bar {
   width: 90px;
-  height: 5px;
+  height: 9px;
   background: rgba(247, 110, 18, 0.18);
   border-radius: 3px;
   overflow: hidden;
@@ -3719,14 +3723,15 @@ button:disabled {
 
 .hs-task-banner-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--third), var(--secondary));
+  /* background: linear-gradient(90deg, var(--third), var(--secondary)); */
+  background: linear-gradient(90deg, var(--third), #00BF23);
   border-radius: 3px;
   transition: width 0.5s ease;
   box-shadow: 0 0 6px rgba(149, 204, 77, 0.4);
 }
 
 .hs-task-banner--done .hs-task-banner-fill {
-  background: linear-gradient(90deg, #4ecdc4, #6bcb77);
+  background: linear-gradient(90deg, var(--third), #00BF23);
   box-shadow: 0 0 6px rgba(78, 205, 196, 0.4);
 }
 
@@ -3735,9 +3740,8 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 900 !important;
+  color: var(--text-dark);
   min-width: 0;
   overflow: hidden;
 }
@@ -3748,18 +3752,20 @@ button:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 16px;
+  font-size: 18px;
+  font-family: 'Nunito', sans-serif;
+  color: var(--text-dark);
 }
 
 .hs-task-arrow {
   color: var(--primary);
-  font-size: 14px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
 .hs-task-counter {
   color: var(--primary);
-  font-size: 11px;
+  font-size: 14px;
   flex-shrink: 0;
   opacity: 0.8;
   margin-left: auto;
@@ -3767,13 +3773,13 @@ button:disabled {
 
 .hs-settlement-btn {
   margin-left: auto;
-  padding: 3px 12px;
+  padding: 0px 14px;
   background: rgba(0, 169, 157, 0.12);
   border: 1.5px solid rgba(0, 169, 157, 0.45);
   color: var(--secondary);
   border-radius: 10px;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--text-size-primary) !important;
+  font-weight: 900 !important;
   cursor: pointer;
   font-family: 'Nunito', inherit;
   transition: all 0.18s;
@@ -3782,7 +3788,11 @@ button:disabled {
 
 .hs-settlement-btn:hover {
   background: rgba(0, 169, 157, 0.22);
-  transform: scale(1.04);
+  /* transform: scale(1.04); */
+}
+
+.hs-task-banner-btn-icon {
+  transform: translateY(2px);
 }
 
 /* Video grid */
@@ -3889,16 +3899,17 @@ button:disabled {
 /* ── Big Screen FAB ─────────────────────────────────────────── */
 .hs-bigscreen-fab {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 30px;
+  right: 30px;
   z-index: 50;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 22px;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  padding: 15px 28px;
+  /* background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); */
+  background-color: #FF7B11;
   color: #fff;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 900;
   border-radius: 32px;
   border: none;
@@ -3906,11 +3917,14 @@ button:disabled {
   font-family: 'Nunito', inherit;
   transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   letter-spacing: 0.3px;
+  /* border: 3px solid rgba(72, 38, 7, 0.35); */
 }
 
 .hs-bigscreen-fab:hover {
   transform: translateY(-3px) scale(1.05);
-  box-shadow: 0 12px 36px rgba(247, 110, 18, 0.52), 0 4px 12px rgba(0, 0, 0, 0.18);
+  /* box-shadow: 0 12px 36px rgba(247, 110, 18, 0.52), 0 4px 12px rgba(0, 0, 0, 0.18); */
+  /* background: #FF6511; */
+  background: linear-gradient(80deg, var(--secondary) 0%, var(--primary) 100%);
 }
 
 .hs-bigscreen-fab:active {
