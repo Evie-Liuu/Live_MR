@@ -503,7 +503,7 @@ export default function BigScreen() {
           ctx.font = '13px system-ui, sans-serif';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
-          ctx.fillText(`${isHost ? '👨‍🏫' : '👤'} ${name}`, col1X + 8, iy + 14, col1W - 16);
+          ctx.fillText(`${isHost ? '👨‍🏫' : '👤'} ${name} ${isHost ? '(老師)' : ''}`, col1X + 8, iy + 14, col1W - 16);
           iy += 34;
         }
       }
@@ -1098,12 +1098,18 @@ export default function BigScreen() {
                 <div className="bs-settlement-col">
                   <div className="bs-settlement-col-title">參與人員</div>
                   <div className="bs-settlement-participants">
-                    {Array.from(participantNames.entries()).map(([identity, name]) => (
-                      <div key={identity} className="bs-settlement-participant">
-                        <span>👤</span>
-                        <span>{name}</span>
-                      </div>
-                    ))}
+                    {Array.from(participantNames.entries()).map(([identity, name]) => {
+                      const isHost = identity.startsWith('host-');
+                      return (
+                        <div key={identity} className="bs-settlement-participant">
+                          <span>👤</span>
+                          <span>
+                            {name}
+                            {isHost && <span style={{ marginLeft: '6px', fontSize: '11px', backgroundColor: 'rgba(99,102,241,0.2)', color: '#818cf8', padding: '2px 6px', borderRadius: '4px', verticalAlign: 'middle' }}>老師</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
                     {participantNames.size === 0 && (
                       <div className="bs-settlement-participant">
                         <span>—</span>
