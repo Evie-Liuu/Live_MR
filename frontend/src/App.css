@@ -3906,11 +3906,11 @@ button:disabled {
   flex: 1;
   min-height: 0;
   display: grid;
-  /* grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); */
-  grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr));
   margin-top: 10px;
   gap: 12px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   align-content: start;
 }
 
