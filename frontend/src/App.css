@@ -2765,6 +2765,55 @@ button:disabled {
   border-color: #ff4444;
 }
 
+/* ── HostSession Settlement Modal: vertical layout override ─────────── */
+.settlement-modal .bs-settlement-columns {
+  flex-direction: column;
+  gap: 0;
+}
+
+.settlement-modal .bs-settlement-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  padding-bottom: 16px;
+  width: 100%;
+  /* border-bottom: 1px solid #eee; */
+}
+
+.settlement-modal .bs-settlement-grid>.bs-settlement-col {
+  flex: 1;
+  padding: 0 16px;
+  border-right: 1px solid #eee;
+  border-bottom: none;
+}
+
+.settlement-modal .bs-settlement-grid>.bs-settlement-col:first-child {
+  padding-left: 0;
+  padding-top: 0;
+}
+
+.settlement-modal .bs-settlement-grid>.bs-settlement-col:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.settlement-modal .bs-settlement-col {
+  flex: unset;
+  padding: 16px 0;
+  border-right: none;
+  border-bottom: 1px solid #eee;
+}
+
+.settlement-modal .bs-settlement-col:first-child {
+  padding-top: 0;
+}
+
+.settlement-modal .bs-settlement-columns>.bs-settlement-col:last-child {
+  flex: unset;
+  padding-right: 0;
+  border-bottom: none;
+}
+
 /* Tasks */
 .settlement-tasks {
   display: flex;
@@ -2977,7 +3026,7 @@ button:disabled {
   padding-left: 0;
 }
 
-.bs-settlement-columns > .bs-settlement-col:last-child {
+.bs-settlement-columns>.bs-settlement-col:last-child {
   flex: 2.5;
   border-right: none;
   padding-right: 0;
