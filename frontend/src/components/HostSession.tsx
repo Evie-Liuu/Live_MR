@@ -886,7 +886,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           >
             {/* <span className="hs-action-icon">👥</span> */}
             <span className="hs-action-label">{studentList.length} 位學生</span>
-            {pending.length > 0 && <span className="hs-badge hs-badge--alert">{pending.length}</span>}
+            {pending.length > 0 && <span className="hs-badge-btn hs-badge--alert">{pending.length}</span>}
           </button>
 
           <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />

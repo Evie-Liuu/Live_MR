@@ -3417,8 +3417,10 @@ button:disabled {
 }
 
 .hs-badge--alert {
-  background: rgba(255, 107, 107, 0.22);
-  color: #ff8787;
+  /* background: rgba(255, 107, 107, 0.22); */
+  /* color: #ff8787; */
+  background: rgba(214, 157, 157, 0.4);
+  color: #ffe2e2;
 }
 
 .hs-badge--on {
