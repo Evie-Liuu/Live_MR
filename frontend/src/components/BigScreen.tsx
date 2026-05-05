@@ -317,13 +317,13 @@ export default function BigScreen() {
     // ── 3. Tasks panel (bigscreen-tasks-container, top-right) ─────────────────
     if (tasks.length > 0) {
       const completedCount = tasks.filter(t => t.completed).length;
-      const otherTasks = tasks.filter(t => t.id !== currentTask?.id && !t.completed);
-      const panelW = 400;
+      // const otherTasks = tasks.filter(t => t.id !== currentTask?.id && !t.completed);
+      const panelW = 250;
       const pad = 16;
-      const itemH = 32;
+      // const itemH = 32;
       const panelX = cw - 24 - panelW;
       const panelY = 96;
-      const panelH = pad + 26 + 12 + 8 + 12 + (otherTasks.length > 0 ? otherTasks.length * itemH + 10 : 0) + pad;
+      const panelH = pad + 26 + 12 + 8 + 12 + pad //+ (otherTasks.length > 0 ? otherTasks.length * itemH + 10 : 0);
 
       ctx.fillStyle = 'rgba(151, 147, 144, 0.5)';
       rrPath(ctx, panelX, panelY, panelW, panelH, 20);
@@ -357,25 +357,25 @@ export default function BigScreen() {
         rrPath(ctx, barX, ry, barW * ratio, barH, 4);
         ctx.fill();
       }
-      ry += barH + 12;
+      // ry += barH + 12;
 
-      ctx.textAlign = 'left';
-      for (const t of otherTasks) {
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-        ctx.beginPath();
-        ctx.arc(panelX + pad + 11, ry + 11, 11, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '700 11px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('?', panelX + pad + 11, ry + 11);
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.font = '13px system-ui, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(t.label, panelX + pad + 22 + 8, ry + 11, panelW - pad - 22 - 8 - pad);
-        ry += itemH;
-      }
+      // ctx.textAlign = 'left';
+      // for (const t of otherTasks) {
+      //   ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      //   ctx.beginPath();
+      //   ctx.arc(panelX + pad + 11, ry + 11, 11, 0, Math.PI * 2);
+      //   ctx.fill();
+      //   ctx.fillStyle = '#ffffff';
+      //   ctx.font = '700 11px system-ui, sans-serif';
+      //   ctx.textAlign = 'center';
+      //   ctx.textBaseline = 'middle';
+      //   ctx.fillText('?', panelX + pad + 11, ry + 11);
+      //   ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      //   ctx.font = '13px system-ui, sans-serif';
+      //   ctx.textAlign = 'left';
+      //   ctx.fillText(t.label, panelX + pad + 22 + 8, ry + 11, panelW - pad - 22 - 8 - pad);
+      //   ry += itemH;
+      // }
     }
 
     // ── 4. Settlement overlay (bs-settlement-overlay) ─────────────────────────
