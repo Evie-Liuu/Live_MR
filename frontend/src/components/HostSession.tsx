@@ -736,6 +736,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
     return () => {
       isMounted = false;
+      room.off(RoomEvent.ParticipantConnected, handleConnected);
+      room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed as never);
+      room.off(RoomEvent.DataReceived, handleDataReceived as never);
+      room.off(RoomEvent.ParticipantMetadataChanged, handleParticipantMetadataChanged as never);
+      room.off(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakers as never);
       setConnectedRoom(null);
       setSpeakingSet(new Set());
       connectPromise.catch(() => { }).finally(() => {
