@@ -890,7 +890,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       if (!width || !height) return;
       const scale = Math.min(width / PREVIEW_DESIGN_W, height / PREVIEW_DESIGN_H);
       if (previewIframeRef.current) {
-        previewIframeRef.current.style.transform = `scale(${scale})`;
+        previewIframeRef.current.style.transform = `translate(-50%, -50%) scale(${scale})`;
       }
     };
     const ro = new ResizeObserver(update);

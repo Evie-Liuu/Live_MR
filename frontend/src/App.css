@@ -4134,13 +4134,14 @@ button:disabled {
 
 .hs-preview-iframe {
   /* Rendered at BigScreen's native design size; JS scales it down via transform */
-  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   border: none;
-  /* width & height are set via HTML attributes (1920 × 1080) */
-  transform-origin: top left;
+  transform-origin: center;
   /* Initial scale = 0 prevents a flash of full-size content;
      ResizeObserver will update it within one frame */
-  transform: scale(0);
+  transform: translate(-50%, -50%) scale(0);
 }
 
 /* Grid shrinks to a compact strip below the preview */
