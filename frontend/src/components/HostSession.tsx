@@ -874,6 +874,31 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     });
   }, [syncBigScreenState]);
 
+  // ── BigScreen preview scaler ──────────────────────────────────────────────
+  // BigScreen is designed for a full 16:9 viewport (1920×1080).
+  // We render the iframe at that native size then scale it down to fit.
+  const PREVIEW_DESIGN_W = 1920;
+  const PREVIEW_DESIGN_H = 1080;
+  const previewWrapRef = useRef<HTMLDivElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const wrap = previewWrapRef.current;
+    if (!wrap) return;
+    const update = () => {
+      const { width, height } = wrap.getBoundingClientRect();
+      if (!width || !height) return;
+      const scale = Math.min(width / PREVIEW_DESIGN_W, height / PREVIEW_DESIGN_H);
+      if (previewIframeRef.current) {
+        previewIframeRef.current.style.transform = `scale(${scale})`;
+      }
+    };
+    const ro = new ResizeObserver(update);
+    ro.observe(wrap);
+    update();
+    return () => ro.disconnect();
+  }, [showBigScreenPreview]);
+
   // Ensure teacher's VRM is broadcasted when room connects initially
   useEffect(() => {
     if (connectedRoom && teacherVrmSourceId) {
@@ -1249,12 +1274,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                 <span className="hs-preview-title"><span className="material-icons">preview</span>大屏預覽</span>
                 <button className="hs-preview-close" onClick={toggleBigScreenPreview} title="關閉預覽">✕</button>
               </div>
-              <iframe
-                className="hs-preview-iframe"
-                src={`${window.location.origin}/?screen=bigscreen`}
-                title="BigScreen Preview"
-                allow="camera; microphone"
-              />
+              {/* Scaling viewport wrapper — iframe renders at 1920×1080, then scaled down */}
+              <div className="hs-preview-scaler-wrap" ref={previewWrapRef}>
+                <iframe
+                  ref={previewIframeRef}
+                  className="hs-preview-iframe"
+                  src={`${window.location.origin}/?screen=bigscreen`}
+                  title="BigScreen Preview"
+                  allow="camera; microphone"
+                  width={1920}
+                  height={1080}
+                />
+              </div>
             </div>
           )}
 

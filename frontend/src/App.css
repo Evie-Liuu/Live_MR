@@ -4059,7 +4059,7 @@ button:disabled {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: var(--primary-light);
+  /* background: var(--primary-light); */
   border: 1.5px solid rgba(247, 110, 18, 0.3);
   border-radius: 16px;
   overflow: hidden;
@@ -4122,12 +4122,25 @@ button:disabled {
   border-color: rgba(247, 110, 18, 0.25);
 }
 
-.hs-preview-iframe {
+.hs-preview-scaler-wrap {
   flex: 1;
-  width: 100%;
-  border: none;
-  display: block;
   min-height: 0;
+  position: relative;
+  overflow: hidden;
+  /* margin: auto 0; */
+  /* Keep a 16:9 aspect ratio so the scaled iframe is never clipped */
+  /* aspect-ratio: 16 / 9; */
+}
+
+.hs-preview-iframe {
+  /* Rendered at BigScreen's native design size; JS scales it down via transform */
+  display: block;
+  border: none;
+  /* width & height are set via HTML attributes (1920 × 1080) */
+  transform-origin: top left;
+  /* Initial scale = 0 prevents a flash of full-size content;
+     ResizeObserver will update it within one frame */
+  transform: scale(0);
 }
 
 /* Grid shrinks to a compact strip below the preview */
