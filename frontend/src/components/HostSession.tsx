@@ -79,7 +79,7 @@ function CustomSelect({ value, options, onChange, disabled, placeholder = "è«‹é
         onClick={() => !disabled && setIsOpen(!isOpen)}
       >
         <div className="custom-select-value">
-          {selectedOption ? selectedOption.label : <span style={{ color: '#999' }}>{placeholder}</span>}
+          {!disabled && selectedOption ? selectedOption.label : <span style={{ color: '#999' }}>{selectedOption?.label}</span>}
         </div>
         <span className="material-symbols-outlined custom-select-icon">
           {isOpen ? 'expand_less' : 'expand_more'}
@@ -1513,7 +1513,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         label: (
                           <div className="custom-select-option-content">
                             {s.id === sceneSlot.defaultVrmId ? (
-                              <span className="material-symbols-outlined" style={{ color: '#F76E12' }}>star</span>
+                              <span className="material-symbols-outlined" style={{ color: (!assignedIdentity && s.id === sceneSlot.defaultVrmId) ? '#999' : '#F76E12' }}>star</span>
                             ) : (
                               ''
                               // <span className="material-symbols-outlined" style={{ color: '#00A99D' }}>accessibility_new</span>
