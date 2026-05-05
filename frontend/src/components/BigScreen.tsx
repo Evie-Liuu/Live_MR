@@ -258,11 +258,11 @@ export default function BigScreen() {
     ctx.save();
 
     // ── 1. Top pill (bigscreen-overlay) ──────────────────────────────────────
-    const titleText = 'Live MR — 大屏顯示';
+    const titleText = 'MR 雙語角 — 大屏顯示';
     const sceneLabel = SCENE_PRESETS[sceneIdRef.current]?.label ?? '';
-    ctx.font = '600 15px system-ui, sans-serif';
+    ctx.font = '700 15px system-ui, sans-serif';
     const titleW = ctx.measureText(titleText).width;
-    ctx.font = '12px system-ui, sans-serif';
+    ctx.font = '800 14px system-ui, sans-serif';
     const labelW = sceneLabel ? ctx.measureText(sceneLabel).width : 0;
     const pillPad = 24;
     const pillH = 34;
@@ -271,21 +271,21 @@ export default function BigScreen() {
     const pillY = 16;
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    rrPath(ctx, pillX, pillY, pillW, pillH, 17);
+    rrPath(ctx, pillX, pillY, pillW, pillH, 24);
     ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1;
-    rrPath(ctx, pillX, pillY, pillW, pillH, 17);
+    rrPath(ctx, pillX, pillY, pillW, pillH, 24);
     ctx.stroke();
 
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '600 15px system-ui, sans-serif';
+    ctx.fillStyle = '#F76E12';
+    ctx.font = '700 15px system-ui, sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(titleText, pillX + pillPad, pillY + pillH / 2);
     if (sceneLabel) {
-      ctx.fillStyle = 'rgba(255,255,255,0.65)';
-      ctx.font = '12px system-ui, sans-serif';
+      ctx.fillStyle = '#A69688';
+      ctx.font = '800 14px system-ui, sans-serif';
       ctx.fillText(sceneLabel, pillX + pillPad + titleW + 10, pillY + pillH / 2);
     }
 
@@ -295,70 +295,37 @@ export default function BigScreen() {
       ctx.font = '800 24px system-ui, sans-serif';
       const maxLW = Math.min(cw * 0.8, 860);
       const boxW = Math.max(480, Math.min(ctx.measureText(currentTask.label).width + 80, maxLW + 80));
-      const boxH = 80;
+      const boxH = 75;
       const boxX = (cw - boxW) / 2;
       const boxY = 96;
 
-      ctx.fillStyle = 'rgba(15,23,42,0.8)';
+      ctx.fillStyle = 'rgba(252, 233, 215, 0.92)';
       rrPath(ctx, boxX, boxY, boxW, boxH, 24);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.strokeStyle = 'rgba(247, 110, 18, 0.3)';
       ctx.lineWidth = 1;
       rrPath(ctx, boxX, boxY, boxW, boxH, 24);
       ctx.stroke();
 
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(currentTask.label, cw / 2, boxY + boxH / 2, maxLW);
       ctx.textAlign = 'left';
     }
 
-    // ── 2.5. Recording Indicator ──────────────────────────────────────────────
-    // const isCanvasRecording = mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive';
-    // if (isCanvasRecording) {
-    //   const recText = '錄製中';
-    //   ctx.font = 'bold 16px system-ui, sans-serif';
-    //   const recTextW = ctx.measureText(recText).width;
-    //   const recPad = 16;
-    //   const recW = recPad + 10 + 8 + recTextW + recPad;
-    //   const recH = 36;
-    //   const recX = cw - recW - 30; // 30px from right
-    //   const recY = 20; // 20px from top
-
-    //   ctx.fillStyle = 'rgba(15,23,42,0.7)';
-    //   rrPath(ctx, recX, recY, recW, recH, 18);
-    //   ctx.fill();
-    //   ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-    //   ctx.lineWidth = 1;
-    //   rrPath(ctx, recX, recY, recW, recH, 18);
-    //   ctx.stroke();
-
-    //   const t = performance.now();
-    //   const pulse = Math.sin(t / 200) * 0.5 + 0.5;
-    //   ctx.fillStyle = `rgba(239, 68, 68, ${0.5 + pulse * 0.5})`;
-    //   ctx.beginPath();
-    //   ctx.arc(recX + recPad + 5, recY + recH / 2, 5, 0, Math.PI * 2);
-    //   ctx.fill();
-
-    //   ctx.fillStyle = '#ef4444';
-    //   ctx.textAlign = 'left';
-    //   ctx.textBaseline = 'middle';
-    //   ctx.fillText(recText, recX + recPad + 18, recY + recH / 2);
-    // }
-
     // ── 3. Tasks panel (bigscreen-tasks-container, top-right) ─────────────────
     if (tasks.length > 0) {
       const completedCount = tasks.filter(t => t.completed).length;
       const otherTasks = tasks.filter(t => t.id !== currentTask?.id && !t.completed);
-      const panelW = 280;
+      const panelW = 400;
       const pad = 16;
       const itemH = 32;
       const panelX = cw - 24 - panelW;
       const panelY = 96;
-      const panelH = pad + 22 + 12 + 8 + 12 + (otherTasks.length > 0 ? otherTasks.length * itemH + 10 : 0) + pad;
+      const panelH = pad + 26 + 12 + 8 + 12 + (otherTasks.length > 0 ? otherTasks.length * itemH + 10 : 0) + pad;
 
-      ctx.fillStyle = 'rgba(15,23,42,0.5)';
+      ctx.fillStyle = 'rgba(151, 147, 144, 0.5)';
       rrPath(ctx, panelX, panelY, panelW, panelH, 20);
       ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.1)';
@@ -368,22 +335,25 @@ export default function BigScreen() {
 
       let ry = panelY + pad;
 
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.font = '600 13px system-ui, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 16px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(`對話進度 (${completedCount}/${tasks.length})`, panelX + panelW / 2, ry);
-      ry += 22 + 12;
+      ry += 26 + 12;
 
       const barX = panelX + pad;
       const barW = panelW - pad * 2;
       const barH = 8;
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
       rrPath(ctx, barX, ry, barW, barH, 4);
       ctx.fill();
       const ratio = tasks.length > 0 ? completedCount / tasks.length : 0;
       if (ratio > 0) {
-        ctx.fillStyle = '#6366f1';
+        const fillGrad = ctx.createLinearGradient(barX, ry, barX + barW * ratio, ry);
+        fillGrad.addColorStop(0, '#95CC4D');
+        fillGrad.addColorStop(1, '#00BF23');
+        ctx.fillStyle = fillGrad;
         rrPath(ctx, barX, ry, barW * ratio, barH, 4);
         ctx.fill();
       }
@@ -410,84 +380,89 @@ export default function BigScreen() {
 
     // ── 4. Settlement overlay (bs-settlement-overlay) ─────────────────────────
     if (settlement) {
-      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(0, 0, cw, ch);
 
       const pw = Math.min(900, cw * 0.9);
-      const ph = Math.min(580, ch * 0.85);
+      const ph = Math.min(680, ch * 0.9);
       const px = (cw - pw) / 2;
       const py = (ch - ph) / 2;
 
-      ctx.fillStyle = 'rgba(8,8,28,0.97)';
-      rrPath(ctx, px, py, pw, ph, 28);
+      ctx.fillStyle = '#ffffff';
+      rrPath(ctx, px, py, pw, ph, 24);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(200,200,255,0.15)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
       ctx.lineWidth = 1;
-      rrPath(ctx, px, py, pw, ph, 28);
+      rrPath(ctx, px, py, pw, ph, 24);
       ctx.stroke();
 
-      let sy = py + 40;
+      let sy = py + 36;
 
-      const gradient = ctx.createLinearGradient(cw / 2 - 32, sy, cw / 2 + 32, sy + 64);
-      gradient.addColorStop(0, '#EAD08C');
-      gradient.addColorStop(0.5, '#CBA358');
-      gradient.addColorStop(1, '#A67C00');
-      ctx.fillStyle = gradient;
-      ctx.font = '500 64px "Material Symbols Outlined"';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText('workspace_premium', cw / 2, sy);
-      sy += 60;
+      // Medal image (read from DOM)
+      const medalImg = document.querySelector('.bs-settlement-trophy img') as HTMLImageElement | null;
+      if (medalImg && medalImg.complete && medalImg.naturalWidth > 0) {
+        const imgSize = 72;
+        ctx.drawImage(medalImg, cw / 2 - imgSize / 2, sy, imgSize, imgSize);
+        sy += imgSize + 10;
+      } else {
+        sy += 20;
+      }
 
       ctx.fillStyle = '#333333';
-      ctx.font = '900 30px system-ui, sans-serif';
+      ctx.font = '800 26px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
       ctx.fillText('情境對話結束', cw / 2, sy);
-      sy += 42;
-
-      ctx.fillStyle = '#00A99D';
-      ctx.font = '600 14px system-ui, sans-serif';
-      ctx.fillText('所有任務已完成！', cw / 2, sy);
       sy += 36;
 
-      ctx.strokeStyle = 'rgba(119,136,255,0.18)';
+      ctx.fillStyle = '#5EBAAD';
+      ctx.font = '600 15px system-ui, sans-serif';
+      ctx.fillText('所有任務已完成！', cw / 2, sy);
+      sy += 28;
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(px + 44, sy);
-      ctx.lineTo(px + pw - 44, sy);
+      ctx.moveTo(px + 36, sy);
+      ctx.lineTo(px + pw - 36, sy);
       ctx.stroke();
       sy += 16;
 
-      // Three columns
-      const colPad = 44;
-      const colGap = 24;
+      // Three columns — ratio 1 : 1 : 2.5 matching CSS flex
+      const colPad = 36;
+      const colGap = 20;
       const totalW = pw - colPad * 2 - colGap * 2;
-      const unitW = totalW / 3.5;
-      const col1W = unitW, col2W = unitW, col3W = unitW * 1.5;
+      const unitW = totalW / 4.5;
+      const col1W = unitW, col2W = unitW, col3W = unitW * 2.5;
       const col1X = px + colPad, col2X = col1X + col1W + colGap, col3X = col2X + col2W + colGap;
 
-      const drawColTitle = (text: string, x: number, w: number) => {
+      // Vertical column separators
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.lineWidth = 1;
+      [col2X - colGap / 2, col3X - colGap / 2].forEach(sepX => {
+        ctx.beginPath();
+        ctx.moveTo(sepX, sy);
+        ctx.lineTo(sepX, py + ph - 36);
+        ctx.stroke();
+      });
+
+      const drawColTitle = (text: string, x: number) => {
         ctx.fillStyle = '#999999';
-        ctx.font = '800 11px system-ui, sans-serif';
+        ctx.font = '700 11px system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
         ctx.fillText(text, x, sy);
-        ctx.strokeStyle = 'rgba(119,136,255,0.25)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x, sy + 18);
-        ctx.lineTo(x + w, sy + 18);
-        ctx.stroke();
       };
-      drawColTitle('👥 參與人員', col1X, col1W);
-      drawColTitle('🎬 錄製', col2X, col2W);
-      drawColTitle('📋 任務清單', col3X, col3W);
+      drawColTitle('參與人員', col1X);
+      drawColTitle('錄製', col2X);
+      drawColTitle('任務清單', col3X);
 
-      let rowY = sy + 28;
+      const rowY = sy + 22;
 
       // Col 1: Participants
       const participants = Array.from(participantNamesRef.current.entries());
       if (participants.length === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.font = '13px system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
@@ -496,72 +471,99 @@ export default function BigScreen() {
         let iy = rowY;
         for (const [identity, name] of participants) {
           const isHost = identity.startsWith('host-');
-          ctx.fillStyle = isHost ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.06)';
-          rrPath(ctx, col1X, iy, col1W, 28, 8);
+          ctx.fillStyle = isHost ? 'rgba(247, 110, 18, 0.1)' : 'rgba(0,0,0,0.04)';
+          rrPath(ctx, col1X, iy, col1W, 34, 8);
           ctx.fill();
-          ctx.fillStyle = isHost ? '#818cf8' : '#e2e8f0';
-          ctx.font = '13px system-ui, sans-serif';
+          ctx.fillStyle = isHost ? '#F76E12' : '#333333';
+          ctx.font = '500 13px system-ui, sans-serif';
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
-          ctx.fillText(`${isHost ? '👨‍🏫' : '👤'} ${name} ${isHost ? '(老師)' : ''}`, col1X + 8, iy + 14, col1W - 16);
-          iy += 34;
+          ctx.fillText(`${isHost ? '👨‍🏫' : '👤'} ${name}${isHost ? ' (老師)' : ''}`, col1X + 8, iy + 17, col1W - 16);
+          iy += 40;
         }
       }
 
-      // Col 2: Recording status
+      // Col 2: Recording status (bs-rec-status)
       const isRecording = mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive';
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'left';
+      const recPillH = 34;
       if (isRecording) {
+        ctx.fillStyle = '#fff5f5';
+        rrPath(ctx, col2X, rowY, col2W, recPillH, 8);
+        ctx.fill();
+        ctx.strokeStyle = '#ffc9c9';
+        ctx.lineWidth = 1;
+        rrPath(ctx, col2X, rowY, col2W, recPillH, 8);
+        ctx.stroke();
         ctx.fillStyle = '#ef4444';
         ctx.beginPath();
-        ctx.arc(col2X + 8, rowY + 10, 6, 0, Math.PI * 2);
+        ctx.arc(col2X + 14, rowY + recPillH / 2, 5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.font = '14px system-ui, sans-serif';
-        ctx.fillText('錄製中', col2X + 20, rowY + 10);
+        ctx.fillStyle = '#ef4444';
+        ctx.font = '600 13px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('錄製中', col2X + 26, rowY + recPillH / 2);
       } else if (hasRecordedRef.current) {
-        ctx.fillStyle = '#4ade80';
-        ctx.font = '14px system-ui, sans-serif';
-        ctx.fillText('✓ 已保存錄製', col2X, rowY + 10);
+        ctx.fillStyle = '#ebfbee';
+        rrPath(ctx, col2X, rowY, col2W, recPillH, 8);
+        ctx.fill();
+        ctx.strokeStyle = '#d3f9d8';
+        ctx.lineWidth = 1;
+        rrPath(ctx, col2X, rowY, col2W, recPillH, 8);
+        ctx.stroke();
+        ctx.fillStyle = '#40c057';
+        ctx.font = '600 13px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✓ 已保存錄製', col2X + 10, rowY + recPillH / 2);
       } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.font = '14px system-ui, sans-serif';
-        ctx.fillText('✕ 無錄製', col2X, rowY + 10);
+        ctx.fillStyle = 'rgba(0,0,0,0.04)';
+        rrPath(ctx, col2X, rowY, col2W, recPillH, 8);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.font = '13px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✕ 無錄製', col2X + 10, rowY + recPillH / 2);
       }
 
-      // Col 3: Task list
+      // Col 3: Task list (bs-settlement-task light theme)
       let ty = rowY;
+      const taskRowH = 44;
+      const taskGap = 8;
       for (let i = 0; i < tasks.length; i++) {
         const task = tasks[i];
         const isDone = task.completed;
-        ctx.fillStyle = isDone ? 'rgba(74,222,128,0.1)' : 'rgba(255,255,255,0.05)';
-        rrPath(ctx, col3X, ty, col3W, 28, 8);
+
+        ctx.fillStyle = isDone ? '#E6F7F6' : '#F9F9F9';
+        rrPath(ctx, col3X, ty, col3W, taskRowH, 12);
         ctx.fill();
-        ctx.strokeStyle = isDone ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.08)';
+        ctx.strokeStyle = isDone ? 'rgba(94, 186, 173, 0.3)' : 'rgba(0,0,0,0.06)';
         ctx.lineWidth = 1;
-        rrPath(ctx, col3X, ty, col3W, 28, 8);
+        rrPath(ctx, col3X, ty, col3W, taskRowH, 12);
         ctx.stroke();
 
-        ctx.fillStyle = isDone ? '#4ade80' : 'rgba(255,255,255,0.15)';
+        ctx.fillStyle = isDone ? '#5EBAAD' : 'rgba(0,0,0,0.15)';
         ctx.beginPath();
-        ctx.arc(col3X + 16, ty + 14, 11, 0, Math.PI * 2);
+        ctx.arc(col3X + 18, ty + taskRowH / 2, 11, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = isDone ? '#052e16' : '#fff';
+        ctx.fillStyle = '#ffffff';
         ctx.font = '700 11px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(String(i + 1), col3X + 16, ty + 14);
+        ctx.fillText(String(i + 1), col3X + 18, ty + taskRowH / 2);
 
-        ctx.fillStyle = isDone ? '#4ade80' : 'rgba(255,255,255,0.85)';
-        ctx.font = '500 15px "Outfit", system-ui, sans-serif';
+        ctx.fillStyle = '#333333';
+        ctx.font = '600 14px system-ui, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(task.label, col3X + 32, ty + 14, col3W - 56);
+        ctx.fillText(task.label, col3X + 36, ty + taskRowH / 2, col3W - 60);
 
-        ctx.fillStyle = isDone ? '#4ade80' : 'rgba(255,255,255,0.25)';
+        ctx.fillStyle = isDone ? '#5EBAAD' : 'rgba(0,0,0,0.3)';
+        ctx.font = '700 14px system-ui, sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(isDone ? '✓' : '✕', col3X + col3W - 8, ty + 14);
+        ctx.fillText(isDone ? '✓' : '✕', col3X + col3W - 10, ty + taskRowH / 2);
 
-        ty += 34;
+        ty += taskRowH + taskGap;
       }
     }
 
