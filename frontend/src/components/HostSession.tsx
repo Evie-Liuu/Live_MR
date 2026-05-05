@@ -42,6 +42,70 @@ interface PendingStudent {
   name: string;
 }
 
+// ─── Custom Select Component ──────────────────────────────────────────────────
+interface Option {
+  value: string;
+  label: React.ReactNode;
+}
+
+interface CustomSelectProps {
+  value: string;
+  options: Option[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}
+
+function CustomSelect({ value, options, onChange, disabled, placeholder = "請選擇..." }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value);
+
+  return (
+    <div className={`custom-select-container ${disabled ? 'disabled' : ''}`} ref={selectRef}>
+      <div
+        className={`custom-select-trigger slot-select-ui ${disabled ? 'disabled' : ''}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <div className="custom-select-value">
+          {selectedOption ? selectedOption.label : <span style={{ color: '#999' }}>{placeholder}</span>}
+        </div>
+        <span className="material-symbols-outlined custom-select-icon">
+          {isOpen ? 'expand_less' : 'expand_more'}
+        </span>
+      </div>
+      {isOpen && !disabled && (
+        <div className="custom-select-dropdown">
+          {options.map(opt => (
+            <div
+              key={opt.value}
+              className={`custom-select-option ${opt.value === value ? 'selected' : ''}`}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+            >
+              {opt.label}
+              {opt.value === value && <span className="material-symbols-outlined check-icon">check</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function HostSession({ roomId, livekitToken, hostToken }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
@@ -840,9 +904,26 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // All participants for slot assignment dropdown (teacher + students)
   const teacherIdentity = connectedRoom?.localParticipant.identity;
+  const teacherName = connectedRoom?.localParticipant.name;
   const allParticipantOptions = [
-    ...(teacherIdentity ? [{ identity: teacherIdentity, label: `老師 (${teacherIdentity})` }] : []),
-    ...studentList.map(info => ({ identity: info.participant.identity, label: info.participant.name || info.participant.identity })),
+    ...(teacherIdentity ? [{
+      value: teacherIdentity,
+      label: (
+        <div className="custom-select-option-content">
+          {/* <span className="material-symbols-outlined" style={{color: '#F76E12'}}>school</span> */}
+          <span>{teacherName ? `${teacherName} (老師)` : '老師'}</span>
+        </div>
+      )
+    }] : []),
+    ...studentList.map(info => ({
+      value: info.participant.identity,
+      label: (
+        <div className="custom-select-option-content">
+          {/* <span className="material-symbols-outlined" style={{color: '#00A99D'}}>person</span> */}
+          <span>{info.participant.name || info.participant.identity}</span>
+        </div>
+      )
+    })),
   ];
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
@@ -1066,7 +1147,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               <div className="hs-slot-list">
                 {currentScenePreset.slots!.map((slot, i) => {
                   const assigned = slotAssignments[slot.id];
-                  const assignedOption = assigned ? allParticipantOptions.find(o => o.identity === assigned) : null;
+                  const assignedParticipant = assigned ? (
+                    assigned === teacherIdentity
+                      ? (teacherName ? teacherName : '老師')
+                      : studentList.find(info => info.participant.identity === assigned)?.participant.name || assigned
+                  ) : '─';
                   return (
                     <div
                       key={slot.id}
@@ -1075,7 +1160,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     >
                       <span className="hs-slot-dot" />
                       <span className="hs-slot-label">{slot.icon} {slot.label}</span>
-                      <span className="hs-slot-assigned">{assignedOption ? assignedOption.label.split('(')[0].trim() : '─'}</span>
+                      <span className="hs-slot-assigned">{assignedParticipant}</span>
                     </div>
                   );
                 })}
@@ -1397,43 +1482,57 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
                   <div className="slot-field">
                     <label className="slot-field-label">指派給</label>
-                    <select
-                      className="slot-select-ui"
+                    <CustomSelect
                       value={assignedIdentity ?? ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
+                      options={[
+                        {
+                          value: '',
+                          label: (
+                            <div className="custom-select-option-content">
+                              {/* <span className="material-symbols-outlined" style={{ color: '#999' }}>person_off</span> */}
+                              <span style={{ color: '#666' }}>─ 移除指派</span>
+                            </div>
+                          )
+                        },
+                        ...allParticipantOptions
+                      ]}
+                      onChange={(val) => {
                         handleSlotAssign(sceneSlot.id, val === '' ? null : val);
                       }}
-                    >
-                      <option value="">─ 移除指派</option>
-                      {allParticipantOptions.map(opt => (
-                        <option key={opt.identity} value={opt.identity}>{opt.label}</option>
-                      ))}
-                    </select>
+                      placeholder="─ 移除指派"
+                    />
                   </div>
 
                   <div className="slot-field">
                     <label className="slot-field-label">角色模型</label>
-                    <select
-                      className="slot-select-ui"
+                    <CustomSelect
                       value={assignedVrmId ?? ''}
                       disabled={!assignedIdentity}
-                      onChange={(e) => {
+                      options={allowedVrms.map((s) => ({
+                        value: s.id,
+                        label: (
+                          <div className="custom-select-option-content">
+                            {s.id === sceneSlot.defaultVrmId ? (
+                              <span className="material-symbols-outlined" style={{ color: '#F76E12' }}>star</span>
+                            ) : (
+                              ''
+                              // <span className="material-symbols-outlined" style={{ color: '#00A99D' }}>accessibility_new</span>
+                            )}
+                            <span>{s.label}</span>
+                          </div>
+                        )
+                      }))}
+                      onChange={(val) => {
                         if (assignedIdentity) {
                           if (assignedIdentity === teacherIdentity) {
-                            handleTeacherVrmChange(e.target.value);
+                            handleTeacherVrmChange(val);
                           } else {
-                            handleStudentRoleChange(assignedIdentity, e.target.value);
+                            handleStudentRoleChange(assignedIdentity, val);
                           }
                         }
                       }}
-                    >
-                      {allowedVrms.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.id === sceneSlot.defaultVrmId ? `★ ${s.label}` : s.label}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="─ 預設模型 ─"
+                    />
                   </div>
                 </div>
               );
