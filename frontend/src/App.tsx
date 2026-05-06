@@ -14,6 +14,7 @@ import './App.css';
 function getInitialState(): AppState {
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('roomId');
+  return { screen: 'error', message: 'Test' };
   if (roomId) {
     return { screen: 'student-join', roomId };
   }
@@ -120,9 +121,22 @@ function App() {
       case 'student-rejected':
         return (
           <div className="rejected-screen">
-            <h2>請求被拒絕</h2>
-            <p>老師已拒絕你的加入請求。</p>
-            <button onClick={() => setState({ screen: 'select-role' })}>返回</button>
+            <div className="rejected-card">
+              <div className="rejected-icon-wrapper">
+                <span className="material-symbols-outlined rejected-icon">person_cancel</span>
+              </div>
+              <h2 className="rejected-title">
+                <span className="title-orange">請求</span>
+                <span className="title-teal">被拒絕</span>
+              </h2>
+              <p className="rejected-subtitle">老師已拒絕你的加入請求。</p>
+              <button
+                className="rejected-back-btn"
+                onClick={() => setState({ screen: 'select-role' })}
+              >
+                返回
+              </button>
+            </div>
           </div>
         );
 

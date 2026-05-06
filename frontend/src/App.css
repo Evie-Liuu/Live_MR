@@ -1085,14 +1085,14 @@ button:disabled {
   margin-bottom: 12px;
 }
 
-.rejected-screen p,
+/* .rejected-screen p,
 .error-screen p {
   margin-bottom: 20px;
-}
+} */
 
 .rejected-screen button,
 .error-screen button {
-  background: var(--accent);
+  background: var(--secondary);
   color: var(--text-h);
 }
 
@@ -4486,4 +4486,86 @@ button:disabled {
   font-size: 16px;
   font-weight: 700;
   color: #666;
+}
+
+/* ===== Student Rejected (New Design) ===== */
+.rejected-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.rejected-card {
+  /* background: white; */
+  border-radius: 36px;
+  padding: 48px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08); */
+  text-align: center;
+}
+
+.rejected-icon-wrapper {
+  background-color: #FCE9D7;
+  /* Light orange bg */
+  width: 100px;
+  height: 100px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.rejected-icon {
+  font-size: 56px !important;
+  color: #D97706;
+  /* Darker orange icon */
+}
+
+.rejected-title {
+  font-size: 2.6rem;
+  font-weight: 900;
+  margin-bottom: 12px;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  /* letter-spacing: 1px; */
+}
+
+.rejected-title .title-orange {
+  color: #D97706;
+}
+
+.rejected-title .title-teal {
+  color: #136B6D;
+}
+
+.rejected-subtitle {
+  color: #666;
+  font-size: 1.4rem;
+  margin-bottom: 60px;
+  font-weight: 600;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+}
+
+.rejected-back-btn {
+  padding: 14px 20px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-radius: 100px;
+  border: none;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 280px;
+}
+
+.rejected-back-btn:hover {
+  background-color: #0d4d4f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
