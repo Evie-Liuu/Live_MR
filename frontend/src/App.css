@@ -1074,27 +1074,20 @@ button:disabled {
 }
 
 /* ===== Rejected / Error screens ===== */
-.rejected-screen,
-.error-screen {
+.rejected-screen {
   text-align: center;
 }
 
-.rejected-screen h2,
-.error-screen h2 {
-  color: var(--text-h);
-  margin-bottom: 12px;
-}
 
 /* .rejected-screen p,
 .error-screen p {
   margin-bottom: 20px;
 } */
 
-.rejected-screen button,
-.error-screen button {
+/* .rejected-screen button {
   background: var(--secondary);
   color: var(--text-h);
-}
+} */
 
 /* ===== Big Screen pop-out ===== */
 .bigscreen-root {
@@ -4554,6 +4547,8 @@ button:disabled {
 }
 
 .rejected-back-btn {
+  background-color: #136B6D;
+  color: white;
   padding: 14px 20px;
   font-size: 1.25rem;
   font-weight: 700;
@@ -4565,6 +4560,87 @@ button:disabled {
 }
 
 .rejected-back-btn:hover {
+  background-color: #0d4d4f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Error Screen (New Design) ===== */
+.error-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.error-card {
+  border-radius: 36px;
+  padding: 48px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.error-icon-wrapper {
+  background-color: #FCE9D7;
+  /* Light orange bg */
+  width: 100px;
+  height: 100px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.error-icon {
+  font-size: 56px !important;
+  color: #D97706;
+  /* Darker orange icon */
+}
+
+.error-title {
+  font-size: 2.6rem;
+  font-weight: 900;
+  margin-bottom: 12px;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+}
+
+.error-title .title-orange {
+  color: #D97706;
+}
+
+.error-title .title-teal {
+  color: #136B6D;
+}
+
+.error-subtitle {
+  color: #333;
+  font-size: 1.4rem;
+  margin-bottom: 60px;
+  font-weight: 600;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+}
+
+.error-back-btn {
+  background-color: #136B6D;
+  color: white;
+  padding: 14px 20px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-radius: 100px;
+  border: none;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 280px;
+}
+
+.error-back-btn:hover {
   background-color: #0d4d4f;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);

@@ -14,7 +14,6 @@ import './App.css';
 function getInitialState(): AppState {
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('roomId');
-  return { screen: 'error', message: 'Test' };
   if (roomId) {
     return { screen: 'student-join', roomId };
   }
@@ -143,9 +142,22 @@ function App() {
       case 'error':
         return (
           <div className="error-screen">
-            <h2>發生錯誤</h2>
-            <p>{state.message}</p>
-            <button onClick={() => setState({ screen: 'select-role' })}>返回</button>
+            <div className="error-card">
+              <div className="error-icon-wrapper">
+                <span className="material-symbols-outlined error-icon">person_alert</span>
+              </div>
+              <h2 className="error-title">
+                <span className="title-orange">發生</span>
+                <span className="title-teal">錯誤</span>
+              </h2>
+              <p className="error-subtitle">{state.message}</p>
+              <button
+                className="error-back-btn"
+                onClick={() => setState({ screen: 'select-role' })}
+              >
+                返回
+              </button>
+            </div>
           </div>
         );
     }
