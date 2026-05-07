@@ -234,6 +234,7 @@ export function usePoseDetection(
                               handBuf[i].x = hl[i].x;
                               handBuf[i].y = hl[i].y;
                               handBuf[i].z = hl[i].z;
+                              handBuf[i].visibility = 1;
                             }
                             if (label === 'Left') {
                               frame.rightHandLandmarks = handBuf;  // camera Left = person Right
