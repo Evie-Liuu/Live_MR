@@ -33,7 +33,8 @@ $trackedFiles = $trackedFiles | Where-Object {
 $forceIncludePaths = @(
     "frontend/public/mediapipe-*",
     "frontend/public/models",
-    "frontend/src/assets/models"
+    "frontend/src/assets/models",
+    ".env"
 )
 
 # 4. Gather files from force-include paths
