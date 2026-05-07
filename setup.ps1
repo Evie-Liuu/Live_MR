@@ -1,4 +1,4 @@
-# setup.ps1
+﻿# setup.ps1
 # 用途：初始化或切換地點時一鍵重設 IP、憑證、啟動服務
 #
 # 用法：
@@ -52,7 +52,16 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-if (-not (Get-Command openssl -ErrorAction SilentlyContinue)) {
+$opensslExe = (Get-Command openssl -ErrorAction SilentlyContinue).Source
+if (-not $opensslExe) {
+    foreach ($p in @(
+        "$env:ProgramFiles\Git\usr\bin\openssl.exe",
+        "${env:ProgramFiles(x86)}\Git\usr\bin\openssl.exe"
+    )) {
+        if ($p -and (Test-Path $p)) { $opensslExe = $p; break }
+    }
+}
+if (-not $opensslExe) {
     Write-Host "錯誤：找不到 openssl。" -ForegroundColor Red
     Write-Host "   安裝 Git for Windows 後重試（內建 openssl）。" -ForegroundColor Yellow
     exit 1
@@ -107,7 +116,7 @@ Write-Step 2 "產生 SSL 憑證（IP: $IP）"
 
 if (-not (Test-Path "certs")) { New-Item -ItemType Directory "certs" | Out-Null }
 
-$opensslOutput = openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
+$opensslOutput = & $opensslExe req -x509 -nodes -days 365 -newkey rsa:2048 `
     -keyout "certs/key.pem" `
     -out "certs/cert.pem" `
     -subj "/CN=$IP" `

@@ -1,4 +1,4 @@
-# start-tunnel.ps1
+﻿# start-tunnel.ps1
 # 啟動 Cloudflare Tunnel，自動取得公開 HTTPS URL（行動裝置免憑證警告）
 #
 # 用法：
@@ -14,7 +14,16 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-if (-not (Get-Command openssl -ErrorAction SilentlyContinue)) {
+$opensslExe = (Get-Command openssl -ErrorAction SilentlyContinue).Source
+if (-not $opensslExe) {
+    foreach ($p in @(
+        "$env:ProgramFiles\Git\usr\bin\openssl.exe",
+        "${env:ProgramFiles(x86)}\Git\usr\bin\openssl.exe"
+    )) {
+        if ($p -and (Test-Path $p)) { $opensslExe = $p; break }
+    }
+}
+if (-not $opensslExe) {
     Write-Host "[錯誤] 找不到 openssl，請安裝 Git for Windows。" -ForegroundColor Red
     exit 1
 }

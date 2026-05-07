@@ -1,17 +1,18 @@
 @echo off
-title LiveMR 啟動器
+chcp 65001 > nul
+title LiveMR Launcher
 cd /d "%~dp0"
 
 echo.
 echo  ================================================
-echo   LiveMR 啟動中...
+echo   LiveMR Starting...
 echo  ================================================
 echo.
 
 where docker >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [錯誤] 找不到 Docker，請先安裝 Docker Desktop。
-    echo  下載：https://www.docker.com/products/docker-desktop/
+    echo  [ERROR] Docker not found. Please install Docker Desktop.
+    echo  Download: https://www.docker.com/products/docker-desktop/
     echo.
     pause
     exit /b 1
@@ -19,11 +20,15 @@ if %errorlevel% neq 0 (
 
 where openssl >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [錯誤] 找不到 openssl，請安裝 Git for Windows。
-    echo  下載：https://git-scm.com/download/win
-    echo.
-    pause
-    exit /b 1
+    if exist "%ProgramFiles%\Git\usr\bin\openssl.exe" (
+        set "PATH=%ProgramFiles%\Git\usr\bin;%PATH%"
+    ) else (
+        echo  [ERROR] openssl not found. Please install Git for Windows.
+        echo  Download: https://git-scm.com/download/win
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"

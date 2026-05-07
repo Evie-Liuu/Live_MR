@@ -1,10 +1,11 @@
 @echo off
-title LiveMR + Cloudflare Tunnel
+chcp 65001 > nul
+title LiveMR with Cloudflare Tunnel
 cd /d "%~dp0"
 
 echo.
 echo  ================================================
-echo   LiveMR Tunnel 模式啟動中...
+echo   LiveMR Tunnel mode starting...
 echo  ================================================
 echo.
 
