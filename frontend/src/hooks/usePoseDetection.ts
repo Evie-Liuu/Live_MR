@@ -193,19 +193,23 @@ export function usePoseDetection(
                         faceResult.faceLandmarks &&
                         faceResult.faceLandmarks.length > 0
                       ) {
-                        frame.faceLandmarks = faceResult.faceLandmarks[0].map((l) => ({
-                          x: l.x, y: l.y, z: l.z, visibility: l.visibility ?? 1,
-                        }));
+                        const fl = faceResult.faceLandmarks[0];
+                        for (let i = 0; i < fl.length; i++) {
+                          faceLandmarksBuf[i].x = fl[i].x;
+                          faceLandmarksBuf[i].y = fl[i].y;
+                          faceLandmarksBuf[i].z = fl[i].z;
+                          faceLandmarksBuf[i].visibility = fl[i].visibility ?? 1;
+                        }
+                        frame.faceLandmarks = faceLandmarksBuf;
                       }
                       if (
                         faceResult.faceBlendshapes &&
                         faceResult.faceBlendshapes.length > 0
                       ) {
-                        const bs: FaceBlendshapes = {};
                         for (const cat of faceResult.faceBlendshapes[0].categories) {
-                          bs[cat.categoryName] = cat.score;
+                          blendshapesBuf[cat.categoryName] = cat.score;
                         }
-                        frame.faceBlendshapes = bs;
+                        frame.faceBlendshapes = blendshapesBuf;
                       }
                     } catch {
                       // ignore per-frame face errors
@@ -221,15 +225,21 @@ export function usePoseDetection(
                           // handResult.handedness[hi][0].categoryName is 'Left' or 'Right'
                           // (MediaPipe returns the hand as seen from the camera, mirror of person)
                           const label = handResult.handedness?.[hi]?.[0]?.categoryName ?? ''
-                          const lms = handResult.landmarks[hi].map((l) => ({
-                            x: l.x, y: l.y, z: l.z, visibility: 1,
-                          }))
                           // MediaPipe 'Left' = camera left = person's Right hand, and vice versa
                           // We store as person's perspective to match solveHand() expectations
-                          if (label === 'Left') {
-                            frame.rightHandLandmarks = lms   // camera Left = person Right
-                          } else if (label === 'Right') {
-                            frame.leftHandLandmarks = lms    // camera Right = person Left
+                          if (label === 'Left' || label === 'Right') {
+                            const handBuf = label === 'Left' ? rightHandBuf : leftHandBuf;
+                            const hl = handResult.landmarks[hi];
+                            for (let i = 0; i < hl.length; i++) {
+                              handBuf[i].x = hl[i].x;
+                              handBuf[i].y = hl[i].y;
+                              handBuf[i].z = hl[i].z;
+                            }
+                            if (label === 'Left') {
+                              frame.rightHandLandmarks = handBuf;  // camera Left = person Right
+                            } else {
+                              frame.leftHandLandmarks = handBuf;   // camera Right = person Left
+                            }
                           }
                         }
                       }
