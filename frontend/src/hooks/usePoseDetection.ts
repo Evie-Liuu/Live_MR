@@ -132,6 +132,17 @@ export function usePoseDetection(
         if (cancelled) { handLandmarker?.close(); faceLandmarker?.close(); poseLandmarker.close(); return; }
         handRef.current = handLandmarker;
 
+        // ── Pre-allocated landmark buffers (avoid per-frame object creation) ──
+        const worldLandmarksBuf: PoseLandmark[] =
+          Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
+        const faceLandmarksBuf: PoseLandmark[] =
+          Array.from({ length: 478 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
+        const leftHandBuf: PoseLandmark[] =
+          Array.from({ length: 21 }, () => ({ x: 0, y: 0, z: 0, visibility: 1 }));
+        const rightHandBuf: PoseLandmark[] =
+          Array.from({ length: 21 }, () => ({ x: 0, y: 0, z: 0, visibility: 1 }));
+        const blendshapesBuf: FaceBlendshapes = {};
+
         let lastDetectTime = 0;
 
         const loop = () => {
@@ -151,19 +162,27 @@ export function usePoseDetection(
                 const result = pose.detectForVideo(video, now);
 
                 if (result.landmarks && result.landmarks.length > 0) {
+                  let worldLandmarks: PoseLandmark[];
+                  if (result.worldLandmarks && result.worldLandmarks.length > 0) {
+                    const wl = result.worldLandmarks[0];
+                    for (let i = 0; i < wl.length; i++) {
+                      worldLandmarksBuf[i].x = wl[i].x;
+                      worldLandmarksBuf[i].y = wl[i].y;
+                      worldLandmarksBuf[i].z = wl[i].z;
+                      worldLandmarksBuf[i].visibility = wl[i].visibility ?? 0;
+                    }
+                    worldLandmarks = worldLandmarksBuf;
+                  } else {
+                    worldLandmarks = [];
+                  }
+
                   const frame: PoseFrame = {
                     type: 'pose',
                     landmarks: result.landmarks[0].map((l) => ({
                       x: l.x, y: l.y, z: l.z,
                       visibility: l.visibility ?? 0,
                     })),
-                    worldLandmarks:
-                      result.worldLandmarks && result.worldLandmarks.length > 0
-                        ? result.worldLandmarks[0].map((l) => ({
-                          x: l.x, y: l.y, z: l.z,
-                          visibility: l.visibility ?? 0,
-                        }))
-                        : [],
+                    worldLandmarks,
                   };
 
                   // ── Face blendshapes (when enabled) ──
