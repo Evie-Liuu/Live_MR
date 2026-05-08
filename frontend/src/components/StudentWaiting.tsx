@@ -65,7 +65,7 @@ export default function StudentWaiting({
 
   if (isTimedOut) {
     return (
-      <div className="student-waiting-screen timeout-bg">
+      <div className="student-timeout-screen timeout-bg">
         <div className="timeout-card">
           <div className="timeout-icon-wrapper">
             <span className="material-symbols-outlined timeout-icon">timer_off</span>
