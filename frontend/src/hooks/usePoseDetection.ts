@@ -144,6 +144,7 @@ export function usePoseDetection(
         const blendshapesBuf: FaceBlendshapes = {};
 
         let lastDetectTime = 0;
+        let detectionFrame = 0;
 
         const loop = () => {
           if (cancelled) return;
@@ -153,6 +154,7 @@ export function usePoseDetection(
           // ── Throttle: skip detection if under interval ──
           if (now - lastDetectTime >= DETECT_INTERVAL_MS) {
             lastDetectTime = now;
+            const tick = detectionFrame++;
 
             const video = videoRef.current;
             const pose = poseRef.current;
@@ -186,7 +188,7 @@ export function usePoseDetection(
                   };
 
                   // ── Face blendshapes (when enabled) ──
-                  if (faceEnabledRef.current && faceRef.current) {
+                  if (faceEnabledRef.current && faceRef.current && tick % 2 === 0) {
                     try {
                       const faceResult = faceRef.current.detectForVideo(video, now);
                       if (
@@ -217,7 +219,7 @@ export function usePoseDetection(
                   }
 
                   // ── Hand landmarks (when enabled) ──
-                  if (handEnabledRef.current && handRef.current) {
+                  if (handEnabledRef.current && handRef.current && tick % 2 === 1) {
                     try {
                       const handResult = handRef.current.detectForVideo(video, now);
                       if (handResult.landmarks && handResult.landmarks.length > 0) {
