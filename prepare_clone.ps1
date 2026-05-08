@@ -41,7 +41,12 @@ $forceIncludePaths = @(
 $extraFiles = @()
 foreach ($pattern in $forceIncludePaths) {
     Write-Host "Checking force-include path: $pattern"
-    $files = Get-ChildItem -Path $pattern -Recurse -File -ErrorAction SilentlyContinue
+    # Files matching the pattern directly (e.g. .env, *.zip)
+    $directFiles = Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue
+    # Recurse into directories matching the pattern (wildcard in path stops -Recurse from entering them)
+    $dirFiles = Get-ChildItem -Path $pattern -Directory -ErrorAction SilentlyContinue |
+                ForEach-Object { Get-ChildItem -Path $_.FullName -Recurse -File -ErrorAction SilentlyContinue }
+    $files = @($directFiles) + @($dirFiles) | Where-Object { $_ }
     if ($files) {
         foreach ($file in $files) {
             # Convert to relative path from sourceDir
