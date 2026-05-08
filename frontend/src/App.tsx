@@ -14,22 +14,16 @@ const StudentSession = lazy(() => import('./components/StudentSession.tsx'));
 
 function AppSpinner() {
   return (
-    <div className='loading-container'>
-      <div className='waiting-inner'>
-        <div className="gradient-spinner" />
-        <h2 className="waiting-text">載入中...</h2>
-      </div>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div style={{
+        width: 40,
+        height: 40,
+        border: '4px solid #e0e0e0',
+        borderTopColor: '#1976d2',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+      }} />
     </div>
-    // <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-    //   <div style={{
-    //     width: 40,
-    //     height: 40,
-    //     border: '4px solid #e0e0e0',
-    //     borderTopColor: '#1976d2',
-    //     borderRadius: '50%',
-    //     animation: 'spin 0.8s linear infinite',
-    //   }} />
-    // </div>
   );
 }
 
