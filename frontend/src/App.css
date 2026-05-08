@@ -836,7 +836,7 @@ button:disabled {
   height: 100%;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
 .camera-off-placeholder-new {

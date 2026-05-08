@@ -1,15 +1,32 @@
-import { useState, useEffect } from 'react';
-import BigScreen from './components/BigScreen.tsx';
-import ShareScreen from './components/ShareScreen.tsx';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
 import { createRoom } from './api.ts';
 import RoleSelect from './components/RoleSelect.tsx';
-import HostLobby from './components/HostLobby.tsx';
-import HostSession from './components/HostSession.tsx';
-import StudentJoin from './components/StudentJoin.tsx';
 import StudentWaiting from './components/StudentWaiting.tsx';
-import StudentSession from './components/StudentSession.tsx';
 import './App.css';
+
+const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
+const ShareScreen = lazy(() => import('./components/ShareScreen.tsx'));
+const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
+const HostSession = lazy(() => import('./components/HostSession.tsx'));
+const StudentJoin = lazy(() => import('./components/StudentJoin.tsx'));
+// const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
+const StudentSession = lazy(() => import('./components/StudentSession.tsx'));
+
+function AppSpinner() {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div style={{
+        width: 40,
+        height: 40,
+        border: '4px solid #e0e0e0',
+        borderTopColor: '#1976d2',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+    </div>
+  );
+}
 
 function getInitialState(): AppState {
   const params = new URLSearchParams(window.location.search);
@@ -163,7 +180,13 @@ function App() {
     }
   };
 
-  return <div className="app">{renderScreen()}</div>;
+  return (
+    <div className="app">
+      <Suspense fallback={<AppSpinner />}>
+        {renderScreen()}
+      </Suspense>
+    </div>
+  );
 }
 
 export default isBigScreen ? BigScreen : (isShareScreen ? ShareScreen : App);
