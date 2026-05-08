@@ -82,7 +82,6 @@ export function useVrmAvatar(
     const renderer = new THREE.WebGLRenderer({
       canvas,
       // alpha: preset.backgroundType === 'none', // transparent when no background set
-      alpha: true,
       antialias: true,
     });
     renderer.setSize(
