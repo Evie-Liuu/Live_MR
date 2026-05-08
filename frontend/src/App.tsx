@@ -2,7 +2,6 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
 import { createRoom } from './api.ts';
 import RoleSelect from './components/RoleSelect.tsx';
-import StudentWaiting from './components/StudentWaiting.tsx';
 import './App.css';
 
 const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
@@ -10,21 +9,24 @@ const ShareScreen = lazy(() => import('./components/ShareScreen.tsx'));
 const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
 const HostSession = lazy(() => import('./components/HostSession.tsx'));
 const StudentJoin = lazy(() => import('./components/StudentJoin.tsx'));
-// const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
+const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
 const StudentSession = lazy(() => import('./components/StudentSession.tsx'));
 
 function AppSpinner() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-      <div style={{
-        width: 40,
-        height: 40,
-        border: '4px solid #e0e0e0',
-        borderTopColor: '#1976d2',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
-      }} />
+    <div className='loading-container'>
+      <div className="gradient-spinner" />
     </div>
+    // <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    //   <div style={{
+    //     width: 40,
+    //     height: 40,
+    //     border: '4px solid #e0e0e0',
+    //     borderTopColor: '#1976d2',
+    //     borderRadius: '50%',
+    //     animation: 'spin 0.8s linear infinite',
+    //   }} />
+    // </div>
   );
 }
 
