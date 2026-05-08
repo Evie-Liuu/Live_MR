@@ -24,7 +24,7 @@ export const THEMES: ThemeConfig[] = [
         // icon: '🏪',
         icon: 'point_of_sale',
         allowedVrmIds: [
-          'default',
+          // 'default',
           'student_male',
           'student_female',
           'clothingStoreStaff_female',
