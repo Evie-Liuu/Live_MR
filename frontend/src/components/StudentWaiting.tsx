@@ -71,8 +71,8 @@ export default function StudentWaiting({
             <span className="material-symbols-outlined timeout-icon">timer_off</span>
           </div>
           <h2 className="timeout-text">等待逾時，請重新加入。</h2>
-          <button 
-            className="timeout-back-btn" 
+          <button
+            className="timeout-back-btn"
             onClick={() => window.location.reload()}
           >
             返回
@@ -84,9 +84,11 @@ export default function StudentWaiting({
 
   return (
     <div className="student-waiting-screen">
-      <div className="gradient-spinner" />
-      <h2 className="waiting-text">等待老師允許</h2>
-      <p className="waiting-text">{name}，請稍候...</p>
+      <div className="waiting-inner">
+        <div className="gradient-spinner" />
+        <h2 className="waiting-text">等待老師允許</h2>
+        {/* <p className="waiting-text">{name}，請稍候...</p> */}
+      </div>
     </div>
   );
 }
