@@ -73,23 +73,46 @@ export function subscribeToRoomEvents(
   hostToken: string,
   onEvent: (event: RoomEvent) => void,
 ): () => void {
-  const url = `/api/rooms/${roomId}/events?token=${encodeURIComponent(hostToken)}`;
-  const source = new EventSource(url);
+  let cancelled = false;
+  let lastEventId = 0;
+  let controller: AbortController | null = null;
+  let backoffMs = 1000;
 
-  source.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data as string) as RoomEvent;
-      onEvent(data);
-    } catch {
-      // ignore malformed events
+  const poll = async (): Promise<void> => {
+    while (!cancelled) {
+      controller = new AbortController();
+      try {
+        const url = `/api/rooms/${roomId}/events?since=${lastEventId}&token=${encodeURIComponent(hostToken)}`;
+        const res = await fetch(url, { signal: controller.signal });
+        if (!res.ok) {
+          if (res.status === 404) return;
+          await new Promise((r) => setTimeout(r, backoffMs));
+          backoffMs = Math.min(backoffMs * 2, 15000);
+          continue;
+        }
+        backoffMs = 1000;
+        const data = (await res.json()) as { events: RoomEvent[]; lastEventId: number };
+        if (typeof data.lastEventId === 'number' && data.lastEventId > lastEventId) {
+          lastEventId = data.lastEventId;
+        }
+        for (const event of data.events) {
+          if (cancelled) return;
+          onEvent(event);
+        }
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+        await new Promise((r) => setTimeout(r, backoffMs));
+        backoffMs = Math.min(backoffMs * 2, 15000);
+      }
     }
   };
 
-  source.onerror = () => {
-    // EventSource will auto-reconnect
-  };
+  void poll();
 
-  return () => source.close();
+  return () => {
+    cancelled = true;
+    controller?.abort();
+  };
 }
 
 // ── Recording ────────────────────────────────────────────────────────────────

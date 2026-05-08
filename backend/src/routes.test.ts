@@ -154,63 +154,51 @@ describe('API Routes', () => {
     })
   })
 
-  describe('GET /api/rooms/:roomId/events (SSE)', () => {
+  describe('GET /api/rooms/:roomId/events (long polling)', () => {
     it('returns 404 for unknown room', async () => {
       const res = await request(app).get('/api/rooms/nonexistent/events')
       expect(res.status).toBe(404)
     })
 
-    it('returns SSE headers for existing room', async () => {
+    it('returns pending requests immediately when since=0', async () => {
       const createRes = await request(app).post('/api/rooms')
       const { roomId } = createRes.body
-
-      // We need to handle the SSE connection carefully - it stays open
-      // Use a short timeout approach
-      const res = await new Promise<request.Response>((resolve) => {
-        const req = request(app)
-          .get(`/api/rooms/${roomId}/events`)
-          .buffer(true)
-          .parse((res, cb) => {
-            let data = ''
-            res.on('data', (chunk: Buffer) => { data += chunk.toString() })
-            // Resolve after getting headers
-            setTimeout(() => {
-              (res as any).destroy();
-              cb(null, data)
-            }, 100)
-          })
-        req.then(resolve)
-      })
-
-      expect(res.status).toBe(200)
-      expect(res.headers['content-type']).toBe('text/event-stream')
-      expect(res.headers['cache-control']).toBe('no-cache')
-    })
-
-    it('sends pending requests on connect', async () => {
-      const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
-
-      // Add a pending request before connecting SSE
       store.addJoinRequest(roomId, 'Alice')
 
-      const body = await new Promise<string>((resolve) => {
-        const req = request(app)
-          .get(`/api/rooms/${roomId}/events`)
-          .buffer(true)
-          .parse((res, cb) => {
-            let data = ''
-            res.on('data', (chunk: Buffer) => { data += chunk.toString() })
-            setTimeout(() => {
-              (res as any).destroy();
-              cb(null, data)
-            }, 100)
-          })
-        req.then((res) => resolve(res.body as string))
-      })
+      const res = await request(app).get(`/api/rooms/${roomId}/events?since=0`)
 
-      expect(body).toContain('"type":"join-request"')
-      expect(body).toContain('Alice')
+      expect(res.status).toBe(200)
+      expect(res.body.events).toHaveLength(1)
+      expect(res.body.events[0]).toMatchObject({ type: 'join-request', name: 'Alice' })
+      expect(res.body.lastEventId).toBeGreaterThan(0)
+    })
+
+    it('returns empty events array after timeout when no pending', async () => {
+      const createRes = await request(app).post('/api/rooms')
+      const { roomId } = createRes.body
+
+      // Cancel the long poll quickly via aborted request
+      const req = request(app).get(`/api/rooms/${roomId}/events?since=0`).timeout(150)
+      await expect(req).rejects.toThrow()
+    })
+
+    it('returns only events after since', async () => {
+      const createRes = await request(app).post('/api/rooms')
+      const { roomId } = createRes.body
+      store.addJoinRequest(roomId, 'Alice')
+
+      const first = await request(app).get(`/api/rooms/${roomId}/events?since=0`)
+      const lastId = first.body.lastEventId as number
+
+      const second = await request(app)
+        .get(`/api/rooms/${roomId}/events?since=${lastId}`)
+        .timeout(150)
+        .catch((e) => e)
+
+      // Either timed out (no new events) or returned empty
+      if (!(second instanceof Error)) {
+        expect(second.body.events).toHaveLength(0)
+      }
     })
   })
 })

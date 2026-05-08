@@ -36,16 +36,36 @@ interface RecordingDeps {
 export function createRouter(store: RoomStore, recording?: RecordingDeps): Router {
   const router = Router()
 
-  // SSE 客户端室
-  const sseClients = new Map<string, Set<Response>>()
+  // Per-room event log + waiters for long polling
+  interface QueuedEvent { id: number; type: string; [key: string]: unknown }
+  interface RoomEventQueue {
+    events: QueuedEvent[]
+    nextId: number
+    waiters: Array<() => void>
+  }
+  const EVENT_LOG_CAP = 100
+  const LONG_POLL_TIMEOUT_MS = 25000
+  const roomQueues = new Map<string, RoomEventQueue>()
+
+  function getOrCreateQueue(roomId: string): RoomEventQueue {
+    let q = roomQueues.get(roomId)
+    if (!q) {
+      q = { events: [], nextId: 1, waiters: [] }
+      // Backfill with pending requests so reconnecting clients see them
+      for (const req of store.getPendingRequests(roomId)) {
+        q.events.push({ id: q.nextId++, type: 'join-request', requestId: req.requestId, name: req.name })
+      }
+      roomQueues.set(roomId, q)
+    }
+    return q
+  }
 
   function notifyRoom(roomId: string, type: string, data: Record<string, unknown>): void {
-    const clients = sseClients.get(roomId)
-    if (!clients) return
-    const payload = JSON.stringify({ type, ...data })
-    for (const res of clients) {
-      res.write(`data: ${payload}\n\n`)
-    }
+    const q = getOrCreateQueue(roomId)
+    q.events.push({ id: q.nextId++, type, ...data })
+    while (q.events.length > EVENT_LOG_CAP) q.events.shift()
+    const waiters = q.waiters.splice(0)
+    for (const w of waiters) w()
   }
 
   // POST /api/rooms — 建立房間
@@ -144,7 +164,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     res.json({ status: 'rejected' })
   })
 
-  // GET /api/rooms/:roomId/events — SSE
+  // GET /api/rooms/:roomId/events?since=N — long polling
   router.get('/rooms/:roomId/events', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const room = store.getRoom(roomId)
@@ -154,30 +174,40 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       return
     }
 
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    })
-    res.flushHeaders()
+    const since = Number.parseInt((req.query.since as string) ?? '0', 10) || 0
+    const q = getOrCreateQueue(roomId)
 
-    const pending = store.getPendingRequests(roomId)
-    for (const req of pending) {
-      const payload = JSON.stringify({ type: 'join-request', requestId: req.requestId, name: req.name })
-      res.write(`data: ${payload}\n\n`)
+    const respond = (): void => {
+      const events = q.events.filter((e) => e.id > since)
+      const lastEventId = events.length > 0 ? events[events.length - 1]!.id : since
+      res.json({ events, lastEventId })
     }
 
-    if (!sseClients.has(roomId)) {
-      sseClients.set(roomId, new Set())
+    if (q.events.some((e) => e.id > since)) {
+      respond()
+      return
     }
-    sseClients.get(roomId)!.add(res)
+
+    let settled = false
+    const waiter = (): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      respond()
+    }
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      q.waiters = q.waiters.filter((w) => w !== waiter)
+      respond()
+    }, LONG_POLL_TIMEOUT_MS)
+    q.waiters.push(waiter)
 
     req.on('close', () => {
-      const clients = sseClients.get(roomId)
-      if (clients) {
-        clients.delete(res)
-        if (clients.size === 0) sseClients.delete(roomId)
-      }
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      q.waiters = q.waiters.filter((w) => w !== waiter)
     })
   })
 
