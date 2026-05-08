@@ -194,5 +194,11 @@ function App() {
   );
 }
 
-export default isBigScreen ? BigScreen : (isShareScreen ? ShareScreen : App);
+function Root() {
+  if (isBigScreen)   return <Suspense fallback={<AppSpinner />}><BigScreen /></Suspense>;
+  if (isShareScreen) return <Suspense fallback={<AppSpinner />}><ShareScreen /></Suspense>;
+  return <App />;
+}
+
+export default Root;
 
