@@ -1,14 +1,37 @@
-import { useState, useEffect } from 'react';
-import BigScreen from './components/BigScreen.tsx';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
 import { createRoom } from './api.ts';
 import RoleSelect from './components/RoleSelect.tsx';
-import HostLobby from './components/HostLobby.tsx';
-import HostSession from './components/HostSession.tsx';
-import StudentJoin from './components/StudentJoin.tsx';
-import StudentWaiting from './components/StudentWaiting.tsx';
-import StudentSession from './components/StudentSession.tsx';
 import './App.css';
+
+const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
+const ShareScreen = lazy(() => import('./components/ShareScreen.tsx'));
+const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
+const HostSession = lazy(() => import('./components/HostSession.tsx'));
+const StudentJoin = lazy(() => import('./components/StudentJoin.tsx'));
+const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
+const StudentSession = lazy(() => import('./components/StudentSession.tsx'));
+
+function AppSpinner() {
+  return (
+    <div className='loading-container'>
+      <div className='waiting-inner'>
+        <div className="gradient-spinner" />
+        <h2 className="waiting-text">載入中...</h2>
+      </div>
+    </div>
+    // <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    //   <div style={{
+    //     width: 40,
+    //     height: 40,
+    //     border: '4px solid #e0e0e0',
+    //     borderTopColor: '#1976d2',
+    //     borderRadius: '50%',
+    //     animation: 'spin 0.8s linear infinite',
+    //   }} />
+    // </div>
+  );
+}
 
 function getInitialState(): AppState {
   const params = new URLSearchParams(window.location.search);
@@ -19,8 +42,10 @@ function getInitialState(): AppState {
   return { screen: 'select-role' };
 }
 
-// Detect big-screen mode before mounting any hook-bearing components
-const isBigScreen = new URLSearchParams(window.location.search).get('screen') === 'bigscreen';
+// Detect specific screen modes before mounting any hook-bearing components
+const screenParam = new URLSearchParams(window.location.search).get('screen');
+const isBigScreen = screenParam === 'bigscreen';
+const isShareScreen = screenParam === 'share';
 
 function App() {
   const [state, setState] = useState<AppState>(getInitialState);
@@ -65,7 +90,7 @@ function App() {
             hostToken={state.hostToken}
             livekitToken={state.livekitToken}
             onStart={(livekitToken) =>
-              setState({ screen: 'host-session', roomId: state.roomId, livekitToken })
+              setState({ screen: 'host-session', roomId: state.roomId, hostToken: state.hostToken, livekitToken })
             }
           />
         );
@@ -75,6 +100,7 @@ function App() {
           <HostSession
             roomId={state.roomId}
             livekitToken={state.livekitToken}
+            hostToken={state.hostToken}
           />
         );
 
@@ -116,25 +142,63 @@ function App() {
       case 'student-rejected':
         return (
           <div className="rejected-screen">
-            <h2>請求被拒絕</h2>
-            <p>老師已拒絕你的加入請求。</p>
-            <button onClick={() => setState({ screen: 'select-role' })}>返回</button>
+            <div className="rejected-card">
+              <div className="rejected-icon-wrapper">
+                <span className="material-symbols-outlined rejected-icon">person_cancel</span>
+              </div>
+              <h2 className="rejected-title">
+                <span className="title-orange">請求</span>
+                <span className="title-teal">被拒絕</span>
+              </h2>
+              <p className="rejected-subtitle">老師已拒絕你的加入請求。</p>
+              <button
+                className="rejected-back-btn"
+                onClick={() => setState({ screen: 'select-role' })}
+              >
+                返回
+              </button>
+            </div>
           </div>
         );
 
       case 'error':
         return (
           <div className="error-screen">
-            <h2>發生錯誤</h2>
-            <p>{state.message}</p>
-            <button onClick={() => setState({ screen: 'select-role' })}>返回</button>
+            <div className="error-card">
+              <div className="error-icon-wrapper">
+                <span className="material-symbols-outlined error-icon">person_alert</span>
+              </div>
+              <h2 className="error-title">
+                <span className="title-orange">發生</span>
+                <span className="title-teal">錯誤</span>
+              </h2>
+              <p className="error-subtitle">{state.message}</p>
+              <button
+                className="error-back-btn"
+                onClick={() => setState({ screen: 'select-role' })}
+              >
+                返回
+              </button>
+            </div>
           </div>
         );
     }
   };
 
-  return <div className="app">{renderScreen()}</div>;
+  return (
+    <div className="app">
+      <Suspense fallback={<AppSpinner />}>
+        {renderScreen()}
+      </Suspense>
+    </div>
+  );
 }
 
-export default isBigScreen ? BigScreen : App;
+function Root() {
+  if (isBigScreen) return <Suspense fallback={<AppSpinner />}><BigScreen /></Suspense>;
+  if (isShareScreen) return <Suspense fallback={<AppSpinner />}><ShareScreen /></Suspense>;
+  return <App />;
+}
+
+export default Root;
 

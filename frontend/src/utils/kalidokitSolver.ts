@@ -115,9 +115,10 @@ export function solveWithKalidokit(
 ): {
   boneRotations: Record<string, BoneRotation>
   hipsPosition?: { x: number; y: number; z: number }
+  solved: boolean
 } {
   if (worldLandmarks.length < 33 || normalizedLandmarks.length < 33) {
-    return { boneRotations: prevRotations }
+    return { boneRotations: prevRotations, solved: false }
   }
 
   const poseRig = Pose.solve(
@@ -125,11 +126,11 @@ export function solveWithKalidokit(
     normalizedLandmarks as Array<{ x: number; y: number; z: number; visibility?: number }>,
     {
       runtime: 'mediapipe',
-      enableLegs: true,
+      enableLegs: false,
     },
   ) as KalidokitPoseResult | undefined
 
-  if (!poseRig) return { boneRotations: prevRotations }
+  if (!poseRig) return { boneRotations: prevRotations, solved: false }
 
   const rotations: Record<string, BoneRotation> = {}
 
@@ -148,8 +149,19 @@ export function solveWithKalidokit(
     if (!eulerRot || typeof eulerRot !== 'object' || !('x' in eulerRot)) continue
 
     const euler = eulerRot as { x: number; y: number; z: number }
+
+    let zRot = mirror ? -euler.z : euler.z;
+
+    // 修正手臂上下文動作顛倒問題 (Arm up/down inverted fix)
+    const isArm = vrmName.toLowerCase().includes('arm') || vrmName.toLowerCase().includes('hand');
+    if (mirror && isArm) {
+      zRot = euler.z;
+    }
+
     // 鏡像：在歐拉角空間反轉 Y/Z，避免四元數空間的軸交叉耦合
-    const mirrored = mirror ? { x: euler.x, y: -euler.y, z: -euler.z } : euler
+    const mirrored = mirror
+      ? { x: euler.x, y: -euler.y, z: zRot }
+      : { x: euler.x, y: euler.y, z: euler.z }
     const currentQuat = eulerToQuaternion(mirrored)
     rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing)
   }
@@ -159,7 +171,7 @@ export function solveWithKalidokit(
   if (poseRig.Hips) {
     const hipsEuler = poseRig.Hips.rotation
     const mirroredHips = mirror
-      ? { x: hipsEuler.x, y: -hipsEuler.y, z: -hipsEuler.z }
+      ? { x: hipsEuler.x, y: -hipsEuler.y, z: -hipsEuler.z * 0.1 }  // -hipsEuler.z
       : hipsEuler
     const hipsQuat = eulerToQuaternion(mirroredHips)
     rotations.hips = slerpRotation(hipsQuat, prevRotations.hips, smoothing)
@@ -171,5 +183,5 @@ export function solveWithKalidokit(
     }
   }
 
-  return { boneRotations: rotations, hipsPosition }
+  return { boneRotations: rotations, hipsPosition, solved: true }
 }

@@ -1,5 +1,10 @@
 
 .claude/
+.agent/
+.codex/
+.gemini/
+openspec/
+*.diff
 
 # Logs
 logs
@@ -16,6 +21,7 @@ dist-ssr
 *.local
 .env
 .superpowers
+certs/
 
 # Editor directories and files
 .vscode/*
@@ -36,3 +42,7 @@ frontend/public/mediapipe-*
 
 # Models
 frontend/public/models
+frontend/src/assets/models
+
+# Recordings
+recordings/

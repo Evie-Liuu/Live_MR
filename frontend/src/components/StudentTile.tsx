@@ -1,65 +1,131 @@
-import { useEffect, useRef, useState } from 'react';
-import type { RemoteParticipant, RemoteTrackPublication } from 'livekit-client';
-import { useVrmAvatar } from '../hooks/useVrmAvatar';
-import PoseDebugOverlay from './PoseDebugOverlay';
-import type { PoseFrame } from '../types/vrm';
+import { useEffect, useRef, useState } from 'react'
+import type { RemoteParticipant, RemoteTrackPublication } from 'livekit-client'
+import { useVrmAvatar } from '../hooks/useVrmAvatar'
+// import PoseDebugOverlay from './PoseDebugOverlay';
+import type { PoseFrame } from '../types/vrm'
+import type { MuteState } from '../hooks/useRecording'
 
 interface StudentTileProps {
-  participant: RemoteParticipant;
-  videoTrack: RemoteTrackPublication | null;
-  poseData: PoseFrame | null;
-  vrmSourceId?: string;
+  participant: RemoteParticipant
+  videoTrack: RemoteTrackPublication | null
+  poseData: PoseFrame | null
+  vrmSourceId?: string | null
+  muteState?: MuteState
+  onToggleMute?: (identity: string, trackType: 'audio' | 'video') => void
+  slotLabel?: string | null
 }
 
-export default function StudentTile({ participant, videoTrack, poseData, vrmSourceId }: StudentTileProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId });
-  const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
+export default function StudentTile({
+  participant,
+  videoTrack,
+  poseData,
+  vrmSourceId,
+  muteState,
+  onToggleMute,
+  slotLabel,
+}: StudentTileProps) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId })
+  const [_, setVideoSize] = useState({ width: 320, height: 240 })
+
+  const isCameraOff = muteState?.video === true
 
   // Attach video track
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !videoTrack?.track) return;
-
-    const mediaTrack = videoTrack.track.mediaStreamTrack;
-    const stream = new MediaStream([mediaTrack]);
-    el.srcObject = stream;
-
+    const el = videoRef.current
+    if (!el) return
+    if (!videoTrack?.track || isCameraOff) {
+      el.srcObject = null
+      return
+    }
+    const mediaTrack = videoTrack.track.mediaStreamTrack
+    const stream = new MediaStream([mediaTrack])
+    el.srcObject = stream
     const handleLoadedMetadata = () => {
       if (el.clientWidth > 0) {
-        setVideoSize({ width: el.clientWidth, height: el.clientHeight });
+        setVideoSize({ width: el.clientWidth, height: el.clientHeight })
       }
-    };
-    el.addEventListener('loadedmetadata', handleLoadedMetadata);
-
+    }
+    el.addEventListener('loadedmetadata', handleLoadedMetadata)
     return () => {
-      el.srcObject = null;
-      el.removeEventListener('loadedmetadata', handleLoadedMetadata);
-    };
-  }, [videoTrack]);
+      el.srcObject = null
+      el.removeEventListener('loadedmetadata', handleLoadedMetadata)
+    }
+  }, [videoTrack, isCameraOff])
 
   // Apply pose data to VRM
   useEffect(() => {
-    if (poseData) {
-      applyPose(poseData);
-    }
-  }, [poseData, applyPose]);
+    if (poseData && !isCameraOff) applyPose(poseData)
+  }, [poseData, applyPose, isCameraOff])
 
-  const landmarks = poseData?.landmarks;
+  const labelText = slotLabel || '未指派'
+  const identityText = participant.identity
 
   return (
-    <div className="student-tile" style={{ position: 'relative' }}>
-      <video ref={videoRef} autoPlay playsInline muted className="tile-video" />
-      <canvas ref={canvasRef} className="avatar-canvas" style={{ position: 'absolute', top: 0, left: 0, opacity: 0.8 }} />
-      {landmarks && (
-        <PoseDebugOverlay
-          landmarks={[landmarks]}
-          width={videoSize.width}
-          height={videoSize.height}
+    <div className="student-tile-new">
+      {/* Top Video Area */}
+      <div className="tile-main-view">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="tile-video-new"
+          style={{ display: isCameraOff ? 'none' : 'block' }}
         />
-      )}
-      <div className="student-name" style={{ position: 'absolute', bottom: 5, right: 5, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '2px 5px' }}>{participant.identity}</div>
+
+        {isCameraOff && (
+          <div className="camera-off-placeholder-new">
+            {vrmSourceId === null && (
+              <div className="placeholder-center-icon">
+                <div className="rounded-rect" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VRM canvas */}
+        {vrmSourceId !== null && (
+          <canvas ref={canvasRef} className="avatar-canvas-new" />
+        )}
+
+        {/* Top Overlay Bar */}
+        {/* <div className="tile-top-overlay">
+          <span className="tile-id-badge">{identityText}</span>
+          <span className="tile-status-badge">{labelText}</span>
+        </div> */}
+
+        {/* Bottom Right Mute Controls */}
+        {onToggleMute && (
+          <div className="tile-action-controls">
+            <button
+              className={`tile-action-btn ${muteState?.audio ? 'muted' : 'active'}`}
+              onClick={() => onToggleMute(participant.identity, 'audio')}
+              title={muteState?.audio ? '取消靜音' : '靜音'}
+            >
+              <span className="material-symbols-outlined">
+                {muteState?.audio ? 'mic_off' : 'mic'}
+              </span>
+            </button>
+            <button
+              className={`tile-action-btn ${muteState?.video ? 'muted' : 'active'}`}
+              onClick={() => onToggleMute(participant.identity, 'video')}
+              title={muteState?.video ? '開啟鏡頭' : '關閉鏡頭'}
+            >
+              <span className="material-symbols-outlined">
+                {muteState?.video ? 'videocam_off' : 'videocam'}
+              </span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Info Bar */}
+      <div className="tile-footer-bar">
+        <span className="footer-id">{identityText}</span>
+        <span className="footer-status">{labelText}</span>
+      </div>
     </div>
-  );
+  )
 }

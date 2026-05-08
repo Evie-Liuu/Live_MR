@@ -1,0 +1,7 @@
+api_key: devkey
+api_secret: devsecret1234567890devsecret1234567890
+ws_url: ws://livekit:7880
+redis:
+  address: redis:6379
+health_port: 8080
+log_level: info

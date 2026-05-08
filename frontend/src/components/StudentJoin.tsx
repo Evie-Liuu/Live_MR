@@ -27,23 +27,31 @@ export default function StudentJoin({ roomId, onSubmitted }: StudentJoinProps) {
   };
 
   return (
-    <div className="student-join">
-      <h2>加入課堂</h2>
-      <p>房間 ID: {roomId}</p>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="請輸入你的名字"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={loading}
-          autoFocus
-        />
-        <button type="submit" disabled={loading || !name.trim()}>
-          {loading ? '送出中...' : '加入'}
-        </button>
-      </form>
-      {error && <p className="error-text">{error}</p>}
+    <div className="student-join-screen">
+      <div className="student-join-container">
+        <h2 className="student-join-title">
+          <span className="title-orange">加入</span>
+          <span className="title-teal">課堂</span>
+        </h2>
+        <p className="student-join-subtitle">房間 ID: {roomId}</p>
+        <div className="student-join-card">
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              placeholder="請輸入你的名字"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+              autoFocus
+              className="student-join-input"
+            />
+            <button type="submit" disabled={loading || !name.trim()} className="student-join-btn">
+              {loading ? '送出中...' : '加入'}
+            </button>
+          </form>
+          {error && <p className="error-text">{error}</p>}
+        </div>
+      </div>
     </div>
   );
 }

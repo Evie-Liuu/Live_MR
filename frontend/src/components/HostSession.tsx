@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   Room,
   RoomEvent,
@@ -6,22 +7,28 @@ import {
   RemoteTrackPublication,
   Track,
   DataPacket_Kind,
+  type Participant,
 } from 'livekit-client';
 import StudentTile from './StudentTile.tsx';
 import LocalVideo from './LocalVideo.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
-import type { BigScreenMsg } from './BigScreen';
+import type { BigScreenMsg, TaskEntry } from './BigScreen';
 import type { PoseFrame } from '../types/vrm';
-import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
+import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { decodePoseFrame } from '../utils/poseCodec.ts';
+import { useRecording } from '../hooks/useRecording.ts';
+import RecordingPanel from './RecordingPanel.tsx';
+import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
+import type { RoomEvent as ApiRoomEvent } from '../api.ts';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
   roomId: string;
   livekitToken: string;
+  hostToken: string;
 }
 
 interface ParticipantInfo {
@@ -30,18 +37,144 @@ interface ParticipantInfo {
   poseData: PoseFrame | null;
 }
 
+interface PendingStudent {
+  requestId: string;
+  name: string;
+}
+
+// ─── Custom Select Component ──────────────────────────────────────────────────
+interface Option {
+  value: string;
+  label: React.ReactNode;
+}
+
+interface CustomSelectProps {
+  value: string;
+  options: Option[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}
+
+function CustomSelect({ value, options, onChange, disabled, placeholder = "請選擇..." }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.value === value);
+
+  return (
+    <div className={`custom-select-container ${disabled ? 'disabled' : ''}`} ref={selectRef}>
+      <div
+        className={`custom-select-trigger slot-select-ui ${disabled ? 'disabled' : ''}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <div className="custom-select-value">
+          {!disabled && selectedOption ? selectedOption.label : <span style={{ color: '#999' }}>{selectedOption?.label}</span>}
+        </div>
+        <span className="material-symbols-outlined custom-select-icon">
+          {isOpen ? 'expand_less' : 'expand_more'}
+        </span>
+      </div>
+      {isOpen && !disabled && (
+        <div className="custom-select-dropdown">
+          {options.map(opt => (
+            <div
+              key={opt.value}
+              className={`custom-select-option ${opt.value === value ? 'selected' : ''}`}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+            >
+              {opt.label}
+              {opt.value === value && <span className="material-symbols-outlined check-icon">check</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function HostSession({ roomId, livekitToken }: HostSessionProps) {
+export default function HostSession({ roomId, livekitToken, hostToken }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
-  const [faceEnabled, setFaceEnabled] = useState(false);
+  const [faceEnabled, setFaceEnabled] = useState(true);
+  const [handEnabled, _] = useState(faceEnabled);
+  // Panel drawer open states
+  const [showScenePanel, setShowScenePanel] = useState(false);
+  const [showSlotPanel, setShowSlotPanel] = useState(false);
+  const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [showPendingPanel, setShowPendingPanel] = useState(false);
+  const [pending, setPending] = useState<PendingStudent[]>([]);
+  // Settlement modal (shown when allDone)
+  const [showSettlement, setShowSettlement] = useState(false);
+  // QR Code share modal (now opened in separate window)
+  const openShareWindow = useCallback(() => {
+    const url = `${window.location.origin}/?screen=share&roomId=${roomId}`;
+    window.open(url, 'live-mr-share', 'width=500,height=650,menubar=no,toolbar=no');
+  }, [roomId]);
+  // Track whether a recording was ever started this session
+  const [hasRecorded, setHasRecorded] = useState(false);
+  // Set of participant identities currently speaking
+  const [speakingSet, setSpeakingSet] = useState<Set<string>>(new Set());
+  // Embedded BigScreen preview in sidebar
+  const [showBigScreenPreview, setShowBigScreenPreview] = useState(false);
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
   // BroadcastChannel to push pose data to big screen
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  const handleApiEvent = useCallback((event: ApiRoomEvent) => {
+    if (event.type === 'join-request') {
+      const student: PendingStudent = {
+        requestId: event.requestId as string,
+        name: event.name as string,
+      };
+      setPending((prev) => {
+        if (prev.some((s) => s.requestId === student.requestId)) return prev;
+        return [...prev, student];
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToRoomEvents(roomId, hostToken, handleApiEvent);
+    return unsubscribe;
+  }, [roomId, hostToken, handleApiEvent]);
+
+  const handleApprove = async (requestId: string) => {
+    try {
+      await approveRequest(roomId, requestId);
+      setPending((prev) => prev.filter((s) => s.requestId !== requestId));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleReject = async (requestId: string) => {
+    try {
+      await rejectRequest(roomId, requestId);
+      setPending((prev) => prev.filter((s) => s.requestId !== requestId));
+    } catch {
+      // ignore
+    }
+  };
+
 
   // Teacher's own video ref (for pose detection)
   const teacherVideoRef = useRef<HTMLVideoElement>(null);
@@ -54,12 +187,12 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
   );
   // Global default VRM for new avatars (students who haven't picked their own)
-  const [selectedVrmSourceId, setSelectedVrmSourceId] = useState<string>(
-    () => sessionStorage.getItem('bigscreen-vrmSourceId') ?? DEFAULT_VRM_SOURCE_ID,
+  const [selectedVrmSourceId, setSelectedVrmSourceId] = useState<string | null>(
+    () => sessionStorage.getItem('bigscreen-vrmSourceId') ?? null,
   );
   // Teacher's own personal avatar selection
-  const [teacherVrmSourceId, setTeacherVrmSourceId] = useState<string>(
-    () => sessionStorage.getItem('bigscreen-teacherVrmSourceId') ?? DEFAULT_VRM_SOURCE_ID,
+  const [teacherVrmSourceId, setTeacherVrmSourceId] = useState<string | null>(
+    () => sessionStorage.getItem('bigscreen-teacherVrmSourceId') ?? null,
   );
   // Individual student roles selected by the host
   const [studentRoles, setStudentRoles] = useState<Record<string, string>>(() => {
@@ -70,6 +203,89 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     }
   });
 
+  // Slot assignments: slotId → participant identity
+  const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  // Ordered list of selected tasks (教學任務層)
+  const [selectedTasks, setSelectedTasks] = useState<TaskEntry[]>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('bigscreen-tasks') || '[]');
+    } catch { return []; }
+  });
+
+  // Keep track of which modules are expanded in the selector
+  const [expandedModuleIds, setExpandedModuleIds] = useState<Set<string>>(new Set());
+
+  const { isRecording, start, stop, muteState, toggleMute } = useRecording(
+    roomId,
+    connectedRoom,
+    selectedSceneId,
+    connectedRoom?.localParticipant.name || connectedRoom?.localParticipant.identity || 'Host',
+    channelRef,
+  );
+
+  // Keep a ref so event-handler closures (handleDataReceived) can read latest muteState
+  const muteStateRef = useRef<Record<string, { audio: boolean; video: boolean }>>({});
+  useEffect(() => { muteStateRef.current = muteState; }, [muteState]);
+
+  // Track if recording was ever started this session
+  useEffect(() => {
+    if (isRecording) setHasRecorded(true);
+  }, [isRecording]);
+
+  // Keep a stable ref to stop() so the channel handler always calls the latest closure
+  const stopRef = useRef(stop);
+  useEffect(() => { stopRef.current = stop; }, [stop]);
+
+  // Stop recording after BigScreen has finished capturing the settlement overlay.
+  // BigScreen broadcasts 'settlement-done' after its own recording stops (≈3 s after
+  // the settlement panel appears). We listen for that signal here and stop the backend
+  // recording only then, so the settlement overlay is included in the video.
+  //
+  // Fallback: if BigScreen is not open (or sends the signal before we set up the
+  // listener), we fall back to stopping 5 s after all tasks are done, which gives
+  // BigScreen enough time to show and record the settlement panel.
+  useEffect(() => {
+    if (selectedTasks.length === 0) return;
+    const allDone = selectedTasks.every(t => t.completed);
+    if (!allDone || !isRecording) return;
+
+    let stopped = false;
+    const doStop = () => {
+      if (stopped) return;
+      stopped = true;
+      stopRef.current();
+    };
+
+    // Listen for BigScreen's settlement-done signal on the same BroadcastChannel
+    const settlementChannel = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME);
+    settlementChannel.onmessage = (ev: MessageEvent<BigScreenMsg>) => {
+      if (ev.data?.type === 'settlement-done') {
+        doStop();
+        settlementChannel.close();
+        clearTimeout(fallbackTimer);
+      }
+    };
+
+    // Fallback: stop after 5 s if BigScreen never responds
+    // (e.g. BigScreen window is not open, or no canvas recording was started)
+    const fallbackTimer = setTimeout(() => {
+      doStop();
+      settlementChannel.close();
+    }, 5000);
+
+    return () => {
+      clearTimeout(fallbackTimer);
+      settlementChannel.close();
+    };
+  }, [selectedTasks, isRecording]);
+
   // Broadcast scene/VRM changes to any open BigScreen window
   const broadcastSceneChange = useCallback((sceneId: string) => {
     sessionStorage.setItem('bigscreen-sceneId', sceneId);
@@ -77,19 +293,33 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     channelRef.current?.postMessage(msg);
   }, []);
 
-  const broadcastVrmChange = useCallback((vrmSourceId: string) => {
-    sessionStorage.setItem('bigscreen-vrmSourceId', vrmSourceId);
-    const msg: BigScreenMsg = { type: 'vrm-change', vrmSourceId };
+  const broadcastTaskChange = useCallback((tasks: TaskEntry[]) => {
+    sessionStorage.setItem('bigscreen-tasks', JSON.stringify(tasks));
+    const msg: BigScreenMsg = { type: 'task-change', tasks };
+    channelRef.current?.postMessage(msg);
+  }, []);
+
+  const broadcastVrmChange = useCallback((vrmSourceId: string | null) => {
+    if (vrmSourceId) {
+      sessionStorage.setItem('bigscreen-vrmSourceId', vrmSourceId);
+    } else {
+      sessionStorage.removeItem('bigscreen-vrmSourceId');
+    }
+    const msg: BigScreenMsg = { type: 'vrm-change', vrmSourceId: vrmSourceId ?? undefined };
     channelRef.current?.postMessage(msg);
   }, []);
 
   /** Swap the teacher's own BigScreen avatar */
   const broadcastTeacherVrmChange = useCallback(
-    (vrmSourceId: string) => {
+    (vrmSourceId: string | null) => {
       if (!connectedRoom) return;
-      sessionStorage.setItem('bigscreen-teacherVrmSourceId', vrmSourceId);
+      if (vrmSourceId) {
+        sessionStorage.setItem('bigscreen-teacherVrmSourceId', vrmSourceId);
+      } else {
+        sessionStorage.removeItem('bigscreen-teacherVrmSourceId');
+      }
       const identity = connectedRoom.localParticipant.identity;
-      const vrmUrl = (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const vrmUrl = vrmSourceId ? (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url : undefined;
       const msg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
       channelRef.current?.postMessage(msg);
     },
@@ -99,6 +329,16 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   const handleSceneChange = useCallback(
     (sceneId: string) => {
       setSelectedSceneId(sceneId);
+      // Clear slot assignments — they are scene-specific
+      setSlotAssignments({});
+      try { sessionStorage.removeItem('bigscreen-slotAssignments'); } catch {/* ignore */ }
+      // Clear task goal — it is scene-specific
+      setSelectedTasks([]);
+      sessionStorage.removeItem('bigscreen-tasks');
+      setExpandedModuleIds(new Set());
+      setHasRecorded(false);
+      const taskClearMsg: BigScreenMsg = { type: 'task-change', tasks: [] };
+      channelRef.current?.postMessage(taskClearMsg);
       broadcastSceneChange(sceneId);
 
       // Validate and fallback roles if the new scene restricts them
@@ -106,7 +346,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
       const allowed = preset.allowedVrmIds;
       if (allowed && allowed.length > 0) {
         setTeacherVrmSourceId((prev) => {
-          if (!allowed.includes(prev)) {
+          if (prev !== null && !allowed.includes(prev)) {
             const fallback = allowed[0];
             setTimeout(() => broadcastTeacherVrmChange(fallback), 0);
             return fallback;
@@ -115,7 +355,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         });
 
         setSelectedVrmSourceId((prev) => {
-          if (!allowed.includes(prev)) {
+          if (prev !== null && !allowed.includes(prev)) {
             const fallback = allowed[0];
             setTimeout(() => broadcastVrmChange(fallback), 0);
             return fallback;
@@ -146,16 +386,16 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange],
   );
 
-  const handleVrmChange = useCallback(
-    (vrmSourceId: string) => {
-      setSelectedVrmSourceId(vrmSourceId);
-      broadcastVrmChange(vrmSourceId);
-    },
-    [broadcastVrmChange],
-  );
+  // const handleVrmChange = useCallback(
+  //   (vrmSourceId: string) => {
+  //     setSelectedVrmSourceId(vrmSourceId);
+  //     broadcastVrmChange(vrmSourceId);
+  //   },
+  //   [broadcastVrmChange],
+  // );
 
   const handleTeacherVrmChange = useCallback(
-    (vrmSourceId: string) => {
+    (vrmSourceId: string | null) => {
       console.log("handleTeacherVrmChange", vrmSourceId);
 
       setTeacherVrmSourceId(vrmSourceId);
@@ -177,6 +417,172 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     },
     [],
   );
+
+  const handleSlotAssign = useCallback(
+    (slotId: string, identity: string | null) => {
+      const previousIdentity = slotAssignments[slotId];
+      const preset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
+      const sceneSlot = preset.slots?.find(s => s.id === slotId);
+
+      setSlotAssignments(prev => {
+        const next = { ...prev };
+        if (identity === null) {
+          delete next[slotId];
+        } else {
+          // If this identity is already in another slot, vacate that slot
+          for (const [sid, id] of Object.entries(next)) {
+            if (id === identity && sid !== slotId) {
+              delete next[sid];
+            }
+          }
+          next[slotId] = identity;
+        }
+        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */ }
+        return next;
+      });
+
+      // If explicit removal of assignment, also clear the specific model selection
+      if (identity === null && previousIdentity) {
+        const isTeacher = connectedRoom?.localParticipant.identity === previousIdentity;
+        if (isTeacher) {
+          handleTeacherVrmChange(null);
+        } else {
+          setStudentRoles(prev => {
+            const next = { ...prev };
+            delete next[previousIdentity];
+            try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */ }
+            return next;
+          });
+          // Notify BigScreen to remove this identity's specific VRM (falls back to null)
+          channelRef.current?.postMessage({
+            type: 'vrm-identity-change',
+            identity: previousIdentity,
+            vrmUrl: undefined,
+          });
+        }
+      }
+
+      // Apply VRM priority: manual override > slot default > scene global
+      if (identity && sceneSlot?.defaultVrmId) {
+        const isTeacher = connectedRoom?.localParticipant.identity === identity;
+        if (isTeacher) {
+          // Host assigned: Immediately apply slot default
+          handleTeacherVrmChange(sceneSlot.defaultVrmId);
+        } else {
+          const hasManualOverride = studentRoles[identity];
+          if (!hasManualOverride) {
+            const vrmUrl = (VRM_SOURCES[sceneSlot.defaultVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+            const vrmMsg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
+            channelRef.current?.postMessage(vrmMsg);
+            // Persist so BigScreen restore sees it
+            setStudentRoles(prev => {
+              const next = { ...prev, [identity]: sceneSlot.defaultVrmId! };
+              try { sessionStorage.setItem('bigscreen-studentRoles', JSON.stringify(next)); } catch {/* ignore */ }
+              return next;
+            });
+          }
+        }
+      }
+
+      const msg: BigScreenMsg = { type: 'slot-assign', slotId, identity: identity ?? undefined };
+      channelRef.current?.postMessage(msg);
+    },
+    [selectedSceneId, studentRoles, connectedRoom, handleTeacherVrmChange, slotAssignments],
+  );
+
+  const toggleTaskSelection = useCallback(
+    (taskId: string, label: string) => {
+      setSelectedTasks((prev) => {
+        const index = prev.findIndex((t) => t.id === taskId);
+        let next: TaskEntry[];
+        if (index >= 0) {
+          // Remove
+          next = prev.filter((t) => t.id !== taskId);
+        } else {
+          // Add if under limit
+          if (prev.length >= 7) return prev;
+          next = [...prev, { id: taskId, label, completed: false }];
+        }
+        broadcastTaskChange(next);
+        return next;
+      });
+    },
+    [broadcastTaskChange],
+  );
+
+  const toggleTaskCompletion = useCallback(
+    (taskId: string) => {
+      setSelectedTasks((prev) => {
+        const next = prev.map((t) =>
+          t.id === taskId ? { ...t, completed: !t.completed } : t
+        );
+        broadcastTaskChange(next);
+        return next;
+      });
+    },
+    [broadcastTaskChange],
+  );
+
+  const resetAllTasks = useCallback(() => {
+    setSelectedTasks((prev) => {
+      const next = prev.map((t) => ({ ...t, completed: false }));
+      broadcastTaskChange(next);
+      return next;
+    });
+  }, [broadcastTaskChange]);
+
+  // ─── Drag-to-reorder for 已選任務 ────────────────────────────────────────
+  const dragIndexRef = useRef<number | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<{ index: number; position: 'before' | 'after' } | null>(null);
+
+  const handleTaskDragStart = useCallback((idx: number) => {
+    dragIndexRef.current = idx;
+  }, []);
+
+  const handleTaskDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, idx: number) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const position: 'before' | 'after' = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+    setDropIndicator((prev) =>
+      prev?.index === idx && prev.position === position ? prev : { index: idx, position },
+    );
+  }, []);
+
+  const handleTaskDrop = useCallback((e: React.DragEvent<HTMLDivElement>, idx: number) => {
+    const from = dragIndexRef.current;
+    dragIndexRef.current = null;
+    if (from === null || from === idx) { setDropIndicator(null); return; }
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos: 'before' | 'after' = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+
+    setDropIndicator(null);
+    setSelectedTasks((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      const targetItem = prev[idx];
+      let insertAt = next.findIndex((t) => t.id === targetItem.id);
+      if (insertAt === -1) insertAt = pos === 'after' ? next.length : 0;
+      else if (pos === 'after') insertAt += 1;
+      next.splice(insertAt, 0, moved);
+      broadcastTaskChange(next);
+      return next;
+    });
+  }, [broadcastTaskChange]);
+
+  const handleTaskDragEnd = useCallback(() => {
+    dragIndexRef.current = null;
+    setDropIndicator(null);
+  }, []);
+
+  const toggleModuleExpansion = useCallback((moduleId: string) => {
+    setExpandedModuleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(moduleId)) next.delete(moduleId);
+      else next.add(moduleId);
+      return next;
+    });
+  }, []);
 
   // ─── BroadcastChannel setup ───────────────────────────────────────────────
   useEffect(() => {
@@ -209,7 +615,7 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     [connectedRoom],
   );
 
-  usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled);
+  usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled, handEnabled);
 
   // ─── LiveKit connection ────────────────────────────────────────────────────
   const updateParticipant = useCallback(
@@ -279,6 +685,17 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
         } catch {/* ignore */ }
         return next;
       });
+      // Remove disconnected participant from slot assignments
+      setSlotAssignments((prev) => {
+        const entry = Object.entries(prev).find(([, id]) => id === participant.identity);
+        if (!entry) return prev;
+        const [slotId] = entry;
+        const next = { ...prev };
+        delete next[slotId];
+        try { sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(next)); } catch {/* ignore */ }
+        channelRef.current?.postMessage({ type: 'slot-assign', slotId, identity: undefined });
+        return next;
+      });
       // Update sessionStorage to keep snapshot in sync
       try {
         sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
@@ -301,11 +718,15 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     const handleDataReceived = (
       payload: Uint8Array,
       participant?: RemoteParticipant,
-      _kind?: DataPacket_Kind,
+      // _kind?: DataPacket_Kind,
     ) => {
       if (!participant) return;
       try {
         const data = decodePoseFrame(payload);
+
+        // If the student's camera is off, skip pose forwarding to preview/BigScreen
+        const isCameraOff = muteStateRef.current[participant.identity]?.video === true;
+        if (isCameraOff) return;
 
         updateParticipant(participant.identity, (info) => ({
           ...info,
@@ -330,11 +751,17 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     };
 
     let isMounted = true;
+    // ── Audio speaking detection ──────────────────────────────────────
+    const handleActiveSpeakers = (speakers: Participant[]) => {
+      setSpeakingSet(new Set(speakers.map((p) => p.identity)));
+    };
+
     room.on(RoomEvent.ParticipantConnected, handleConnected);
     room.on(RoomEvent.ParticipantDisconnected, handleDisconnected);
     room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed as never);
     room.on(RoomEvent.DataReceived, handleDataReceived as never);
     room.on(RoomEvent.ParticipantMetadataChanged, handleParticipantMetadataChanged as never);
+    room.on(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakers as never);
 
     const connectPromise = room.connect(LIVEKIT_URL, livekitToken);
 
@@ -345,8 +772,9 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
         try {
           await room.localParticipant.setCameraEnabled(true);
+          await room.localParticipant.setMicrophoneEnabled(true);
         } catch (err) {
-          if (isMounted) console.error('Failed to enable camera:', err);
+          if (isMounted) console.error('Failed to enable camera/microphone:', err);
         }
 
         // Attach teacher camera to hidden video for pose detection
@@ -372,7 +800,14 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
 
     return () => {
       isMounted = false;
+      room.off(RoomEvent.ParticipantConnected, handleConnected);
+      room.off(RoomEvent.ParticipantDisconnected, handleDisconnected);
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed as never);
+      room.off(RoomEvent.DataReceived, handleDataReceived as never);
+      room.off(RoomEvent.ParticipantMetadataChanged, handleParticipantMetadataChanged as never);
+      room.off(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakers as never);
       setConnectedRoom(null);
+      setSpeakingSet(new Set());
       connectPromise.catch(() => { }).finally(() => {
         room.disconnect();
       });
@@ -392,16 +827,77 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
   // ─── Big-screen controls ───────────────────────────────────────────────────
   const openBigScreen = useCallback(() => {
     try {
+      sessionStorage.setItem('bigscreen-roomId', roomId);
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
       sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
-      sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
-      sessionStorage.setItem('bigscreen-teacherVrmSourceId', teacherVrmSourceId);
+      if (selectedVrmSourceId) sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
+      else sessionStorage.removeItem('bigscreen-vrmSourceId');
+      if (teacherVrmSourceId) sessionStorage.setItem('bigscreen-teacherVrmSourceId', teacherVrmSourceId);
+      else sessionStorage.removeItem('bigscreen-teacherVrmSourceId');
+      sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(slotAssignments));
+      sessionStorage.setItem('bigscreen-tasks', JSON.stringify(selectedTasks));
     } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId]);
+  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId]);
+
+  // ─── Embedded BigScreen preview ────────────────────────────────────────────
+  // iframe 有獨立的 sessionStorage，透過 BroadcastChannel 補送完整狀態來同步
+  const syncBigScreenState = useCallback(() => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    ch.postMessage({ type: 'scene-change', sceneId: selectedSceneId } satisfies BigScreenMsg);
+    ch.postMessage({ type: 'task-change', tasks: selectedTasks } satisfies BigScreenMsg);
+    for (const [slotId, identity] of Object.entries(slotAssignments)) {
+      ch.postMessage({ type: 'slot-assign', slotId, identity } satisfies BigScreenMsg);
+    }
+    if (connectedRoom && teacherVrmSourceId) {
+      const identity = connectedRoom.localParticipant.identity;
+      const vrmUrl = (VRM_SOURCES[teacherVrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      ch.postMessage({ type: 'vrm-identity-change', identity, vrmUrl } satisfies BigScreenMsg);
+    }
+    for (const [identity, vrmSourceId] of Object.entries(studentRoles)) {
+      const vrmUrl = (VRM_SOURCES[vrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      ch.postMessage({ type: 'vrm-identity-change', identity, vrmUrl } satisfies BigScreenMsg);
+    }
+  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles]);
+
+  const toggleBigScreenPreview = useCallback(() => {
+    setShowBigScreenPreview(prev => {
+      if (!prev) {
+        // 延遲 1s 等 iframe 內的 BigScreen React app 掛載完成後再 sync
+        setTimeout(syncBigScreenState, 1000);
+      }
+      return !prev;
+    });
+  }, [syncBigScreenState]);
+
+  // ── BigScreen preview scaler ──────────────────────────────────────────────
+  // BigScreen is designed for a full 16:9 viewport (1920×1080).
+  // We render the iframe at that native size then scale it down to fit.
+  const PREVIEW_DESIGN_W = 1920;
+  const PREVIEW_DESIGN_H = 1080;
+  const previewWrapRef = useRef<HTMLDivElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  useEffect(() => {
+    const wrap = previewWrapRef.current;
+    if (!wrap) return;
+    const update = () => {
+      const { width, height } = wrap.getBoundingClientRect();
+      if (!width || !height) return;
+      const scale = Math.min(width / PREVIEW_DESIGN_W, height / PREVIEW_DESIGN_H);
+      if (previewIframeRef.current) {
+        previewIframeRef.current.style.transform = `translate(-50%, -50%) scale(${scale})`;
+      }
+    };
+    const ro = new ResizeObserver(update);
+    ro.observe(wrap);
+    update();
+    return () => ro.disconnect();
+  }, [showBigScreenPreview]);
 
   // Ensure teacher's VRM is broadcasted when room connects initially
   useEffect(() => {
@@ -426,106 +922,760 @@ export default function HostSession({ roomId, livekitToken }: HostSessionProps) 
     ? currentScenePreset.allowedVrmIds.map(id => VRM_SOURCES[id]).filter(Boolean)
     : Object.values(VRM_SOURCES);
 
+  // Reverse map: identity → slotId
+  const identityToSlotId = Object.fromEntries(
+    Object.entries(slotAssignments).map(([slotId, identity]) => [identity, slotId])
+  );
+
+  // All participants for slot assignment dropdown (teacher + students)
+  const teacherIdentity = connectedRoom?.localParticipant.identity;
+  const teacherName = connectedRoom?.localParticipant.name;
+  const allParticipantOptions = [
+    ...(teacherIdentity ? [{
+      value: teacherIdentity,
+      label: (
+        <div className="custom-select-option-content">
+          {/* <span className="material-symbols-outlined" style={{color: '#F76E12'}}>school</span> */}
+          <span>{teacherName ? `${teacherName} (老師)` : '老師'}</span>
+        </div>
+      )
+    }] : []),
+    ...studentList.map(info => ({
+      value: info.participant.identity,
+      label: (
+        <div className="custom-select-option-content">
+          {/* <span className="material-symbols-outlined" style={{color: '#00A99D'}}>person</span> */}
+          <span>{info.participant.name || info.participant.identity}</span>
+        </div>
+      )
+    })),
+  ];
+
+  const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
+  const hasModules = currentScenePreset.modules && currentScenePreset.modules.length > 0;
+  const SLOT_COLORS = ['#44aaff', '#ff8844', '#aa88ff', '#44ff88'];
+  // SceneConfig has no icon — look it up from THEMES SceneVariant
+  const currentSceneVariant = THEMES.flatMap(t => t.scenes).find(s => s.id === selectedSceneId);
+
+  // Index of first non-completed task (highlighted in banner)
+  const currentTaskIndex = selectedTasks.findIndex(t => !t.completed);
+
+  // Helpers to open exactly one panel at a time
+  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
+  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
+  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); };
+  const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
+  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
+
   return (
     <div className="host-session">
-      {/* Hidden video element used solely for teacher pose detection */}
-      <video
-        ref={teacherVideoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ display: 'none' }}
-        aria-hidden="true"
-      />
-
-      <div className="session-header">
-        <h2>課堂進行中</h2>
-        <span className="room-badge">房間: {roomId}</span>
-        <span className="count-badge">{studentList.length} 位學生</span>
-
-        {/* ── 場景選擇器 ── */}
-        <label htmlFor="scene-select" className="control-label">場景：</label>
-        <select
-          id="scene-select"
-          className="control-select"
-          value={selectedSceneId}
-          onChange={(e) => handleSceneChange(e.target.value)}
-        >
-          {Object.values(SCENE_PRESETS).map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-
-        {/* ── 角色模型選擇器（老師本人） ── */}
-        <label htmlFor="vrm-teacher-select" className="control-label">🎓 老師角色：</label>
-        <select
-          id="vrm-teacher-select"
-          className="control-select"
-          value={teacherVrmSourceId}
-          onChange={(e) => handleTeacherVrmChange(e.target.value)}
-        >
-          {allowedVrms.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-
-        <button
-          className={`control-btn ${faceEnabled ? 'active' : ''}`}
-          onClick={() => setFaceEnabled((v) => !v)}
-          title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
-        >
-          {faceEnabled ? '🔴 臉部辨識 ON' : '⚪ 臉部辨識 OFF'}
-        </button>
-
-        <button
-          id="open-bigscreen-btn"
-          className="bigscreen-btn"
-          onClick={openBigScreen}
-          title="在新視窗開啟大屏顯示"
-        >
-          🖥️ 開啟大屏
-        </button>
-      </div>
+      {/* Hidden video for teacher pose detection */}
+      <video ref={teacherVideoRef} autoPlay playsInline muted style={{ display: 'none' }} aria-hidden="true" />
 
       <PerformanceMonitor label="App Render FPS" position="top-left" />
       <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" />
 
-      {connectedRoom && <LocalVideo room={connectedRoom} poseData={teacherPoseData} />}
+      {/* ── Top Bar ──────────────────────────────────────────────────────────── */}
+      <div className="hs-topbar">
+        <div className="hs-brand">
+          {/* <div className="hs-brand-dot" /> */}
+          <div className="hs-brand-logo-wrapper">
+            <img src="/logo.webp" alt="Logo" />
+          </div>
+          <span className="hs-brand-title"><span className="orange">MR</span> <span className="teal">雙語角</span></span>
+        </div>
 
-      <div className="student-grid">
-        {studentList.map((info) => {
-          const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
-          return (
-            <div key={info.participant.identity} className="student-container" style={{ position: 'relative' }}>
-              <StudentTile
-                // key={info.participant.identity}
-                participant={info.participant}
-                videoTrack={info.videoTrack}
-                poseData={info.poseData}
-                vrmSourceId={currentVrmId}
-              />
-              <div style={{ position: 'absolute', bottom: '30px', left: '5px', padding: '2px 4px', borderRadius: '4px' }}>
-                <select
-                  className="control-select"
-                  value={currentVrmId}
-                  onChange={(e) => handleStudentRoleChange(info.participant.identity, e.target.value)}
-                  style={{ fontSize: '11px', padding: '1px' }}
-                >
-                  {allowedVrms.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label}
-                    </option>
+        <div className="hs-topbar-actions">
+          <button className="hs-action-btn" onClick={openShareWindow} title="在新視窗分享房間 QR Code">
+            <span className="material-icons hs-action-icon">share</span>
+            <span className="hs-action-label">分享</span>
+          </button>
+
+          <button
+            className={`hs-action-btn ${pending.length > 0 ? 'hs-action--alert' : ''} ${showPendingPanel ? 'hs-action--active' : ''}`}
+            onClick={openPending}
+            title="學生管理"
+          >
+            {/* <span className="hs-action-icon">👥</span> */}
+            <span className="hs-action-label">{studentList.length} 位學生</span>
+            {pending.length > 0 && <span className="hs-badge-btn hs-badge--alert">{pending.length}</span>}
+          </button>
+
+          <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
+
+          <button
+            className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
+            onClick={() => setFaceEnabled(v => !v)}
+            title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
+          >
+            {/* <span className="hs-action-icon">{faceEnabled ? '😊' : '😶'}</span> */}
+            <span className="material-symbols-outlined">ar_on_you</span>
+            <span className="hs-action-label">臉部</span>
+            <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <button
+            className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--on' : 'hs-action--off'}`}
+            onClick={toggleBigScreenPreview}
+            title={showBigScreenPreview ? '關閉大屏預覽' : '開啟大屏預覽'}
+          >
+            {/* <span className="hs-action-icon">🖥️</span> */}
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+              preview
+            </span>
+            <span className="hs-action-label">預覽</span>
+            <span className={`hs-badge-btn ${showBigScreenPreview ? 'hs-badge--on' : 'hs-badge--off'}`}>
+              {showBigScreenPreview ? 'ON' : 'OFF'}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── Settlement Modal ──────────────────────────────────────────────────── */}
+      {showSettlement && (
+        <div className="settlement-backdrop" onClick={() => setShowSettlement(false)}>
+          <div className="settlement-modal" onClick={e => e.stopPropagation()}>
+            {/* Close button */}
+            <button className="settlement-close" onClick={() => setShowSettlement(false)}>✕</button>
+
+            {/* Header — matches BigScreen style */}
+            <div className="bs-settlement-header">
+              <div className="bs-settlement-trophy">
+                <img src="/images/medal.png" alt="Trophy" />
+              </div>
+              <div className="bs-settlement-title">情境對話結束</div>
+              <div className="bs-settlement-subtitle">所有任務已完成！</div>
+            </div>
+
+            <div className="bs-settlement-columns">
+              <div className="bs-settlement-grid">
+                {/* Left: Participants */}
+                <div className="bs-settlement-col">
+                  <div className="bs-settlement-col-title">參與人員</div>
+                  <div className="bs-settlement-participants">
+                    {connectedRoom && (
+                      <div className="bs-settlement-participant host">
+                        <span className="material-icons bs-participant-icon">school</span>
+                        <span className="bs-participant-name">
+                          {connectedRoom.localParticipant.name || connectedRoom.localParticipant.identity}
+                          <span className="bs-teacher-label">老師</span>
+                        </span>
+                      </div>
+                    )}
+                    {studentList.map(info => (
+                      <div key={info.participant.identity} className="bs-settlement-participant">
+                        <span className="material-icons bs-participant-icon">person</span>
+                        <span className="bs-participant-name">{info.participant.name || info.participant.identity}</span>
+                      </div>
+                    ))}
+                    {studentList.length === 0 && <div className="bs-settlement-participant"><span>—</span></div>}
+                  </div>
+                </div>
+
+                {/* Right: Recording */}
+                <div className="bs-settlement-col">
+                  <div className="bs-settlement-col-title">錄製</div>
+                  <div className={`bs-rec-status ${isRecording ? 'active' : hasRecorded ? 'done' : ''}`}>
+                    {isRecording ? (
+                      <>
+                        <span className="recording-dot" />
+                        <span>錄製中</span>
+                      </>
+                    ) : hasRecorded ? (
+                      <>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>check</span>
+                        <span>已保存錄製</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-icons" style={{ fontSize: '18px' }}>videocam_off</span>
+                        <span>無錄製</span>
+                      </>
+                    )}
+                  </div>
+                  {isRecording && (
+                    <button className="settlement-stop-btn" onClick={async () => { await stop(); }}>⏹ 停止錄製</button>
+                  )}
+                </div>
+              </div>
+
+              {/* Tasks List */}
+              <div className="bs-settlement-col">
+                <div className="bs-settlement-col-title">任務清單</div>
+                <div className="bs-settlement-tasklist">
+                  {selectedTasks.map((task, idx) => (
+                    <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
+                      <div className="bs-task-num">{idx + 1}</div>
+                      <span className="bs-task-label">{task.label}</span>
+                      <span className="bs-task-check">
+                        {task.completed
+                          ? <span className="material-symbols-outlined">check</span>
+                          : <span className="material-symbols-outlined">close</span>}
+                      </span>
+                    </div>
                   ))}
-                </select>
+                </div>
               </div>
             </div>
-          );
-        })}
+
+            <div className="bs-settlement-footer">
+              <button className="bs-settlement-dismiss" onClick={() => setShowSettlement(false)}>關閉</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Main Body: Sidebar + Video ────────────────────────────────────────── */}
+      <div className="hs-body">
+
+        {/* ── Left Sidebar ──────────────────────────────────────────────────── */}
+        <div className="hs-sidebar">
+
+          {/* Scene card */}
+          <div className={`hs-card hs-card--scene ${showScenePanel ? 'hs-card--open' : ''}`} onClick={openScene}>
+            <div className="hs-card-header">
+              <span className="hs-card-icon">🎬</span>
+              <span className="hs-card-title">場景</span>
+              <span className="hs-badge hs-badge--info" >{showScenePanel ? '▲' : '▼'}</span>
+              {/* <span className="hs-card-arrow">{showScenePanel ? '▲' : '▼'}</span> */}
+            </div>
+            <div className="hs-scene-preview">
+              <div
+                className={`hs-scene-thumb ${!currentScenePreset.backgroundValue ? 'hs-scene-thumb--no-img' : ''}`}
+                style={currentScenePreset.backgroundValue && currentScenePreset.backgroundType !== 'video' ? { backgroundImage: `url(${currentScenePreset.backgroundValue})` } : undefined}
+              >
+                {currentScenePreset.backgroundValue && currentScenePreset.backgroundType === 'video' && (
+                  <video
+                    src={currentScenePreset.backgroundValue}
+                    // autoPlay
+                    // loop
+                    muted
+                    playsInline
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                )}
+                {currentScenePreset.backgroundValue && <div className="hs-scene-thumb-overlay" />}
+                <span className="hs-scene-thumb-icon">{currentSceneVariant?.icon ?? '🎬'}</span>
+              </div>
+              <span className="hs-scene-label">{currentScenePreset.label}</span>
+            </div>
+          </div>
+
+          {/* Character / Slot card */}
+          {hasSlots && (
+            <div className={`hs-card hs-card--character ${showSlotPanel ? 'hs-card--open' : ''}`} onClick={openSlot}>
+              <div className="hs-card-header">
+                <span className="hs-card-icon">🎭</span>
+                <span className="hs-card-title">角色</span>
+                <span className="hs-badge hs-badge--info">{Object.keys(slotAssignments).length}/{currentScenePreset.slots!.length}</span>
+              </div>
+              <div className="hs-slot-list">
+                {currentScenePreset.slots!.map((slot, i) => {
+                  const assigned = slotAssignments[slot.id];
+                  const assignedParticipant = assigned ? (
+                    assigned === teacherIdentity
+                      ? (teacherName ? teacherName : '老師')
+                      : studentList.find(info => info.participant.identity === assigned)?.participant.name || assigned
+                  ) : '─';
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`hs-slot-row ${assigned ? 'hs-slot-row--filled' : 'hs-slot-row--empty'}`}
+                      style={{ '--slot-color': SLOT_COLORS[i % SLOT_COLORS.length] } as React.CSSProperties}
+                    >
+                      <span className="hs-slot-dot" />
+                      <span className="hs-slot-label">{slot.icon} {slot.label}</span>
+                      <span className="hs-slot-assigned">{assignedParticipant}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Task card */}
+          {hasModules && (
+            <div className={`hs-card hs-card--task ${showTaskPanel ? 'hs-card--open' : ''}`} onClick={openTask}>
+              <div className="hs-card-header">
+                <span className="hs-card-icon">📋</span>
+                <span className="hs-card-title">任務</span>
+                <span className={`hs-badge hs-badge--task ${selectedTasks.length >= 7 ? 'hs-badge--limit' : ''}`}>
+                  {selectedTasks.filter(t => t.completed).length}/{selectedTasks.length}
+                </span>
+              </div>
+              {selectedTasks.length > 0 ? (
+                <div className="hs-task-preview">
+                  <div className="hs-task-progress-bar">
+                    <div
+                      className="hs-task-progress-fill"
+                      style={{ width: `${Math.round((selectedTasks.filter(t => t.completed).length / selectedTasks.length) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="hs-task-preview-list">
+                    {selectedTasks.map((task, idx) => (
+                      <label
+                        key={task.id}
+                        className={`hs-task-preview-row ${task.completed ? 'completed' : idx === currentTaskIndex ? 'current' : ''}`}
+                        onClick={e => { e.stopPropagation(); if (!task.completed && idx !== currentTaskIndex) return; toggleTaskCompletion(task.id); }}
+                      >
+                        <input type="checkbox" checked={task.completed} disabled={!task.completed && idx !== currentTaskIndex} readOnly onClick={e => e.stopPropagation()} />
+                        <span>{task.label}</span>
+                      </label>
+                    ))}
+                    <div className="hs-task-reset" onClick={(e) => { e.stopPropagation(); resetAllTasks(); }}>↺ 重置全部</div>
+                    {/* <div className="hs-task-more">+更多</div> */}
+                    {/* {selectedTasks.length > 4 && <div className="hs-task-more">+{selectedTasks.length - 4} 更多</div>} */}
+                  </div>
+                </div>
+              ) : (
+                <div className="hs-task-empty">點擊選擇任務</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Video Area ────────────────────────────────────────────────────── */}
+        <div className="hs-video-area">
+
+          {/* Task banner strip */}
+          {selectedTasks.length > 0 && (() => {
+            const doneCount = selectedTasks.filter(t => t.completed).length;
+            const pct = Math.round((doneCount / selectedTasks.length) * 100);
+            const allDone = doneCount === selectedTasks.length;
+            return (
+              <div className={`hs-task-banner ${allDone ? 'hs-task-banner--done' : ''}`}>
+                <div className="hs-task-banner-bar">
+                  <div className="hs-task-banner-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="hs-task-banner-text">
+                  {allDone ? (
+                    <>
+                      <span>✓ 所有任務完成！</span>
+                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setShowSettlement(true); }}><span className="material-symbols-outlined">finance</span>結算</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="hs-task-arrow">▸</span>
+                      <span className="hs-task-label">
+                        {selectedTasks[currentTaskIndex]?.label}
+                      </span>
+                      <span className="hs-task-counter">{doneCount}/{selectedTasks.length}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* BigScreen embedded preview */}
+          {showBigScreenPreview && (
+            <div className="hs-preview-pane">
+              <div className="hs-preview-header">
+                <span className="hs-preview-title"><span className="material-icons">preview</span>大屏預覽</span>
+                <button className="hs-preview-close" onClick={toggleBigScreenPreview} title="關閉預覽">✕</button>
+              </div>
+              {/* Scaling viewport wrapper — iframe renders at 1920×1080, then scaled down */}
+              <div className="hs-preview-scaler-wrap" ref={previewWrapRef}>
+                <iframe
+                  ref={previewIframeRef}
+                  className="hs-preview-iframe"
+                  src={`${window.location.origin}/?screen=bigscreen`}
+                  title="BigScreen Preview"
+                  allow="camera; microphone"
+                  width={1920}
+                  height={1080}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Video grid */}
+          <div className={`hs-grid ${showBigScreenPreview ? 'hs-grid--with-preview' : ''}`}>
+
+            {/* ── Teacher card ── */}
+            {connectedRoom && (() => {
+              const teacherIdentityLocal = connectedRoom.localParticipant.identity;
+              const teacherSlotId = identityToSlotId[teacherIdentityLocal];
+              const teacherSlot = teacherSlotId
+                ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
+                : undefined;
+              const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
+              return (
+                <div
+                  className={`hs-video-card hs-teacher-card${isTeacherSpeaking ? ' hs-video-card--speaking' : ''}`}
+                  style={{ opacity: hasSlots && !teacherSlot ? 0.8 : 1 }}
+                >
+                  <LocalVideo
+                    room={connectedRoom}
+                    poseData={teacherPoseData}
+                    vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId}
+                    slotLabel={teacherSlot?.label}
+                  />
+                </div>
+              );
+            })()}
+
+            {/* ── Student tiles ── */}
+            {studentList.map((info) => {
+              const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
+              const assignedSlotId = identityToSlotId[info.participant.identity];
+              const assignedSlot = assignedSlotId
+                ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
+                : undefined;
+              const isStudentSpeaking = speakingSet.has(info.participant.identity);
+              return (
+                <div
+                  key={info.participant.identity}
+                  className={`hs-video-card${isStudentSpeaking ? ' hs-video-card--speaking' : ''}`}
+                  style={{ opacity: hasSlots && !assignedSlot ? 0.8 : 1 }}
+                >
+                  <StudentTile
+                    participant={info.participant}
+                    videoTrack={info.videoTrack}
+                    poseData={info.poseData}
+                    vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
+                    muteState={muteState[info.participant.identity]}
+                    onToggleMute={toggleMute}
+                    slotLabel={assignedSlot?.label}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
+      {/* ── Big Screen FAB (bottom-right) ────────────────────────────────────── */}
+      <button id="open-bigscreen-btn" className="hs-bigscreen-fab" onClick={openBigScreen} title="在新視窗開啟大屏顯示">
+        {/* <span className="hs-fab-icon"></span> */}
+        <span className="material-symbols-outlined">rocket_launch</span>
+        <span className="hs-fab-label">開啟大屏</span>
+      </button>
+
+      {/* ── Drawer Backdrop ───────────────────────────────────────────────────── */}
+      {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel) && (
+        <div className="panel-backdrop" onClick={closeAll} />
+      )}
+
+      {/* ── Pending Requests Drawer ───────────────────────────────────────────── */}
+      <div className={`panel-drawer ${showPendingPanel ? 'panel-drawer--open' : ''}`}>
+        <div className="panel-drawer-header">
+          <div className="slot-drawer-title">
+            <span className="orange">學生管理</span><span className="teal">STUDENTS</span>
+          </div>
+          <button className="panel-close-btn" onClick={() => setShowPendingPanel(false)}>✕</button>
+        </div>
+        <div className="panel-drawer-body">
+          <div className="pending-section-header">
+            <span>待審核學生</span>
+            <span className="pending-section-count">({pending.length})</span>
+          </div>
+
+          {pending.length === 0 && (
+            <div className='pending-section-description'>
+              目前沒有加入請求
+            </div>
+          )}
+
+          {pending.map((s) => (
+            <div key={s.requestId} className="pending-student-card">
+              <div className="pending-avatar-container">
+                <span className="material-symbols-outlined pending-avatar-icon">person</span>
+              </div>
+              <div className="pending-student-info">
+                <span className="pending-student-name">{s.name}</span>
+                <div className="pending-card-actions">
+                  <button className="pending-btn pending-btn-allow" onClick={() => handleApprove(s.requestId)}>允許</button>
+                  <button className="pending-btn pending-btn-reject" onClick={() => handleReject(s.requestId)}>拒絕</button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <div className="pending-section-header">
+            <span>已加入學生</span>
+            <span className="pending-section-count">({studentList.length})</span>
+          </div>
+
+          {studentList.length === 0 && (
+            <div className='pending-section-description'>
+              目前沒有學生加入
+            </div>
+          )}
+
+          {studentList.map((info) => (
+            <div key={info.participant.identity} className="pending-student-card">
+              <div className="pending-avatar-container">
+                <span className="material-symbols-outlined pending-avatar-icon">
+                  {/* Ideally different icons for different students, but generic for now */}
+                  person
+                </span>
+              </div>
+              <div className="pending-student-info">
+                <span className="pending-student-name">{info.participant.name || info.participant.identity}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Scene Drawer ─────────────────────────────────────────────────────── */}
+      <div className={`panel-drawer ${showScenePanel ? 'panel-drawer--open' : ''}`}>
+        <div className="panel-drawer-header">
+          <div className="slot-drawer-title">
+            <span className="orange">場景選擇</span> <span className="teal">SCENES</span>
+          </div>
+          <button className="panel-close-btn" onClick={() => setShowScenePanel(false)}>✕</button>
+        </div>
+        <div className="panel-drawer-body">
+          {THEMES.map((theme) => (
+            <div key={theme.id} className="scene-group">
+              <div className="scene-group-label"><span className="material-symbols-outlined">{theme.icon}</span> {theme.label}</div>
+              <div className="scene-options-grid">
+                {theme.scenes.map((scene) => (
+                  <div
+                    key={scene.id}
+                    className={`scene-card-btn ${selectedSceneId === scene.id ? 'active' : ''}`}
+                    onClick={() => { handleSceneChange(scene.id); setShowScenePanel(false); }}
+                  >
+                    <div className="scene-card-preview">
+                      {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType !== 'video' && (
+                        <div
+                          className="scene-card-img"
+                          style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }}
+                        />
+                      )}
+                      {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType === 'video' && (
+                        <video
+                          className="scene-card-img"
+                          src={SCENE_PRESETS[scene.id].backgroundValue}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                        />
+                      )}
+                      <div className="scene-card-tag">
+                        {scene.icon && <span className="scene-tag-icon"><span className="material-symbols-outlined">{scene.icon}</span></span>}
+                        <span className="scene-tag-label">{scene.label}</span>
+                      </div>
+                    </div>
+                    <div className="scene-card-info">
+                      <span className="scene-card-label-en">{scene.labelEn || scene.label}</span>
+                      {selectedSceneId === scene.id && (
+                        <div className="scene-card-check">
+                          <span className="material-symbols-outlined">check_circle</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Slot Drawer ──────────────────────────────────────────────────────── */}
+      {hasSlots && (
+        <div className={`panel-drawer ${showSlotPanel ? 'panel-drawer--open' : ''}`}>
+          <div className="panel-drawer-header">
+            <div className="slot-drawer-title">
+              <span className="orange">角色配置</span> <span className="teal">ROLES</span>
+            </div>
+            <button className="panel-close-btn" onClick={() => setShowSlotPanel(false)}>✕</button>
+          </div>
+          <div className="panel-drawer-body">
+            {currentScenePreset.slots!.map((sceneSlot, slotIndex) => {
+              const assignedIdentity = slotAssignments[sceneSlot.id];
+              const assignedVrmId = assignedIdentity
+                ? (assignedIdentity === teacherIdentity
+                  ? teacherVrmSourceId
+                  : (studentRoles[assignedIdentity] ?? sceneSlot.defaultVrmId ?? selectedVrmSourceId))
+                : (sceneSlot.defaultVrmId ?? selectedVrmSourceId);
+              return (
+                <div key={sceneSlot.id} className="slot-card">
+                  <div className="slot-card-top">
+                    <div className="slot-icon-container">
+                      {sceneSlot.icon}
+                    </div>
+                    <div className="slot-info">
+                      <div className="slot-name">{sceneSlot.label}</div>
+                      <div className="slot-status-badge">
+                        {assignedIdentity ? '已指派' : '未指派'}
+                      </div>
+                      <div className="slot-pos-hint">
+                        位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'}
+                        {/* 位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'} (x={sceneSlot.position[0]}) */}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="slot-field">
+                    <label className="slot-field-label">指派給</label>
+                    <CustomSelect
+                      value={assignedIdentity ?? ''}
+                      options={[
+                        {
+                          value: '',
+                          label: (
+                            <div className="custom-select-option-content">
+                              {/* <span className="material-symbols-outlined" style={{ color: '#999' }}>person_off</span> */}
+                              <span style={{ color: '#666' }}>─ 移除指派</span>
+                            </div>
+                          )
+                        },
+                        ...allParticipantOptions
+                      ]}
+                      onChange={(val) => {
+                        handleSlotAssign(sceneSlot.id, val === '' ? null : val);
+                      }}
+                      placeholder="─ 移除指派"
+                    />
+                  </div>
+
+                  <div className="slot-field">
+                    <label className="slot-field-label">角色模型</label>
+                    <CustomSelect
+                      value={assignedVrmId ?? ''}
+                      disabled={!assignedIdentity}
+                      options={allowedVrms.map((s) => ({
+                        value: s.id,
+                        label: (
+                          <div className="custom-select-option-content">
+                            {s.id === sceneSlot.defaultVrmId ? (
+                              <span className="material-symbols-outlined" style={{ color: (!assignedIdentity && s.id === sceneSlot.defaultVrmId) ? '#999' : '#F76E12' }}>star</span>
+                            ) : (
+                              ''
+                              // <span className="material-symbols-outlined" style={{ color: '#00A99D' }}>accessibility_new</span>
+                            )}
+                            <span>{s.label}</span>
+                          </div>
+                        )
+                      }))}
+                      onChange={(val) => {
+                        if (assignedIdentity) {
+                          if (assignedIdentity === teacherIdentity) {
+                            handleTeacherVrmChange(val);
+                          } else {
+                            handleStudentRoleChange(assignedIdentity, val);
+                          }
+                        }
+                      }}
+                      placeholder="─ 預設模型 ─"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+            <div className="slot-drawer-footer">未指派者不出現在大屏</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Task Drawer ──────────────────────────────────────────────────────── */}
+      {hasModules && (
+        <div className={`panel-drawer panel-drawer--wide ${showTaskPanel ? 'panel-drawer--open' : ''}`}>
+          <div className="panel-drawer-header">
+            <div className="slot-drawer-title">
+              <span className="orange">任務管理</span> <span className="teal">TASKS</span>
+            </div>
+            <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div className="panel-drawer-body task-manager-drawer">
+            {/* Left: Task Bank */}
+            <div className="task-bank">
+              <div className="task-bank-header">
+                <span>任務庫</span>
+              </div>
+              <div className="task-bank-tree">
+                {currentScenePreset.modules!.map((mod) => (
+                  <div key={mod.id} className="module-group">
+                    <div
+                      className={`module-header ${expandedModuleIds.has(mod.id) ? 'expanded' : ''}`}
+                      onClick={() => toggleModuleExpansion(mod.id)}
+                    >
+                      <span className="module-icon">{mod.icon || '📁'}</span>
+                      <span className="module-label">{mod.label}</span>
+                      <span className="module-arrow material-symbols-outlined">
+                        {expandedModuleIds.has(mod.id) ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </div>
+                    {expandedModuleIds.has(mod.id) && (
+                      <div className="module-tasks">
+                        {mod.tasks.map((task) => {
+                          const isSelected = selectedTasks.some(t => t.id === task.id);
+                          return (
+                            <button
+                              key={task.id}
+                              className={`task-select-btn ${isSelected ? 'selected' : ''}`}
+                              onClick={() => toggleTaskSelection(task.id, task.label)}
+                              disabled={!isSelected && selectedTasks.length >= 7}
+                            >
+                              <div className="btn-check">
+                                {isSelected && <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>}
+                              </div>
+                              <span className="btn-label">{task.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Selected task list + clear */}
+            <div className="active-tasks">
+              <div className="active-tasks-header">
+                <span>已選任務</span>
+                <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>{selectedTasks.length}/7</span>
+              </div>
+              {selectedTasks.length === 0 ? (
+                <div className="active-tasks-empty">
+                  從左側任務庫點選，<br />最多 7 項
+                </div>
+              ) : (
+                <div className="active-tasks-list">
+                  {selectedTasks.map((task, idx) => (
+                    <div
+                      key={`${task.id}-${idx}`}
+                      className={`active-task-row ${task.completed ? 'completed' : ''} ${dropIndicator?.index === idx ? `drop-${dropIndicator.position}` : ''}`}
+                      draggable
+                      onDragStart={() => handleTaskDragStart(idx)}
+                      onDragOver={(e) => handleTaskDragOver(e, idx)}
+                      onDrop={(e) => handleTaskDrop(e, idx)}
+                      onDragEnd={handleTaskDragEnd}
+                    >
+                      <div className="task-index">{idx + 1}</div>
+                      <div className="task-info">
+                        <span className="task-label">{task.label}</span>
+                      </div>
+                      <button
+                        className="task-remove-btn"
+                        title="移除此任務"
+                        onClick={() => toggleTaskSelection(task.id, task.label)}
+                      >
+                        <span className="material-symbols-outlined">close</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedTasks.length > 0 && (
+                <button className="clear-tasks-btn" onClick={() => { setSelectedTasks([]); broadcastTaskChange([]); }}>
+                  <span className="material-symbols-outlined">delete_sweep</span>
+                  清空所有任務
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

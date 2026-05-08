@@ -91,3 +91,63 @@ export function subscribeToRoomEvents(
 
   return () => source.close();
 }
+
+// ── Recording ────────────────────────────────────────────────────────────────
+
+export interface RecordingSession {
+  sessionId: string;
+  status: 'recording' | 'stopped';
+  files: string[];
+  startedAt: number;
+}
+
+export interface StartRecordingResponse {
+  sessionId: string;
+  status: 'recording';
+}
+
+export interface StopRecordingResponse {
+  sessionId: string;
+  status: 'stopped';
+}
+
+export async function startRecording(
+  roomId: string,
+  sceneId: string,
+  participantName: string,
+): Promise<StartRecordingResponse> {
+  const res = await fetch(`/api/rooms/${roomId}/recording/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sceneId, participantName }),
+  });
+  if (!res.ok) throw new Error(`startRecording failed: ${res.status}`);
+  return res.json() as Promise<StartRecordingResponse>;
+}
+
+export async function stopRecording(roomId: string): Promise<StopRecordingResponse> {
+  const res = await fetch(`/api/rooms/${roomId}/recording/stop`, { method: 'POST' });
+  if (!res.ok) throw new Error(`stopRecording failed: ${res.status}`);
+  return res.json() as Promise<StopRecordingResponse>;
+}
+
+export async function getRecordings(roomId: string): Promise<RecordingSession[]> {
+  const res = await fetch(`/api/rooms/${roomId}/recordings`);
+  if (!res.ok) throw new Error(`getRecordings failed: ${res.status}`);
+  const data = await res.json() as { recordings: RecordingSession[] };
+  return data.recordings;
+}
+
+export async function muteParticipant(
+  roomId: string,
+  identity: string,
+  trackType: 'audio' | 'video',
+  muted: boolean,
+): Promise<void> {
+  const res = await fetch(`/api/rooms/${roomId}/participants/${identity}/mute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trackType, muted }),
+  });
+  if (!res.ok) throw new Error(`muteParticipant failed: ${res.status}`);
+}

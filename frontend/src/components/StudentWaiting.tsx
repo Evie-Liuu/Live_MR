@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getRequestStatus } from '../api.ts';
 
 interface StudentWaitingProps {
@@ -21,6 +21,7 @@ export default function StudentWaiting({
   onRejected,
   onError,
 }: StudentWaitingProps) {
+  const [isTimedOut, setIsTimedOut] = useState(false);
   const startTime = useRef(Date.now());
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function StudentWaiting({
       if (cancelled) return;
 
       if (Date.now() - startTime.current > TIMEOUT_MS) {
-        onError('等待逾時，請重新加入。');
+        setIsTimedOut(true);
         return;
       }
 
@@ -62,11 +63,32 @@ export default function StudentWaiting({
     };
   }, [roomId, requestId, onApproved, onRejected, onError]);
 
+  if (isTimedOut) {
+    return (
+      <div className="student-timeout-screen timeout-bg">
+        <div className="timeout-card">
+          <div className="timeout-icon-wrapper">
+            <span className="material-symbols-outlined timeout-icon">timer_off</span>
+          </div>
+          <h2 className="timeout-text">等待逾時，請重新加入。</h2>
+          <button
+            className="timeout-back-btn"
+            onClick={() => window.location.reload()}
+          >
+            返回
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="student-waiting">
-      <div className="spinner" />
-      <h2>等待老師允許</h2>
-      <p>{name}，請稍候...</p>
+    <div className="student-waiting-screen">
+      <div className="waiting-inner">
+        <div className="gradient-spinner" />
+        <h2 className="waiting-text">等待老師允許</h2>
+        <p className="waiting-text">{name}，請稍候...</p>
+      </div>
     </div>
   );
 }

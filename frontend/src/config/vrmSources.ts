@@ -17,25 +17,35 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     label: '預設角色',
     url: '/models/Default_Female.vrm',
   },
-  teenager_female: {
-    id: 'teenager_female',
-    label: '少女',
-    url: '/models/teenager_female.vrm',
-  },
-  teenager_male: {
-    id: 'teenager_male',
-    label: '少年',
-    url: '/models/teenager_male.vrm',
-  },
+  // teenager_female: {
+  //   id: 'teenager_female',
+  //   label: '少女',
+  //   url: '/models/Teenager_Female.vrm',
+  // },
+  // teenager_male: {
+  //   id: 'teenager_male',
+  //   label: '少年',
+  //   url: '/models/Student_Male2.vrm',
+  // },
   student_female: {
     id: 'student_female',
     label: '女學生',
-    url: '/models/Student_Female.vrm',
+    url: '/models/Student_Female1.vrm',
   },
   student_male: {
     id: 'student_male',
     label: '男學生',
-    url: '/models/Student_Male.vrm',
+    url: '/models/Student_Male1.vrm',
+  },
+  clothingStoreStaff_female: {
+    id: 'clothingStoreStaff_female',
+    label: '女店員',
+    url: '/models/ClothingStoreStaff_Female.vrm',
+  },
+  clothingStoreStaff_male: {
+    id: 'clothingStoreStaff_male',
+    label: '男店員',
+    url: '/models/ClothingStoreStaff_Male.vrm',
   },
 } as const;
 
