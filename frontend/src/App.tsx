@@ -17,8 +17,7 @@ function AppSpinner() {
     <div className='loading-container'>
       <div className='waiting-inner'>
         <div className="gradient-spinner" />
-        <p className="waiting-text">載入中...</p>
-        <p className="waiting-text">  </p>
+        <h2 className="waiting-text">載入中...</h2>
       </div>
     </div>
     // <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>

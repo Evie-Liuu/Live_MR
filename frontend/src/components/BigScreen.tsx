@@ -1175,8 +1175,8 @@ export default function BigScreen() {
         </div>
       )}
 
-      {/* <PerformanceMonitor label="Render FPS" position="top-right" />
-      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" /> */}
+      <PerformanceMonitor label="Render FPS" position="top-right" />
+      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
       {/* {showStats && statsData && <StatsPanel data={statsData} />} */}
     </div >
   );

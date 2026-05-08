@@ -87,7 +87,7 @@ export default function StudentWaiting({
       <div className="waiting-inner">
         <div className="gradient-spinner" />
         <h2 className="waiting-text">等待老師允許</h2>
-        {/* <p className="waiting-text">{name}，請稍候...</p> */}
+        <p className="waiting-text">{name}，請稍候...</p>
       </div>
     </div>
   );
