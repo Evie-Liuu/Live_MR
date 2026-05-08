@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   envDir: '..', // read .env from project root
   server: {
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       // Proxy API requests to backend dev server
       '/api': {
