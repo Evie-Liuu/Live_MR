@@ -71,8 +71,8 @@ body {
 /* Strip padding/centering when full-screen host session or role select is active */
 .app:has(.host-session),
 .app:has(.role-select-screen),
-.app:has(.student-join-screen),
-.app:has(.host-lobby-screen) {
+.app:has(.student-join-screen) {
+  /* .app:has(.host-lobby-screen) { */
   padding: 0;
   align-items: stretch;
   justify-content: flex-start;
@@ -230,7 +230,8 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  /* min-height: 100vh; */
+  height: 100%;
   padding: 40px 20px;
   font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
 }
@@ -336,6 +337,7 @@ button:disabled {
   gap: 8px;
   margin-bottom: 32px;
   overflow-y: auto;
+  max-height: 15vh;
 }
 
 .pending-item-new {
