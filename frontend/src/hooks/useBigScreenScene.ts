@@ -279,7 +279,6 @@ export function useBigScreenScene(
               if (oldProp) {
                 // Stop highlighting; always return to displayPos smoothly
                 highlightProp(oldProp, false);
-                console.log("ia.propState", ia.propState);
 
                 if (ia.propState === 'held' || ia.propState === 'returning') {
                   // Let the returning handler lerp the old prop back using returningTaskId
@@ -466,7 +465,7 @@ export function useBigScreenScene(
           geometries: renderer.info.memory.geometries,
           textures: renderer.info.memory.textures,
           avatarCount: avatarsRef.current.size,
-          avgPoseIntervals: { ...api },
+          avgPoseIntervals: api,
         });
       }
     };

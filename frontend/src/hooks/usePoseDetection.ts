@@ -133,6 +133,8 @@ export function usePoseDetection(
         handRef.current = handLandmarker;
 
         // ── Pre-allocated landmark buffers (avoid per-frame object creation) ──
+        const landmarksBuf: PoseLandmark[] =
+          Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
         const worldLandmarksBuf: PoseLandmark[] =
           Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
         const faceLandmarksBuf: PoseLandmark[] =
@@ -178,12 +180,29 @@ export function usePoseDetection(
                     worldLandmarks = [];
                   }
 
-                  const frame: PoseFrame = {
-                    type: 'pose',
-                    landmarks: result.landmarks[0].map((l) => ({
+                  // Reuse buffer when no overlay subscriber (HostSession path).
+                  // When subscribed (StudentSession), allocate a fresh array so
+                  // React's reference-equality re-render check still fires.
+                  let landmarks: PoseLandmark[];
+                  const pl = result.landmarks[0];
+                  if (onLandmarksUpdateRef.current) {
+                    landmarks = pl.map((l) => ({
                       x: l.x, y: l.y, z: l.z,
                       visibility: l.visibility ?? 0,
-                    })),
+                    }));
+                  } else {
+                    for (let i = 0; i < pl.length; i++) {
+                      landmarksBuf[i].x = pl[i].x;
+                      landmarksBuf[i].y = pl[i].y;
+                      landmarksBuf[i].z = pl[i].z;
+                      landmarksBuf[i].visibility = pl[i].visibility ?? 0;
+                    }
+                    landmarks = landmarksBuf;
+                  }
+
+                  const frame: PoseFrame = {
+                    type: 'pose',
+                    landmarks,
                     worldLandmarks,
                   };
 
