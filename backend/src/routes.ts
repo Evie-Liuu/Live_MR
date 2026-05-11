@@ -51,10 +51,6 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     let q = roomQueues.get(roomId)
     if (!q) {
       q = { events: [], nextId: 1, waiters: [] }
-      // Backfill with pending requests so reconnecting clients see them
-      for (const req of store.getPendingRequests(roomId)) {
-        q.events.push({ id: q.nextId++, type: 'join-request', requestId: req.requestId, name: req.name })
-      }
       roomQueues.set(roomId, q)
     }
     return q
@@ -72,6 +68,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
   router.post('/rooms', async (_req: Request, res: Response) => {
     try {
       const { roomId, hostToken } = store.createRoom()
+      getOrCreateQueue(roomId) // pre-create so first join-request has no backfill race
       const hostId = `host-${Math.random().toString(36).substring(7)}`
       const livekitToken = await createToken(roomId, hostId, true)
       res.json({ roomId, hostToken, livekitToken })

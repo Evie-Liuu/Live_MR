@@ -151,6 +151,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         if (prev.some((s) => s.requestId === student.requestId)) return prev;
         return [...prev, student];
       });
+    } else if (event.type === 'request-approved' || event.type === 'request-rejected') {
+      // Remove from pending when replayed on reconnect (avoids join/pending overlap)
+      setPending((prev) => prev.filter((s) => s.requestId !== (event.requestId as string)));
     }
   }, []);
 
