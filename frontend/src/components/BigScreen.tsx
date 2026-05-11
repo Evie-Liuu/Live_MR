@@ -6,6 +6,8 @@ import PerformanceMonitor from './PerformanceMonitor.tsx';
 import StatsPanel, { type StatsSnapshot } from './StatsPanel.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
+import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
+import type { HintLevel } from '../config/taskHints.ts';
 
 export interface TaskEntry {
   id: string;
@@ -15,7 +17,7 @@ export interface TaskEntry {
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -30,6 +32,10 @@ export interface BigScreenMsg {
   tasks?: TaskEntry[];
   /** For 'recording-start': session identifier */
   sessionId?: string;
+  /** For 'hint-change': 是否啟用提示欄 */
+  hintEnabled?: boolean;
+  /** For 'hint-change': 目前顯示的階層（null = 不顯示任何階） */
+  hintLevel?: HintLevel | null;
 }
 
 /**
@@ -161,6 +167,13 @@ export default function BigScreen() {
     try {
       return JSON.parse(sessionStorage.getItem('bigscreen-tasks') || '[]');
     } catch { return []; }
+  });
+
+  const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(sessionStorage.getItem('bigscreen-hintEnabled') ?? 'false'); } catch { return false; }
+  });
+  const [hintLevel, setHintLevel] = useState<HintLevel | null>(() => {
+    try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -932,6 +945,13 @@ export default function BigScreen() {
         const tasks = msg.tasks ?? [];
         setActiveTasks(tasks);
         sessionStorage.setItem('bigscreen-tasks', JSON.stringify(tasks));
+      } else if (msg.type === 'hint-change') {
+        const en = msg.hintEnabled ?? false;
+        const lv = msg.hintLevel ?? null;
+        setHintEnabled(en);
+        setHintLevel(lv);
+        sessionStorage.setItem('bigscreen-hintEnabled', JSON.stringify(en));
+        sessionStorage.setItem('bigscreen-hintLevel', JSON.stringify(lv));
       } else if (msg.type === 'recording-start' && msg.sessionId) {
         const existing = mediaRecorderRef.current
         if (existing && existing.state !== 'inactive') {
@@ -1078,6 +1098,30 @@ export default function BigScreen() {
               </div> */}
             </div>
           </>
+        );
+      })()}
+
+      {/* Bottom hint bar — 顯示當前任務選定階的提示 */}
+      {hintEnabled && hintLevel && currentTaskId && (() => {
+        const hint = TASK_HINTS[currentTaskId];
+        const meta = hintLevelMeta(hintLevel);
+        return (
+          <div className="bs-hint-bar">
+            <span className="bs-hint-bar-tag">{meta.num} {meta.label}</span>
+            <span className="bs-hint-bar-content">
+              {!hint ? (
+                <span className="bs-hint-empty">此任務尚無提示</span>
+              ) : hintLevel === 'keyword' ? (
+                hint.keyword.map((w, i) => <span key={i} className="bs-hint-chip">{w}</span>)
+              ) : hintLevel === 'options' ? (
+                hint.options.map((o, i) => (
+                  <span key={i} className="bs-hint-opt"><b>{i + 1}.</b> {o}</span>
+                ))
+              ) : (
+                <span className="bs-hint-line">{hintLevel === 'sentenceStart' ? hint.sentenceStart : hintLevel === 'halfPattern' ? hint.halfPattern : hint.fullDemo}</span>
+              )}
+            </span>
+          </div>
         );
       })()}
 
