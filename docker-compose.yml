@@ -36,7 +36,7 @@ services:
     volumes:
       - ./livekit.yaml.template:/etc/livekit.yaml.template:ro
     ports:
-      - "0.0.0.0:60000-60020:60000-60020/udp"
+      - "0.0.0.0:40000-40020:40000-40020/udp"
       - "7880:7880"
     restart: unless-stopped
     depends_on:
