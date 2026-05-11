@@ -33,6 +33,9 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const isMobile = isMobileDevice();
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const publishPose = useCallback(
     (data: Uint8Array) => {
@@ -71,7 +74,12 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
     };
 
     room.on(RoomEvent.Connected, () => {
-      if (isMounted) setConnected(true);
+      if (isMounted) {
+        setConnected(true);
+        setConnectionError(null);
+        // NOTE: do NOT setRetryCount(0) here — retryCount is a useEffect dep,
+        // resetting it would trigger cleanup (room.disconnect) on a live connection.
+      }
       // Initial check for host metadata if they are already in the room
       for (const [, p] of room.remoteParticipants) {
         checkHostMetadata(p);
@@ -97,6 +105,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       .then(async () => {
         if (!isMounted) return;
         setConnected(true);
+        setConnectionError(null);
 
         try {
           // 直接使用 getUserMedia 取得鏡頭串流，確保 iPad Safari 相容（與 webcamtests.com 相同方式）
@@ -133,8 +142,18 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
         }
       })
       .catch((e) => {
-        if (isMounted) {
-          console.error("Room connection failed:", e);
+        if (!isMounted) return;
+        console.error("Room connection failed:", e);
+        // 自動重試：指數退避，最多 MAX_RETRIES 次
+        // retryCount 從 closure 讀取（此次 effect 執行時的值），避免在 state updater 中做 side effect
+        const next = retryCount + 1;
+        if (next <= MAX_RETRIES) {
+          const delay = Math.min(2000 * Math.pow(2, retryCount), 16000); // 2s, 4s, 8s
+          console.log(`Retrying connection in ${delay}ms (attempt ${next}/${MAX_RETRIES})...`);
+          retryTimerRef.current = setTimeout(() => {
+            if (isMounted) setRetryCount(next);
+          }, delay);
+        } else {
           setConnectionError(String(e));
         }
       });
@@ -142,6 +161,10 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
     return () => {
       isMounted = false;
       roomRef.current = null;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       // 釋放本地預覽的 camera stream
       if (displayStreamRef.current) {
         displayStreamRef.current.getTracks().forEach(t => t.stop());
@@ -151,7 +174,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       // 若連線尚未建立則 disconnect() 內部會安全忽略。
       room.disconnect();
     };
-  }, [token]);
+  }, [token, retryCount]);
 
   // Publish metadata whenever faceEnabled changes (or on connect)
   // useEffect(() => {
@@ -264,9 +287,42 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
         </div>
       </div>
 
+      {/* 連線中重試提示 */}
+      {!connected && !connectionError && retryCount > 0 && retryCount <= MAX_RETRIES && (
+        <div style={{ color: '#facc15', fontSize: '0.85rem', marginTop: 12, textAlign: 'center' }}>
+          連線重試中… ({retryCount}/{MAX_RETRIES})
+        </div>
+      )}
+
+      {/* 連線失敗畫面 */}
       {connectionError && (
-        <div style={{ color: '#f87171', fontSize: '0.9rem', marginTop: 12 }}>
-          錯誤: {connectionError}
+        <div className="connection-error-overlay">
+          <div className="connection-error-card">
+            <span className="material-symbols-outlined connection-error-icon">signal_disconnected</span>
+            <h3 className="connection-error-title">無法連接伺服器</h3>
+            <p className="connection-error-detail">{connectionError}</p>
+            <p className="connection-error-hint">
+              請確認網路連線正常，且伺服器已啟動。
+            </p>
+            <div className="connection-error-actions">
+              <button
+                className="connection-retry-btn"
+                onClick={() => {
+                  setConnectionError(null);
+                  setRetryCount(0);
+                }}
+              >
+                <span className="material-symbols-outlined">refresh</span>
+                重新連線
+              </button>
+              <button
+                className="connection-back-btn"
+                onClick={() => window.location.reload()}
+              >
+                返回
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
