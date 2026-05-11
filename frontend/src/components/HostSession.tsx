@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Room,
@@ -18,7 +18,8 @@ import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
-import { decodePoseFrame } from '../utils/poseCodec.ts';
+import { decodePoseFrame, createPoseDecodePool } from '../utils/poseCodec.ts';
+import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
@@ -114,6 +115,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
   const [handEnabled, _] = useState(faceEnabled);
+  const [lowPowerMode, setLowPowerMode] = useState(false);
   // Panel drawer open states
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
@@ -181,6 +183,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // Latest pose snapshot for all participants (used when opening big screen mid-session)
   const poseSnapshotRef = useRef<Record<string, unknown>>({});
+  const teacherPoolRef  = useRef<PoseDecodePool>(createPoseDecodePool());
+  const studentPoolsRef = useRef<Map<string, PoseDecodePool>>(new Map());
 
   // ─── Scene / VRM source selection ─────────────────────────────────────────
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
@@ -598,7 +602,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const teacherPublishPose = useCallback(
     (data: Uint8Array) => {
       try {
-        const parsed = decodePoseFrame(data);
+        const parsed = teacherPoolRef.current.decode(data);
         // Always update local overlay regardless of connection state
         setTeacherPoseData(parsed);
         if (!connectedRoom) return;
@@ -615,7 +619,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     [connectedRoom],
   );
 
-  usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled, handEnabled);
+  usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled, handEnabled, lowPowerMode);
 
   // ─── LiveKit connection ────────────────────────────────────────────────────
   const updateParticipant = useCallback(
@@ -675,6 +679,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       });
       channelRef.current?.postMessage({ type: 'leave', identity: participant.identity });
       delete poseSnapshotRef.current[participant.identity];
+      studentPoolsRef.current.delete(participant.identity);
       // Prune stale identity from studentRoles so BigScreen re-open won't reload ghost avatars
       setStudentRoles((prev) => {
         if (!(participant.identity in prev)) return prev;
@@ -722,7 +727,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     ) => {
       if (!participant) return;
       try {
-        const data = decodePoseFrame(payload);
+        let pool = studentPoolsRef.current.get(participant.identity);
+        if (!pool) {
+          pool = createPoseDecodePool();
+          studentPoolsRef.current.set(participant.identity, pool);
+        }
+        const data = pool.decode(payload);
 
         // If the student's camera is off, skip pose forwarding to preview/BigScreen
         const isCameraOff = muteStateRef.current[participant.identity]?.video === true;
@@ -918,19 +928,25 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // Derived state: allowed VRMs for current scene
   const currentScenePreset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
-  const allowedVrms = currentScenePreset.allowedVrmIds
-    ? currentScenePreset.allowedVrmIds.map(id => VRM_SOURCES[id]).filter(Boolean)
-    : Object.values(VRM_SOURCES);
+  const allowedVrms = useMemo(
+    () => currentScenePreset.allowedVrmIds
+      ? currentScenePreset.allowedVrmIds.map(id => VRM_SOURCES[id]).filter(Boolean)
+      : Object.values(VRM_SOURCES),
+    [currentScenePreset],
+  );
 
   // Reverse map: identity → slotId
-  const identityToSlotId = Object.fromEntries(
-    Object.entries(slotAssignments).map(([slotId, identity]) => [identity, slotId])
+  const identityToSlotId = useMemo(
+    () => Object.fromEntries(
+      Object.entries(slotAssignments).map(([slotId, identity]) => [identity, slotId])
+    ),
+    [slotAssignments],
   );
 
   // All participants for slot assignment dropdown (teacher + students)
   const teacherIdentity = connectedRoom?.localParticipant.identity;
   const teacherName = connectedRoom?.localParticipant.name;
-  const allParticipantOptions = [
+  const allParticipantOptions = useMemo(() => [
     ...(teacherIdentity ? [{
       value: teacherIdentity,
       label: (
@@ -949,7 +965,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         </div>
       )
     })),
-  ];
+  ], [teacherIdentity, teacherName, studentList]);
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
   const hasModules = currentScenePreset.modules && currentScenePreset.modules.length > 0;
@@ -1012,6 +1028,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <span className="material-symbols-outlined">ar_on_you</span>
             <span className="hs-action-label">臉部</span>
             <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
+          </button>
+
+          <button
+            className={`hs-action-btn ${lowPowerMode ? 'hs-action--on' : 'hs-action--off'}`}
+            onClick={() => setLowPowerMode(v => !v)}
+            title={lowPowerMode ? '關閉省電模式（臉部/手部 15 FPS）' : '開啟省電模式（臉部/手部降至 7.5 FPS）'}
+          >
+            <span className="material-symbols-outlined">battery_saver</span>
+            <span className="hs-action-label">省電</span>
+            <span className={`hs-badge-btn ${lowPowerMode ? 'hs-badge--on' : 'hs-badge--off'}`}>{lowPowerMode ? 'ON' : 'OFF'}</span>
           </button>
 
           <button

@@ -78,55 +78,125 @@ export function encodePoseFrame(frame: PoseFrame): Uint8Array {
 
 // ─── Decoder ─────────────────────────────────────────────────────────────────
 
-function readLandmarks(f32: Float32Array, offset: number, n: number): PoseLandmark[] {
-  const out: PoseLandmark[] = [];
+function fillLandmarks(buf: PoseLandmark[], f32: Float32Array, offset: number, n: number): void {
   for (let i = 0; i < n; i++) {
     const b = offset + i * 3;
-    out.push({ x: f32[b], y: f32[b + 1], z: f32[b + 2], visibility: 1 });
+    buf[i].x = f32[b]; buf[i].y = f32[b + 1]; buf[i].z = f32[b + 2];
   }
-  return out;
 }
 
+function makeBuf(n: number): PoseLandmark[] {
+  return Array.from({ length: n }, () => ({ x: 0, y: 0, z: 0, visibility: 1 }));
+}
+
+/** One pre-allocated decode slot (3 per identity keep React renders safe). */
+interface DecodeSlot {
+  frame: PoseFrame;
+  poseBuf: PoseLandmark[];
+  worldBuf: PoseLandmark[];
+  faceBuf: PoseLandmark[];
+  leftHandBuf: PoseLandmark[];
+  rightHandBuf: PoseLandmark[];
+}
+
+function makeSlot(): DecodeSlot {
+  const poseBuf      = makeBuf(POSE_N);
+  const worldBuf     = makeBuf(POSE_N);
+  const faceBuf      = makeBuf(FACE_N);
+  const leftHandBuf  = makeBuf(HAND_N);
+  const rightHandBuf = makeBuf(HAND_N);
+  return {
+    frame: { type: 'pose', landmarks: poseBuf, worldLandmarks: worldBuf },
+    poseBuf, worldBuf, faceBuf, leftHandBuf, rightHandBuf,
+  };
+}
+
+export interface PoseDecodePool {
+  decode(data: Uint8Array): PoseFrame;
+}
+
+/**
+ * Returns a per-identity pool that reuses 3 pre-allocated PoseFrame slots,
+ * eliminating per-frame object allocation in the decoder hot path.
+ * Use one pool per remote participant; safe to discard when they leave.
+ */
+export function createPoseDecodePool(): PoseDecodePool {
+  const slots: DecodeSlot[] = [makeSlot(), makeSlot(), makeSlot()];
+  let idx = 0;
+
+  return {
+    decode(data: Uint8Array): PoseFrame {
+      // Legacy JSON fallback (first byte = '{')
+      if (data[0] === 0x7b) {
+        return JSON.parse(new TextDecoder().decode(data)) as PoseFrame;
+      }
+
+      const slot = slots[idx];
+      idx = (idx + 1) % 3;
+
+      const flags = data[0];
+      const body = data.slice(HEADER);
+      const f32  = new Float32Array(body.buffer);
+
+      let off = 0;
+      fillLandmarks(slot.poseBuf, f32, off, POSE_N); off += POSE_N * 3;
+      slot.frame.landmarks = slot.poseBuf;
+
+      if (flags & FLAG_WORLD) {
+        fillLandmarks(slot.worldBuf, f32, off, POSE_N); off += POSE_N * 3;
+        slot.frame.worldLandmarks = slot.worldBuf;
+      } else {
+        slot.frame.worldLandmarks = slot.poseBuf; // same-ref fallback
+      }
+
+      if (flags & FLAG_FACE) {
+        fillLandmarks(slot.faceBuf, f32, off, FACE_N); off += FACE_N * 3;
+        slot.frame.faceLandmarks = slot.faceBuf;
+      } else {
+        slot.frame.faceLandmarks = undefined;
+      }
+
+      if (flags & FLAG_LEFT_HAND) {
+        fillLandmarks(slot.leftHandBuf, f32, off, HAND_N); off += HAND_N * 3;
+        slot.frame.leftHandLandmarks = slot.leftHandBuf;
+      } else {
+        slot.frame.leftHandLandmarks = undefined;
+      }
+
+      if (flags & FLAG_RIGHT_HAND) {
+        fillLandmarks(slot.rightHandBuf, f32, off, HAND_N);
+        slot.frame.rightHandLandmarks = slot.rightHandBuf;
+      } else {
+        slot.frame.rightHandLandmarks = undefined;
+      }
+
+      return slot.frame;
+    },
+  };
+}
+
+/** Backward-compat single-shot decoder (allocates per call). */
 export function decodePoseFrame(data: Uint8Array): PoseFrame {
-  // Legacy JSON fallback (first byte = '{')
   if (data[0] === 0x7b) {
     return JSON.parse(new TextDecoder().decode(data)) as PoseFrame;
   }
-
   const flags = data[0];
-  // slice() creates a fresh Uint8Array with byteOffset=0, ensuring the
-  // Float32Array view below is always 4-byte aligned regardless of the
-  // incoming buffer's byteOffset (e.g. LiveKit received packets).
   const body = data.slice(HEADER);
   const f32  = new Float32Array(body.buffer);
-
-  const hasWorld     = !!(flags & FLAG_WORLD);
-  const hasFace      = !!(flags & FLAG_FACE);
-  const hasLeftHand  = !!(flags & FLAG_LEFT_HAND);
-  const hasRightHand = !!(flags & FLAG_RIGHT_HAND);
-
+  const read = (offset: number, n: number): PoseLandmark[] => {
+    const out = makeBuf(n);
+    fillLandmarks(out, f32, offset, n);
+    return out;
+  };
   let off = 0;
-  const landmarks = readLandmarks(f32, off, POSE_N); off += POSE_N * 3;
-
-  let worldLandmarks: PoseLandmark[] = landmarks; // fallback
-  if (hasWorld) {
-    worldLandmarks = readLandmarks(f32, off, POSE_N); off += POSE_N * 3;
-  }
-
+  const landmarks = read(off, POSE_N); off += POSE_N * 3;
+  let worldLandmarks: PoseLandmark[] = landmarks;
+  if (flags & FLAG_WORLD) { worldLandmarks = read(off, POSE_N); off += POSE_N * 3; }
   let faceLandmarks: PoseLandmark[] | undefined;
-  if (hasFace) {
-    faceLandmarks = readLandmarks(f32, off, FACE_N); off += FACE_N * 3;
-  }
-
+  if (flags & FLAG_FACE) { faceLandmarks = read(off, FACE_N); off += FACE_N * 3; }
   let leftHandLandmarks: PoseLandmark[] | undefined;
-  if (hasLeftHand) {
-    leftHandLandmarks = readLandmarks(f32, off, HAND_N); off += HAND_N * 3;
-  }
-
+  if (flags & FLAG_LEFT_HAND) { leftHandLandmarks = read(off, HAND_N); off += HAND_N * 3; }
   let rightHandLandmarks: PoseLandmark[] | undefined;
-  if (hasRightHand) {
-    rightHandLandmarks = readLandmarks(f32, off, HAND_N);
-  }
-
+  if (flags & FLAG_RIGHT_HAND) { rightHandLandmarks = read(off, HAND_N); }
   return { type: 'pose', landmarks, worldLandmarks, faceLandmarks, leftHandLandmarks, rightHandLandmarks };
 }

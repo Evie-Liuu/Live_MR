@@ -27,6 +27,8 @@ export function usePoseDetection(
   faceEnabled?: boolean,
   /** Enable HandLandmarker for hand gesture detection */
   handEnabled?: boolean,
+  /** Drop face/hand to 7.5 FPS (tick÷4) instead of 15 FPS (tick÷2) */
+  lowPowerMode?: boolean,
 ) {
   const poseRef = useRef<PoseLandmarker | null>(null);
   const faceRef = useRef<FaceLandmarker | null>(null);
@@ -41,6 +43,8 @@ export function usePoseDetection(
   faceEnabledRef.current = faceEnabled ?? false;
   const handEnabledRef = useRef(handEnabled ?? false);
   handEnabledRef.current = handEnabled ?? false;
+  const lowPowerModeRef = useRef(lowPowerMode ?? false);
+  lowPowerModeRef.current = lowPowerMode ?? false;
 
   useEffect(() => {
     let cancelled = false;
@@ -207,7 +211,8 @@ export function usePoseDetection(
                   };
 
                   // ── Face blendshapes (when enabled) ──
-                  if (faceEnabledRef.current && faceRef.current && tick % 2 === 0) {
+                  const faceInterval = lowPowerModeRef.current ? 4 : 2;
+                  if (faceEnabledRef.current && faceRef.current && tick % faceInterval === 0) {
                     try {
                       const faceResult = faceRef.current.detectForVideo(video, now);
                       if (
@@ -238,7 +243,7 @@ export function usePoseDetection(
                   }
 
                   // ── Hand landmarks (when enabled) ──
-                  if (handEnabledRef.current && handRef.current && tick % 2 === 1) {
+                  if (handEnabledRef.current && handRef.current && tick % faceInterval === faceInterval / 2) {
                     try {
                       const handResult = handRef.current.detectForVideo(video, now);
                       if (handResult.landmarks && handResult.landmarks.length > 0) {
