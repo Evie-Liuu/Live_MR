@@ -20,6 +20,8 @@ import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { decodePoseFrame, createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
+import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
+import type { HintLevel } from '../config/taskHints.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
@@ -116,6 +118,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [faceEnabled, setFaceEnabled] = useState(true);
   const [handEnabled, _] = useState(faceEnabled);
   const [lowPowerMode, setLowPowerMode] = useState(false);
+  const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(sessionStorage.getItem('bigscreen-hintEnabled') ?? 'false'); } catch { return false; }
+  });
+  const [hintLevel, setHintLevel] = useState<HintLevel | null>(() => {
+    try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
+  });
+  const prevCurrentTaskIdRef = useRef<string | undefined>(undefined);
   // Panel drawer open states
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
@@ -305,6 +314,41 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     const msg: BigScreenMsg = { type: 'task-change', tasks };
     channelRef.current?.postMessage(msg);
   }, []);
+
+  const broadcastHintChange = useCallback((enabled: boolean, level: HintLevel | null) => {
+    sessionStorage.setItem('bigscreen-hintEnabled', JSON.stringify(enabled));
+    sessionStorage.setItem('bigscreen-hintLevel', JSON.stringify(level));
+    const msg: BigScreenMsg = { type: 'hint-change', hintEnabled: enabled, hintLevel: level };
+    channelRef.current?.postMessage(msg);
+  }, []);
+
+  const setHint = useCallback((level: HintLevel | null) => {
+    setHintLevel(level);
+    broadcastHintChange(hintEnabled, level);
+  }, [hintEnabled, broadcastHintChange]);
+
+  const toggleHintEnabled = useCallback(() => {
+    setHintEnabled(prev => {
+      const next = !prev;
+      broadcastHintChange(next, next ? hintLevel : null);
+      if (!next) setHintLevel(null);
+      return next;
+    });
+  }, [hintLevel, broadcastHintChange]);
+
+  // 當「第一個未完成任務」改變（含全完成 → undefined）時，把提示重設為「不顯示」
+  useEffect(() => {
+    const currentId = selectedTasks.find(t => !t.completed)?.id;
+    if (prevCurrentTaskIdRef.current === undefined && currentId !== undefined) {
+      // 初次掛載 / 初次有任務：只記錄，不動 hintLevel（保留 sessionStorage 還原值）
+      prevCurrentTaskIdRef.current = currentId;
+      return;
+    }
+    if (currentId !== prevCurrentTaskIdRef.current) {
+      prevCurrentTaskIdRef.current = currentId;
+      if (hintLevel !== null) setHint(null);
+    }
+  }, [selectedTasks, hintLevel, setHint]);
 
   const broadcastVrmChange = useCallback((vrmSourceId: string | null) => {
     if (vrmSourceId) {
@@ -849,12 +893,14 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       else sessionStorage.removeItem('bigscreen-teacherVrmSourceId');
       sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(slotAssignments));
       sessionStorage.setItem('bigscreen-tasks', JSON.stringify(selectedTasks));
+      sessionStorage.setItem('bigscreen-hintEnabled', JSON.stringify(hintEnabled));
+      sessionStorage.setItem('bigscreen-hintLevel', JSON.stringify(hintLevel));
     } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen`;
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId]);
+  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId, hintEnabled, hintLevel]);
 
   // ─── Embedded BigScreen preview ────────────────────────────────────────────
   // iframe 有獨立的 sessionStorage，透過 BroadcastChannel 補送完整狀態來同步
@@ -863,6 +909,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (!ch) return;
     ch.postMessage({ type: 'scene-change', sceneId: selectedSceneId } satisfies BigScreenMsg);
     ch.postMessage({ type: 'task-change', tasks: selectedTasks } satisfies BigScreenMsg);
+    ch.postMessage({ type: 'hint-change', hintEnabled, hintLevel } satisfies BigScreenMsg);
     for (const [slotId, identity] of Object.entries(slotAssignments)) {
       ch.postMessage({ type: 'slot-assign', slotId, identity } satisfies BigScreenMsg);
     }
@@ -875,7 +922,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const vrmUrl = (VRM_SOURCES[vrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
       ch.postMessage({ type: 'vrm-identity-change', identity, vrmUrl } satisfies BigScreenMsg);
     }
-  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles]);
+  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles, hintEnabled, hintLevel]);
 
   const toggleBigScreenPreview = useCallback(() => {
     setShowBigScreenPreview(prev => {
@@ -1264,7 +1311,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         </div>
 
         {/* ── Video Area ────────────────────────────────────────────────────── */}
-        <div className="hs-video-area">
+        <div className={`hs-video-area ${hintEnabled ? 'hs-video-area--with-hint' : ''}`}>
 
           {/* Task banner strip */}
           {selectedTasks.length > 0 && (() => {
@@ -1292,84 +1339,160 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     </>
                   )}
                 </div>
+                <button
+                  className={`hs-hint-toggle ${hintEnabled ? 'is-on' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); toggleHintEnabled(); }}
+                  title={hintEnabled ? '關閉任務提示' : '開啟任務提示'}
+                >
+                  <span className="material-symbols-outlined">lightbulb</span>
+                  <span className="hs-hint-toggle-label">任務提示</span>
+                  <span className="hs-hint-toggle-badge">{hintEnabled ? 'ON' : 'OFF'}</span>
+                </button>
               </div>
             );
           })()}
 
-          {/* BigScreen embedded preview */}
-          {showBigScreenPreview && (
-            <div className="hs-preview-pane">
-              <div className="hs-preview-header">
-                <span className="hs-preview-title"><span className="material-icons">preview</span>大屏預覽</span>
-                <button className="hs-preview-close" onClick={toggleBigScreenPreview} title="關閉預覽">✕</button>
-              </div>
-              {/* Scaling viewport wrapper — iframe renders at 1920×1080, then scaled down */}
-              <div className="hs-preview-scaler-wrap" ref={previewWrapRef}>
-                <iframe
-                  ref={previewIframeRef}
-                  className="hs-preview-iframe"
-                  src={`${window.location.origin}/?screen=bigscreen`}
-                  title="BigScreen Preview"
-                  allow="camera; microphone"
-                  width={1920}
-                  height={1080}
-                />
+          <div className="hs-video-body">
+            <div className="hs-video-main">
+              {/* BigScreen embedded preview */}
+              {showBigScreenPreview && (
+                <div className="hs-preview-pane">
+                  <div className="hs-preview-header">
+                    <span className="hs-preview-title"><span className="material-icons">preview</span>大屏預覽</span>
+                    <button className="hs-preview-close" onClick={toggleBigScreenPreview} title="關閉預覽">✕</button>
+                  </div>
+                  {/* Scaling viewport wrapper — iframe renders at 1920×1080, then scaled down */}
+                  <div className="hs-preview-scaler-wrap" ref={previewWrapRef}>
+                    <iframe
+                      ref={previewIframeRef}
+                      className="hs-preview-iframe"
+                      src={`${window.location.origin}/?screen=bigscreen`}
+                      title="BigScreen Preview"
+                      allow="camera; microphone"
+                      width={1920}
+                      height={1080}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Video grid */}
+              <div className={`hs-grid ${showBigScreenPreview ? 'hs-grid--with-preview' : ''}`}>
+
+                {/* ── Teacher card ── */}
+                {connectedRoom && (() => {
+                  const teacherIdentityLocal = connectedRoom.localParticipant.identity;
+                  const teacherSlotId = identityToSlotId[teacherIdentityLocal];
+                  const teacherSlot = teacherSlotId
+                    ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
+                    : undefined;
+                  const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
+                  return (
+                    <div
+                      className={`hs-video-card hs-teacher-card${isTeacherSpeaking ? ' hs-video-card--speaking' : ''}`}
+                      style={{ opacity: hasSlots && !teacherSlot ? 0.8 : 1 }}
+                    >
+                      <LocalVideo
+                        room={connectedRoom}
+                        poseData={teacherPoseData}
+                        vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId}
+                        slotLabel={teacherSlot?.label}
+                      />
+                    </div>
+                  );
+                })()}
+
+                {/* ── Student tiles ── */}
+                {studentList.map((info) => {
+                  const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
+                  const assignedSlotId = identityToSlotId[info.participant.identity];
+                  const assignedSlot = assignedSlotId
+                    ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
+                    : undefined;
+                  const isStudentSpeaking = speakingSet.has(info.participant.identity);
+                  return (
+                    <div
+                      key={info.participant.identity}
+                      className={`hs-video-card${isStudentSpeaking ? ' hs-video-card--speaking' : ''}`}
+                      style={{ opacity: hasSlots && !assignedSlot ? 0.8 : 1 }}
+                    >
+                      <StudentTile
+                        participant={info.participant}
+                        videoTrack={info.videoTrack}
+                        poseData={info.poseData}
+                        vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
+                        muteState={muteState[info.participant.identity]}
+                        onToggleMute={toggleMute}
+                        slotLabel={assignedSlot?.label}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          )}
 
-          {/* Video grid */}
-          <div className={`hs-grid ${showBigScreenPreview ? 'hs-grid--with-preview' : ''}`}>
-
-            {/* ── Teacher card ── */}
-            {connectedRoom && (() => {
-              const teacherIdentityLocal = connectedRoom.localParticipant.identity;
-              const teacherSlotId = identityToSlotId[teacherIdentityLocal];
-              const teacherSlot = teacherSlotId
-                ? currentScenePreset.slots?.find((s) => s.id === teacherSlotId)
-                : undefined;
-              const isTeacherSpeaking = speakingSet.has(teacherIdentityLocal);
+            {hintEnabled && (() => {
+              const currentTask = selectedTasks.find(t => !t.completed);
+              const hint = currentTask ? TASK_HINTS[currentTask.id] : undefined;
+              const renderLevelContent = (lv: HintLevel) => {
+                if (!hint) return null;
+                if (lv === 'keyword') return <div className="hs-hint-chips">{hint.keyword.map((w, i) => <span key={i} className="hs-hint-chip">{w}</span>)}</div>;
+                if (lv === 'options') return <ol className="hs-hint-opts">{hint.options.map((o, i) => <li key={i}>{o}</li>)}</ol>;
+                const text = lv === 'sentenceStart' ? hint.sentenceStart : lv === 'halfPattern' ? hint.halfPattern : hint.fullDemo;
+                return <div className="hs-hint-line">{text}</div>;
+              };
               return (
-                <div
-                  className={`hs-video-card hs-teacher-card${isTeacherSpeaking ? ' hs-video-card--speaking' : ''}`}
-                  style={{ opacity: hasSlots && !teacherSlot ? 0.8 : 1 }}
-                >
-                  <LocalVideo
-                    room={connectedRoom}
-                    poseData={teacherPoseData}
-                    vrmSourceId={hasSlots && !teacherSlot ? null : teacherVrmSourceId}
-                    slotLabel={teacherSlot?.label}
-                  />
+                <div className="hs-hint-panel">
+                  <div className="hs-hint-panel-header">
+                    <span className="material-symbols-outlined">lightbulb</span>
+                    <span>任務提示</span>
+                  </div>
+                  <div className="hs-hint-panel-task">
+                    {selectedTasks.length === 0 ? '尚未選擇任務'
+                      : !currentTask ? '所有任務已完成'
+                      : currentTask.label}
+                  </div>
+                  <div className="hs-hint-levels">
+                    {HINT_LEVELS.map(({ level, num, label }) => (
+                      <button
+                        key={level}
+                        className={`hs-hint-level-btn ${hintLevel === level ? 'is-active' : ''}`}
+                        disabled={!currentTask || !hint}
+                        onClick={() => setHint(level)}
+                      >{num}{label}</button>
+                    ))}
+                    <button
+                      className={`hs-hint-level-btn hs-hint-level-btn--none ${hintLevel === null ? 'is-active' : ''}`}
+                      onClick={() => setHint(null)}
+                    >✕ 不顯示</button>
+                  </div>
+                  <div className="hs-hint-panel-body">
+                    {!currentTask ? (
+                      <div className="hs-hint-placeholder">{selectedTasks.length === 0 ? '請先在「任務」面板選擇任務' : '所有任務已完成'}</div>
+                    ) : !hint ? (
+                      <div className="hs-hint-placeholder">此任務尚無提示資料</div>
+                    ) : hintLevel === null ? (
+                      <div className="hs-hint-placeholder">目前未顯示提示。點上方階層按鈕讓學生大屏顯示。</div>
+                    ) : (
+                      <div className="hs-hint-active">
+                        <div className="hs-hint-active-tag">{hintLevelMeta(hintLevel).num} {hintLevelMeta(hintLevel).label}（學生大屏顯示中）</div>
+                        {renderLevelContent(hintLevel)}
+                      </div>
+                    )}
+                    {hint && currentTask && (
+                      <div className="hs-hint-allref">
+                        {HINT_LEVELS.filter(l => l.level !== hintLevel).map(({ level, num, label }) => (
+                          <div key={level} className="hs-hint-ref-row">
+                            <span className="hs-hint-ref-tag">{num}{label}</span>
+                            <span className="hs-hint-ref-content">{renderLevelContent(level)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
-
-            {/* ── Student tiles ── */}
-            {studentList.map((info) => {
-              const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
-              const assignedSlotId = identityToSlotId[info.participant.identity];
-              const assignedSlot = assignedSlotId
-                ? currentScenePreset.slots?.find(s => s.id === assignedSlotId)
-                : undefined;
-              const isStudentSpeaking = speakingSet.has(info.participant.identity);
-              return (
-                <div
-                  key={info.participant.identity}
-                  className={`hs-video-card${isStudentSpeaking ? ' hs-video-card--speaking' : ''}`}
-                  style={{ opacity: hasSlots && !assignedSlot ? 0.8 : 1 }}
-                >
-                  <StudentTile
-                    participant={info.participant}
-                    videoTrack={info.videoTrack}
-                    poseData={info.poseData}
-                    vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
-                    muteState={muteState[info.participant.identity]}
-                    onToggleMute={toggleMute}
-                    slotLabel={assignedSlot?.label}
-                  />
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
