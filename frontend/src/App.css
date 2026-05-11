@@ -1143,8 +1143,15 @@ button:disabled {
 }
 
 @keyframes error-card-in {
-  from { opacity: 0; transform: scale(0.85) translateY(20px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.85) translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .connection-error-icon {
@@ -4065,7 +4072,10 @@ button:disabled {
   flex: 1;
   min-height: 0;
   display: grid;
+  /* grid-template-columns: repeat(auto-fill, 480px); */
   grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr));
+
+  justify-content: start;
   margin-top: 10px;
   gap: 12px;
   overflow-y: auto;
@@ -4076,6 +4086,9 @@ button:disabled {
 /* Video cards */
 .hs-video-card {
   position: relative;
+  /* width: 480px; */
+  /* aspect-ratio: 4 / 3; */
+  max-height: 450px;
   border-radius: 16px;
   overflow: hidden;
   background: #fff;
@@ -4305,12 +4318,17 @@ button:disabled {
 
 /* Grid shrinks to a compact strip below the preview */
 .hs-grid--with-preview {
-  /* flex: 0 0 auto; */
+  /* max-height: 180px;
+  grid-template-columns: repeat(auto-fill, 220px); */
   max-height: 220px;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   overflow-y: auto;
   margin: 0;
 }
+
+/* .hs-grid--with-preview .hs-video-card {
+  width: 220px;
+} */
 
 /* ===== New Slot Drawer UI ===== */
 .slot-drawer-title {
