@@ -1,12 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   Room,
   RoomEvent,
   RemoteParticipant,
   RemoteTrackPublication,
   Track,
-  DataPacket_Kind,
   type Participant,
 } from 'livekit-client';
 import StudentTile from './StudentTile.tsx';
@@ -18,7 +16,7 @@ import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
-import { decodePoseFrame, createPoseDecodePool } from '../utils/poseCodec.ts';
+import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
@@ -59,7 +57,7 @@ interface CustomSelectProps {
   placeholder?: string;
 }
 
-function CustomSelect({ value, options, onChange, disabled, placeholder = "請選擇..." }: CustomSelectProps) {
+function CustomSelect({ value, options, onChange, disabled, placeholder: _placeholder = "請選擇..." }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
 
@@ -1638,7 +1636,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <button className="panel-close-btn" onClick={() => setShowSlotPanel(false)}>✕</button>
           </div>
           <div className="panel-drawer-body">
-            {currentScenePreset.slots!.map((sceneSlot, slotIndex) => {
+            {currentScenePreset.slots!.map((sceneSlot, _slotIndex) => {
               const assignedIdentity = slotAssignments[sceneSlot.id];
               const assignedVrmId = assignedIdentity
                 ? (assignedIdentity === teacherIdentity

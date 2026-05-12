@@ -135,7 +135,7 @@ export function useRecording(
   }, [roomId, room, channelRef, sceneId, participantName])
 
   const stop = useCallback(async () => {
-    const result = await stopRecording(roomId)
+    await stopRecording(roomId)
     setIsRecording(false)
     const activeSessionId = sessionId
     setSessionId(null)

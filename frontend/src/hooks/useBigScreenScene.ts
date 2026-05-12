@@ -22,7 +22,7 @@ import {
   createPoseApplyState,
   type PoseApplyState,
 } from '../utils/vrmPoseApplier';
-import { applyLights, applyGrid } from '../utils/threeScene';
+import { applyLights } from '../utils/threeScene';
 import {
   loadStaticProps,
   loadTaskProps,
@@ -213,7 +213,6 @@ export function useBigScreenScene(
     rendererRef.current = renderer;
 
     applyLights(scene, preset);
-    // applyGrid(scene, preset);
 
     // Pre-load scene props (per-asset errors are swallowed inside propLoader)
     let propsCancelled = false;

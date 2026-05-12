@@ -41,6 +41,9 @@ export class OneEuroFilter {
   private dxLp = new LowPassFilter();
   private xPrev = 0;
   private hasPrev = false;
+  private minCutoff: number;
+  private beta: number;
+  private dCutoff: number;
 
   /**
    * @param minCutoff Hz — lower = more smoothing when the signal is still.
@@ -48,10 +51,14 @@ export class OneEuroFilter {
    * @param dCutoff   Hz — cutoff for the speed estimate (rarely needs tuning).
    */
   constructor(
-    private minCutoff = 1.0,
-    private beta = 0.0,
-    private dCutoff = 1.0,
-  ) { }
+    minCutoff = 1.0,
+    beta = 0.0,
+    dCutoff = 1.0,
+  ) {
+    this.minCutoff = minCutoff;
+    this.beta = beta;
+    this.dCutoff = dCutoff;
+  }
 
   /** @param dtSec seconds since the previous sample (> 0). */
   filter(x: number, dtSec: number): number {

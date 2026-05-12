@@ -3,7 +3,6 @@ import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
-import StatsPanel, { type StatsSnapshot } from './StatsPanel.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
 import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
@@ -216,15 +215,15 @@ export default function BigScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const [showStats, setShowStats] = useState(false);
-  const [statsData, setStatsData] = useState<StatsSnapshot | null>(null);
+  // const [showStats, setShowStats] = useState(false);
+  // const [statsData, setStatsData] = useState<StatsSnapshot | null>(null);
 
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
     slotAssignments,
     currentTaskId,
-    onStats: showStats ? setStatsData : undefined,
+    onStats: undefined, // showStats ? setStatsData : undefined,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -698,10 +697,12 @@ export default function BigScreen() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === '`') {
+        /*
         setShowStats(v => {
           if (v) setStatsData(null);
           return !v;
         });
+        */
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1059,7 +1060,7 @@ export default function BigScreen() {
 
       {activeTasks.length > 0 && (() => {
         const currentTask = activeTasks.find(t => !t.completed);
-        const otherTasks = activeTasks.filter(t => t.id !== currentTask?.id && !t.completed);
+        // const otherTasks = activeTasks.filter(t => t.id !== currentTask?.id && !t.completed);
 
         return (
           <>
