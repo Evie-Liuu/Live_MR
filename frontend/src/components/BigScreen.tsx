@@ -1067,6 +1067,29 @@ export default function BigScreen() {
             {currentTask && (
               <div className="bigscreen-current-task-container">
                 <div className="bigscreen-current-task-label">{currentTask.label}</div>
+                {/* Hint bar — 附著在中央米色對話框底部，顯示當前任務選定階的提示 */}
+                {hintEnabled && hintLevel && currentTaskId && (() => {
+                  const hint = TASK_HINTS[currentTaskId];
+                  const meta = hintLevelMeta(hintLevel);
+                  return (
+                    <div className="bs-hint-bar">
+                      <span className="bs-hint-bar-tag">{meta.num} {meta.label}</span>
+                      <span className="bs-hint-bar-content">
+                        {!hint ? (
+                          <span className="bs-hint-empty">此任務尚無提示</span>
+                        ) : hintLevel === 'keyword' ? (
+                          hint.keyword.map((w, i) => <span key={i} className="bs-hint-chip">{w}</span>)
+                        ) : hintLevel === 'options' ? (
+                          hint.options.map((o, i) => (
+                            <span key={i} className="bs-hint-opt"><b>{i + 1}.</b> {o}</span>
+                          ))
+                        ) : (
+                          <span className="bs-hint-line">{hintLevel === 'sentenceStart' ? hint.sentenceStart : hintLevel === 'halfPattern' ? hint.halfPattern : hint.fullDemo}</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1099,30 +1122,6 @@ export default function BigScreen() {
               </div> */}
             </div>
           </>
-        );
-      })()}
-
-      {/* Bottom hint bar — 顯示當前任務選定階的提示 */}
-      {hintEnabled && hintLevel && currentTaskId && (() => {
-        const hint = TASK_HINTS[currentTaskId];
-        const meta = hintLevelMeta(hintLevel);
-        return (
-          <div className="bs-hint-bar">
-            <span className="bs-hint-bar-tag">{meta.num} {meta.label}</span>
-            <span className="bs-hint-bar-content">
-              {!hint ? (
-                <span className="bs-hint-empty">此任務尚無提示</span>
-              ) : hintLevel === 'keyword' ? (
-                hint.keyword.map((w, i) => <span key={i} className="bs-hint-chip">{w}</span>)
-              ) : hintLevel === 'options' ? (
-                hint.options.map((o, i) => (
-                  <span key={i} className="bs-hint-opt"><b>{i + 1}.</b> {o}</span>
-                ))
-              ) : (
-                <span className="bs-hint-line">{hintLevel === 'sentenceStart' ? hint.sentenceStart : hintLevel === 'halfPattern' ? hint.halfPattern : hint.fullDemo}</span>
-              )}
-            </span>
-          </div>
         );
       })()}
 
