@@ -16,7 +16,7 @@
  *   MediaPipe "Right" hand (person right) → VRM 'leftHand' etc.
  */
 import * as THREE from 'three';
-import { solveWithKalidokit, type BoneRotation } from './kalidokitSolver';
+import { solveWithKalidokit, BONE_ROTATION_LIMITS, clampAngle, type BoneRotation } from './kalidokitSolver';
 import { Face } from 'kalidokit';
 import type { VRM } from '@pixiv/three-vrm';
 import type { PoseFrame } from '../types/vrm';
@@ -283,6 +283,8 @@ export interface PoseApplyState {
   /** Pre-allocated hand bone maps; updated in-place each frame (replaces prevLeft/RightHandBones) */
   leftHandBones: Record<string, BoneRotation>;
   rightHandBones: Record<string, BoneRotation>;
+  /** performance.now() of the last kalidokit solve – feeds the solver's velocity gate (0 = never) */
+  lastSolveAt: number;
 }
 
 export function createPoseApplyState(): PoseApplyState {
@@ -300,6 +302,7 @@ export function createPoseApplyState(): PoseApplyState {
     cachedHipsPos: null,
     leftHandBones,
     rightHandBones,
+    lastSolveAt: 0,
   };
 }
 
@@ -330,6 +333,10 @@ export function applyPoseToVrm(
 
   // ── Solver phase (skipped when reuseLastSolve + cache is warm) ────────────
   if (!reuseLastSolve || !state.cachedBoneRotations) {
+    const now = performance.now();
+    // Seconds since the last solve – the solver uses this to scale its
+    // angular-velocity glitch gate so it behaves the same at any data rate.
+    const dt = state.lastSolveAt > 0 ? (now - state.lastSolveAt) / 1000 : 1 / 30;
     const worldLms = frame.worldLandmarks?.length >= 33 ? frame.worldLandmarks : frame.landmarks;
     const { boneRotations, hipsPosition, solved } = solveWithKalidokit(
       worldLms,
@@ -337,6 +344,7 @@ export function applyPoseToVrm(
       state.prevRotations,
       solverSmoothing,
       mirror,
+      dt,
     );
     // Only update cache when kalidokit produced a valid result.
     // If poseRig was undefined (e.g. first frame before detector warms up),
@@ -346,6 +354,7 @@ export function applyPoseToVrm(
       state.prevRotations = boneRotations;
       state.cachedBoneRotations = boneRotations;
       state.cachedHipsPos = hipsPosition ?? null;
+      state.lastSolveAt = now;
     } else if (!state.cachedBoneRotations) {
       // No prior cache and solver failed — nothing to apply yet
       return;
@@ -425,10 +434,16 @@ export function applyPoseToVrm(
       // Head Rotation
       const head = humanoid.getNormalizedBoneNode('head');
       if (head) {
+        // Clamp to a plausible head range so a flipped face-tracking frame
+        // can't whip the head into a 360° / broken-neck pose.
+        const HL = BONE_ROTATION_LIMITS.head;
+        const hx = clampAngle(faceRig.head.x, HL.x);
+        const hy = clampAngle(faceRig.head.y, HL.y);
+        const hz = clampAngle(faceRig.head.z, HL.z);
         // For visual mirroring, swap Y and Z rotation signs
-        const rotX = mirror ? -faceRig.head.x : faceRig.head.x;
-        const rotY = mirror ? -faceRig.head.y : faceRig.head.y;
-        const rotZ = mirror ? -faceRig.head.z : faceRig.head.z;
+        const rotX = mirror ? -hx : hx;
+        const rotY = mirror ? -hy : hy;
+        const rotZ = mirror ? -hz : hz;
         _euler.set(rotX, rotY, rotZ, 'XYZ');
         _targetQuat.setFromEuler(_euler);
         head.quaternion.slerp(_targetQuat, t);
