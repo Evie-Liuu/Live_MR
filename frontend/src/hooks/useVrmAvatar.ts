@@ -102,6 +102,7 @@ export function useVrmAvatar(
 
     loadVrm({ url: vrmSource.url, scene, spawn })
       .then(({ vrm }) => {
+        vrm.scene.position.set(0, 0.6, 1.8);
         vrmRef.current = vrm;
       })
       .catch((err) => {

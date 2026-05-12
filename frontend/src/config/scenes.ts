@@ -52,7 +52,7 @@ export const THEMES: ThemeConfig[] = [
         modules: [
           {
             id: 'ask_price',
-            label: 'Ask for a Price',
+            label: 'Price',
             icon: '💰',
             tasks: [
               { id: 'ask_price_1', label: 'Ask for the price of a blue T-shirt.' },
@@ -69,7 +69,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'ask_size',
-            label: 'Sizes',
+            label: 'Size',
             icon: '✏️',
             tasks: [
               { id: 'ask_size_1', label: 'Ask for a medium T-shirt.' },
@@ -97,7 +97,7 @@ export const THEMES: ThemeConfig[] = [
               { id: 'ask_color_6', label: 'Ask whether the skirt comes in pink.' },
               { id: 'ask_color_7', label: 'Ask whether the store has the same item in another color.' },
               { id: 'ask_color_8', label: 'Ask to see the blue one.' },
-              { id: 'ask_color_9', label: 'Ask to compare the black one and the white one.' },
+              { id: 'ask_color_9', label: 'Ask if they have this in beige.' },
               { id: 'ask_color_10', label: 'Ask whether this item is available in a darker color.' },
             ],
           },
