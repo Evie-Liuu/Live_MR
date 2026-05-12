@@ -193,7 +193,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // Latest pose snapshot for all participants (used when opening big screen mid-session)
   const poseSnapshotRef = useRef<Record<string, unknown>>({});
-  const teacherPoolRef  = useRef<PoseDecodePool>(createPoseDecodePool());
+  const teacherPoolRef = useRef<PoseDecodePool>(createPoseDecodePool());
   const studentPoolsRef = useRef<Map<string, PoseDecodePool>>(new Map());
 
   // ─── Scene / VRM source selection ─────────────────────────────────────────
@@ -1448,7 +1448,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                   <div className="hs-hint-panel-task">
                     {selectedTasks.length === 0 ? '尚未選擇任務'
                       : !currentTask ? '所有任務已完成'
-                      : currentTask.label}
+                        : currentTask.label}
                   </div>
                   <div className="hs-hint-levels">
                     {HINT_LEVELS.map(({ level, num, label }) => (
