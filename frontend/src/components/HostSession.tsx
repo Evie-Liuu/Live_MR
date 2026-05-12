@@ -1457,7 +1457,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         className={`hs-hint-level-btn ${hintLevel === level ? 'is-active' : ''}`}
                         disabled={!currentTask || !hint}
                         onClick={() => setHint(level)}
-                      >{num}{label}</button>
+                      >{num} {label}</button>
                     ))}
                     <button
                       className={`hs-hint-level-btn hs-hint-level-btn--none ${hintLevel === null ? 'is-active' : ''}`}
@@ -1481,7 +1481,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                       <div className="hs-hint-allref">
                         {HINT_LEVELS.filter(l => l.level !== hintLevel).map(({ level, num, label }) => (
                           <div key={level} className="hs-hint-ref-row">
-                            <span className="hs-hint-ref-tag">{num}{label}</span>
+                            <span className="hs-hint-ref-tag">{num} {label}</span>
                             <span className="hs-hint-ref-content">{renderLevelContent(level)}</span>
                           </div>
                         ))}
