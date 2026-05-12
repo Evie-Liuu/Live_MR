@@ -116,13 +116,20 @@ interface UseBigScreenSceneOptions {
   currentTaskId?: string;
   /** Called once per frame with renderer stats. Only passed when stats panel is visible. */
   onStats?: (s: StatsSnapshot) => void;
+  /**
+   * Called after the scene's initial static + task props have finished loading
+   * (or immediately if the preset declares no propSystem). Fires on every
+   * (re)initialisation of the scene — i.e. on mount and on every sceneId change.
+   * Used by the BigScreen boot-loading overlay to track progress.
+   */
+  onScenePropsReady?: () => void;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -176,6 +183,9 @@ export function useBigScreenScene(
   const onStatsRef = useRef<((s: StatsSnapshot) => void) | undefined>(undefined);
   onStatsRef.current = onStats;
 
+  const onScenePropsReadyRef = useRef<(() => void) | undefined>(undefined);
+  onScenePropsReadyRef.current = onScenePropsReady;
+
   const avgPoseIntervalsRef = useRef<Record<string, number>>({});
 
   // ─── Scene initialisation ─────────────────────────────────────────────────
@@ -216,20 +226,25 @@ export function useBigScreenScene(
 
     // Pre-load scene props (per-asset errors are swallowed inside propLoader)
     let propsCancelled = false;
+    const notifyPropsReady = () => { if (!propsCancelled) onScenePropsReadyRef.current?.(); };
     if (preset.propSystem) {
-      loadStaticProps(preset.propSystem.staticProps ?? [], scene)
+      const staticP = loadStaticProps(preset.propSystem.staticProps ?? [], scene)
         .then((groups) => {
           if (propsCancelled) { disposeStaticProps(groups, scene); return; }
           staticPropGroupsRef.current = groups;
         })
         .catch((err) => console.warn('[BigScreenScene] staticProps load error:', err));
 
-      loadTaskProps(preset.propSystem.taskProps ?? {}, scene)
+      const taskP = loadTaskProps(preset.propSystem.taskProps ?? {}, scene)
         .then((pool) => {
           if (propsCancelled) { disposeTaskProps(pool, scene); return; }
           taskPropPoolRef.current = pool;
         })
         .catch((err) => console.warn('[BigScreenScene] taskProps load error:', err));
+
+      Promise.allSettled([staticP, taskP]).then(notifyPropsReady);
+    } else {
+      notifyPropsReady();
     }
 
     // Render loop

@@ -218,12 +218,74 @@ export default function BigScreen() {
   // const [showStats, setShowStats] = useState(false);
   // const [statsData, setStatsData] = useState<StatsSnapshot | null>(null);
 
+  // ─── Boot loading overlay ──────────────────────────────────────────────────
+  // Cover the BigScreen with a "場景載入中" overlay (spinner + progress bar)
+  // until the initial scene assets have loaded: static/task props, the snapshot's
+  // VRM avatars, and the background image (if any). Each is one progress "unit".
+  const bootPlanRef = useRef<{ expectedAvatars: Set<string>; hasBgImage: boolean; total: number } | null>(null);
+  if (bootPlanRef.current === null) {
+    let expected: string[] = [];
+    let hasBgImage = false;
+    try {
+      const snapshot: Record<string, unknown> = JSON.parse(sessionStorage.getItem('bigscreen-snapshot') || '{}');
+      const preset = SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID];
+      const isSlotted = !!(preset?.slots && preset.slots.length > 0);
+      const slotIdentities = new Set<string>(
+        Object.values(JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}') as Record<string, string>),
+      );
+      expected = Object.keys(snapshot).filter((id) => !isSlotted || slotIdentities.has(id));
+      hasBgImage = preset?.backgroundType === 'image' && !!preset?.backgroundValue;
+    } catch { /* ignore — boot overlay will just be quick */ }
+    bootPlanRef.current = {
+      expectedAvatars: new Set(expected),
+      hasBgImage,
+      total: expected.length + 1 + (hasBgImage ? 1 : 0), // +1 = scene props
+    };
+  }
+  const bootDoneRef = useRef<Set<string>>(new Set());
+  const bootFinishingRef = useRef(false);
+  const bootStartRef = useRef<number>(performance.now());
+  const [bootProgress, setBootProgress] = useState(0); // 0..100
+  const [bootPhase, setBootPhase] = useState<'loading' | 'fading' | 'hidden'>('loading');
+
+  const hideBootOverlay = () => {
+    setBootProgress(100);
+    setBootPhase((p) => (p === 'loading' ? 'fading' : p));
+    window.setTimeout(() => setBootPhase((p) => (p === 'fading' ? 'hidden' : p)), 450);
+  };
+  const maybeFinishBoot = () => {
+    if (bootFinishingRef.current) return;
+    if (bootDoneRef.current.size < (bootPlanRef.current?.total ?? 1)) return;
+    bootFinishingRef.current = true;
+    const elapsed = performance.now() - bootStartRef.current;
+    window.setTimeout(hideBootOverlay, Math.max(0, 700 - elapsed)); // keep visible briefly so it never just flashes
+  };
+  const bumpBootUnit = (unitId: string) => {
+    if (bootDoneRef.current.has(unitId)) return;
+    bootDoneRef.current.add(unitId);
+    const total = bootPlanRef.current?.total ?? 1;
+    setBootProgress(Math.min(100, Math.round((bootDoneRef.current.size / total) * 100)));
+    maybeFinishBoot();
+  };
+
+  // Safety net: never let the overlay get stuck if an asset stalls.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      if (bootFinishingRef.current) return;
+      bootFinishingRef.current = true;
+      hideBootOverlay();
+    }, 20000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
     slotAssignments,
     currentTaskId,
     onStats: undefined, // showStats ? setStatsData : undefined,
+    onScenePropsReady: () => bumpBootUnit('props'),
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -736,9 +798,17 @@ export default function BigScreen() {
 
       // ② Apply poses — ensureAvatar picks up the pre-registered override above.
       //    applyPose will skip identities not assigned to a slot in slotted scenes.
+      //    For avatars the boot overlay is waiting on, mark the unit done once the
+      //    underlying VRM load settles (resolve OR reject — we just want it off the bar).
+      const expected = bootPlanRef.current?.expectedAvatars;
       for (const [identity, poseData] of Object.entries(snapshot)) {
-        applyPose(identity, poseData);
+        const p = applyPose(identity, poseData);
+        if (expected?.has(identity)) {
+          p.finally(() => bumpBootUnit(`avatar:${identity}`));
+        }
       }
+      // If the snapshot turned out to contain no avatars we expected, the only
+      // remaining boot unit is the scene props (handled via onScenePropsReady).
     } catch (e) {
       console.warn('[BigScreen] Failed to parse snapshot', e);
     }
@@ -1010,7 +1080,13 @@ export default function BigScreen() {
           }}
         >
           {currentPreset.backgroundType === 'image' && currentPreset.backgroundValue && (
-            <img src={currentPreset.backgroundValue} alt="Background" />
+            <img
+              src={currentPreset.backgroundValue}
+              alt="Background"
+              ref={(el) => { if (el && el.complete && el.naturalWidth > 0) bumpBootUnit('bg'); }}
+              onLoad={() => bumpBootUnit('bg')}
+              onError={() => bumpBootUnit('bg')}
+            />
           )}
           {currentPreset.backgroundType === 'video' && currentPreset.backgroundValue && (
             <VideoBackground src={currentPreset.backgroundValue} interval={currentPreset.videoLoopInterval} />
@@ -1222,6 +1298,20 @@ export default function BigScreen() {
       <PerformanceMonitor label="Render FPS" position="top-right" />
       <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
       {/* {showStats && statsData && <StatsPanel data={statsData} />} */}
+
+      {/* Boot loading overlay — covers the scene until initial assets are loaded */}
+      {bootPhase !== 'hidden' && (
+        <div className={`bigscreen-loading-overlay${bootPhase === 'fading' ? ' is-fading' : ''}`}>
+          <div className="bs-loading-inner">
+            <div className="gradient-spinner" />
+            <div className="bs-loading-title">場景載入中…</div>
+            <div className="bs-loading-bar">
+              <div className="bs-loading-bar-fill" style={{ width: `${bootProgress}%` }} />
+            </div>
+            <div className="bs-loading-pct">{bootProgress}%</div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }

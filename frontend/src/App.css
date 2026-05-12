@@ -5123,3 +5123,65 @@ button:disabled {
   opacity: 0.7;
   font-style: italic;
 }
+
+/* ── BigScreen boot loading overlay ───────────────────────────────────────── */
+.bigscreen-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #1c2a2b 0%, #0e1617 65%, #080d0e 100%);
+  transition: opacity 0.45s ease;
+}
+
+.bigscreen-loading-overlay.is-fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bs-loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bs-loading-inner .gradient-spinner {
+  width: 110px;
+  height: 110px;
+  margin-bottom: 32px;
+}
+
+.bs-loading-title {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #e8f3f2;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  margin-bottom: 24px;
+}
+
+.bs-loading-bar {
+  width: 340px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.bs-loading-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #00A99D, #F76E12);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bs-loading-pct {
+  margin-top: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #9fb8b6;
+  font-variant-numeric: tabular-nums;
+}
