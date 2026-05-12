@@ -22,11 +22,12 @@ export interface TaskHint {
 
 /** 有序的階層元資料 —— HostSession 按鈕列與 BigScreen 標籤都用這個 */
 export const HINT_LEVELS: ReadonlyArray<{ level: HintLevel; num: string; label: string }> = [
-  { level: 'keyword',       num: '①', label: '關鍵字' },
+  { level: 'keyword', num: '①', label: '關鍵字' },
   { level: 'sentenceStart', num: '②', label: '句首提示' },
-  { level: 'halfPattern',   num: '③', label: '半句型提示' },
-  { level: 'options',       num: '④', label: '選項引導' },
-  { level: 'fullDemo',      num: '⑤', label: '完整示範' },
+  { level: 'halfPattern', num: '③', label: '半句型提示' },
+  { level: 'options', num: '④', label: '選項引導' },
+  { level: 'fullDemo', num: '⑤', label: '完整示範' },
+  // { level: 'fullDemo', num: '②', label: '完整示範' },
 ]
 
 export function hintLevelMeta(level: HintLevel) {

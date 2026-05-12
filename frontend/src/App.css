@@ -5021,6 +5021,9 @@ button:disabled {
 
 .hs-hint-opts li {
   margin: 3px 0;
+  text-align: left;
+  line-height: 18px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .hs-hint-allref {
@@ -5033,7 +5036,8 @@ button:disabled {
   gap: 8px;
   padding: 4px 4px;
   font-size: 13px;
-  border: 1px solid #f76e12;
+  /* border: 1px solid #f76e12; */
+  border: 2px solid var(--primary-light2);
   border-radius: 10px;
   margin-bottom: 5px;
 }
@@ -5047,7 +5051,6 @@ button:disabled {
 
 .hs-hint-ref-content {
   opacity: 0.85;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .hs-hint-ref-content .hs-hint-chips {
