@@ -32,10 +32,14 @@ export interface HandLandmark {
 // ─── VRM bone maps ────────────────────────────────────────────────────────────
 // Mirror: MediaPipe Left → VRM Right prefix, MediaPipe Right → VRM Left prefix
 
-/** MediaPipe "Left" hand → VRM right-side bones (mirror convention) */
+/**
+ * MediaPipe "Left" hand → VRM right-side bones (mirror convention).
+ * Wrist (rightHand/leftHand) is intentionally NOT mapped here — it is driven
+ * solely by the pose solver (arm-derived). Mapping it here too caused the bone
+ * to oscillate between the arm rotation and a forced-zero target as hand
+ * detection (15 fps) interleaved with pose frames (30 fps).
+ */
 const LEFT_HAND_BONE_MAP: Record<string, string> = {
-  // Wrist
-  Wrist: 'rightHand',
   // Thumb
   ThumbProximal: 'rightThumbMetacarpal',
   ThumbIntermediate: 'rightThumbProximal',
@@ -58,9 +62,8 @@ const LEFT_HAND_BONE_MAP: Record<string, string> = {
   LittleDistal: 'rightLittleDistal',
 }
 
-/** MediaPipe "Right" hand → VRM left-side bones (mirror convention) */
+/** MediaPipe "Right" hand → VRM left-side bones (mirror convention). Wrist excluded — see LEFT_HAND_BONE_MAP. */
 const RIGHT_HAND_BONE_MAP: Record<string, string> = {
-  Wrist: 'leftHand',
   ThumbProximal: 'leftThumbMetacarpal',
   ThumbIntermediate: 'leftThumbProximal',
   ThumbDistal: 'leftThumbDistal',
@@ -208,16 +211,12 @@ export function solveHand(
   for (const [role, vrmName] of Object.entries(boneMap)) {
     let euler: { x: number; y: number; z: number };
 
-    if (role === 'Wrist') {
+    if (gesture === 'Open') {
       euler = EULER_OPEN;
-    } else if (gesture === 'Open') {
-      euler = EULER_OPEN;
+    } else if (role.startsWith('Thumb')) {
+      euler = isVrmLeft ? FIST_THUMB_L : FIST_THUMB_R;
     } else {
-      if (role.startsWith('Thumb')) {
-        euler = isVrmLeft ? FIST_THUMB_L : FIST_THUMB_R;
-      } else {
-        euler = isVrmLeft ? FIST_FINGER_L : FIST_FINGER_R;
-      }
+      euler = isVrmLeft ? FIST_FINGER_L : FIST_FINGER_R;
     }
 
     const cur = eulerToBoneRot(euler); // writes into _boneRotTemp

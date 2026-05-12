@@ -83,7 +83,7 @@ export const BONE_ROTATION_LIMITS: Record<string, { x: number; y: number; z: num
  * behaviour is identical whether pose data arrives at 30 fps or 8 fps on a slow
  * device. Set far above any natural human motion.
  */
-const MAX_ANGULAR_SPEED_RAD_PER_S = 720 * DEG
+const MAX_ANGULAR_SPEED_RAD_PER_S = 1800 * DEG
 
 /** Clamp a scalar angle to ±limit. */
 export function clampAngle(v: number, limit: number): number {
@@ -221,8 +221,7 @@ export function solveWithKalidokit(
       ? { x: euler.x, y: -euler.y, z: zRot }
       : { x: euler.x, y: euler.y, z: euler.z }
     const currentQuat = eulerToQuaternion(mirrored)
-    // rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing, maxStepRad)
-    rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing, Infinity)
+    rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing, maxStepRad)
   }
 
   // Handle Hips
@@ -233,7 +232,7 @@ export function solveWithKalidokit(
       ? { x: hipsEuler.x, y: -hipsEuler.y, z: -hipsEuler.z * 0.1 }  // -hipsEuler.z
       : hipsEuler
     const hipsQuat = eulerToQuaternion(mirroredHips)
-    rotations.hips = slerpRotation(hipsQuat, prevRotations.hips, smoothing, maxStepRad)
+    rotations.hips = slerpRotation(hipsQuat, prevRotations.hips, smoothing, maxStepRad / 2)
 
     hipsPosition = {
       x: poseRig.Hips.position.x,

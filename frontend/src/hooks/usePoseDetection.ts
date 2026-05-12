@@ -11,9 +11,18 @@ const POSE_MODEL_PATH = '/mediapipe-models/pose_landmarker_heavy.task';
 const FACE_MODEL_PATH = '/mediapipe-models/face_landmarker.task';
 const HAND_MODEL_PATH = '/mediapipe-models/hand_landmarker.task';
 import { encodePoseFrame } from '../utils/poseCodec';
+import { LandmarkSmoother } from '../utils/oneEuroFilter';
 
 /** Minimum interval between detections (~30 fps) */
 const DETECT_INTERVAL_MS = 33;
+
+/**
+ * One-Euro tuning for the raw MediaPipe pose landmarks. Lower `minCutoff` =
+ * heavier smoothing when you hold still (kills jitter); `beta` lifts the cutoff
+ * as you move so fast gestures don't lag. If it feels sluggish, raise both;
+ * if it still shimmers when still, lower `minCutoff`.
+ */
+const POSE_SMOOTH = { minCutoff: 0.3, beta: 20, dCutoff: 1.0 } as const;
 
 export function usePoseDetection(
   videoRef: RefObject<HTMLVideoElement | null>,
@@ -141,6 +150,12 @@ export function usePoseDetection(
           Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
         const worldLandmarksBuf: PoseLandmark[] =
           Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
+
+        // One-Euro smoothing on the raw landmarks — removes per-frame jitter at
+        // the source (before Kalidokit), which downstream bone-rotation smoothing
+        // can't fully reach. Separate instances for screen-space vs world-space.
+        const poseLmSmoother = new LandmarkSmoother(33, POSE_SMOOTH.minCutoff, POSE_SMOOTH.beta, POSE_SMOOTH.dCutoff);
+        const poseWorldSmoother = new LandmarkSmoother(33, POSE_SMOOTH.minCutoff, POSE_SMOOTH.beta, POSE_SMOOTH.dCutoff);
         const faceLandmarksBuf: PoseLandmark[] =
           Array.from({ length: 478 }, () => ({ x: 0, y: 0, z: 0, visibility: 0 }));
         const leftHandBuf: PoseLandmark[] =
@@ -179,30 +194,28 @@ export function usePoseDetection(
                       worldLandmarksBuf[i].z = wl[i].z;
                       worldLandmarksBuf[i].visibility = wl[i].visibility ?? 0;
                     }
+                    poseWorldSmoother.apply(worldLandmarksBuf, now);
                     worldLandmarks = worldLandmarksBuf;
                   } else {
                     worldLandmarks = [];
                   }
 
-                  // Reuse buffer when no overlay subscriber (HostSession path).
-                  // When subscribed (StudentSession), allocate a fresh array so
-                  // React's reference-equality re-render check still fires.
-                  let landmarks: PoseLandmark[];
+                  // Copy raw → buffer, smooth in place, then branch:
+                  //  - overlay subscriber (StudentSession): clone into a fresh
+                  //    array so React's reference-equality re-render check fires.
+                  //  - no subscriber (HostSession): reuse the buffer directly.
                   const pl = result.landmarks[0];
-                  if (onLandmarksUpdateRef.current) {
-                    landmarks = pl.map((l) => ({
-                      x: l.x, y: l.y, z: l.z,
-                      visibility: l.visibility ?? 0,
-                    }));
-                  } else {
-                    for (let i = 0; i < pl.length; i++) {
-                      landmarksBuf[i].x = pl[i].x;
-                      landmarksBuf[i].y = pl[i].y;
-                      landmarksBuf[i].z = pl[i].z;
-                      landmarksBuf[i].visibility = pl[i].visibility ?? 0;
-                    }
-                    landmarks = landmarksBuf;
+                  for (let i = 0; i < pl.length; i++) {
+                    landmarksBuf[i].x = pl[i].x;
+                    landmarksBuf[i].y = pl[i].y;
+                    landmarksBuf[i].z = pl[i].z;
+                    landmarksBuf[i].visibility = pl[i].visibility ?? 0;
                   }
+                  poseLmSmoother.apply(landmarksBuf, now);
+
+                  const landmarks: PoseLandmark[] = onLandmarksUpdateRef.current
+                    ? landmarksBuf.map((l) => ({ x: l.x, y: l.y, z: l.z, visibility: l.visibility }))
+                    : landmarksBuf;
 
                   const frame: PoseFrame = {
                     type: 'pose',
