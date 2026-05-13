@@ -221,7 +221,7 @@ export function useBigScreenScene(
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.info.autoReset = true;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.shadowMap.autoUpdate = false;
     rendererRef.current = renderer;
 

@@ -26,6 +26,7 @@ export function applyLights(scene: THREE.Scene, config: SceneConfig): void {
         shadowLightAdded = true;
       }
       scene.add(l);
+      // scene.add(new THREE.DirectionalLightHelper(l));
     }
   }
 }

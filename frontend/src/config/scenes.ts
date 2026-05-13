@@ -249,7 +249,7 @@ const CLOTHING_STORE_BASE: Omit<SceneConfig, 'id' | 'label' | 'slots' | 'allowed
   },
   lights: [
     { type: 'ambient', color: 0xffffff, intensity: 0.8 },
-    { type: 'directional', color: 0xffffff, intensity: 2.3, position: [0, 1.8, 3], target: [0, 0, 0] },
+    { type: 'directional', color: 0xffffff, intensity: 2.3, position: [-0.2, 1.8, 3], target: [0, 0, 0] },
     { type: 'directional', color: 0x8888ff, intensity: 0.6, position: [0.5, 2, 0.5], target: [-3, 0, -3] },
   ],
   // backgroundType: 'image',
