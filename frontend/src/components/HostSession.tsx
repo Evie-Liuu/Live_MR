@@ -1115,7 +1115,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             {/* Header — matches BigScreen style */}
             <div className="bs-settlement-header">
               <div className="bs-settlement-trophy">
-                <img src="/images/medal.png" alt="Trophy" />
+                <img src="/images/UI/medal.png" alt="Trophy" />
               </div>
               <div className="bs-settlement-title">情境對話結束</div>
               <div className="bs-settlement-subtitle">所有任務已完成！</div>
@@ -1434,9 +1434,14 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               const hint = currentTask ? TASK_HINTS[currentTask.id] : undefined;
               const renderLevelContent = (lv: HintLevel) => {
                 if (!hint) return null;
-                if (lv === 'keyword') return <div className="hs-hint-chips">{hint.keyword.map((w, i) => <span key={i} className="hs-hint-chip">{w}</span>)}</div>;
-                if (lv === 'options') return <ol className="hs-hint-opts">{hint.options.map((o, i) => <li key={i}>{o}</li>)}</ol>;
-                const text = lv === 'sentenceStart' ? hint.sentenceStart : lv === 'halfPattern' ? hint.halfPattern : hint.fullDemo;
+                if (lv === 'unscramble')
+                  return <div className="hs-hint-chips">{hint.unscramble.map((w, i) => <span key={i} className="hs-hint-chip">{w}</span>)}</div>;
+                if (lv === 'extraPhrases')
+                  return <ol className="hs-hint-opts">{hint.extraPhrases.map((o, i) => <li key={i}>{o}</li>)}</ol>;
+                const text =
+                  lv === 'completeSentence' ? hint.completeSentence
+                    : lv === 'keyStructure' ? hint.keyStructure
+                      : hint.partialSentence;
                 return <div className="hs-hint-line">{text}</div>;
               };
               return (

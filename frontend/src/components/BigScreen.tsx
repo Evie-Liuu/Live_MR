@@ -1156,14 +1156,18 @@ export default function BigScreen() {
                       <span className="bs-hint-bar-content">
                         {!hint ? (
                           <span className="bs-hint-empty">此任務尚無提示</span>
-                        ) : hintLevel === 'keyword' ? (
-                          hint.keyword.map((w, i) => <span key={i} className="bs-hint-chip">{w}</span>)
-                        ) : hintLevel === 'options' ? (
-                          hint.options.map((o, i) => (
+                        ) : hintLevel === 'unscramble' ? (
+                          hint.unscramble.map((w, i) => <span key={i} className="bs-hint-chip">{w}</span>)
+                        ) : hintLevel === 'extraPhrases' ? (
+                          hint.extraPhrases.map((o, i) => (
                             <span key={i} className="bs-hint-opt"><b>{i + 1}.</b> {o}</span>
                           ))
                         ) : (
-                          <span className="bs-hint-line">{hintLevel === 'sentenceStart' ? hint.sentenceStart : hintLevel === 'halfPattern' ? hint.halfPattern : hint.fullDemo}</span>
+                          <span className="bs-hint-line">
+                            {hintLevel === 'completeSentence' ? hint.completeSentence
+                              : hintLevel === 'keyStructure' ? hint.keyStructure
+                                : hint.partialSentence}
+                          </span>
                         )}
                       </span>
                     </div>
@@ -1212,7 +1216,7 @@ export default function BigScreen() {
             <div className="bs-settlement-header">
               <div className="bs-settlement-trophy">
                 {/* <span className="material-symbols-outlined bs-settlement-trophy-icon">workspace_premium</span> */}
-                <img src="/images/medal.png" alt="Trophy" />
+                <img src="/images/UI/medal.png" alt="Trophy" />
               </div>
               <div className="bs-settlement-title">情境對話結束</div>
               <div className="bs-settlement-subtitle">所有任務已完成！</div>
