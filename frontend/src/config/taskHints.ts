@@ -49,37 +49,37 @@ export const TASK_HINTS: Record<string, TaskHint> = {
   // ── Ask for a Price ──────────────────────────────────────────────────────
 
   ask_price_1: {
-    keyStructure: 'How much + is + the + [color] + [item]?',
-    partialSentence: 'How much ___ the blue T-shirt?',
-    unscramble: ['How', 'much', 'is', 'the', 'blue', 'T-shirt?'],
-    completeSentence: 'How much is the blue T-shirt?',
+    keyStructure: 'What + is + the price of + the + [color] + [item]?',
+    partialSentence: 'What is the _____ of the _____ _____?',
+    unscramble: ['What', 'the', 'T-shirt?', 'price', 'of', 'is', 'the', 'blue'],
+    completeSentence: 'What is the price of the blue T-shirt?',
     extraPhrases: [
+      'How much is the blue T-shirt?',
       'How much does the blue T-shirt cost?',
-      'What is the price of the blue T-shirt?',
     ],
   },
 
-  ask_price_2: {
-    keyStructure: 'How much + is + the + [color] + [item]?',
-    partialSentence: 'How much ___ the black jacket?',
-    unscramble: ['How', 'much', 'is', 'the', 'black', 'jacket?'],
-    completeSentence: 'How much is the black jacket?',
-    extraPhrases: [
-      'How much does the black jacket cost?',
-      'What is the price of the black jacket?',
-    ],
-  },
+  // ask_price_2: {
+  //   keyStructure: 'How much + is + the + [color] + [item]?',
+  //   partialSentence: 'How much ___ the black jacket?',
+  //   unscramble: ['How', 'much', 'is', 'the', 'black', 'jacket?'],
+  //   completeSentence: 'How much is the black jacket?',
+  //   extraPhrases: [
+  //     'How much does the black jacket cost?',
+  //     'What is the price of the black jacket?',
+  //   ],
+  // },
 
-  ask_price_3: {
-    keyStructure: 'How much + is + the + [color] + [item]?',
-    partialSentence: 'How much ___ the red skirt?',
-    unscramble: ['How', 'much', 'is', 'the', 'red', 'skirt?'],
-    completeSentence: 'How much is the red skirt?',
-    extraPhrases: [
-      'How much does the red skirt cost?',
-      'What is the price of the red skirt?',
-    ],
-  },
+  // ask_price_3: {
+  //   keyStructure: 'How much + is + the + [color] + [item]?',
+  //   partialSentence: 'How much ___ the red skirt?',
+  //   unscramble: ['How', 'much', 'is', 'the', 'red', 'skirt?'],
+  //   completeSentence: 'How much is the red skirt?',
+  //   extraPhrases: [
+  //     'How much does the red skirt cost?',
+  //     'What is the price of the red skirt?',
+  //   ],
+  // },
 
   // ask_price_4: {
   //   keyStructure: 'How much + is + the + [color] + [item]?',
@@ -157,4 +157,26 @@ export const TASK_HINTS: Record<string, TaskHint> = {
   //     'Which of these is cheaper?',
   //   ],
   // },
+
+  ask_size_1: {
+    keyStructure: 'Do you have + this + [item] + in + [size]?',
+    partialSentence: '____ you ____ this _____ _____ medium?',
+    unscramble: ['you', 'this', 'T-shirt', 'in', 'Do', 'have', 'medium?'],
+    completeSentence: 'Do you have this medium T-shirt?',
+    extraPhrases: [
+      'Do you have a medium size?',
+      'Can I get this T-shirt in medium?'
+    ],
+  },
+
+  compare_items_2: {
+    keyStructure: 'Which + [item] + looks better, the + [color] + one or the + [color] + one?',
+    partialSentence: '_____ Jacket looks _____, the _____ one ____ the _____ one?',
+    unscramble: ['looks', 'better', 'the', 'one', 'black', 'the', 'brown', 'one?', 'Which', 'jacket', 'or'],
+    completeSentence: 'Which jacket looks better, the black one or the brown one?',
+    extraPhrases: [
+      'Which color looks better?',
+      'Which jacket do you like better?',
+    ],
+  }
 }
