@@ -1102,6 +1102,9 @@ export default function BigScreen() {
         className="bigscreen-canvas"
       />
 
+      {/* 2b. Bottom vignette for depth */}
+      <div className="bigscreen-vignette-bottom" />
+
       {/* 3. Overlay UI Layer */}
       <div className="bigscreen-overlay">
         <span className="bigscreen-title">MR 雙語角 — 大屏顯示</span>

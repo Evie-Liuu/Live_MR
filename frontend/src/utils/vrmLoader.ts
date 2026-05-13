@@ -111,6 +111,14 @@ export function loadVrm({
 
         scene.add(vrm.scene);
 
+        // Enable shadow casting on all VRM meshes
+        vrm.scene.traverse((obj) => {
+          if ((obj as THREE.Mesh).isMesh) {
+            (obj as THREE.Mesh).castShadow = true;
+            (obj as THREE.Mesh).receiveShadow = true;
+          }
+        });
+
         // Configure spring bones for better hair physics
         configureSpringBones(vrm);
 

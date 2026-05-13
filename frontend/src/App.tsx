@@ -2,9 +2,10 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
 import { createRoom } from './api.ts';
 import RoleSelect from './components/RoleSelect.tsx';
+import BigScreen from './components/BigScreen.tsx';
 import './App.css';
 
-const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
+// const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
 const ShareScreen = lazy(() => import('./components/ShareScreen.tsx'));
 const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
 const HostSession = lazy(() => import('./components/HostSession.tsx'));

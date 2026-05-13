@@ -220,9 +220,22 @@ export function useBigScreenScene(
     renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.info.autoReset = true;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = false;
     rendererRef.current = renderer;
 
     applyLights(scene, preset);
+
+    // Invisible floor plane to catch VRM avatar shadows
+    const shadowFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(24, 24),
+      new THREE.ShadowMaterial({ opacity: 0.35, transparent: true }),
+    );
+    shadowFloor.rotation.x = -Math.PI / 2;
+    shadowFloor.position.y = 0;
+    shadowFloor.receiveShadow = true;
+    scene.add(shadowFloor);
 
     // Pre-load scene props (per-asset errors are swallowed inside propLoader)
     let propsCancelled = false;
@@ -248,11 +261,14 @@ export function useBigScreenScene(
     }
 
     // Render loop
+    let shadowTick = 0;
     const animate = (timestamp: number) => {
       rafRef.current = requestAnimationFrame(animate);
       timerRef.current.update(timestamp);
       const delta = timerRef.current.getDelta();
       elapsedRef.current += delta;
+      // Update shadow map every 2 frames to halve shadow rendering cost
+      renderer.shadowMap.needsUpdate = (shadowTick++ % 2 === 0);
 
       for (const [identity, slot] of avatarsRef.current.entries()) {
         // Adaptive lerp speed: proportional to actual pose data rate.
@@ -515,6 +531,9 @@ export function useBigScreenScene(
       disposeTaskProps(taskPropPoolRef.current, scene);
       heldByIdentityRef.current.clear();
       avgPoseIntervalsRef.current = {};
+      scene.remove(shadowFloor);
+      (shadowFloor.material as THREE.Material).dispose();
+      shadowFloor.geometry.dispose();
       renderer.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

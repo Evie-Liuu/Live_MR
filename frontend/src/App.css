@@ -2520,15 +2520,13 @@ button:disabled {
   right: 24px;
   z-index: 2;
   width: 400px;
-  background: rgba(151, 147, 144, 0.5);
-  /* backdrop-filter: blur(12px); */
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  /* background: rgba(252, 233, 215, 0.88);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(247, 110, 18, 0.25); */
+  background: rgba(18, 15, 12, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
   padding: 16px;
-  box-shadow: 0 8px 28px rgba(247, 110, 18, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(247, 110, 18, 0.08) inset;
   animation: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -2640,9 +2638,8 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(79, 70, 229, 0.15);
-  /* box-shadow: 0 16px 48px rgba(247, 110, 18, 0.18), 0 0 28px rgba(0, 169, 157, 0.1); */
-  animation: slideDownFade 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(247, 110, 18, 0.15);
+  animation: slideDownFade 0.8s cubic-bezier(0.16, 1, 0.3, 1), taskGlow 3s ease-in-out infinite 0.8s;
   overflow: hidden;
 }
 
@@ -2655,6 +2652,18 @@ button:disabled {
   to {
     transform: translate(-50%, 0);
     opacity: 1;
+  }
+}
+
+@keyframes taskGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(247, 110, 18, 0.15);
+  }
+
+  50% {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 55px rgba(247, 110, 18, 0.38), 0 0 90px rgba(247, 110, 18, 0.1);
   }
 }
 
@@ -4854,8 +4863,8 @@ button:disabled {
   padding: 3px 10px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
+  background: var(--secondary-light);
+  color: var(--text-dark);
   font-family: 'Nunito', inherit;
   font-size: 12px;
   font-weight: 800;
@@ -4869,7 +4878,9 @@ button:disabled {
 }
 
 .hs-hint-toggle.is-on {
-  background: rgba(255, 255, 255, 0.95);
+  /* background: rgba(255, 255, 255, 0.95); */
+  background: var(--secondary-light);
+
   color: var(--primary, #f76e12);
   border-color: rgba(255, 255, 255, 0.95);
 }
@@ -4887,7 +4898,7 @@ button:disabled {
 
 /* ── Task Hint: control panel (HostSession, right of preview) ──────────── */
 .hs-hint-panel {
-  width: 340px;
+  width: 420px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -4939,13 +4950,18 @@ button:disabled {
   transition: all 0.12s;
 }
 
-.hs-hint-level-btn:hover:not(:disabled) {
+.hs-hint-level-btn:hover:not(:disabled):not(.is-active) {
   background: rgba(247, 110, 18, 0.08);
 }
 
 .hs-hint-level-btn.is-active {
-  background: var(--primary, #f76e12);
+  background: var(--secondary, #00A99D);
   color: #fff;
+  border-color: var(--secondary, #00A99D);
+}
+
+.hs-hint-level-btn.is-active:last-child {
+  background: var(--primary, #f76e12);
   border-color: var(--primary, #f76e12);
 }
 
@@ -4975,7 +4991,8 @@ button:disabled {
 
 .hs-hint-active {
   background: #fff;
-  border: 1px solid rgba(247, 110, 18, 0.25);
+  /* border: 1px solid rgba(247, 110, 18, 0.25); */
+  border: 1px solid rgba(78, 205, 196, 0.45);
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 12px;
@@ -4984,7 +5001,7 @@ button:disabled {
 .hs-hint-active-tag {
   font-size: 13px;
   font-weight: 800;
-  color: var(--primary, #f76e12);
+  color: var(--secondary, #f76e12);
   margin-bottom: 6px;
 }
 
@@ -5115,6 +5132,18 @@ button:disabled {
 .bs-hint-bar .bs-hint-empty {
   opacity: 0.7;
   font-style: italic;
+}
+
+/* ── BigScreen bottom vignette (atmospheric depth) ────────────────────────── */
+.bigscreen-vignette-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 220px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.45) 0%, transparent 100%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 /* ── BigScreen boot loading overlay ───────────────────────────────────────── */

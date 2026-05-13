@@ -17,6 +17,12 @@ async function loadGlb(
 ): Promise<THREE.Group | null> {
   try {
     const gltf = await loader.loadAsync(url);
+    gltf.scene.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        (obj as THREE.Mesh).castShadow = true;
+        (obj as THREE.Mesh).receiveShadow = true;
+      }
+    });
     scene.add(gltf.scene);
     return gltf.scene;
   } catch (err) {
