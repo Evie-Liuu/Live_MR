@@ -115,7 +115,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
   const [handEnabled, _] = useState(faceEnabled);
-  const [lowPowerMode, setLowPowerMode] = useState(false);
+  const [lowPowerMode, setLowPowerMode] = useState(true);
   const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintEnabled') ?? 'false'); } catch { return false; }
   });
