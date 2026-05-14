@@ -651,6 +651,13 @@ export default function BigScreen() {
     const ctx = compositeCanvas.getContext('2d')!;
 
     const drawCover = (ctx: CanvasRenderingContext2D, element: HTMLImageElement | HTMLVideoElement, cw: number, ch: number) => {
+      ctx.save();
+      ctx.filter = 'blur(1.2px)';
+      // Apply scale(1.1) to match CSS
+      ctx.translate(cw / 2, ch / 2);
+      ctx.scale(1.1, 1.1);
+      ctx.translate(-cw / 2, -ch / 2);
+
       let sw = 0;
       let sh = 0;
       if (element.tagName === 'IMG') {
@@ -662,6 +669,7 @@ export default function BigScreen() {
       }
       if (!sw || !sh) {
         ctx.drawImage(element, 0, 0, cw, ch);
+        ctx.restore();
         return;
       }
       const scale = Math.max(cw / sw, ch / sh);
@@ -670,6 +678,7 @@ export default function BigScreen() {
       const dx = (cw - dw) / 2;
       const dy = (ch - dh) / 2;
       ctx.drawImage(element, 0, 0, sw, sh, dx, dy, dw, dh);
+      ctx.restore();
     };
 
     const drawFrame = () => {

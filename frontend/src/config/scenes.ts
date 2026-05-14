@@ -241,7 +241,7 @@ export const THEMES: ThemeConfig[] = [
 /** Camera / lights / background shared by ALL scenes in the 服飾店 theme */
 const CLOTHING_STORE_BASE: Omit<SceneConfig, 'id' | 'label' | 'slots' | 'allowedVrmIds' | 'modules'> = {
   camera: {
-    fov: 40,
+    fov: 35,
     position: [0, 1.5, 5],
     lookAt: [0, 1.5, 0],
     near: 0.1,

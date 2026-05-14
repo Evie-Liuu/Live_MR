@@ -140,6 +140,8 @@ export function useVrmAvatar(
           cameraRef.current.aspect = w / h;
           cameraRef.current.updateProjectionMatrix();
         }
+        // Force synchronous render to prevent 1-frame flicker after buffer resize
+        renderer.render(scene, cameraRef.current || camera);
       }
     });
     ro.observe(canvas);
