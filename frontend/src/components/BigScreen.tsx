@@ -214,6 +214,12 @@ export default function BigScreen() {
     overlayVersionRef.current++;
   }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded]);
 
+  // rVFC toggle — controls whether the recording loop uses requestVideoFrameCallback
+  // to gate video-bg redraws. Toggled via backtick key on BigScreen.
+  const rvfcEnabledRef = useRef(false);
+  const rvfcResetRef = useRef(false); // pulsed to force re-arm inside the closure
+  const [_, setRvfcEnabled] = useState(true);
+
   // Flush pose count to state every 1 s so PerformanceMonitor count-mode can compute rate.
   useEffect(() => {
     const id = setInterval(() => {
@@ -700,6 +706,11 @@ export default function BigScreen() {
       bgVideoCached = bgDivCached?.querySelector('video') ?? null;
       // Invalidate prebake on bg ref refresh (scene change)
       bgPrebakedKey = null;
+      // Reset rVFC arming + force a fresh blur draw against the new video element
+      videoBgRvfcArmedFor = null;
+      videoBgRvfcSupported = false;
+      videoBgDirty = true;
+      videoBlurReady = false;
     };
 
     // Pre-baked image background — blur+scale only runs once per (img, size, color)
@@ -707,6 +718,87 @@ export default function BigScreen() {
     const bgPrebakedCanvas = document.createElement('canvas');
     const bgPrebakedCtx = bgPrebakedCanvas.getContext('2d')!;
     let bgPrebakedKey: string | null = null;
+
+    // Video/camera background: downscale-then-upscale acts as a cheap box blur
+    // approximating ctx.filter='blur(1.2px)' at a fraction of the CPU cost.
+    // Frame updates driven by requestVideoFrameCallback when supported, so the
+    // small canvas is refreshed only when the <video> element actually advances.
+    const VIDEO_BLUR_DOWNSCALE = 0.5;
+    const videoBlurCanvas = document.createElement('canvas');
+    const videoBlurCtx = videoBlurCanvas.getContext('2d')!;
+    let videoBlurReady = false;
+    let videoBlurSrcW = 0;
+    let videoBlurSrcH = 0;
+    let videoBgDirty = true;
+    let videoBgRvfcArmedFor: HTMLVideoElement | null = null;
+    let videoBgRvfcSupported = false;
+
+    type VFC = (cb: () => void) => number;
+    const armVideoBgRvfc = () => {
+      const v = bgVideoCached;
+      if (!v) return;
+
+      // Handle toggle change: rvfcResetRef pulsed from the keyboard handler.
+      // Clear arm state so the next call below will re-evaluate.
+      if (rvfcResetRef.current) {
+        videoBgRvfcArmedFor = null;
+        videoBgRvfcSupported = false;
+        videoBgDirty = true;
+        rvfcResetRef.current = false;
+      }
+
+      // Disabled: stop any running rVFC chain (next onFrame won't re-arm) and return.
+      if (!rvfcEnabledRef.current) {
+        videoBgRvfcArmedFor = null;
+        videoBgRvfcSupported = false;
+        return;
+      }
+
+      if (videoBgRvfcArmedFor === v) return;
+      videoBgRvfcArmedFor = v;
+      const rvfc = (v as unknown as { requestVideoFrameCallback?: VFC }).requestVideoFrameCallback;
+      if (typeof rvfc !== 'function') {
+        videoBgRvfcSupported = false;
+        return;
+      }
+      videoBgRvfcSupported = true;
+      const onFrame = () => {
+        videoBgDirty = true;
+        // Only re-arm if this video is still the active background and rVFC is still enabled.
+        if (bgVideoCached === v && videoBgRvfcArmedFor === v && rvfcEnabledRef.current) {
+          (v as unknown as { requestVideoFrameCallback: VFC }).requestVideoFrameCallback(onFrame);
+        }
+      };
+      (v as unknown as { requestVideoFrameCallback: VFC }).requestVideoFrameCallback(onFrame);
+    };
+
+    const drawCoverFromBlur = (
+      target: CanvasRenderingContext2D,
+      src: HTMLCanvasElement,
+      sw: number,
+      sh: number,
+      cw: number,
+      ch: number,
+    ) => {
+      target.save();
+      target.imageSmoothingEnabled = true;
+      target.imageSmoothingQuality = 'low';
+      target.translate(cw / 2, ch / 2);
+      target.scale(1.1, 1.1);
+      target.translate(-cw / 2, -ch / 2);
+      if (!sw || !sh) {
+        target.drawImage(src, 0, 0, cw, ch);
+        target.restore();
+        return;
+      }
+      const scale = Math.max(cw / sw, ch / sh);
+      const dw = sw * scale;
+      const dh = sh * scale;
+      const dx = (cw - dw) / 2;
+      const dy = (ch - dh) / 2;
+      target.drawImage(src, 0, 0, src.width, src.height, dx, dy, dw, dh);
+      target.restore();
+    };
 
     refreshBgRefs();
 
@@ -791,8 +883,30 @@ export default function BigScreen() {
             hasBg = true;
           }
           if (hasVideo) {
-            drawCover(ctx, bgVideoCached!, cw, ch);
-            hasBg = true;
+            armVideoBgRvfc();
+            // Without rVFC (not supported or manually disabled), fall back to
+            // per-frame redraw — still cheaper than the old ctx.filter blur.
+            if (!rvfcEnabledRef.current || !videoBgRvfcSupported) videoBgDirty = true;
+
+            if (videoBgDirty) {
+              const sw = bgVideoCached!.videoWidth;
+              const sh = bgVideoCached!.videoHeight;
+              if (sw && sh) {
+                const dw = Math.max(2, Math.floor(sw * VIDEO_BLUR_DOWNSCALE));
+                const dh = Math.max(2, Math.floor(sh * VIDEO_BLUR_DOWNSCALE));
+                if (videoBlurCanvas.width !== dw) videoBlurCanvas.width = dw;
+                if (videoBlurCanvas.height !== dh) videoBlurCanvas.height = dh;
+                videoBlurSrcW = sw;
+                videoBlurSrcH = sh;
+                videoBlurCtx.drawImage(bgVideoCached!, 0, 0, dw, dh);
+                videoBlurReady = true;
+                videoBgDirty = false;
+              }
+            }
+            if (videoBlurReady) {
+              drawCoverFromBlur(ctx, videoBlurCanvas, videoBlurSrcW, videoBlurSrcH, cw, ch);
+              hasBg = true;
+            }
           }
         }
       }
@@ -866,10 +980,15 @@ export default function BigScreen() {
           return !v;
         });
         */
+        const next = !rvfcEnabledRef.current;
+        rvfcEnabledRef.current = next;
+        rvfcResetRef.current = true; // signal closure to re-arm / disarm on next drawFrame
+        setRvfcEnabled(next);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Apply snapshot stored by HostSession before the window was opened
@@ -1235,6 +1354,23 @@ export default function BigScreen() {
         >
           <span className="recording-dot" />
           錄製中
+          {/* {currentPreset?.backgroundType === 'video' || currentPreset?.backgroundType === 'camera' ? (
+            <span
+              title="影片背景幀驅動（按 ` 切換）"
+              style={{
+                marginLeft: '4px',
+                fontSize: '11px',
+                fontWeight: 500,
+                color: rvfcEnabled ? '#22c55e' : '#94a3b8',
+                background: 'rgba(0,0,0,0.08)',
+                borderRadius: '6px',
+                padding: '1px 6px',
+                letterSpacing: '0.02em',
+              }}
+            >
+              rVFC {rvfcEnabled ? 'ON' : 'OFF'}
+            </span>
+          ) : null} */}
         </div>
       )}
 
