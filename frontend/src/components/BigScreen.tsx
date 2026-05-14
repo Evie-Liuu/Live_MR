@@ -207,6 +207,13 @@ export default function BigScreen() {
   const hasRecordedRef = useRef(hasRecorded);
   useEffect(() => { hasRecordedRef.current = hasRecorded; }, [hasRecorded]);
 
+  // Bump overlay version whenever any input the overlay reads from changes.
+  // The recording loop's dirty-check uses this to skip ~all overlay redraws
+  // while the UI is steady, which is most of a session.
+  useEffect(() => {
+    overlayVersionRef.current++;
+  }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded]);
+
   // Flush pose count to state every 1 s so PerformanceMonitor count-mode can compute rate.
   useEffect(() => {
     const id = setInterval(() => {
@@ -322,15 +329,26 @@ export default function BigScreen() {
     ctx.closePath();
   };
 
-  /** Cached medal img for settlement overlay — avoids querySelector per frame. */
+  /** Cached medal img for settlement overlay — avoids querySelector per frame.
+   *  When a not-yet-loaded img is first cached, register a one-shot onload to
+   *  invalidate the overlay so the medal appears once it finishes loading. */
   const medalImgCacheRef = useRef<HTMLImageElement | null>(null);
   const getMedalImg = (): HTMLImageElement | null => {
     const cached = medalImgCacheRef.current;
     if (cached && cached.isConnected) return cached;
     const found = document.querySelector('.bs-settlement-trophy img') as HTMLImageElement | null;
     medalImgCacheRef.current = found;
+    if (found && !(found.complete && found.naturalWidth > 0)) {
+      const onReady = () => { overlayVersionRef.current++; };
+      found.addEventListener('load', onReady, { once: true });
+      found.addEventListener('error', onReady, { once: true });
+    }
     return found;
   };
+
+  /** Bumped whenever overlay-relevant state changes; recording loop reads this
+   *  to decide whether to repaint the offscreen overlay canvas. */
+  const overlayVersionRef = useRef(0);
 
   /**
    * Paint the Overlay UI Layer and Settlement overlay onto the recording canvas.
@@ -660,6 +678,17 @@ export default function BigScreen() {
     compositeCanvas.height = sourceCanvas.height || window.innerHeight;
     const ctx = compositeCanvas.getContext('2d')!;
 
+    // Offscreen canvas for the overlay UI (top pill, task panel, settlement).
+    // Repainted only when overlayVersionRef changes — saves measureText/gradient
+    // work every frame during steady periods.
+    const overlayCanvas = document.createElement('canvas');
+    overlayCanvas.width = compositeCanvas.width;
+    overlayCanvas.height = compositeCanvas.height;
+    const overlayCtx = overlayCanvas.getContext('2d')!;
+    let lastOverlayVersion = -1;
+    let lastOverlayW = 0;
+    let lastOverlayH = 0;
+
     // Cache background DOM refs — they only change on scene-change, not per-frame.
     // Re-resolve lazily inside drawFrame if any are missing (background not yet mounted).
     let bgDivCached: HTMLElement | null = null;
@@ -669,7 +698,16 @@ export default function BigScreen() {
       bgDivCached = document.querySelector('.bigscreen-bg') as HTMLElement | null;
       bgImgCached = bgDivCached?.querySelector('img') ?? null;
       bgVideoCached = bgDivCached?.querySelector('video') ?? null;
+      // Invalidate prebake on bg ref refresh (scene change)
+      bgPrebakedKey = null;
     };
+
+    // Pre-baked image background — blur+scale only runs once per (img, size, color)
+    // tuple instead of every frame.
+    const bgPrebakedCanvas = document.createElement('canvas');
+    const bgPrebakedCtx = bgPrebakedCanvas.getContext('2d')!;
+    let bgPrebakedKey: string | null = null;
+
     refreshBgRefs();
 
     const drawCover = (ctx: CanvasRenderingContext2D, element: HTMLImageElement | HTMLVideoElement, cw: number, ch: number) => {
@@ -725,20 +763,37 @@ export default function BigScreen() {
       let hasBg = false;
       if (bgDivCached) {
         const bgColor = bgDivCached.style.backgroundColor;
-        if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-          ctx.fillStyle = bgColor;
-          ctx.fillRect(0, 0, cw, ch);
-          hasBg = true;
-        }
+        const hasColorFill = !!bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent';
+        const hasImage = !!(bgImgCached && bgImgCached.complete && bgImgCached.naturalWidth > 0);
+        const hasVideo = !!(bgVideoCached && bgVideoCached.readyState >= 2);
 
-        if (bgImgCached && bgImgCached.complete && bgImgCached.naturalWidth > 0) {
-          drawCover(ctx, bgImgCached, cw, ch);
+        // Image-only path: prebake once, then drawImage every frame (cheap).
+        // Video/camera always changes per frame, so don't prebake when video is present.
+        if (hasImage && !hasVideo) {
+          const key = `${bgImgCached!.src}|${cw}x${ch}|${hasColorFill ? bgColor : ''}`;
+          if (key !== bgPrebakedKey || bgPrebakedCanvas.width !== cw || bgPrebakedCanvas.height !== ch) {
+            if (bgPrebakedCanvas.width !== cw) bgPrebakedCanvas.width = cw;
+            if (bgPrebakedCanvas.height !== ch) bgPrebakedCanvas.height = ch;
+            bgPrebakedCtx.clearRect(0, 0, cw, ch);
+            if (hasColorFill) {
+              bgPrebakedCtx.fillStyle = bgColor;
+              bgPrebakedCtx.fillRect(0, 0, cw, ch);
+            }
+            drawCover(bgPrebakedCtx, bgImgCached!, cw, ch);
+            bgPrebakedKey = key;
+          }
+          ctx.drawImage(bgPrebakedCanvas, 0, 0);
           hasBg = true;
-        }
-
-        if (bgVideoCached && bgVideoCached.readyState >= 2) {
-          drawCover(ctx, bgVideoCached, cw, ch);
-          hasBg = true;
+        } else {
+          if (hasColorFill) {
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, cw, ch);
+            hasBg = true;
+          }
+          if (hasVideo) {
+            drawCover(ctx, bgVideoCached!, cw, ch);
+            hasBg = true;
+          }
         }
       }
 
@@ -750,8 +805,18 @@ export default function BigScreen() {
       // 2. Draw 3D Canvas
       ctx.drawImage(sourceCanvas, 0, 0, cw, ch);
 
-      // 3. Draw Overlay UI Layer + Settlement overlay
-      _drawOverlayOnCanvas(ctx, cw, ch);
+      // 3. Draw Overlay UI Layer + Settlement overlay (cached on offscreen canvas)
+      const v = overlayVersionRef.current;
+      if (v !== lastOverlayVersion || lastOverlayW !== cw || lastOverlayH !== ch) {
+        if (overlayCanvas.width !== cw) overlayCanvas.width = cw;
+        if (overlayCanvas.height !== ch) overlayCanvas.height = ch;
+        overlayCtx.clearRect(0, 0, cw, ch);
+        _drawOverlayOnCanvas(overlayCtx, cw, ch);
+        lastOverlayVersion = v;
+        lastOverlayW = cw;
+        lastOverlayH = ch;
+      }
+      ctx.drawImage(overlayCanvas, 0, 0, cw, ch);
     };
 
     recordingRafRef.current = requestAnimationFrame(drawFrame);
