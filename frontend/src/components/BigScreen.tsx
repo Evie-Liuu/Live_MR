@@ -216,9 +216,14 @@ export default function BigScreen() {
 
   // rVFC toggle — controls whether the recording loop uses requestVideoFrameCallback
   // to gate video-bg redraws. Toggled via backtick key on BigScreen.
-  const rvfcEnabledRef = useRef(false);
+  const rvfcEnabledRef = useRef(true);
   const rvfcResetRef = useRef(false); // pulsed to force re-arm inside the closure
-  const [_, setRvfcEnabled] = useState(true);
+  const [rvfcEnabled, setRvfcEnabled] = useState(true);
+
+  // Adjustable THREE.js render FPS cap (10–60, 0 = unlimited).
+  // Passed to useBigScreenScene via renderFpsLimit option (read every frame via ref).
+  const renderFpsRef = useRef(0);
+  const [renderFps, setRenderFps] = useState(0);
 
   // Flush pose count to state every 1 s so PerformanceMonitor count-mode can compute rate.
   useEffect(() => {
@@ -299,6 +304,7 @@ export default function BigScreen() {
     currentTaskId,
     onStats: undefined, // showStats ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
+    renderFpsLimit: renderFps,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -834,12 +840,11 @@ export default function BigScreen() {
     };
 
     // Throttle to 30 fps to match captureStream(30); avoid wasted draws on 60/120/144 Hz displays.
-    const targetInterval = 1000 / 30;
     let lastDrawAt = 0;
 
     const drawFrame = (now: number) => {
       recordingRafRef.current = requestAnimationFrame(drawFrame);
-      if (now - lastDrawAt < targetInterval) return;
+      if (now - lastDrawAt < 1000 / 30) return;
       lastDrawAt = now;
 
       const cw = sourceCanvas.width || window.innerWidth;
@@ -984,6 +989,17 @@ export default function BigScreen() {
         rvfcEnabledRef.current = next;
         rvfcResetRef.current = true; // signal closure to re-arm / disarm on next drawFrame
         setRvfcEnabled(next);
+      } else if (e.key === '[') {
+        // 0 = unlimited; stepping down from 0 starts at 60
+        const cur = renderFpsRef.current === 0 ? 60 : renderFpsRef.current;
+        const next = Math.max(10, cur - 5);
+        renderFpsRef.current = next;
+        setRenderFps(next);
+      } else if (e.key === ']') {
+        const cur = renderFpsRef.current;
+        const next = cur >= 60 ? 0 : Math.min(60, cur + 5); // 0 = unlimited above 60
+        renderFpsRef.current = next;
+        setRenderFps(next);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1354,11 +1370,25 @@ export default function BigScreen() {
         >
           <span className="recording-dot" />
           錄製中
-          {/* {currentPreset?.backgroundType === 'video' || currentPreset?.backgroundType === 'camera' ? (
+          <span
+            title="大屏渲染 FPS（[ 降低 / ] 提高，每次 5fps；顯示「不限」時按 ] 無作用）"
+            style={{
+              marginLeft: '4px',
+              fontSize: '11px',
+              fontWeight: 500,
+              color: '#F76E12',
+              background: 'rgba(0,0,0,0.08)',
+              borderRadius: '6px',
+              padding: '1px 6px',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {renderFps === 0 ? '不限fps' : `${renderFps}fps`}
+          </span>
+          {(currentPreset?.backgroundType === 'video' || currentPreset?.backgroundType === 'camera') && (
             <span
               title="影片背景幀驅動（按 ` 切換）"
               style={{
-                marginLeft: '4px',
                 fontSize: '11px',
                 fontWeight: 500,
                 color: rvfcEnabled ? '#22c55e' : '#94a3b8',
@@ -1370,7 +1400,7 @@ export default function BigScreen() {
             >
               rVFC {rvfcEnabled ? 'ON' : 'OFF'}
             </span>
-          ) : null} */}
+          )}
         </div>
       )}
 

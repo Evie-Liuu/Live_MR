@@ -75,8 +75,8 @@ interface AvatarSlot {
     returningTaskId: string | undefined;
     /** performance.now() when hand landmarks were last seen (grace period) */
     handLostAt: number;
-    /** Consecutive fist-detected frames — must reach GRAB_CONFIRM_FRAMES before grab */
-    grabConfirmCount: number;
+    /** performance.now() when the first fist frame was detected (0 = not tracking) */
+    grabFistFirstAt: number;
     /** performance.now() deadline before which open-hand release is ignored */
     grabCooldownUntil: number;
   };
@@ -88,8 +88,9 @@ interface AvatarSlot {
 const BASE_LERP_SPEED = 14;
 const BASE_INTERVAL_MS = 33;
 
-/** Number of consecutive fist-detected frames required before triggering a grab */
-const GRAB_CONFIRM_FRAMES = 3;
+/** Milliseconds the fist must be held continuously before triggering a grab.
+ *  Time-based so behaviour is identical at any render/pose FPS. */
+const GRAB_CONFIRM_MS = 100;
 /** Milliseconds after a grab during which open-hand is ignored (prevents instant release) */
 const GRAB_RELEASE_COOLDOWN_MS = 600;
 
@@ -123,13 +124,15 @@ interface UseBigScreenSceneOptions {
    * Used by the BigScreen boot-loading overlay to track progress.
    */
   onScenePropsReady?: () => void;
+  /** Cap the THREE.js render loop. 0 = unlimited (default). Read every frame via ref. */
+  renderFpsLimit?: number;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -185,6 +188,9 @@ export function useBigScreenScene(
 
   const onScenePropsReadyRef = useRef<(() => void) | undefined>(undefined);
   onScenePropsReadyRef.current = onScenePropsReady;
+
+  const renderFpsLimitRef = useRef<number>(0);
+  renderFpsLimitRef.current = renderFpsLimit ?? 0;
 
   const avgPoseIntervalsRef = useRef<Record<string, number>>({});
 
@@ -262,8 +268,12 @@ export function useBigScreenScene(
 
     // Render loop
     let shadowTick = 0;
+    let lastRenderAt = 0;
     const animate = (timestamp: number) => {
       rafRef.current = requestAnimationFrame(animate);
+      const fpsLimit = renderFpsLimitRef.current;
+      if (fpsLimit > 0 && timestamp - lastRenderAt < 1000 / fpsLimit) return;
+      lastRenderAt = timestamp;
       timerRef.current.update(timestamp);
       const delta = timerRef.current.getDelta();
       elapsedRef.current += delta;
@@ -330,7 +340,7 @@ export function useBigScreenScene(
             // Reset grab state for the new task
             ia.lockHand = null;
             ia.handLostAt = 0;
-            ia.grabConfirmCount = 0;
+            ia.grabFistFirstAt = 0;
             ia.grabCooldownUntil = 0;
             ia.lastTaskId = taskId;
           }
@@ -405,13 +415,14 @@ export function useBigScreenScene(
 
                 if (fist && (raised || near)) {
                   fistDetectedThisFrame = true;
-                  ia.grabConfirmCount++;
-                  if (ia.grabConfirmCount >= GRAB_CONFIRM_FRAMES) {
+                  const now = performance.now();
+                  if (ia.grabFistFirstAt === 0) ia.grabFistFirstAt = now;
+                  if (now - ia.grabFistFirstAt >= GRAB_CONFIRM_MS) {
                     ia.propState = 'held';
                     ia.lockHand = hand;
                     ia.handLostAt = 0;
-                    ia.grabConfirmCount = 0;
-                    ia.grabCooldownUntil = performance.now() + GRAB_RELEASE_COOLDOWN_MS;
+                    ia.grabFistFirstAt = 0;
+                    ia.grabCooldownUntil = now + GRAB_RELEASE_COOLDOWN_MS;
                     heldByIdentityRef.current.set(taskId, identity);
                     highlightProp(prop, false);
                     grabbedThisFrame = true;
@@ -420,10 +431,9 @@ export function useBigScreenScene(
                 }
               }
             }
-            // Only reset counter when no fist gesture was present this frame;
-            // keep accumulating while the fist is held but count < threshold.
+            // Reset timer when fist breaks — must be held continuously for GRAB_CONFIRM_MS.
             if (!fistDetectedThisFrame && !grabbedThisFrame) {
-              ia.grabConfirmCount = 0;
+              ia.grabFistFirstAt = 0;
             }
 
             // ── held: follow hand bone, detect release ─────────────────────────
@@ -639,7 +649,7 @@ export function useBigScreenScene(
               lastTaskId: undefined,
               returningTaskId: undefined,
               handLostAt: 0,
-              grabConfirmCount: 0,
+              grabFistFirstAt: 0,
               grabCooldownUntil: 0,
             },
             _propUV: { x: 0, y: 0 },
