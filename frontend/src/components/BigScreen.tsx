@@ -322,6 +322,16 @@ export default function BigScreen() {
     ctx.closePath();
   };
 
+  /** Cached medal img for settlement overlay — avoids querySelector per frame. */
+  const medalImgCacheRef = useRef<HTMLImageElement | null>(null);
+  const getMedalImg = (): HTMLImageElement | null => {
+    const cached = medalImgCacheRef.current;
+    if (cached && cached.isConnected) return cached;
+    const found = document.querySelector('.bs-settlement-trophy img') as HTMLImageElement | null;
+    medalImgCacheRef.current = found;
+    return found;
+  };
+
   /**
    * Paint the Overlay UI Layer and Settlement overlay onto the recording canvas.
    * Reads exclusively from refs so any render cycle's drawFrame gets fresh data.
@@ -472,8 +482,8 @@ export default function BigScreen() {
 
       let sy = py + 36;
 
-      // Medal image (read from DOM)
-      const medalImg = document.querySelector('.bs-settlement-trophy img') as HTMLImageElement | null;
+      // Medal image (cached DOM ref; only re-queried if stale)
+      const medalImg = getMedalImg();
       if (medalImg && medalImg.complete && medalImg.naturalWidth > 0) {
         const imgSize = 72;
         ctx.drawImage(medalImg, cw / 2 - imgSize / 2, sy, imgSize, imgSize);
@@ -650,6 +660,18 @@ export default function BigScreen() {
     compositeCanvas.height = sourceCanvas.height || window.innerHeight;
     const ctx = compositeCanvas.getContext('2d')!;
 
+    // Cache background DOM refs — they only change on scene-change, not per-frame.
+    // Re-resolve lazily inside drawFrame if any are missing (background not yet mounted).
+    let bgDivCached: HTMLElement | null = null;
+    let bgImgCached: HTMLImageElement | null = null;
+    let bgVideoCached: HTMLVideoElement | null = null;
+    const refreshBgRefs = () => {
+      bgDivCached = document.querySelector('.bigscreen-bg') as HTMLElement | null;
+      bgImgCached = bgDivCached?.querySelector('img') ?? null;
+      bgVideoCached = bgDivCached?.querySelector('video') ?? null;
+    };
+    refreshBgRefs();
+
     const drawCover = (ctx: CanvasRenderingContext2D, element: HTMLImageElement | HTMLVideoElement, cw: number, ch: number) => {
       ctx.save();
       ctx.filter = 'blur(1.2px)';
@@ -681,7 +703,15 @@ export default function BigScreen() {
       ctx.restore();
     };
 
-    const drawFrame = () => {
+    // Throttle to 30 fps to match captureStream(30); avoid wasted draws on 60/120/144 Hz displays.
+    const targetInterval = 1000 / 30;
+    let lastDrawAt = 0;
+
+    const drawFrame = (now: number) => {
+      recordingRafRef.current = requestAnimationFrame(drawFrame);
+      if (now - lastDrawAt < targetInterval) return;
+      lastDrawAt = now;
+
       const cw = sourceCanvas.width || window.innerWidth;
       const ch = sourceCanvas.height || window.innerHeight;
       if (compositeCanvas.width !== cw) compositeCanvas.width = cw;
@@ -690,25 +720,24 @@ export default function BigScreen() {
       ctx.clearRect(0, 0, cw, ch);
 
       // 1. Draw Background
-      const bgDiv = document.querySelector('.bigscreen-bg') as HTMLElement;
+      // Re-resolve refs only if the cached element is stale (e.g. scene-change replaced .bigscreen-bg).
+      if (!bgDivCached || !bgDivCached.isConnected) refreshBgRefs();
       let hasBg = false;
-      if (bgDiv) {
-        const bgColor = bgDiv.style.backgroundColor;
+      if (bgDivCached) {
+        const bgColor = bgDivCached.style.backgroundColor;
         if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
           ctx.fillStyle = bgColor;
           ctx.fillRect(0, 0, cw, ch);
           hasBg = true;
         }
 
-        const img = bgDiv.querySelector('img');
-        if (img && img.complete && img.naturalWidth > 0) {
-          drawCover(ctx, img, cw, ch);
+        if (bgImgCached && bgImgCached.complete && bgImgCached.naturalWidth > 0) {
+          drawCover(ctx, bgImgCached, cw, ch);
           hasBg = true;
         }
 
-        const video = bgDiv.querySelector('video');
-        if (video && video.readyState >= 2) {
-          drawCover(ctx, video, cw, ch);
+        if (bgVideoCached && bgVideoCached.readyState >= 2) {
+          drawCover(ctx, bgVideoCached, cw, ch);
           hasBg = true;
         }
       }
@@ -723,8 +752,6 @@ export default function BigScreen() {
 
       // 3. Draw Overlay UI Layer + Settlement overlay
       _drawOverlayOnCanvas(ctx, cw, ch);
-
-      recordingRafRef.current = requestAnimationFrame(drawFrame);
     };
 
     recordingRafRef.current = requestAnimationFrame(drawFrame);
