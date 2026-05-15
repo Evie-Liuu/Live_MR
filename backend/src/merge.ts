@@ -3,21 +3,34 @@ import path from 'path'
 import fs from 'fs'
 
 /**
- * Wait for a file to appear on disk, polling every second.
- * Rejects after timeoutMs.
+ * Wait for a file to exist AND stop growing (two consecutive 1-second polls with
+ * identical non-zero size). This is necessary for chunked streaming uploads where
+ * the file is created with the first chunk and continues to grow until the last
+ * chunk is written — checking existence alone would cause ffmpeg to read a
+ * partial file.
  */
-function waitForFile(filePath: string, timeoutMs: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const start = Date.now()
-    const check = () => {
-      if (fs.existsSync(filePath)) return resolve()
-      if (Date.now() - start > timeoutMs) {
-        return reject(new Error(`Timeout waiting for file: ${filePath}`))
+async function waitForFileStable(filePath: string, timeoutMs: number): Promise<void> {
+  const start = Date.now()
+  let lastSize = -1
+  let stableCount = 0
+
+  while (Date.now() - start < timeoutMs) {
+    if (fs.existsSync(filePath)) {
+      const size = fs.statSync(filePath).size
+      if (size > 0 && size === lastSize) {
+        stableCount++
+        if (stableCount >= 2) return // stable for 2 consecutive seconds → upload complete
+      } else {
+        stableCount = 0
+        lastSize = size
       }
-      setTimeout(check, 1000)
+    } else {
+      stableCount = 0
+      lastSize = -1
     }
-    check()
-  })
+    await new Promise<void>(r => setTimeout(r, 1000))
+  }
+  throw new Error(`Timeout waiting for file to complete: ${filePath}`)
 }
 
 /** Run ffmpeg with the given args; resolves on exit code 0, rejects otherwise. */
@@ -53,7 +66,7 @@ export async function mergeRecording(
   const outputPath = path.join(dir, 'output.mp4')
 
   // Wait for BigScreen to finish uploading (it uploads after receiving recording-stop)
-  await waitForFile(bigscreenPath, 30_000)
+  await waitForFileStable(bigscreenPath, 30_000)
 
   // Collect available audio files, one per participant
   const audioInputs: string[] = []
