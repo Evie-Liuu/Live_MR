@@ -451,12 +451,32 @@ export default function BigScreen() {
       const boxX = (cw - boxW) / 2;
       const boxY = 96;
 
+      // When the hint bar is shown, flatten the bottom corners so hint bar joins flush.
+      const hintActive = hintEnabledRef.current && hintLevelRef.current;
+      const taskBoxPath = () => {
+        if (hintActive) {
+          // Top corners rounded, bottom corners square
+          const r = 24;
+          ctx.beginPath();
+          ctx.moveTo(boxX + r, boxY);
+          ctx.lineTo(boxX + boxW - r, boxY);
+          ctx.arcTo(boxX + boxW, boxY, boxX + boxW, boxY + r, r);
+          ctx.lineTo(boxX + boxW, boxY + boxH);
+          ctx.lineTo(boxX, boxY + boxH);
+          ctx.lineTo(boxX, boxY + r);
+          ctx.arcTo(boxX, boxY, boxX + r, boxY, r);
+          ctx.closePath();
+        } else {
+          rrPath(ctx, boxX, boxY, boxW, boxH, 24);
+        }
+      };
+
       ctx.fillStyle = 'rgba(252, 233, 215, 0.92)';
-      rrPath(ctx, boxX, boxY, boxW, boxH, 24);
+      taskBoxPath();
       ctx.fill();
       ctx.strokeStyle = 'rgba(247, 110, 18, 0.3)';
       ctx.lineWidth = 1;
-      rrPath(ctx, boxX, boxY, boxW, boxH, 24);
+      taskBoxPath();
       ctx.stroke();
 
       ctx.fillStyle = '#000000';
@@ -466,7 +486,6 @@ export default function BigScreen() {
       ctx.textAlign = 'left';
 
       // ── 2b. Hint bar (bs-hint-bar) — attached below the task box ───────────
-      const hintActive = hintEnabledRef.current && hintLevelRef.current;
       if (hintActive) {
         const hintLevel = hintLevelRef.current!;
         const hint = TASK_HINTS[currentTask.id];
