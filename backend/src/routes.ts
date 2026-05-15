@@ -245,6 +245,13 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       const folderName = `${safeParticipantName}_${timestamp}`
 
       const basePath = `/recordings/${safeSceneId}/${folderName}`
+      // Create the directory before starting Egress so it can write audio_*.ogg immediately.
+      // Without this, Egress fails silently — the directory is otherwise only created when
+      // the first bigscreen chunk arrives (PATCH /recording/bigscreen), which is too late.
+      const dir = basepathToDir(basePath)
+      await fs.promises.mkdir(dir, { recursive: true })
+      // Egress runs as a different UID — make the directory world-writable so it can create audio files.
+      await fs.promises.chmod(dir, 0o777)
       const { trackEgressIds, participantIdentities } = await recording.egressService.startRecording(
         roomId,
         basePath,

@@ -206,13 +206,17 @@ export default function BigScreen() {
   useEffect(() => { showSettlementRef.current = showSettlement; }, [showSettlement]);
   const hasRecordedRef = useRef(hasRecorded);
   useEffect(() => { hasRecordedRef.current = hasRecorded; }, [hasRecorded]);
+  const hintEnabledRef = useRef(hintEnabled);
+  useEffect(() => { hintEnabledRef.current = hintEnabled; }, [hintEnabled]);
+  const hintLevelRef = useRef<HintLevel | null>(hintLevel);
+  useEffect(() => { hintLevelRef.current = hintLevel; }, [hintLevel]);
 
   // Bump overlay version whenever any input the overlay reads from changes.
   // The recording loop's dirty-check uses this to skip ~all overlay redraws
   // while the UI is steady, which is most of a session.
   useEffect(() => {
     overlayVersionRef.current++;
-  }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded]);
+  }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded, hintEnabled, hintLevel]);
 
   // rVFC toggle — controls whether the recording loop uses requestVideoFrameCallback
   // to gate video-bg redraws. Toggled via backtick key on BigScreen.
@@ -460,6 +464,99 @@ export default function BigScreen() {
       ctx.textBaseline = 'middle';
       ctx.fillText(currentTask.label, cw / 2, boxY + boxH / 2, maxLW);
       ctx.textAlign = 'left';
+
+      // ── 2b. Hint bar (bs-hint-bar) — attached below the task box ───────────
+      const hintActive = hintEnabledRef.current && hintLevelRef.current;
+      if (hintActive) {
+        const hintLevel = hintLevelRef.current!;
+        const hint = TASK_HINTS[currentTask.id];
+        const meta = hintLevelMeta(hintLevel);
+
+        const barH = 50;
+        const barY = boxY + boxH;
+        const barX = boxX;
+        const barW = boxW;
+        const barR = 22;
+
+        // Dark background, bottom corners rounded (top flush against task box)
+        ctx.fillStyle = 'rgba(20, 15, 10, 0.88)';
+        ctx.beginPath();
+        ctx.moveTo(barX, barY);
+        ctx.lineTo(barX + barW, barY);
+        ctx.lineTo(barX + barW, barY + barH - barR);
+        ctx.arcTo(barX + barW, barY + barH, barX + barW - barR, barY + barH, barR);
+        ctx.lineTo(barX + barR, barY + barH);
+        ctx.arcTo(barX, barY + barH, barX, barY + barH - barR, barR);
+        ctx.lineTo(barX, barY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Orange top border
+        ctx.strokeStyle = '#f76e12';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(barX, barY + 1);
+        ctx.lineTo(barX + barW, barY + 1);
+        ctx.stroke();
+
+        const midY = barY + barH / 2;
+        const padX = 32;
+        const maxCX = barX + barW - padX;
+
+        // Tag (gold, left side)
+        const tagText = `${meta.num} ${meta.label}`;
+        ctx.fillStyle = '#ffb347';
+        ctx.font = '800 15px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tagText, barX + padX, midY);
+        let cx = barX + padX + ctx.measureText(tagText).width + 16;
+
+        // Content
+        if (!hint) {
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.font = 'italic 20px system-ui, sans-serif';
+          ctx.fillText('此任務尚無提示', cx, midY, maxCX - cx);
+        } else if (hintLevel === 'unscramble') {
+          ctx.font = '700 19px system-ui, sans-serif';
+          for (const word of hint.unscramble) {
+            const chipW = ctx.measureText(word).width + 28;
+            const chipH = 29;
+            if (cx + chipW > maxCX) break;
+            ctx.fillStyle = '#f76e12';
+            rrPath(ctx, cx, midY - chipH / 2, chipW, chipH, chipH / 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText(word, cx + chipW / 2, midY);
+            ctx.textAlign = 'left';
+            cx += chipW + 10;
+          }
+        } else if (hintLevel === 'extraPhrases') {
+          ctx.textAlign = 'left';
+          for (let i = 0; i < hint.extraPhrases.length; i++) {
+            const numText = `${i + 1}.`;
+            ctx.font = '800 20px system-ui, sans-serif';
+            ctx.fillStyle = '#ffb347';
+            ctx.fillText(numText, cx, midY);
+            cx += ctx.measureText(numText).width + 4;
+            ctx.font = '400 20px system-ui, sans-serif';
+            ctx.fillStyle = '#ffffff';
+            const phraseW = ctx.measureText(hint.extraPhrases[i]).width;
+            if (cx + phraseW > maxCX) break;
+            ctx.fillText(hint.extraPhrases[i], cx, midY);
+            cx += phraseW + 14;
+          }
+        } else {
+          const text = hintLevel === 'completeSentence' ? hint.completeSentence
+            : hintLevel === 'keyStructure' ? hint.keyStructure
+            : hint.partialSentence;
+          ctx.font = '400 20px ui-monospace, SFMono-Regular, Menlo, monospace';
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'left';
+          ctx.fillText(text, cx, midY, maxCX - cx);
+        }
+      }
     }
 
     // ── 3. Tasks panel (bigscreen-tasks-container, top-right) ─────────────────
