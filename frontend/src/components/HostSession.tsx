@@ -1036,8 +1036,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       {/* Hidden video for teacher pose detection */}
       <video ref={teacherVideoRef} autoPlay playsInline muted style={{ display: 'none' }} aria-hidden="true" />
 
-      <PerformanceMonitor label="App Render FPS" position="top-left" />
-      <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" />
+      {/* <PerformanceMonitor label="App Render FPS" position="top-left" />
+      <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" /> */}
 
       {/* ── Top Bar ──────────────────────────────────────────────────────────── */}
       <div className="hs-topbar">
@@ -1334,18 +1334,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         {selectedTasks[currentTaskIndex]?.label}
                       </span>
                       <span className="hs-task-counter">{doneCount}/{selectedTasks.length}</span>
+                      <button
+                        className={`hs-hint-toggle ${hintEnabled ? 'is-on' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); toggleHintEnabled(); }}
+                        title={hintEnabled ? '關閉任務提示' : '開啟任務提示'}
+                      >
+                        <span className="material-symbols-outlined">lightbulb</span>
+                        <span className="hs-hint-toggle-label">任務提示</span>
+                        <span className="hs-hint-toggle-badge">{hintEnabled ? 'ON' : 'OFF'}</span>
+                      </button>
                     </>
                   )}
                 </div>
-                <button
-                  className={`hs-hint-toggle ${hintEnabled ? 'is-on' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); toggleHintEnabled(); }}
-                  title={hintEnabled ? '關閉任務提示' : '開啟任務提示'}
-                >
-                  <span className="material-symbols-outlined">lightbulb</span>
-                  <span className="hs-hint-toggle-label">任務提示</span>
-                  <span className="hs-hint-toggle-badge">{hintEnabled ? 'ON' : 'OFF'}</span>
-                </button>
               </div>
             );
           })()}

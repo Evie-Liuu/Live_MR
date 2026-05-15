@@ -233,6 +233,7 @@ export default function BigScreen() {
     return () => clearInterval(id);
   }, []);
 
+  const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
   // const [showStats, setShowStats] = useState(false);
   // const [statsData, setStatsData] = useState<StatsSnapshot | null>(null);
 
@@ -1030,18 +1031,22 @@ export default function BigScreen() {
         rvfcEnabledRef.current = next;
         rvfcResetRef.current = true; // signal closure to re-arm / disarm on next drawFrame
         setRvfcEnabled(next);
-      } else if (e.key === '[') {
-        // 0 = unlimited; stepping down from 0 starts at 60
-        const cur = renderFpsRef.current === 0 ? 60 : renderFpsRef.current;
-        const next = Math.max(10, cur - 5);
-        renderFpsRef.current = next;
-        setRenderFps(next);
-      } else if (e.key === ']') {
-        const cur = renderFpsRef.current;
-        const next = cur >= 60 ? 0 : Math.min(60, cur + 5); // 0 = unlimited above 60
-        renderFpsRef.current = next;
-        setRenderFps(next);
       }
+      else if (e.key === 'F' || e.key === 'f') {
+        setShowPerformanceMonitor(prev => !prev);
+      }
+      // else if (e.key === '[') {
+      //   // 0 = unlimited; stepping down from 0 starts at 60
+      //   const cur = renderFpsRef.current === 0 ? 60 : renderFpsRef.current;
+      //   const next = Math.max(10, cur - 5);
+      //   renderFpsRef.current = next;
+      //   setRenderFps(next);
+      // } else if (e.key === ']') {
+      //   const cur = renderFpsRef.current;
+      //   const next = cur >= 60 ? 0 : Math.min(60, cur + 5); // 0 = unlimited above 60
+      //   renderFpsRef.current = next;
+      //   setRenderFps(next);
+      // }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1398,7 +1403,7 @@ export default function BigScreen() {
         >
           <span className="recording-dot" />
           錄製中
-          <span
+          {/* <span
             title="大屏渲染 FPS（[ 降低 / ] 提高，每次 5fps；顯示「不限」時按 ] 無作用）"
             style={{
               marginLeft: '4px',
@@ -1412,8 +1417,8 @@ export default function BigScreen() {
             }}
           >
             {renderFps === 0 ? '不限fps' : `${renderFps}fps`}
-          </span>
-          {(currentPreset?.backgroundType === 'video' || currentPreset?.backgroundType === 'camera') && (
+          </span> */}
+          {/* {(currentPreset?.backgroundType === 'video' || currentPreset?.backgroundType === 'camera') && (
             <span
               title="影片背景幀驅動（按 ` 切換）"
               style={{
@@ -1428,7 +1433,7 @@ export default function BigScreen() {
             >
               rVFC {rvfcEnabled ? 'ON' : 'OFF'}
             </span>
-          )}
+          )} */}
         </div>
       )}
 
@@ -1597,8 +1602,12 @@ export default function BigScreen() {
         </div>
       )}
 
-      <PerformanceMonitor label="Render FPS" position="top-right" />
-      <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
+      {showPerformanceMonitor && (
+        <>
+          <PerformanceMonitor label="Render FPS" position="top-right" />
+          <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
+        </>
+      )}
       {/* {showStats && statsData && <StatsPanel data={statsData} />} */}
 
       {/* Boot loading overlay — covers the scene until initial assets are loaded */}

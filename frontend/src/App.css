@@ -4046,7 +4046,7 @@ button:disabled {
 
 .hs-settlement-btn {
   margin-left: auto;
-  padding: 0px 14px;
+  padding: 3px 14px;
   /* background: rgba(0, 169, 157, 0.12); */
   background: var(--secondary);
   border: 1.5px solid rgba(0, 169, 157, 0.45);
