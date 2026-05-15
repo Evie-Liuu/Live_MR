@@ -326,7 +326,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     })
   })
 
-  // POST /api/rooms/:roomId/recording/bigscreen — BigScreen canvas upload
+  // POST /api/rooms/:roomId/recording/bigscreen — BigScreen canvas upload (full blob, legacy)
   router.post(
     '/rooms/:roomId/recording/bigscreen',
     express.raw({ type: 'video/*', limit: '300mb' }),
@@ -349,6 +349,38 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       } catch (err: any) {
         console.error('[recording/bigscreen] error:', err?.message ?? err)
         res.status(500).json({ error: 'Failed to save bigscreen recording' })
+      }
+    },
+  )
+
+  // PATCH /api/rooms/:roomId/recording/bigscreen — streaming chunk upload
+  // Each MediaRecorder timeslice is sent as one PATCH request.
+  // ?init=true (first chunk): creates / truncates the file and writes chunk.
+  // Otherwise: appends chunk to existing file.
+  // Chunks must arrive in order — client sends them sequentially.
+  router.patch(
+    '/rooms/:roomId/recording/bigscreen',
+    express.raw({ type: 'video/*', limit: '10mb' }),
+    async (req: Request, res: Response) => {
+      if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
+      const sessionId = req.headers['x-session-id'] as string | undefined
+      if (!sessionId) { res.status(400).json({ error: 'X-Session-Id header required' }); return }
+      const session = recording.recordingStore.getSessionById(sessionId)
+      if (!session) { res.status(404).json({ error: 'Session not found' }); return }
+      try {
+        const dir = basepathToDir(session.basePath)
+        assertInRecordingsDir(dir)
+        await fs.promises.mkdir(dir, { recursive: true })
+        const filePath = path.join(dir, 'bigscreen.webm')
+        if (req.query['init'] === 'true') {
+          await fs.promises.writeFile(filePath, req.body as Buffer)
+        } else {
+          await fs.promises.appendFile(filePath, req.body as Buffer)
+        }
+        res.json({ ok: true })
+      } catch (err: any) {
+        console.error('[recording/bigscreen/chunk] error:', err?.message ?? err)
+        res.status(500).json({ error: 'Failed to write chunk' })
       }
     },
   )

@@ -305,6 +305,7 @@ export default function BigScreen() {
     onStats: undefined, // showStats ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,
+    disableShadowsDuringRecording: isActivelyRecording,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -321,10 +322,39 @@ export default function BigScreen() {
   const seenIdentitiesRef = useRef<Set<string>>(new Set());
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const recordingChunksRef = useRef<Blob[]>([])
   const recordingSessionIdRef = useRef<string | null>(null)
   const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
   const recordingRafRef = useRef<number | null>(null)
+
+  // Chunk streaming refs — replace in-memory buffer with sequential PATCH uploads.
+  const chunkQueueRef = useRef<Blob[]>([])
+  const chunkSendingRef = useRef(false)
+  const chunkIndexRef = useRef(0)
+
+  // Sends the next queued chunk to the server. Recurses until the queue is empty.
+  // Sequential (one in-flight at a time) so server receives chunks in order.
+  const sendNextChunkRef = useRef<() => Promise<void>>(async () => { /* set below */ })
+  sendNextChunkRef.current = async () => {
+    if (chunkSendingRef.current || chunkQueueRef.current.length === 0) return
+    chunkSendingRef.current = true
+    const chunk = chunkQueueRef.current.shift()!
+    const isFirst = chunkIndexRef.current === 0
+    chunkIndexRef.current++
+    const sessionId = recordingSessionIdRef.current
+    const roomId = roomIdRef.current
+    if (sessionId && roomId) {
+      try {
+        await fetch(
+          `/api/rooms/${roomId}/recording/bigscreen${isFirst ? '?init=true' : ''}`,
+          { method: 'PATCH', headers: { 'Content-Type': 'video/webm', 'X-Session-Id': sessionId }, body: chunk },
+        )
+      } catch (err) {
+        console.warn('[BigScreen] Chunk upload failed (chunk dropped):', err)
+      }
+    }
+    chunkSendingRef.current = false
+    sendNextChunkRef.current()
+  }
 
   /** Draw a rounded-rect path without relying on ctx.roundRect (avoid TS lib gaps). */
   const rrPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
@@ -685,10 +715,19 @@ export default function BigScreen() {
   };
 
   const startCompositeStream = (sourceCanvas: HTMLCanvasElement): MediaStream => {
+    // Cap recording resolution at 1920×1080 regardless of display resolution.
+    // Projector output is 1080p; recording 4K (3840×2160) would be 4× the pixel
+    // work with no perceptible quality gain in the output video.
+    const MAX_REC_W = 1920;
+    const MAX_REC_H = 1080;
+    const capDim = (src: number, max: number) => (src > 0 ? Math.min(src, max) : max);
+
     const compositeCanvas = document.createElement('canvas');
-    compositeCanvas.width = sourceCanvas.width || window.innerWidth;
-    compositeCanvas.height = sourceCanvas.height || window.innerHeight;
-    const ctx = compositeCanvas.getContext('2d')!;
+    compositeCanvas.width = capDim(sourceCanvas.width, MAX_REC_W);
+    compositeCanvas.height = capDim(sourceCanvas.height, MAX_REC_H);
+    // alpha:false — the composite is always fully opaque (bg fills every pixel).
+    // Saves 25% GPU memory bandwidth and simplifies alpha compositing.
+    const ctx = compositeCanvas.getContext('2d', { alpha: false })!;
 
     // Offscreen canvas for the overlay UI (top pill, task panel, settlement).
     // Repainted only when overlayVersionRef changes — saves measureText/gradient
@@ -847,8 +886,8 @@ export default function BigScreen() {
       if (now - lastDrawAt < 1000 / 30) return;
       lastDrawAt = now;
 
-      const cw = sourceCanvas.width || window.innerWidth;
-      const ch = sourceCanvas.height || window.innerHeight;
+      const cw = capDim(sourceCanvas.width || window.innerWidth, MAX_REC_W);
+      const ch = capDim(sourceCanvas.height || window.innerHeight, MAX_REC_H);
       if (compositeCanvas.width !== cw) compositeCanvas.width = cw;
       if (compositeCanvas.height !== ch) compositeCanvas.height = ch;
 
@@ -921,8 +960,10 @@ export default function BigScreen() {
         ctx.fillRect(0, 0, cw, ch);
       }
 
-      // 2. Draw 3D Canvas
+      // 2. Draw 3D Canvas — same-size blit needs no interpolation; smoothing off saves GPU work.
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(sourceCanvas, 0, 0, cw, ch);
+      ctx.imageSmoothingEnabled = true;
 
       // 3. Draw Overlay UI Layer + Settlement overlay (cached on offscreen canvas)
       const v = overlayVersionRef.current;
@@ -951,7 +992,8 @@ export default function BigScreen() {
         if (active && !mediaRecorderRef.current) {
           console.log('[BigScreen] Restoring active recording session:', active.sessionId)
           setHasRecorded(true)
-          recordingChunksRef.current = []
+          chunkQueueRef.current = []
+          chunkIndexRef.current = 0
           recordingSessionIdRef.current = active.sessionId
           const canvas = canvasRef.current
           if (!canvas) return
@@ -963,7 +1005,7 @@ export default function BigScreen() {
               : 'video/webm'
             const mr = new MediaRecorder(stream, { mimeType })
             mr.ondataavailable = (e) => {
-              if (e.data.size > 0) recordingChunksRef.current.push(e.data)
+              if (e.data.size > 0) { chunkQueueRef.current.push(e.data); sendNextChunkRef.current() }
             }
             mr.start(1000)
             mediaRecorderRef.current = mr
@@ -1063,28 +1105,14 @@ export default function BigScreen() {
       return
     }
     mr.onstop = async () => {
-      const blob = new Blob(recordingChunksRef.current, { type: 'video/webm' })
-      const sessionId = recordingSessionIdRef.current
-      const roomId = roomIdRef.current
-      if (!sessionId || !roomId) {
-        console.warn('[BigScreen] Cannot upload: missing sessionId or roomId')
-        setIsActivelyRecording(false)
-        onDone?.()
-        return
-      }
-      // Audio is recorded server-side per-participant; this blob is video-only.
-      try {
-        const res = await fetch(`/api/rooms/${roomId}/recording/bigscreen`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'video/webm', 'X-Session-Id': sessionId },
-          body: blob,
-        })
-        if (!res.ok) console.error('[BigScreen] Upload failed:', res.status)
-      } catch (err) {
-        console.error('[BigScreen] Failed to upload recording:', err)
+      // Drain: ondataavailable fires the last chunk before onstop; wait for it to upload.
+      const deadline = Date.now() + 15_000
+      while ((chunkQueueRef.current.length > 0 || chunkSendingRef.current) && Date.now() < deadline) {
+        await new Promise<void>(r => setTimeout(r, 50))
       }
       mediaRecorderRef.current = null
-      recordingChunksRef.current = []
+      chunkQueueRef.current = []
+      chunkIndexRef.current = 0
       recordingSessionIdRef.current = null
       setIsActivelyRecording(false)
       onDone?.()
@@ -1265,7 +1293,8 @@ export default function BigScreen() {
           existing.stop()
         }
         setHasRecorded(true)
-        recordingChunksRef.current = []
+        chunkQueueRef.current = []
+        chunkIndexRef.current = 0
         recordingSessionIdRef.current = msg.sessionId
         const canvas = canvasRef.current
         if (!canvas) return
@@ -1277,7 +1306,7 @@ export default function BigScreen() {
             : 'video/webm'
           const mr = new MediaRecorder(stream, { mimeType })
           mr.ondataavailable = (e) => {
-            if (e.data.size > 0) recordingChunksRef.current.push(e.data)
+            if (e.data.size > 0) { chunkQueueRef.current.push(e.data); sendNextChunkRef.current() }
           }
           mr.start(1000)
           mediaRecorderRef.current = mr
