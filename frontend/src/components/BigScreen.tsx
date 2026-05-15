@@ -305,7 +305,6 @@ export default function BigScreen() {
     onStats: undefined, // showStats ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,
-    disableShadowsDuringRecording: isActivelyRecording,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;

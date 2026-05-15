@@ -126,15 +126,13 @@ interface UseBigScreenSceneOptions {
   onScenePropsReady?: () => void;
   /** Cap the THREE.js render loop. 0 = unlimited (default). Read every frame via ref. */
   renderFpsLimit?: number;
-  /** When true, shadow map updates are skipped every frame to save GPU cost during recording. */
-  disableShadowsDuringRecording?: boolean;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, disableShadowsDuringRecording } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -194,8 +192,6 @@ export function useBigScreenScene(
   const renderFpsLimitRef = useRef<number>(0);
   renderFpsLimitRef.current = renderFpsLimit ?? 0;
 
-  const disableShadowsRef = useRef<boolean>(false);
-  disableShadowsRef.current = disableShadowsDuringRecording ?? false;
 
   const avgPoseIntervalsRef = useRef<Record<string, number>>({});
 
@@ -282,10 +278,8 @@ export function useBigScreenScene(
       timerRef.current.update(timestamp);
       const delta = timerRef.current.getDelta();
       elapsedRef.current += delta;
-      // During recording, skip shadow updates entirely (avatars move slowly,
-      // observers won't notice static shadows in a recorded clip).
-      // Outside recording, update every 2 frames to halve shadow rendering cost.
-      renderer.shadowMap.needsUpdate = !disableShadowsRef.current && (shadowTick++ % 2 === 0);
+      // Update shadow map every 2 frames to halve shadow rendering cost
+      renderer.shadowMap.needsUpdate = (shadowTick++ % 2 === 0);
 
       for (const [identity, slot] of avatarsRef.current.entries()) {
         // Adaptive lerp speed: proportional to actual pose data rate.
