@@ -298,6 +298,13 @@ export default function BigScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const recordingSessionIdRef = useRef<string | null>(null)
+  const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
+  // Post-render callback: when set, driven by the THREE.js RAF after each render —
+  // avoids a competing second requestAnimationFrame for the composite canvas.
+  const postRenderRef = useRef<((ts: number) => void) | null>(null)
+
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
@@ -322,13 +329,6 @@ export default function BigScreen() {
 
   /** Identities whose VRM override has already been registered this session */
   const seenIdentitiesRef = useRef<Set<string>>(new Set());
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const recordingSessionIdRef = useRef<string | null>(null)
-  const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
-  // Post-render callback: when set, driven by the THREE.js RAF after each render —
-  // avoids a competing second requestAnimationFrame for the composite canvas.
-  const postRenderRef = useRef<((ts: number) => void) | null>(null)
 
   // Chunk streaming refs — replace in-memory buffer with sequential PATCH uploads.
   const chunkQueueRef = useRef<Blob[]>([])
@@ -950,10 +950,13 @@ export default function BigScreen() {
                 videoBgDirty = false;
               }
             }
-            if (videoBlurReady) {
-              drawCoverFromBlur(ctx, videoBlurCanvas, videoBlurSrcW, videoBlurSrcH, cw, ch);
-              hasBg = true;
-            }
+          }
+          // Draw the cached blur frame even when hasVideo is momentarily false
+          // (e.g. video seeks back to 0 on loop/restart — readyState briefly drops).
+          // This shows the last valid frame instead of falling through to the black fill.
+          if (videoBlurReady) {
+            drawCoverFromBlur(ctx, videoBlurCanvas, videoBlurSrcW, videoBlurSrcH, cw, ch);
+            hasBg = true;
           }
         }
       }
