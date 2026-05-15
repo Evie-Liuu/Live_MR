@@ -126,13 +126,21 @@ interface UseBigScreenSceneOptions {
   onScenePropsReady?: () => void;
   /** Cap the THREE.js render loop. 0 = unlimited (default). Read every frame via ref. */
   renderFpsLimit?: number;
+  /** Whether BigScreen is actively recording. Hook lowers pixel ratio to 1 during recording. */
+  isRecording?: boolean;
+  /**
+   * Ref to a post-render callback.  When `.current` is non-null the hook calls it after
+   * every `renderer.render()`, driving the composite canvas from inside this loop instead
+   * of a competing second requestAnimationFrame.
+   */
+  onPostRenderRef?: { current: ((timestamp: number) => void) | null };
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -192,6 +200,10 @@ export function useBigScreenScene(
   const renderFpsLimitRef = useRef<number>(0);
   renderFpsLimitRef.current = renderFpsLimit ?? 0;
 
+  const isRecordingRef = useRef(false);
+  isRecordingRef.current = isRecording ?? false;
+  const prevRecordingRef = useRef(false);
+  const originalDprRef = useRef(Math.min(window.devicePixelRatio, 2));
 
   const avgPoseIntervalsRef = useRef<Record<string, number>>({});
 
@@ -487,6 +499,17 @@ export function useBigScreenScene(
       if (cameraRef.current) {
         renderer.render(scene, cameraRef.current);
       }
+
+      // Lower pixel ratio to 1 during recording — composite canvas already caps at 1080p,
+      // so rendering at DPR 2 (Retina) wastes GPU work that the recording never sees.
+      const rec = isRecordingRef.current;
+      if (rec !== prevRecordingRef.current) {
+        prevRecordingRef.current = rec;
+        renderer.setPixelRatio(rec ? 1 : originalDprRef.current);
+      }
+
+      // Drive composite canvas from inside this loop instead of a second RAF.
+      onPostRenderRef?.current?.(timestamp);
 
       const cb = onStatsRef.current;
       if (cb) {

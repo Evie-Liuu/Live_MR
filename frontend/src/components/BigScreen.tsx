@@ -306,6 +306,8 @@ export default function BigScreen() {
     onStats: undefined, // showStats ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,
+    isRecording: isActivelyRecording,
+    onPostRenderRef: postRenderRef,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -324,7 +326,9 @@ export default function BigScreen() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordingSessionIdRef = useRef<string | null>(null)
   const roomIdRef = useRef<string>(sessionStorage.getItem('bigscreen-roomId') ?? '')
-  const recordingRafRef = useRef<number | null>(null)
+  // Post-render callback: when set, driven by the THREE.js RAF after each render —
+  // avoids a competing second requestAnimationFrame for the composite canvas.
+  const postRenderRef = useRef<((ts: number) => void) | null>(null)
 
   // Chunk streaming refs — replace in-memory buffer with sequential PATCH uploads.
   const chunkQueueRef = useRef<Blob[]>([])
@@ -714,7 +718,7 @@ export default function BigScreen() {
     ctx.restore();
   };
 
-  const startCompositeStream = (sourceCanvas: HTMLCanvasElement): MediaStream => {
+  const startCompositeStream = (sourceCanvas: HTMLCanvasElement): { stream: MediaStream; drawFrame: (now: number) => void } => {
     // Cap recording resolution at 1920×1080 regardless of display resolution.
     // Projector output is 1080p; recording 4K (3840×2160) would be 4× the pixel
     // work with no perceptible quality gain in the output video.
@@ -882,7 +886,6 @@ export default function BigScreen() {
     let lastDrawAt = 0;
 
     const drawFrame = (now: number) => {
-      recordingRafRef.current = requestAnimationFrame(drawFrame);
       if (now - lastDrawAt < 1000 / 30) return;
       lastDrawAt = now;
 
@@ -979,8 +982,7 @@ export default function BigScreen() {
       ctx.drawImage(overlayCanvas, 0, 0, cw, ch);
     };
 
-    recordingRafRef.current = requestAnimationFrame(drawFrame);
-    return compositeCanvas.captureStream(30);
+    return { stream: compositeCanvas.captureStream(30), drawFrame };
   };
 
   // Restore recording state on mount
@@ -998,8 +1000,8 @@ export default function BigScreen() {
           const canvas = canvasRef.current
           if (!canvas) return
           try {
-            if (recordingRafRef.current) cancelAnimationFrame(recordingRafRef.current)
-            const stream = startCompositeStream(canvas)
+            const { stream, drawFrame } = startCompositeStream(canvas)
+            postRenderRef.current = drawFrame
             const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
               ? 'video/webm;codecs=vp9'
               : 'video/webm'
@@ -1099,10 +1101,7 @@ export default function BigScreen() {
 
   const stopRecordingAndUpload = (onDone?: () => void) => {
     const mr = mediaRecorderRef.current
-    if (recordingRafRef.current) {
-      cancelAnimationFrame(recordingRafRef.current)
-      recordingRafRef.current = null
-    }
+    postRenderRef.current = null
     if (!mr || mr.state === 'inactive') {
       setIsActivelyRecording(false)
       onDone?.()
@@ -1303,8 +1302,8 @@ export default function BigScreen() {
         const canvas = canvasRef.current
         if (!canvas) return
         try {
-          if (recordingRafRef.current) cancelAnimationFrame(recordingRafRef.current)
-          const stream = startCompositeStream(canvas)
+          const { stream, drawFrame } = startCompositeStream(canvas)
+          postRenderRef.current = drawFrame
           const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
             ? 'video/webm;codecs=vp9'
             : 'video/webm'
@@ -1325,13 +1324,10 @@ export default function BigScreen() {
 
     return () => {
       channel.close()
+      postRenderRef.current = null
       const mr = mediaRecorderRef.current
       if (mr && mr.state !== 'inactive') {
         mr.stop()
-      }
-      if (recordingRafRef.current) {
-        cancelAnimationFrame(recordingRafRef.current)
-        recordingRafRef.current = null
       }
     };
   }, []); // channel lifecycle independent of applyPose/removeAvatar
@@ -1443,8 +1439,6 @@ export default function BigScreen() {
           {renderFps === 0 ? '不限fps' : `${renderFps}fps`}
         </span>
       </div>
-
-
 
       {activeTasks.length > 0 && (() => {
         const currentTask = activeTasks.find(t => !t.completed);
