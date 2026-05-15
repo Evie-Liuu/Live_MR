@@ -1035,18 +1035,18 @@ export default function BigScreen() {
       else if (e.key === 'F' || e.key === 'f') {
         setShowPerformanceMonitor(prev => !prev);
       }
-      // else if (e.key === '[') {
-      //   // 0 = unlimited; stepping down from 0 starts at 60
-      //   const cur = renderFpsRef.current === 0 ? 60 : renderFpsRef.current;
-      //   const next = Math.max(10, cur - 5);
-      //   renderFpsRef.current = next;
-      //   setRenderFps(next);
-      // } else if (e.key === ']') {
-      //   const cur = renderFpsRef.current;
-      //   const next = cur >= 60 ? 0 : Math.min(60, cur + 5); // 0 = unlimited above 60
-      //   renderFpsRef.current = next;
-      //   setRenderFps(next);
-      // }
+      else if (e.key === '[') {
+        // 0 = unlimited; stepping down from 0 starts at 60
+        const cur = renderFpsRef.current === 0 ? 60 : renderFpsRef.current;
+        const next = Math.max(10, cur - 5);
+        renderFpsRef.current = next;
+        setRenderFps(next);
+      } else if (e.key === ']') {
+        const cur = renderFpsRef.current;
+        const next = cur >= 60 ? 0 : Math.min(60, cur + 5); // 0 = unlimited above 60
+        renderFpsRef.current = next;
+        setRenderFps(next);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1403,21 +1403,6 @@ export default function BigScreen() {
         >
           <span className="recording-dot" />
           錄製中
-          {/* <span
-            title="大屏渲染 FPS（[ 降低 / ] 提高，每次 5fps；顯示「不限」時按 ] 無作用）"
-            style={{
-              marginLeft: '4px',
-              fontSize: '11px',
-              fontWeight: 500,
-              color: '#F76E12',
-              background: 'rgba(0,0,0,0.08)',
-              borderRadius: '6px',
-              padding: '1px 6px',
-              letterSpacing: '0.02em',
-            }}
-          >
-            {renderFps === 0 ? '不限fps' : `${renderFps}fps`}
-          </span> */}
           {/* {(currentPreset?.backgroundType === 'video' || currentPreset?.backgroundType === 'camera') && (
             <span
               title="影片背景幀驅動（按 ` 切換）"
@@ -1436,6 +1421,30 @@ export default function BigScreen() {
           )} */}
         </div>
       )}
+
+      <div style={{
+        position: 'absolute',
+        top: '50px',
+        right: '20px',
+      }}>
+        <span
+          title="大屏渲染 FPS（[ 降低 / ] 提高，每次 5fps；顯示「不限」時按 ] 無作用）"
+          style={{
+            marginLeft: '4px',
+            fontSize: '14px',
+            fontWeight: 500,
+            color: '#F76E12',
+            background: 'rgba(0,0,0,0.08)',
+            borderRadius: '6px',
+            padding: '1px 6px',
+            letterSpacing: '0.02em',
+          }}
+        >
+          {renderFps === 0 ? '不限fps' : `${renderFps}fps`}
+        </span>
+      </div>
+
+
 
       {activeTasks.length > 0 && (() => {
         const currentTask = activeTasks.find(t => !t.completed);
