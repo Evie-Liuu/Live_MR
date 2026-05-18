@@ -15,7 +15,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
-import type { VRM } from '@pixiv/three-vrm';
+import { VRMUtils, type VRM } from '@pixiv/three-vrm';
 import { loadVrm } from '../utils/vrmLoader';
 import {
   applyPoseToVrm,
@@ -641,8 +641,11 @@ export function useBigScreenScene(
         .then(({ vrm, initialHipsPos }) => {
           // loadVrm already called scene.add(vrm.scene). If a newer load was
           // started for this identity, discard this one to avoid ghost models.
+          // Fully dispose the orphaned VRM so rapid switching doesn't leak GPU
+          // memory (geometries/textures/spring bones) for every superseded load.
           if (loadGenRef.current.get(identity) !== gen) {
             scene.remove(vrm.scene);
+            VRMUtils.deepDispose(vrm.scene);
             throw new Error(`[BigScreenScene] Stale load discarded for ${identity}`);
           }
 
@@ -684,7 +687,16 @@ export function useBigScreenScene(
           return slot;
         })
         .catch((err) => {
-          loadingRef.current.delete(identity);
+          // Only clear the in-flight entry if THIS load is still the current
+          // generation. A stale/superseded load must NOT delete the map entry,
+          // because a newer ensureAvatar() call already registered its own
+          // promise there. Deleting it would make pose frames see no in-flight
+          // load, spawn yet another load, bump the generation, and invalidate
+          // the previous one — an endless load/discard churn that leaves the
+          // model perpetually "incompletely loaded" after rapid switching.
+          if (loadGenRef.current.get(identity) === gen) {
+            loadingRef.current.delete(identity);
+          }
           throw err;
         });
 
@@ -710,6 +722,7 @@ export function useBigScreenScene(
       const slot = avatarsRef.current.get(identity);
       if (slot) {
         sceneRef.current?.remove(slot.vrm.scene);
+        VRMUtils.deepDispose(slot.vrm.scene);
         avatarsRef.current.delete(identity);
       }
 
@@ -792,6 +805,7 @@ export function useBigScreenScene(
       const slot = avatarsRef.current.get(identity);
       if (!slot) return;
       sceneRef.current?.remove(slot.vrm.scene);
+      VRMUtils.deepDispose(slot.vrm.scene);
       avatarsRef.current.delete(identity);
       loadingRef.current.delete(identity);
       // Invalidate any in-flight load so it discards itself on resolve
