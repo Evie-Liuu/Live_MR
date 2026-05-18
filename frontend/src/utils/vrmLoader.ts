@@ -111,11 +111,19 @@ export function loadVrm({
 
         scene.add(vrm.scene);
 
-        // Enable shadow casting on all VRM meshes
+        // Enable shadow casting on all VRM meshes, and disable frustum culling.
+        // VRM face/eye/head are separate SkinnedMeshes whose bounding volumes
+        // are computed from the bind pose at the local origin. Once vrm.scene
+        // is translated (and before any pose is applied), those small submeshes
+        // fall outside the camera frustum and get culled — the model renders
+        // with missing eyes/head while the larger body mesh stays visible.
+        // Disabling frustumCulled keeps every part rendered from frame 1.
         vrm.scene.traverse((obj) => {
-          if ((obj as THREE.Mesh).isMesh) {
-            (obj as THREE.Mesh).castShadow = true;
-            (obj as THREE.Mesh).receiveShadow = true;
+          const mesh = obj as THREE.Mesh;
+          if (mesh.isMesh) {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.frustumCulled = false;
           }
         });
 
