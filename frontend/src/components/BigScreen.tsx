@@ -503,10 +503,12 @@ export default function BigScreen() {
         const tagW = ctx.measureText(tagText).width;
         const contentX0 = barX + padX + tagW + 16;
 
-        // extraPhrases wraps each numbered item onto a new line when it would
-        // overflow the bar, so the recording never truncates phrases.
+        // unscramble chips and extraPhrases items wrap onto new lines when they
+        // would overflow the bar, so every entry stays inside the hint background.
         const epLineH = 30;
-        let epLines: { num: string; phrase: string }[][] = [];
+        const usLineH = 38;
+        const epLines: { num: string; phrase: string }[][] = [];
+        const usLines: string[][] = [];
         if (hint && hintLevel === 'extraPhrases') {
           let line: { num: string; phrase: string }[] = [];
           let lx = contentX0;
@@ -526,10 +528,28 @@ export default function BigScreen() {
             lx += itemW;
           }
           if (line.length > 0) epLines.push(line);
+        } else if (hint && hintLevel === 'unscramble') {
+          ctx.font = '700 19px system-ui, sans-serif';
+          let line: string[] = [];
+          let lx = contentX0;
+          for (const word of hint.unscramble) {
+            const chipW = Math.min(ctx.measureText(word).width + 28, maxCX - contentX0);
+            if (lx + chipW > maxCX && line.length > 0) {
+              usLines.push(line);
+              line = [];
+              lx = contentX0;
+            }
+            line.push(word);
+            lx += chipW + 10;
+          }
+          if (line.length > 0) usLines.push(line);
         }
 
-        const barH =
-          epLines.length > 1 ? 20 + epLines.length * epLineH : 50;
+        let nLines = 1;
+        let lineH = epLineH;
+        if (epLines.length) { nLines = epLines.length; lineH = epLineH; }
+        else if (usLines.length) { nLines = usLines.length; lineH = usLineH; }
+        const barH = nLines > 1 ? (50 - lineH) + nLines * lineH : 50;
         const barY = boxY + boxH;
 
         // Dark background, bottom corners rounded (top flush against task box)
@@ -570,18 +590,22 @@ export default function BigScreen() {
           ctx.fillText('此任務尚無提示', cx, midY, maxCX - cx);
         } else if (hintLevel === 'unscramble') {
           ctx.font = '700 19px system-ui, sans-serif';
-          for (const word of hint.unscramble) {
-            const chipW = ctx.measureText(word).width + 28;
-            const chipH = 29;
-            if (cx + chipW > maxCX) break;
-            ctx.fillStyle = '#f76e12';
-            rrPath(ctx, cx, midY - chipH / 2, chipW, chipH, chipH / 2);
-            ctx.fill();
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.fillText(word, cx + chipW / 2, midY);
-            ctx.textAlign = 'left';
-            cx += chipW + 10;
+          const chipH = 29;
+          const topY = barY + (barH - usLines.length * usLineH) / 2 + usLineH / 2;
+          for (let li = 0; li < usLines.length; li++) {
+            const ly = topY + li * usLineH;
+            let lcx = contentX0;
+            for (const word of usLines[li]) {
+              const chipW = Math.min(ctx.measureText(word).width + 28, maxCX - lcx);
+              ctx.fillStyle = '#f76e12';
+              rrPath(ctx, lcx, ly - chipH / 2, chipW, chipH, chipH / 2);
+              ctx.fill();
+              ctx.fillStyle = '#ffffff';
+              ctx.textAlign = 'center';
+              ctx.fillText(word, lcx + chipW / 2, ly, chipW - 20);
+              ctx.textAlign = 'left';
+              lcx += chipW + 10;
+            }
           }
         } else if (hintLevel === 'extraPhrases') {
           ctx.textAlign = 'left';
@@ -596,8 +620,10 @@ export default function BigScreen() {
               lcx += ctx.measureText(item.num).width + 4;
               ctx.font = '400 20px system-ui, sans-serif';
               ctx.fillStyle = '#ffffff';
-              ctx.fillText(item.phrase, lcx, ly);
-              lcx += ctx.measureText(item.phrase).width + 14;
+              const avail = maxCX - lcx;
+              const pw = ctx.measureText(item.phrase).width;
+              ctx.fillText(item.phrase, lcx, ly, avail);
+              lcx += Math.min(pw, avail) + 14;
             }
           }
         } else {
