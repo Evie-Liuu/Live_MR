@@ -491,11 +491,46 @@ export default function BigScreen() {
         const hint = TASK_HINTS[currentTask.id];
         const meta = hintLevelMeta(hintLevel);
 
-        const barH = 50;
-        const barY = boxY + boxH;
         const barX = boxX;
         const barW = boxW;
         const barR = 22;
+        const padX = 32;
+        const maxCX = barX + barW - padX;
+
+        // Tag metrics (drives where content starts on the first line)
+        const tagText = `${meta.num} ${meta.label}`;
+        ctx.font = '800 15px system-ui, sans-serif';
+        const tagW = ctx.measureText(tagText).width;
+        const contentX0 = barX + padX + tagW + 16;
+
+        // extraPhrases wraps each numbered item onto a new line when it would
+        // overflow the bar, so the recording never truncates phrases.
+        const epLineH = 30;
+        let epLines: { num: string; phrase: string }[][] = [];
+        if (hint && hintLevel === 'extraPhrases') {
+          let line: { num: string; phrase: string }[] = [];
+          let lx = contentX0;
+          for (let i = 0; i < hint.extraPhrases.length; i++) {
+            const numText = `${i + 1}.`;
+            ctx.font = '800 20px system-ui, sans-serif';
+            const numW = ctx.measureText(numText).width + 4;
+            ctx.font = '400 20px system-ui, sans-serif';
+            const phraseW = ctx.measureText(hint.extraPhrases[i]).width;
+            const itemW = numW + phraseW + 14;
+            if (lx + itemW > maxCX && line.length > 0) {
+              epLines.push(line);
+              line = [];
+              lx = contentX0;
+            }
+            line.push({ num: numText, phrase: hint.extraPhrases[i] });
+            lx += itemW;
+          }
+          if (line.length > 0) epLines.push(line);
+        }
+
+        const barH =
+          epLines.length > 1 ? 20 + epLines.length * epLineH : 50;
+        const barY = boxY + boxH;
 
         // Dark background, bottom corners rounded (top flush against task box)
         ctx.fillStyle = 'rgba(20, 15, 10, 0.88)';
@@ -519,17 +554,14 @@ export default function BigScreen() {
         ctx.stroke();
 
         const midY = barY + barH / 2;
-        const padX = 32;
-        const maxCX = barX + barW - padX;
 
-        // Tag (gold, left side)
-        const tagText = `${meta.num} ${meta.label}`;
+        // Tag (gold, vertically centred against the whole bar)
         ctx.fillStyle = '#ffb347';
         ctx.font = '800 15px system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText(tagText, barX + padX, midY);
-        let cx = barX + padX + ctx.measureText(tagText).width + 16;
+        let cx = contentX0;
 
         // Content
         if (!hint) {
@@ -553,18 +585,20 @@ export default function BigScreen() {
           }
         } else if (hintLevel === 'extraPhrases') {
           ctx.textAlign = 'left';
-          for (let i = 0; i < hint.extraPhrases.length; i++) {
-            const numText = `${i + 1}.`;
-            ctx.font = '800 20px system-ui, sans-serif';
-            ctx.fillStyle = '#ffb347';
-            ctx.fillText(numText, cx, midY);
-            cx += ctx.measureText(numText).width + 4;
-            ctx.font = '400 20px system-ui, sans-serif';
-            ctx.fillStyle = '#ffffff';
-            const phraseW = ctx.measureText(hint.extraPhrases[i]).width;
-            if (cx + phraseW > maxCX) break;
-            ctx.fillText(hint.extraPhrases[i], cx, midY);
-            cx += phraseW + 14;
+          const topY = barY + (barH - epLines.length * epLineH) / 2 + epLineH / 2;
+          for (let li = 0; li < epLines.length; li++) {
+            const ly = topY + li * epLineH;
+            let lcx = contentX0;
+            for (const item of epLines[li]) {
+              ctx.font = '800 20px system-ui, sans-serif';
+              ctx.fillStyle = '#ffb347';
+              ctx.fillText(item.num, lcx, ly);
+              lcx += ctx.measureText(item.num).width + 4;
+              ctx.font = '400 20px system-ui, sans-serif';
+              ctx.fillStyle = '#ffffff';
+              ctx.fillText(item.phrase, lcx, ly);
+              lcx += ctx.measureText(item.phrase).width + 14;
+            }
           }
         } else {
           const text = hintLevel === 'completeSentence' ? hint.completeSentence
