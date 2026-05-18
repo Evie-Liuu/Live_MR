@@ -569,7 +569,7 @@ export default function BigScreen() {
         } else {
           const text = hintLevel === 'completeSentence' ? hint.completeSentence
             : hintLevel === 'keyStructure' ? hint.keyStructure
-            : hint.partialSentence;
+              : hint.partialSentence;
           ctx.font = '400 20px ui-monospace, SFMono-Regular, Menlo, monospace';
           ctx.fillStyle = '#ffffff';
           ctx.textAlign = 'left';
@@ -1537,27 +1537,29 @@ export default function BigScreen() {
         </div>
       )}
 
-      <div style={{
-        position: 'absolute',
-        top: '50px',
-        right: '20px',
-      }}>
-        <span
-          title="大屏渲染 FPS（[ 降低 / ] 提高，每次 5fps；顯示「不限」時按 ] 無作用）"
-          style={{
-            marginLeft: '4px',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#F76E12',
-            background: 'rgba(0,0,0,0.08)',
-            borderRadius: '6px',
-            padding: '1px 6px',
-            letterSpacing: '0.02em',
-          }}
-        >
-          {renderFps === 0 ? '不限fps' : `${renderFps}fps`}
-        </span>
-      </div>
+      {showPerformanceMonitor && (
+        <div style={{
+          position: 'absolute',
+          top: '50px',
+          right: '20px',
+        }}>
+          <span
+            title="大屏渲染 FPS（[ 降低 / ] 提高，每次 5fps；顯示「不限」時按 ] 無作用）"
+            style={{
+              marginLeft: '4px',
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#F76E12',
+              background: 'rgba(0,0,0,0.08)',
+              borderRadius: '6px',
+              padding: '1px 6px',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {renderFps === 0 ? '不限fps' : `${renderFps}fps`}
+          </span>
+        </div>
+      )}
 
       {activeTasks.length > 0 && (() => {
         const currentTask = activeTasks.find(t => !t.completed);

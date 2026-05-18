@@ -95,20 +95,6 @@ export function useVrmAvatar(
     // Lights
     applyLights(scene, preset);
 
-    // VRM source
-    if (!vrmSourceId) return;
-    const vrmSource = VRM_SOURCES[vrmSourceId] ?? null;
-    const spawn = preset.avatarDefaults;
-
-    loadVrm({ url: vrmSource.url, scene, spawn })
-      .then(({ vrm }) => {
-        vrm.scene.position.set(0, 0.6, 1.8);
-        vrmRef.current = vrm;
-      })
-      .catch((err) => {
-        console.warn('[useVrmAvatar] Failed to load VRM:', err);
-      });
-
     // Render loop
     const animate = (timestamp: number) => {
       rafRef.current = requestAnimationFrame(animate);
@@ -128,7 +114,6 @@ export function useVrmAvatar(
       }
       renderer.render(scene, camera);
     };
-    rafRef.current = requestAnimationFrame(animate);
 
     // Responsive resize
     const ro = new ResizeObserver(() => {
@@ -144,16 +129,73 @@ export function useVrmAvatar(
         renderer.render(scene, cameraRef.current || camera);
       }
     });
+
+    // VRM source
+    if (!vrmSourceId) {
+      // No model to load – still run the render loop (empty scene)
+      rafRef.current = requestAnimationFrame(animate);
+      ro.observe(canvas);
+      return () => {
+        cancelAnimationFrame(rafRef.current);
+        ro.disconnect();
+        renderer.dispose();
+      };
+    }
+    const vrmSource = VRM_SOURCES[vrmSourceId] ?? null;
+    const spawn = preset.avatarDefaults;
+
+    // Guard against stale promise callbacks after effect cleanup
+    let cancelled = false;
+
+    loadVrm({ url: vrmSource.url, scene, spawn })
+      .then(({ vrm }) => {
+        if (cancelled) {
+          // Effect was cleaned up while we were loading; discard this VRM
+          scene.remove(vrm.scene);
+          vrm.scene.traverse((obj) => {
+            const mesh = obj as THREE.Mesh;
+            if (mesh.isMesh) {
+              mesh.geometry?.dispose();
+              if (Array.isArray(mesh.material)) {
+                mesh.material.forEach((m) => m.dispose());
+              } else {
+                (mesh.material as THREE.Material)?.dispose();
+              }
+            }
+          });
+          return;
+        }
+        vrm.scene.position.set(0, 0.6, 1.8);
+        vrmRef.current = vrm;
+        // Pre-compile all shaders so every mesh part is visible from frame 1
+        renderer.compile(scene, camera);
+      })
+      .catch((err) => {
+        if (!cancelled) console.warn('[useVrmAvatar] Failed to load VRM:', err);
+      });
+
+    rafRef.current = requestAnimationFrame(animate);
     ro.observe(canvas);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(rafRef.current);
       ro.disconnect();
+      // Force the old WebGL context to be fully torn down before the next
+      // effect run creates a new renderer on the same canvas element.
+      // Without this, some GPU drivers leave partial shader state that causes
+      // specific meshes (e.g. head with transparency) to not render on the
+      // new model.
+      renderer.forceContextLoss();
       renderer.dispose();
       if (vrmRef.current) {
         scene.remove(vrmRef.current.scene);
         vrmRef.current = null;
       }
+      // Clear stale pose state so new model starts from a clean T-pose
+      poseStateRef.current = createPoseApplyState();
+      pendingPoseRef.current = null;
+      lastFrameRef.current = null;
     };
     // Re-init when scene or model changes
     // eslint-disable-next-line react-hooks/exhaustive-deps

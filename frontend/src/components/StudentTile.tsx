@@ -85,9 +85,10 @@ export default function StudentTile({
           </div>
         )}
 
-        {/* VRM canvas */}
+        {/* VRM canvas – key forces a fresh canvas on model switch so the new
+            WebGLRenderer always gets a clean WebGL context */}
         {vrmSourceId !== null && (
-          <canvas ref={canvasRef} className="avatar-canvas-new" />
+          <canvas key={vrmSourceId} ref={canvasRef} className="avatar-canvas-new" />
         )}
 
         {/* Top Overlay Bar */}

@@ -81,7 +81,7 @@ export default function LocalVideo({ room, poseData, vrmSourceId, slotLabel }: L
         <video ref={videoRef} autoPlay playsInline muted className="tile-video-new" />
 
         {vrmSourceId !== null && (
-          <canvas ref={canvasRef} className="avatar-canvas-new" />
+          <canvas key={vrmSourceId} ref={canvasRef} className="avatar-canvas-new" />
         )}
 
         {landmarks && (
