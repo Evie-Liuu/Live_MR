@@ -116,7 +116,11 @@ type StoredScene = Record<string /* groupId */, StoredGroupTransform>;
 type StoredAll   = Record<string /* sceneId */, StoredScene>;
 ```
 
-`rot` 以 **radian** 儲存（與 scenes.ts、Three.js 一致）。SceneEditor UI 處理 deg ↔ rad 轉換。
+`rot` 以 **radian** 儲存（與 scenes.ts、Three.js 一致）、Euler 順序 `'XYZ'`（Three.js 預設）。
+SceneEditor UI 處理 deg ↔ rad 轉換。
+
+**軸對應**：`rot[0] = Pitch（X 軸）`、`rot[1] = Yaw（Y 軸）`、`rot[2] = Roll（Z 軸）`。
+`pos[0/1/2] = X/Y/Z`，Y 為垂直向上（與場景一致）。
 
 ### 3.4 BroadcastChannel 新訊息
 
@@ -272,7 +276,17 @@ finalRot = combineEuler(base.rot, transform.rot)
 1. 由 `SceneConfig.groups` 取出 group + members
 2. 解析每個 member 至 `Object3D`（lookup three maps：slots / staticProps / taskProps）
 3. lookup 失敗 → skip（物件尚未載入，將由 load callback 重觸發）
-4. 對找到的成員：抓 base pos/rot（從 scenes.ts 對應條目），呼叫 `applyGroupTransform`，寫入 `object.position` / `object.rotation`
+4. 對找到的成員：抓 base pos/rot，呼叫 `applyGroupTransform`，寫入 `object.position` / `object.rotation`
+
+**base 來源依 `kind` 區分**（pivot 計算也用同一份）：
+
+| kind | base position 來自 | base rotation 來自 |
+| --- | --- | --- |
+| `slot` | `SceneVariant.slots[i].position` | `slots[i].rotation ?? [0,0,0]` |
+| `staticProp` | `propSystem.staticProps[i].position` | `staticProps[i].rotation ?? [0,0,0]` |
+| `taskProp` | `propSystem.taskProps[id].displayPos` | `taskProps[id].rotation ?? [0,0,0]` |
+
+`taskProp` 是 returning 狀態時，目標位置同樣是「`displayPos` 套上 group transform 後的值」（即 §6 的 returning 條目）。
 
 ### 5.4 觸發 re-apply 的時機
 
