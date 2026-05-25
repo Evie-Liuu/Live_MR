@@ -169,6 +169,29 @@ export const THEMES: ThemeConfig[] = [
             'ask_price_5': { url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
           },
         },
+        groups: [
+          {
+            id: 'cashier_side',
+            label: '收銀區',
+            members: [
+              { kind: 'slot',       id: 'cashier' },
+              { kind: 'staticProp', id: 'cashier_counter' },
+            ],
+          },
+          {
+            id: 'customer_side',
+            label: '顧客區',
+            members: [
+              { kind: 'slot',       id: 'customer' },
+              { kind: 'staticProp', id: 'rack' },
+              { kind: 'taskProp',   id: 'ask_price_1' },
+              { kind: 'taskProp',   id: 'ask_price_2' },
+              { kind: 'taskProp',   id: 'ask_price_3' },
+              { kind: 'taskProp',   id: 'ask_price_4' },
+              { kind: 'taskProp',   id: 'ask_price_5' },
+            ],
+          },
+        ],
       },
 
       // ── Scene 2：試衣間 ───────────────────────────────────────────────
@@ -282,6 +305,7 @@ function buildScenePresets(): Record<string, SceneConfig> {
         allowedVrmIds: variant.allowedVrmIds,
         modules: variant.modules,
         propSystem: variant.propSystem,
+        groups: variant.groups,
       };
     }
   }
