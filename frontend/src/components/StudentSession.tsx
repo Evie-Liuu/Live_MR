@@ -4,6 +4,7 @@ import { usePoseDetection } from '../hooks/usePoseDetection';
 import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL } from '../config/constants.ts';
+import type { AIHintPayload } from '../config/aiAssistant.ts';
 
 interface StudentSessionProps {
   roomId: string;
@@ -36,6 +37,8 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
+  const [showSource, setShowSource] = useState(false);
 
   const publishPose = useCallback(
     (data: Uint8Array) => {
@@ -96,6 +99,17 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
 
     room.on(RoomEvent.Disconnected, () => {
       if (isMounted) setConnected(false);
+    });
+
+    room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
+      if (!participant?.identity.startsWith('host-')) return;
+      try {
+        const msg = JSON.parse(new TextDecoder().decode(payload)) as { type?: string; payload?: AIHintPayload };
+        if (msg.type === 'ai-hint') {
+          const p = msg.payload ?? null;
+          if (isMounted) setAiHint(p && p.content ? p : null);
+        }
+      } catch { /* pose / other messages */ }
     });
 
     // Capture the promise to handle cleanup safely
@@ -291,6 +305,34 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       {!connected && !connectionError && retryCount > 0 && retryCount <= MAX_RETRIES && (
         <div style={{ color: '#facc15', fontSize: '0.85rem', marginTop: 12, textAlign: 'center' }}>
           連線重試中… ({retryCount}/{MAX_RETRIES})
+        </div>
+      )}
+
+      {/* AI 助理提示卡片（右上角 overlay） */}
+      {aiHint && aiHint.content && (
+        <div className="ss-ai-card">
+          <div className={`ss-ai-card-header ai-mode--${aiHint.mode}`}>
+            <span className="ss-ai-card-icon">🤖</span>
+            <span className="ss-ai-card-title">老師提示</span>
+            <span className={`ss-ai-mode-badge ai-mode--${aiHint.mode}`}>
+              {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
+            </span>
+            <button className="ss-ai-card-close" onClick={() => setAiHint(null)}>✕</button>
+          </div>
+          <div className="ss-ai-card-body">
+            {aiHint.mode === 'rearrange'
+              ? <div className="ss-ai-chips">{aiHint.content.split(' ').map((w, i) => <span key={i} className="ai-chip">{w}</span>)}</div>
+              : <div className="ss-ai-content">{aiHint.content}</div>
+            }
+          </div>
+          {aiHint.sourceText && (
+            <div className="ss-ai-source">
+              <button className="ss-ai-source-toggle" onClick={() => setShowSource(v => !v)}>
+                {showSource ? '▴' : '▾'} 老師原話
+              </button>
+              {showSource && <div className="ss-ai-source-text">"{aiHint.sourceText}"</div>}
+            </div>
+          )}
         </div>
       )}
 

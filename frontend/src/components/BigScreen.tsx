@@ -7,6 +7,7 @@ import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
 import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
+import type { AIHintPayload } from '../config/aiAssistant.ts';
 
 export interface TaskEntry {
   id: string;
@@ -16,7 +17,7 @@ export interface TaskEntry {
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -35,6 +36,8 @@ export interface BigScreenMsg {
   hintEnabled?: boolean;
   /** For 'hint-change': 目前顯示的階層（null = 不顯示任何階） */
   hintLevel?: HintLevel | null;
+  /** For 'ai-hint': AI 助理提示廣播 payload（content=null 為清除） */
+  aiHint?: AIHintPayload;
 }
 
 /**
@@ -174,6 +177,7 @@ export default function BigScreen() {
   const [hintLevel, setHintLevel] = useState<HintLevel | null>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
+  const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentTaskId = activeTasks.find(t => !t.completed)?.id;
@@ -216,7 +220,7 @@ export default function BigScreen() {
   // while the UI is steady, which is most of a session.
   useEffect(() => {
     overlayVersionRef.current++;
-  }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded, hintEnabled, hintLevel]);
+  }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded, hintEnabled, hintLevel, aiHint]);
 
   // rVFC toggle — controls whether the recording loop uses requestVideoFrameCallback
   // to gate video-bg redraws. Toggled via backtick key on BigScreen.
@@ -1498,6 +1502,9 @@ export default function BigScreen() {
         }
       } else if (msg.type === 'recording-stop') {
         stopRecordingAndUploadRef.current()
+      } else if (msg.type === 'ai-hint') {
+        const payload = msg.aiHint ?? null;
+        setAiHint(payload && payload.content ? payload : null);
       }
     };
 
@@ -1691,6 +1698,23 @@ export default function BigScreen() {
           </>
         );
       })()}
+
+      {/* AI 助理提示橫條（疊在大屏底部） */}
+      {aiHint && aiHint.content && (
+        <div className={`bs-ai-bar ai-mode--${aiHint.mode}`}>
+          <span className="bs-ai-bar-icon">🤖</span>
+          <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
+            {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
+          </span>
+          <span className="bs-ai-bar-content">
+            {aiHint.mode === 'rearrange'
+              ? aiHint.content.split(' ').map((w, i) => (
+                  <span key={i} className="ai-chip">{w}</span>
+                ))
+              : aiHint.content}
+          </span>
+        </div>
+      )}
 
       {/* Settlement overlay on BigScreen */}
       {showSettlement && (

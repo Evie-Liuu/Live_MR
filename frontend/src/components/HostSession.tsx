@@ -20,6 +20,10 @@ import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
+import { SCENE_CONSTRAINTS, buildPrompt, shuffleWords } from '../config/aiAssistant.ts';
+import type { AIHintMode, AIHintPayload } from '../config/aiAssistant.ts';
+import { generateHint, toFriendlyError } from '../utils/ollamaClient.ts';
+import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
@@ -123,6 +127,20 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
   const prevCurrentTaskIdRef = useRef<string | undefined>(undefined);
+
+  // ─── AI 助理 state ───────────────────────────────────────────────────────
+  const [rightPanelTab, setRightPanelTab] = useState<'task-hints' | 'ai-assistant'>('task-hints');
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const {
+    recording: sttRecording, interim: sttInterim, transcript: sttTranscript,
+    supported: sttSupported, error: sttError,
+    start: startRec, stop: stopRec, clear: clearTranscript,
+  } = useSpeechRecording();
   // Panel drawer open states
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
@@ -334,6 +352,94 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     });
   }, [hintLevel, broadcastHintChange]);
 
+  // ─── AI 助理 callbacks ───────────────────────────────────────────────────
+  const broadcastAIHint = useCallback((payload: AIHintPayload) => {
+    const msg: BigScreenMsg = { type: 'ai-hint', aiHint: payload };
+    channelRef.current?.postMessage(msg);
+    const room = roomRef.current;
+    if (room && room.state === 'connected') {
+      try {
+        const bytes = new TextEncoder().encode(JSON.stringify({ type: 'ai-hint', payload }));
+        room.localParticipant.publishData(bytes, { reliable: true });
+      } catch { /* ignore */ }
+    }
+  }, []);
+
+  const cancelAutoCountdown = useCallback(() => {
+    if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null; }
+    if (tickTimerRef.current) { clearInterval(tickTimerRef.current); tickTimerRef.current = null; }
+    setCountdown(null);
+  }, []);
+
+  const handleHint = useCallback(async (mode: AIHintMode) => {
+    cancelAutoCountdown();
+    if (aiBusy) return;
+    const txt = sttTranscript.trim();
+    if (txt.length < 3) return;
+    const constraint = SCENE_CONSTRAINTS[selectedSceneId];
+    if (!constraint) { setAiError('此場景尚無 AI 助理約束文件'); return; }
+    setAiBusy(true); setAiError(null);
+    try {
+      let content = await generateHint(buildPrompt(txt, constraint, mode));
+      if (mode === 'rearrange' && !content.includes(' ')) {
+        const complete = await generateHint(buildPrompt(txt, constraint, 'complete'));
+        content = shuffleWords(complete);
+      }
+      const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
+      setLatestHint(payload);
+      broadcastAIHint(payload);
+    } catch (e) {
+      setAiError(toFriendlyError(e));
+    } finally {
+      setAiBusy(false);
+    }
+  }, [aiBusy, sttTranscript, selectedSceneId, cancelAutoCountdown, broadcastAIHint]);
+
+  const handleHintRef = useRef(handleHint);
+  useEffect(() => { handleHintRef.current = handleHint; }, [handleHint]);
+
+  const handleClearAIHint = useCallback(() => {
+    cancelAutoCountdown();
+    const payload: AIHintPayload = { mode: null, content: null, sourceText: null, ts: Date.now() };
+    setLatestHint(null);
+    broadcastAIHint(payload);
+  }, [cancelAutoCountdown, broadcastAIHint]);
+
+  const handleToggleRecord = useCallback(() => {
+    if (sttRecording) {
+      stopRec();
+    } else {
+      cancelAutoCountdown();
+      clearTranscript();
+      setAiError(null);
+      startRec();
+    }
+  }, [sttRecording, stopRec, startRec, cancelAutoCountdown, clearTranscript]);
+
+  // 3 秒自動倒數 — 監看 transcript 變化（停止錄音時凍結）
+  useEffect(() => {
+    if (!sttTranscript || sttTranscript.length < 3) return;
+    if (!SCENE_CONSTRAINTS[selectedSceneId]) return;
+    setCountdown(3);
+    tickTimerRef.current = setInterval(() => {
+      setCountdown((c) => (c !== null && c > 1 ? c - 1 : c));
+    }, 1000);
+    autoTimerRef.current = setTimeout(() => {
+      if (tickTimerRef.current) { clearInterval(tickTimerRef.current); tickTimerRef.current = null; }
+      autoTimerRef.current = null;
+      setCountdown(null);
+      handleHintRef.current('rearrange');
+    }, 3000);
+    return () => {
+      if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null; }
+      if (tickTimerRef.current) { clearInterval(tickTimerRef.current); tickTimerRef.current = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sttTranscript]);
+
+  // unmount 清理倒數
+  useEffect(() => () => cancelAutoCountdown(), [cancelAutoCountdown]);
+
   // 當「第一個未完成任務」改變（含全完成 → undefined）時，把提示重設為「不顯示」
   useEffect(() => {
     const currentId = selectedTasks.find(t => !t.completed)?.id;
@@ -388,6 +494,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       setHasRecorded(false);
       const taskClearMsg: BigScreenMsg = { type: 'task-change', tasks: [] };
       channelRef.current?.postMessage(taskClearMsg);
+      // AI 助理：場景切換 → 取消倒數、停止錄音、清空 transcript / 最新提示，並廣播清除
+      cancelAutoCountdown();
+      if (sttRecording) stopRec();
+      clearTranscript();
+      setLatestHint(null);
+      setAiError(null);
+      broadcastAIHint({ mode: null, content: null, sourceText: null, ts: Date.now() });
       broadcastSceneChange(sceneId);
 
       // Validate and fallback roles if the new scene restricts them
@@ -432,7 +545,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         });
       }
     },
-    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange],
+    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, sttRecording, stopRec, clearTranscript, broadcastAIHint],
   );
 
   // const handleVrmChange = useCallback(
@@ -1309,7 +1422,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         </div>
 
         {/* ── Video Area ────────────────────────────────────────────────────── */}
-        <div className={`hs-video-area ${hintEnabled ? 'hs-video-area--with-hint' : ''}`}>
+        <div className="hs-video-area hs-video-area--with-hint">
 
           {/* Task banner strip */}
           {selectedTasks.length > 0 && (() => {
@@ -1429,7 +1542,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               </div>
             </div>
 
-            {hintEnabled && (() => {
+            {(() => {
               const currentTask = selectedTasks.find(t => !t.completed);
               const hint = currentTask ? TASK_HINTS[currentTask.id] : undefined;
               const renderLevelContent = (lv: HintLevel) => {
@@ -1444,55 +1557,182 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                       : hint.partialSentence;
                 return <div className="hs-hint-line">{text}</div>;
               };
+              const hasConstraint = !!SCENE_CONSTRAINTS[selectedSceneId];
+              const tooShort = !sttTranscript || sttTranscript.trim().length < 3;
+              const canTrigger = sttSupported && !sttRecording && !tooShort && hasConstraint;
               return (
-                <div className="hs-hint-panel">
-                  <div className="hs-hint-panel-header">
-                    <span className="material-symbols-outlined">lightbulb</span>
-                    <span>任務提示</span>
-                  </div>
-                  <div className="hs-hint-panel-task">
-                    {selectedTasks.length === 0 ? '尚未選擇任務'
-                      : !currentTask ? '所有任務已完成'
-                        : currentTask.label}
-                  </div>
-                  <div className="hs-hint-levels">
-                    {HINT_LEVELS.map(({ level, num, label }) => (
-                      <button
-                        key={level}
-                        className={`hs-hint-level-btn ${hintLevel === level ? 'is-active' : ''}`}
-                        disabled={!currentTask || !hint}
-                        onClick={() => setHint(level)}
-                      >{num} {label}</button>
-                    ))}
+                <div className="hs-right-panel">
+                  <div className="hs-right-panel-tabs">
                     <button
-                      className={`hs-hint-level-btn hs-hint-level-btn--none ${hintLevel === null ? 'is-active' : ''}`}
-                      onClick={() => setHint(null)}
-                    >✕ 不顯示</button>
+                      className={`hs-right-tab ${rightPanelTab === 'task-hints' ? 'is-active' : ''}`}
+                      onClick={() => setRightPanelTab('task-hints')}
+                    >
+                      <span className="material-symbols-outlined">lightbulb</span>
+                      任務提示
+                    </button>
+                    <button
+                      className={`hs-right-tab ${rightPanelTab === 'ai-assistant' ? 'is-active' : ''}`}
+                      onClick={() => setRightPanelTab('ai-assistant')}
+                    >
+                      🤖 AI 助理
+                    </button>
                   </div>
-                  <div className="hs-hint-panel-body">
-                    {!currentTask ? (
-                      <div className="hs-hint-placeholder">{selectedTasks.length === 0 ? '請先在「任務」面板選擇任務' : '所有任務已完成'}</div>
-                    ) : !hint ? (
-                      <div className="hs-hint-placeholder">此任務尚無提示資料</div>
-                    ) : hintLevel === null ? (
-                      <div className="hs-hint-placeholder">目前未顯示提示。點上方階層按鈕讓學生大屏顯示。</div>
-                    ) : (
-                      <div className="hs-hint-active">
-                        <div className="hs-hint-active-tag">{hintLevelMeta(hintLevel).num} {hintLevelMeta(hintLevel).label}（學生大屏顯示中）</div>
-                        {renderLevelContent(hintLevel)}
+
+                  {rightPanelTab === 'task-hints' && (
+                    <div className="hs-hint-panel">
+                      <div className="hs-hint-panel-header">
+                        <span className="material-symbols-outlined">lightbulb</span>
+                        <span>任務提示</span>
+                        <button
+                          className={`hs-hint-toggle hs-hint-toggle--inline ${hintEnabled ? 'is-on' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); toggleHintEnabled(); }}
+                          title={hintEnabled ? '關閉廣播到大屏' : '開啟廣播到大屏'}
+                        >
+                          <span className="hs-hint-toggle-badge">{hintEnabled ? 'ON' : 'OFF'}</span>
+                        </button>
                       </div>
-                    )}
-                    {hint && currentTask && (
-                      <div className="hs-hint-allref">
-                        {HINT_LEVELS.filter(l => l.level !== hintLevel).map(({ level, num, label }) => (
-                          <div key={level} className="hs-hint-ref-row">
-                            <span className="hs-hint-ref-tag">{num} {label}</span>
-                            <span className="hs-hint-ref-content">{renderLevelContent(level)}</span>
-                          </div>
+                      <div className="hs-hint-panel-task">
+                        {selectedTasks.length === 0 ? '尚未選擇任務'
+                          : !currentTask ? '所有任務已完成'
+                            : currentTask.label}
+                      </div>
+                      <div className="hs-hint-levels">
+                        {HINT_LEVELS.map(({ level, num, label }) => (
+                          <button
+                            key={level}
+                            className={`hs-hint-level-btn ${hintLevel === level ? 'is-active' : ''}`}
+                            disabled={!currentTask || !hint || !hintEnabled}
+                            onClick={() => setHint(level)}
+                          >{num} {label}</button>
                         ))}
+                        <button
+                          className={`hs-hint-level-btn hs-hint-level-btn--none ${hintLevel === null ? 'is-active' : ''}`}
+                          disabled={!hintEnabled}
+                          onClick={() => setHint(null)}
+                        >✕ 不顯示</button>
                       </div>
-                    )}
-                  </div>
+                      <div className="hs-hint-panel-body">
+                        {!hintEnabled ? (
+                          <div className="hs-hint-placeholder">任務提示廣播已關閉。按上方 ON 開啟。</div>
+                        ) : !currentTask ? (
+                          <div className="hs-hint-placeholder">{selectedTasks.length === 0 ? '請先在「任務」面板選擇任務' : '所有任務已完成'}</div>
+                        ) : !hint ? (
+                          <div className="hs-hint-placeholder">此任務尚無提示資料</div>
+                        ) : hintLevel === null ? (
+                          <div className="hs-hint-placeholder">目前未顯示提示。點上方階層按鈕讓學生大屏顯示。</div>
+                        ) : (
+                          <div className="hs-hint-active">
+                            <div className="hs-hint-active-tag">{hintLevelMeta(hintLevel).num} {hintLevelMeta(hintLevel).label}（學生大屏顯示中）</div>
+                            {renderLevelContent(hintLevel)}
+                          </div>
+                        )}
+                        {hint && currentTask && (
+                          <div className="hs-hint-allref">
+                            {HINT_LEVELS.filter(l => l.level !== hintLevel).map(({ level, num, label }) => (
+                              <div key={level} className="hs-hint-ref-row">
+                                <span className="hs-hint-ref-tag">{num} {label}</span>
+                                <span className="hs-hint-ref-content">{renderLevelContent(level)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {rightPanelTab === 'ai-assistant' && (
+                    <div className="hs-ai-panel">
+                      <div className="hs-ai-panel-header">
+                        <span>🤖 AI 助理</span>
+                      </div>
+
+                      {!sttSupported ? (
+                        <div className="hs-ai-error">瀏覽器不支援 Web Speech API，請使用 Chrome 或 Edge</div>
+                      ) : !hasConstraint ? (
+                        <div className="hs-ai-error">此場景尚無 AI 助理約束文件</div>
+                      ) : null}
+
+                      <div className="hs-ai-record-row">
+                        <button
+                          className={`hs-ai-record-btn ${sttRecording ? 'is-recording' : ''}`}
+                          disabled={!sttSupported}
+                          onClick={handleToggleRecord}
+                          title={sttRecording ? '停止錄音' : '開始錄音'}
+                        >
+                          {sttRecording ? '■ 停止' : '● 錄音'}
+                        </button>
+                        <div className="hs-ai-record-status">
+                          {sttRecording ? '錄音中…'
+                            : sttTranscript ? '已凍結老師原話'
+                              : sttSupported ? '按下開始錄音' : '不支援'}
+                        </div>
+                      </div>
+
+                      {sttError && <div className="hs-ai-error">{sttError}</div>}
+
+                      <div className="hs-ai-transcript">
+                        {sttRecording && sttInterim && (
+                          <div className="hs-ai-transcript-interim">錄音中… "{sttInterim}"</div>
+                        )}
+                        {sttTranscript && (
+                          <div className="hs-ai-transcript-final">上次說的："{sttTranscript}"</div>
+                        )}
+                        {!sttRecording && !sttTranscript && !sttInterim && (
+                          <div className="hs-ai-transcript-placeholder">尚未錄音</div>
+                        )}
+                        {!sttRecording && sttTranscript && tooShort && (
+                          <div className="hs-ai-warn">太短，請再錄一次</div>
+                        )}
+                      </div>
+
+                      {countdown !== null && (
+                        <div className="hs-ai-countdown">
+                          <span className="hs-ai-countdown-text">⏱ {countdown} 秒後自動廣播重組提示…</span>
+                          <div className="hs-ai-countdown-bar">
+                            <div className="hs-ai-countdown-fill" style={{ width: `${(countdown / 3) * 100}%` }} />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="hs-ai-mode-row">
+                        <button
+                          className="hs-ai-mode-btn ai-mode--complete"
+                          disabled={!canTrigger || aiBusy}
+                          onClick={() => handleHint('complete')}
+                        >① 完整</button>
+                        <button
+                          className={`hs-ai-mode-btn ai-mode--rearrange ${countdown !== null ? 'hs-ai-mode-btn--auto-target' : ''}`}
+                          disabled={!canTrigger || aiBusy}
+                          onClick={() => handleHint('rearrange')}
+                        >② 重組{countdown !== null ? '（自動）' : ''}</button>
+                        <button
+                          className="hs-ai-mode-btn ai-mode--extend"
+                          disabled={!canTrigger || aiBusy}
+                          onClick={() => handleHint('extend')}
+                        >③ 延伸</button>
+                      </div>
+
+                      {aiBusy && <div className="hs-ai-busy">AI 生成中…</div>}
+                      {aiError && <div className="hs-ai-error">{aiError}</div>}
+
+                      {latestHint && latestHint.content && (
+                        <div className={`hs-ai-latest ai-mode--${latestHint.mode}`}>
+                          <div className="hs-ai-latest-header">
+                            <span className={`hs-ai-latest-tag ai-mode--${latestHint.mode}`}>
+                              {latestHint.mode === 'complete' ? '完整' : latestHint.mode === 'rearrange' ? '重組' : '延伸'}
+                            </span>
+                            <span className="hs-ai-latest-title">最新提示（已廣播）</span>
+                          </div>
+                          <div className="hs-ai-latest-body">
+                            {latestHint.mode === 'rearrange'
+                              ? <div className="hs-ai-chips">{latestHint.content.split(' ').map((w, i) => <span key={i} className="ai-chip">{w}</span>)}</div>
+                              : <div className="hs-ai-latest-content">{latestHint.content}</div>}
+                          </div>
+                          <button className="hs-ai-clear-btn" onClick={handleClearAIHint}>✕ 清除學生畫面</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()}
