@@ -1687,8 +1687,19 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         <div className={`hs-ai-record-card ${sttRecording ? 'is-recording' : ''}`}>
                           <div className="hs-ai-record-card-top">
                             <div className={`hs-ai-waveform ${sttRecording ? 'is-active' : ''}`} aria-hidden="true">
-                              {Array.from({ length: 28 }).map((_, i) => (
-                                <span key={i} className="hs-ai-wave-bar" style={{ animationDelay: `${(i % 7) * 0.12}s` }} />
+                              {[
+                                15, 20, 25, 45, 60, 50, 35, 40, 75, 90, 80, 65,
+                                45, 55, 85, 100, 95, 80, 65, 50, 40, 30, 25, 35,
+                                55, 70, 80, 60, 45, 30, 20, 15, 12, 10, 8, 5
+                              ].map((h, i) => (
+                                <span 
+                                  key={i} 
+                                  className="hs-ai-wave-bar" 
+                                  style={{ 
+                                    '--bar-h': `${h}%`,
+                                    animationDelay: `${i * 0.05}s` 
+                                  } as React.CSSProperties} 
+                                />
                               ))}
                             </div>
                             <div className="hs-ai-record-time">
