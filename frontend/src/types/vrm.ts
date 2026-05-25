@@ -92,6 +92,8 @@ export interface SceneConfig {
   modules?: SceneModule[];
   /** Scene prop system: static props + task prop registry */
   propSystem?: ScenePropSystem;
+  /** 邏輯群組（由 SceneVariant.groups 帶入） */
+  groups?: GroupConfig[];
 }
 
 // ─── Teaching Hierarchy ──────────────────────────────────────────────────────
@@ -137,6 +139,22 @@ export interface ScenePropSystem {
   taskProps?: Record<string, TaskPropConfig>;
 }
 
+/** 群組成員引用（指向場景內既存的 slot / staticProp / taskProp） */
+export interface GroupMemberRef {
+  kind: 'slot' | 'staticProp' | 'taskProp';
+  /** 對應 slot.id / staticProp.id / taskProp 的 task id（map key） */
+  id: string;
+}
+
+/** 邏輯群組：可在 SceneEditor 中被選中、整組套用剛體變換 */
+export interface GroupConfig {
+  id: string;       // e.g. 'customer_area'
+  label: string;    // 顯示用 e.g. '顧客區（顧客+衣架+衣物）'
+  members: GroupMemberRef[];
+  /** 選填：固定旋轉中心。未設定 → 用所有成員 base position 的 centroid */
+  pivot?: [number, number, number];
+}
+
 /** A sub-scene within a Theme (e.g. 收銀台, 試衣間) */
 export interface SceneVariant {
   id: string;
@@ -151,6 +169,8 @@ export interface SceneVariant {
   modules?: SceneModule[];
   /** Scene prop system: static props + task prop registry */
   propSystem?: ScenePropSystem;
+  /** 邏輯群組：允許 SceneEditor 對整組成員套用變換 */
+  groups?: GroupConfig[];
 }
 
 /** Top-level teaching theme (e.g. 服飾店) */
