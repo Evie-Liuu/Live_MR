@@ -29,7 +29,13 @@ import {
   disposeStaticProps,
   disposeTaskProps,
 } from '../utils/propLoader';
-import type { PoseFrame, SceneConfig, AvatarSpawnConfig } from '../types/vrm';
+import type { PoseFrame, SceneConfig, AvatarSpawnConfig, GroupMemberRef } from '../types/vrm';
+import {
+  applyGroupTransform,
+  computePivot,
+  IDENTITY_TRANSFORM,
+  type Vec3,
+} from '../utils/groupTransform';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
 import {
@@ -134,13 +140,15 @@ interface UseBigScreenSceneOptions {
    * of a competing second requestAnimationFrame.
    */
   onPostRenderRef?: { current: ((timestamp: number) => void) | null };
+  /** 群組變換：groupId → {pos, rot}（rot 為 radian）。改變時自動 re-apply。 */
+  groupTransforms?: Record<string, { pos: [number, number, number]; rot: [number, number, number] }>;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -187,6 +195,9 @@ export function useBigScreenScene(
 
   const staticPropPoolRef = useRef<Map<string, THREE.Group>>(new Map());
   const taskPropPoolRef = useRef<Map<string, THREE.Group>>(new Map());
+
+  const groupTransformsRef = useRef<Record<string, { pos: [number, number, number]; rot: [number, number, number] }>>({});
+  useEffect(() => { groupTransformsRef.current = groupTransforms ?? {}; }, [groupTransforms]);
   /** Tracks the active task ID for Phase 2 interaction use */
   const currentTaskIdRef = useRef<string | undefined>(undefined);
   currentTaskIdRef.current = currentTaskId;
@@ -206,6 +217,82 @@ export function useBigScreenScene(
   const originalDprRef = useRef(Math.min(window.devicePixelRatio, 2));
 
   const avgPoseIntervalsRef = useRef<Record<string, number>>({});
+
+  // ─── Group transform helpers ──────────────────────────────────────────────
+  const memberBase = useCallback(
+    (ref: GroupMemberRef, preset: SceneConfig): { pos: Vec3; rot: Vec3 } | null => {
+      if (ref.kind === 'slot') {
+        const s = preset.slots?.find(x => x.id === ref.id);
+        if (!s) return null;
+        return { pos: s.position, rot: s.rotation ?? [0, 0, 0] };
+      }
+      if (ref.kind === 'staticProp') {
+        const p = preset.propSystem?.staticProps?.find(x => x.id === ref.id);
+        if (!p) return null;
+        return { pos: p.position, rot: p.rotation ?? [0, 0, 0] };
+      }
+      const t = preset.propSystem?.taskProps?.[ref.id];
+      if (!t) return null;
+      return { pos: t.displayPos, rot: t.rotation ?? [0, 0, 0] };
+    },
+    [],
+  );
+
+  const resolveMemberObject = useCallback(
+    (ref: GroupMemberRef): THREE.Object3D | null => {
+      if (ref.kind === 'slot') {
+        const identity = slotAssignmentsRef.current?.[ref.id];
+        if (!identity) return null;
+        const avatar = avatarsRef.current.get(identity);
+        return avatar?.vrm.scene ?? null;
+      }
+      if (ref.kind === 'staticProp') {
+        return staticPropPoolRef.current.get(ref.id) ?? null;
+      }
+      return taskPropPoolRef.current.get(ref.id) ?? null;
+    },
+    [],
+  );
+
+  const applyAllGroupTransforms = useCallback(() => {
+    const preset = presetRef.current;
+    const groups = preset.groups ?? [];
+    const transforms = groupTransformsRef.current;
+    for (const g of groups) {
+      const t = transforms[g.id] ?? IDENTITY_TRANSFORM;
+
+      let pivot: Vec3;
+      if (g.pivot) {
+        pivot = g.pivot;
+      } else {
+        const bases = g.members
+          .map(m => memberBase(m, preset))
+          .filter((b): b is { pos: Vec3; rot: Vec3 } => b !== null)
+          .map(b => b.pos);
+        pivot = computePivot(bases);
+      }
+
+      for (const m of g.members) {
+        if (m.kind === 'taskProp') continue; // Task 6 will handle this
+        const base = memberBase(m, preset);
+        const obj = resolveMemberObject(m);
+        if (!base || !obj) {
+          if (import.meta.env.DEV) {
+            console.log('[groupTransform] skip', g.id, m, '(base or obj missing)');
+          }
+          continue;
+        }
+        const finalT = applyGroupTransform(base, pivot, t);
+        obj.position.set(finalT.pos[0], finalT.pos[1], finalT.pos[2]);
+        obj.rotation.set(finalT.rot[0], finalT.rot[1], finalT.rot[2]);
+      }
+    }
+  }, [memberBase, resolveMemberObject]);
+
+  // Re-apply when groupTransforms prop changes
+  useEffect(() => {
+    applyAllGroupTransforms();
+  }, [groupTransforms, applyAllGroupTransforms]);
 
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
@@ -274,7 +361,10 @@ export function useBigScreenScene(
         })
         .catch((err) => console.warn('[BigScreenScene] taskProps load error:', err));
 
-      Promise.allSettled([staticP, taskP]).then(notifyPropsReady);
+      Promise.allSettled([staticP, taskP]).then(() => {
+        applyAllGroupTransforms();
+        notifyPropsReady();
+      });
     } else {
       notifyPropsReady();
     }
@@ -610,6 +700,7 @@ export function useBigScreenScene(
         if (spawnOverride?.rotation) {
           existing.vrm.scene.rotation.set(...spawnOverride.rotation);
         }
+        applyAllGroupTransforms();
         return Promise.resolve(existing);
       }
 
@@ -683,6 +774,7 @@ export function useBigScreenScene(
           avatarsRef.current.set(identity, slot);
           loadingRef.current.delete(identity);
           if (!isSlotPinned) reposition();
+          applyAllGroupTransforms();
           return slot;
         })
         .catch((err) => {
@@ -702,7 +794,7 @@ export function useBigScreenScene(
       loadingRef.current.set(identity, loadPromise);
       return loadPromise;
     },
-    [reposition, vrmSourceId],
+    [reposition, vrmSourceId, applyAllGroupTransforms],
   );
 
   /** Swap the VRM model for a specific identity. Removes old avatar and reloads with new URL. */

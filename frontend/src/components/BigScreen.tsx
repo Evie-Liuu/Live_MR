@@ -319,6 +319,7 @@ export default function BigScreen() {
     renderFpsLimit: renderFps,
     isRecording: isActivelyRecording,
     onPostRenderRef: postRenderRef,
+    groupTransforms: {}, // Task 7 will supply actual state
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
