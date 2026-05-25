@@ -129,13 +129,14 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const prevCurrentTaskIdRef = useRef<string | undefined>(undefined);
 
   // ─── AI 助理 state ───────────────────────────────────────────────────────
-  const [rightPanelTab, setRightPanelTab] = useState<'task-hints' | 'ai-assistant'>('task-hints');
+  const [rightPanelTab, setRightPanelTab] = useState<'task-hints' | 'ai-assistant'>('ai-assistant');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [recordDuration, setRecordDuration] = useState(0);
   const {
     recording: sttRecording, interim: sttInterim, transcript: sttTranscript,
     supported: sttSupported, error: sttError,
@@ -439,6 +440,27 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // unmount 清理倒數
   useEffect(() => () => cancelAutoCountdown(), [cancelAutoCountdown]);
+
+  // ─── 錄音時長計時 ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!sttRecording) {
+      setRecordDuration(0);
+      return;
+    }
+    setRecordDuration(0);
+    const startTs = Date.now();
+    const id = setInterval(() => {
+      setRecordDuration(Math.floor((Date.now() - startTs) / 1000));
+    }, 250);
+    return () => clearInterval(id);
+  }, [sttRecording]);
+
+  // 當任務提示關閉時，自動切到 AI 助理 tab
+  useEffect(() => {
+    if (!hintEnabled && rightPanelTab === 'task-hints') {
+      setRightPanelTab('ai-assistant');
+    }
+  }, [hintEnabled, rightPanelTab]);
 
   // 當「第一個未完成任務」改變（含全完成 → undefined）時，把提示重設為「不顯示」
   useEffect(() => {
@@ -1563,22 +1585,25 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               return (
                 <div className="hs-right-panel">
                   <div className="hs-right-panel-tabs">
-                    <button
-                      className={`hs-right-tab ${rightPanelTab === 'task-hints' ? 'is-active' : ''}`}
-                      onClick={() => setRightPanelTab('task-hints')}
-                    >
-                      <span className="material-symbols-outlined">lightbulb</span>
-                      任務提示
-                    </button>
+                    {hintEnabled && (
+                      <button
+                        className={`hs-right-tab ${rightPanelTab === 'task-hints' ? 'is-active' : ''}`}
+                        onClick={() => setRightPanelTab('task-hints')}
+                      >
+                        <span className="material-symbols-outlined">lightbulb</span>
+                        任務提示
+                      </button>
+                    )}
                     <button
                       className={`hs-right-tab ${rightPanelTab === 'ai-assistant' ? 'is-active' : ''}`}
                       onClick={() => setRightPanelTab('ai-assistant')}
                     >
-                      🤖 AI 助理
+                      <span className="hs-ai-tab-icon">✨</span>
+                      AI 助理
                     </button>
                   </div>
 
-                  {rightPanelTab === 'task-hints' && (
+                  {hintEnabled && rightPanelTab === 'task-hints' && (
                     <div className="hs-hint-panel">
                       <div className="hs-hint-panel-header">
                         <span className="material-symbols-outlined">lightbulb</span>
@@ -1642,8 +1667,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
                   {rightPanelTab === 'ai-assistant' && (
                     <div className="hs-ai-panel">
-                      <div className="hs-ai-panel-header">
-                        <span>🤖 AI 助理</span>
+                      <div className="hs-ai-brand">
+                        <span className="hs-ai-brand-icon">✨</span>
+                        <span className="hs-ai-brand-text">
+                          <span className="hs-ai-brand-ai">AI</span>
+                          <span className="hs-ai-brand-tag">助理</span>
+                        </span>
                       </div>
 
                       {!sttSupported ? (
@@ -1652,37 +1681,96 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         <div className="hs-ai-error">此場景尚無 AI 助理約束文件</div>
                       ) : null}
 
-                      <div className="hs-ai-record-row">
-                        <button
-                          className={`hs-ai-record-btn ${sttRecording ? 'is-recording' : ''}`}
-                          disabled={!sttSupported}
-                          onClick={handleToggleRecord}
-                          title={sttRecording ? '停止錄音' : '開始錄音'}
-                        >
-                          {sttRecording ? '■ 停止' : '● 錄音'}
-                        </button>
-                        <div className="hs-ai-record-status">
-                          {sttRecording ? '錄音中…'
-                            : sttTranscript ? '已凍結老師原話'
-                              : sttSupported ? '按下開始錄音' : '不支援'}
+                      {/* ── 音錄 ─────────────────────────────────────── */}
+                      <div className="hs-ai-section">
+                        <div className="hs-ai-section-label">音錄</div>
+                        <div className={`hs-ai-record-card ${sttRecording ? 'is-recording' : ''}`}>
+                          <div className="hs-ai-record-card-top">
+                            <div className={`hs-ai-waveform ${sttRecording ? 'is-active' : ''}`} aria-hidden="true">
+                              {Array.from({ length: 28 }).map((_, i) => (
+                                <span key={i} className="hs-ai-wave-bar" style={{ animationDelay: `${(i % 7) * 0.12}s` }} />
+                              ))}
+                            </div>
+                            <div className="hs-ai-record-time">
+                              {String(Math.floor(recordDuration / 60)).padStart(2, '0')}:{String(recordDuration % 60).padStart(2, '0')}
+                            </div>
+                          </div>
+                          <div className="hs-ai-record-actions">
+                            <button
+                              className="hs-ai-record-action-btn"
+                              disabled={!sttSupported}
+                              onClick={handleToggleRecord}
+                              title={sttRecording ? '停止錄音' : '開始錄音'}
+                            >
+                              <span className="material-symbols-outlined">
+                                {sttRecording ? 'stop_circle' : 'mic'}
+                              </span>
+                              {sttRecording ? '停止' : '錄音'}
+                            </button>
+                            {sttTranscript && !sttRecording && (
+                              <button
+                                className="hs-ai-record-action-btn hs-ai-record-action-btn--secondary"
+                                onClick={() => { clearTranscript(); setAiError(null); }}
+                                title="清除錄音內容"
+                              >
+                                <span className="material-symbols-outlined">refresh</span>
+                                重錄
+                              </button>
+                            )}
+                          </div>
+                          <div className="hs-ai-record-status-row">
+                            {sttRecording ? '錄音中…'
+                              : sttTranscript ? '已凍結老師原話'
+                                : sttSupported ? '按下開始錄音' : '不支援'}
+                          </div>
                         </div>
+                        {sttError && <div className="hs-ai-error">{sttError}</div>}
                       </div>
 
-                      {sttError && <div className="hs-ai-error">{sttError}</div>}
-
-                      <div className="hs-ai-transcript">
-                        {sttRecording && sttInterim && (
-                          <div className="hs-ai-transcript-interim">錄音中… "{sttInterim}"</div>
-                        )}
-                        {sttTranscript && (
-                          <div className="hs-ai-transcript-final">上次說的："{sttTranscript}"</div>
-                        )}
-                        {!sttRecording && !sttTranscript && !sttInterim && (
-                          <div className="hs-ai-transcript-placeholder">尚未錄音</div>
-                        )}
-                        {!sttRecording && sttTranscript && tooShort && (
-                          <div className="hs-ai-warn">太短，請再錄一次</div>
-                        )}
+                      {/* ── AI 回覆語句 ──────────────────────────────── */}
+                      <div className="hs-ai-section">
+                        <div className="hs-ai-section-label">AI 回覆語句</div>
+                        <div className="hs-ai-reply-card">
+                          <div className="hs-ai-reply-row">
+                            <div className="hs-ai-reply-label">老師原話</div>
+                            <div className="hs-ai-reply-text">
+                              {sttRecording && sttInterim
+                                ? <span className="hs-ai-reply-interim">"{sttInterim}"</span>
+                                : sttTranscript
+                                  ? `"${sttTranscript}"`
+                                  : <span className="hs-ai-reply-placeholder">尚未錄音</span>}
+                            </div>
+                          </div>
+                          <div className="hs-ai-reply-row">
+                            <div className="hs-ai-reply-label">AI 回覆</div>
+                            <div className="hs-ai-reply-text">
+                              {aiBusy
+                                ? <span className="hs-ai-reply-placeholder">AI 生成中…</span>
+                                : latestHint && latestHint.content
+                                  ? latestHint.content
+                                  : <span className="hs-ai-reply-placeholder">尚未生成提示</span>}
+                            </div>
+                            {latestHint?.content && !aiBusy && (
+                              <button
+                                className="hs-ai-reply-speak"
+                                title="朗讀"
+                                onClick={() => {
+                                  try {
+                                    const u = new SpeechSynthesisUtterance(latestHint.content!);
+                                    u.lang = 'en-US';
+                                    window.speechSynthesis.cancel();
+                                    window.speechSynthesis.speak(u);
+                                  } catch { /* ignore */ }
+                                }}
+                              >
+                                <span className="material-symbols-outlined">volume_up</span>
+                              </button>
+                            )}
+                          </div>
+                          {!sttRecording && sttTranscript && tooShort && (
+                            <div className="hs-ai-warn">太短，請再錄一次</div>
+                          )}
+                        </div>
                       </div>
 
                       {countdown !== null && (
@@ -1694,42 +1782,59 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         </div>
                       )}
 
-                      <div className="hs-ai-mode-row">
-                        <button
-                          className="hs-ai-mode-btn ai-mode--complete"
-                          disabled={!canTrigger || aiBusy}
-                          onClick={() => handleHint('complete')}
-                        >① 完整</button>
-                        <button
-                          className={`hs-ai-mode-btn ai-mode--rearrange ${countdown !== null ? 'hs-ai-mode-btn--auto-target' : ''}`}
-                          disabled={!canTrigger || aiBusy}
-                          onClick={() => handleHint('rearrange')}
-                        >② 重組{countdown !== null ? '（自動）' : ''}</button>
-                        <button
-                          className="hs-ai-mode-btn ai-mode--extend"
-                          disabled={!canTrigger || aiBusy}
-                          onClick={() => handleHint('extend')}
-                        >③ 延伸</button>
+                      {/* ── 提示難度 ─────────────────────────────────── */}
+                      <div className="hs-ai-section">
+                        <div className="hs-ai-section-label">提示難度</div>
+                        <div className="hs-ai-mode-cards">
+                          <button
+                            className="hs-ai-mode-card hs-ai-mode-card--complete"
+                            disabled={!canTrigger || aiBusy}
+                            onClick={() => handleHint('complete')}
+                          >
+                            <span className="hs-ai-mode-card-icon">
+                              <span className="material-symbols-outlined">check_circle</span>
+                            </span>
+                            <span className="hs-ai-mode-card-label">完整</span>
+                          </button>
+                          <button
+                            className={`hs-ai-mode-card hs-ai-mode-card--rearrange ${countdown !== null ? 'is-auto-target' : ''}`}
+                            disabled={!canTrigger || aiBusy}
+                            onClick={() => handleHint('rearrange')}
+                          >
+                            <span className="hs-ai-mode-card-icon">
+                              <span className="material-symbols-outlined">shuffle</span>
+                            </span>
+                            <span className="hs-ai-mode-card-label">重組{countdown !== null ? '（自動）' : ''}</span>
+                          </button>
+                          <button
+                            className="hs-ai-mode-card hs-ai-mode-card--extend"
+                            disabled={!canTrigger || aiBusy}
+                            onClick={() => handleHint('extend')}
+                          >
+                            <span className="hs-ai-mode-card-icon">
+                              <span className="material-symbols-outlined">open_in_new</span>
+                            </span>
+                            <span className="hs-ai-mode-card-label">延伸</span>
+                          </button>
+                        </div>
                       </div>
 
-                      {aiBusy && <div className="hs-ai-busy">AI 生成中…</div>}
                       {aiError && <div className="hs-ai-error">{aiError}</div>}
 
-                      {latestHint && latestHint.content && (
-                        <div className={`hs-ai-latest ai-mode--${latestHint.mode}`}>
-                          <div className="hs-ai-latest-header">
-                            <span className={`hs-ai-latest-tag ai-mode--${latestHint.mode}`}>
-                              {latestHint.mode === 'complete' ? '完整' : latestHint.mode === 'rearrange' ? '重組' : '延伸'}
-                            </span>
-                            <span className="hs-ai-latest-title">最新提示（已廣播）</span>
+                      {/* ── 重組提示 chips（僅 rearrange 模式顯示）─────── */}
+                      {latestHint && latestHint.content && latestHint.mode === 'rearrange' && (
+                        <div className="hs-ai-section">
+                          <div className="hs-ai-section-label">重組提示</div>
+                          <div className="hs-ai-chips">
+                            {latestHint.content.split(' ').map((w, i) => (
+                              <span key={i} className="ai-chip">{w}</span>
+                            ))}
                           </div>
-                          <div className="hs-ai-latest-body">
-                            {latestHint.mode === 'rearrange'
-                              ? <div className="hs-ai-chips">{latestHint.content.split(' ').map((w, i) => <span key={i} className="ai-chip">{w}</span>)}</div>
-                              : <div className="hs-ai-latest-content">{latestHint.content}</div>}
-                          </div>
-                          <button className="hs-ai-clear-btn" onClick={handleClearAIHint}>✕ 清除學生畫面</button>
                         </div>
+                      )}
+
+                      {latestHint && latestHint.content && (
+                        <button className="hs-ai-clear-btn" onClick={handleClearAIHint}>✕ 清除學生畫面</button>
                       )}
                     </div>
                   )}
