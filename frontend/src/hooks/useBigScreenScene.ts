@@ -185,7 +185,7 @@ export function useBigScreenScene(
   /** Per-identity spawn overrides set when an identity is assigned to a slot. */
   const spawnOverridesRef = useRef<Map<string, AvatarSpawnConfig>>(new Map());
 
-  const staticPropGroupsRef = useRef<THREE.Group[]>([]);
+  const staticPropPoolRef = useRef<Map<string, THREE.Group>>(new Map());
   const taskPropPoolRef = useRef<Map<string, THREE.Group>>(new Map());
   /** Tracks the active task ID for Phase 2 interaction use */
   const currentTaskIdRef = useRef<string | undefined>(undefined);
@@ -261,9 +261,9 @@ export function useBigScreenScene(
     const notifyPropsReady = () => { if (!propsCancelled) onScenePropsReadyRef.current?.(); };
     if (preset.propSystem) {
       const staticP = loadStaticProps(preset.propSystem.staticProps ?? [], scene)
-        .then((groups) => {
-          if (propsCancelled) { disposeStaticProps(groups, scene); return; }
-          staticPropGroupsRef.current = groups;
+        .then((pool) => {
+          if (propsCancelled) { disposeStaticProps(pool, scene); return; }
+          staticPropPoolRef.current = pool;
         })
         .catch((err) => console.warn('[BigScreenScene] staticProps load error:', err));
 
@@ -560,8 +560,7 @@ export function useBigScreenScene(
       orderRef.current = [];
       slotPinnedRef.current.clear();
       spawnOverridesRef.current.clear();
-      disposeStaticProps(staticPropGroupsRef.current, scene);
-      staticPropGroupsRef.current = [];
+      disposeStaticProps(staticPropPoolRef.current, scene);
       disposeTaskProps(taskPropPoolRef.current, scene);
       heldByIdentityRef.current.clear();
       avgPoseIntervalsRef.current = {};

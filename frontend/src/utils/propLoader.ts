@@ -43,22 +43,23 @@ function disposeGroup(group: THREE.Group, scene: THREE.Scene): void {
   });
 }
 
-/** Load all static props for a scene. Returns loaded groups (nulls filtered out). */
+/** Load all static props for a scene. Returns a map of prop id → Group (missing assets excluded). */
 export async function loadStaticProps(
   staticProps: PropConfig[],
   scene: THREE.Scene,
-): Promise<THREE.Group[]> {
-  const results = await Promise.all(
+): Promise<Map<string, THREE.Group>> {
+  const pool = new Map<string, THREE.Group>();
+  await Promise.all(
     staticProps.map(async (cfg) => {
       const group = await loadGlb(cfg.url, scene);
-      if (!group) return null;
+      if (!group) return;
       group.position.set(...cfg.position);
       if (cfg.rotation) group.rotation.set(...cfg.rotation);
       if (cfg.scale != null) group.scale.setScalar(cfg.scale);
-      return group;
+      pool.set(cfg.id, group);
     }),
   );
-  return results.filter((g): g is THREE.Group => g !== null);
+  return pool;
 }
 
 /** Load all task props for a scene. Returns a map of taskId → Group (missing assets excluded). */
@@ -81,9 +82,10 @@ export async function loadTaskProps(
   return pool;
 }
 
-/** Dispose a list of static prop groups. */
-export function disposeStaticProps(groups: THREE.Group[], scene: THREE.Scene): void {
-  for (const group of groups) disposeGroup(group, scene);
+/** Dispose all groups in a static prop pool. */
+export function disposeStaticProps(pool: Map<string, THREE.Group>, scene: THREE.Scene): void {
+  for (const group of pool.values()) disposeGroup(group, scene);
+  pool.clear();
 }
 
 /** Dispose all groups in a task prop pool. */
