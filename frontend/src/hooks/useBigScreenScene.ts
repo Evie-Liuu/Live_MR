@@ -198,6 +198,9 @@ export function useBigScreenScene(
 
   const groupTransformsRef = useRef<Record<string, { pos: [number, number, number]; rot: [number, number, number] }>>({});
   useEffect(() => { groupTransformsRef.current = groupTransforms ?? {}; }, [groupTransforms]);
+
+  /** 套用群組變換後的 taskProp displayPos：taskId → final pos。 */
+  const effectiveDisplayPosRef = useRef<Map<string, Vec3>>(new Map());
   /** Tracks the active task ID for Phase 2 interaction use */
   const currentTaskIdRef = useRef<string | undefined>(undefined);
   currentTaskIdRef.current = currentTaskId;
@@ -273,7 +276,27 @@ export function useBigScreenScene(
       }
 
       for (const m of g.members) {
-        if (m.kind === 'taskProp') continue; // Task 6 will handle this
+        if (m.kind === 'taskProp') {
+          const base = memberBase(m, preset);
+          if (!base) continue;
+          const finalT = applyGroupTransform(base, pivot, t);
+          effectiveDisplayPosRef.current.set(m.id, finalT.pos);
+
+          // 只有 displayed 狀態才直接寫 prop.position；held/returning 由 RAF loop 處理
+          const obj = resolveMemberObject(m);
+          if (!obj) continue;
+          let isHeld = false;
+          for (const slot of avatarsRef.current.values()) {
+            if (slot.interaction.propState === 'held' && currentTaskIdRef.current === m.id) {
+              isHeld = true; break;
+            }
+          }
+          if (!isHeld) {
+            obj.position.set(finalT.pos[0], finalT.pos[1], finalT.pos[2]);
+            obj.rotation.set(finalT.rot[0], finalT.rot[1], finalT.rot[2]);
+          }
+          continue;
+        }
         const base = memberBase(m, preset);
         const obj = resolveMemberObject(m);
         if (!base || !obj) {
@@ -302,6 +325,7 @@ export function useBigScreenScene(
     const preset: SceneConfig =
       SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID];
     presetRef.current = preset;
+    effectiveDisplayPosRef.current.clear();
 
 
     const scene = new THREE.Scene();
@@ -453,8 +477,10 @@ export function useBigScreenScene(
           if (ia.propState === 'returning' && ia.returningTaskId) {
             const returningProp = taskPropPoolRef.current.get(ia.returningTaskId);
             const dpCfg = presetRef.current.propSystem?.taskProps?.[ia.returningTaskId]?.displayPos;
-            if (returningProp && dpCfg) {
-              _displayPosVec.set(...dpCfg);
+            const effective = effectiveDisplayPosRef.current.get(ia.returningTaskId);
+            const dp = effective ?? dpCfg;
+            if (returningProp && dp) {
+              _displayPosVec.set(...dp);
               const arrived = returnPropToDisplay(returningProp, _displayPosVec, delta);
               if (arrived) {
                 ia.propState = 'displayed';
@@ -489,7 +515,9 @@ export function useBigScreenScene(
               heldByIdentityRef.current.delete(taskId);
               // Snap orphaned prop back to display pos
               const dpCfg = presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
-              if (dpCfg) _displayPosVec.set(...dpCfg), prop.position.copy(_displayPosVec);
+              const effective = effectiveDisplayPosRef.current.get(taskId);
+              const dp = effective ?? dpCfg;
+              if (dp) _displayPosVec.set(...dp), prop.position.copy(_displayPosVec);
             }
 
             // console.log(heldBy);
@@ -572,8 +600,10 @@ export function useBigScreenScene(
             // ── returning (same task): lerp back to displayPos ────────────────
           } else if (ia.propState === 'returning') {
             const dpCfg = presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
-            if (dpCfg) {
-              _displayPosVec.set(...dpCfg);
+            const effective = effectiveDisplayPosRef.current.get(taskId);
+            const dp = effective ?? dpCfg;
+            if (dp) {
+              _displayPosVec.set(...dp);
               const arrived = returnPropToDisplay(prop, _displayPosVec, delta);
               if (arrived) {
                 ia.propState = 'displayed';
