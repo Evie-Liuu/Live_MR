@@ -16,7 +16,7 @@ export interface TaskEntry {
 
 /** Message shape broadcast over BroadcastChannel */
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'group-transform';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -35,6 +35,10 @@ export interface BigScreenMsg {
   hintEnabled?: boolean;
   /** For 'hint-change': 目前顯示的階層（null = 不顯示任何階） */
   hintLevel?: HintLevel | null;
+  /** For 'group-transform': 目標 group id */
+  groupId?: string;
+  /** For 'group-transform': 變換值（pos m、rot rad） */
+  groupTransform?: { pos: [number, number, number]; rot: [number, number, number] };
 }
 
 /**
@@ -171,6 +175,26 @@ export default function BigScreen() {
   const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintEnabled') ?? 'false'); } catch { return false; }
   });
+  // Group transforms — keyed by sceneId in localStorage; loaded per scene
+  type StoredGroupTransform = { pos: [number, number, number]; rot: [number, number, number] };
+  const [groupTransforms, setGroupTransforms] = useState<Record<string, StoredGroupTransform>>(() => {
+    try {
+      const all = JSON.parse(localStorage.getItem('bigscreen-group-transforms') || '{}') as Record<string, Record<string, StoredGroupTransform>>;
+      return all[sceneId] ?? {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const all = JSON.parse(localStorage.getItem('bigscreen-group-transforms') || '{}') as Record<string, Record<string, StoredGroupTransform>>;
+      setGroupTransforms(all[sceneId] ?? {});
+    } catch {
+      setGroupTransforms({});
+    }
+  }, [sceneId]);
+
   const [hintLevel, setHintLevel] = useState<HintLevel | null>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
@@ -319,7 +343,7 @@ export default function BigScreen() {
     renderFpsLimit: renderFps,
     isRecording: isActivelyRecording,
     onPostRenderRef: postRenderRef,
-    groupTransforms: {}, // Task 7 will supply actual state
+    groupTransforms,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -1499,6 +1523,11 @@ export default function BigScreen() {
         }
       } else if (msg.type === 'recording-stop') {
         stopRecordingAndUploadRef.current()
+      } else if (msg.type === 'group-transform') {
+        if (!msg.groupId || !msg.groupTransform) return;
+        const gid = msg.groupId;
+        const gt = msg.groupTransform;
+        setGroupTransforms(prev => ({ ...prev, [gid]: gt }));
       }
     };
 
