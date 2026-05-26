@@ -10,7 +10,7 @@ import {
 import StudentTile from './StudentTile.tsx';
 import LocalVideo from './LocalVideo.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
-import type { BigScreenMsg, TaskEntry } from './BigScreen';
+import type { BigScreenMsg, TaskEntry, BackgroundTypeOverride } from './BigScreen';
 import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
@@ -107,6 +107,108 @@ function CustomSelect({ value, options, onChange, disabled, placeholder: _placeh
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Scene background controls (drawer top) ───────────────────────────────────
+// Two controls bundled into one card:
+//  1. Background type override — let the host force the BigScreen background to
+//     'camera' (or 'none') regardless of the scene's configured backgroundType.
+//  2. Camera device picker — lists physical AND virtual cameras (OBS Virtual
+//     Cam, NDI, etc.) so the background source can differ from the pose webcam.
+function SceneBackgroundControls({
+  bgType,
+  onBgTypeChange,
+  deviceId,
+  onDeviceChange,
+}: {
+  bgType: BackgroundTypeOverride;
+  onBgTypeChange: (v: BackgroundTypeOverride) => void;
+  deviceId: string;
+  onDeviceChange: (deviceId: string) => void;
+}) {
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        // Device labels are blank until camera permission has been granted in
+        // this origin. Probe once if needed so the dropdown shows real names.
+        let probeStream: MediaStream | null = null;
+        try {
+          const all = await navigator.mediaDevices.enumerateDevices();
+          const hasLabels = all.some((d) => d.kind === 'videoinput' && d.label);
+          if (!hasLabels) {
+            probeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          }
+        } catch {/* ignore — fall through with empty labels */ }
+
+        const list = (await navigator.mediaDevices.enumerateDevices()).filter(
+          (d) => d.kind === 'videoinput',
+        );
+        if (probeStream) probeStream.getTracks().forEach((t) => t.stop());
+        if (!cancelled) setDevices(list);
+      } catch (err) {
+        console.warn('[HostSession] enumerateDevices failed:', err);
+      }
+    };
+
+    refresh();
+    navigator.mediaDevices.addEventListener?.('devicechange', refresh);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener?.('devicechange', refresh);
+    };
+  }, []);
+
+  const deviceOptions: Option[] = useMemo(() => ([
+    { value: '', label: '預設相機' },
+    ...devices.map((d, i) => ({
+      value: d.deviceId,
+      label: d.label || `Camera ${i + 1}`,
+    })),
+  ]), [devices]);
+
+  const typeOptions: { value: BackgroundTypeOverride; label: string }[] = [
+    { value: 'default', label: '場景預設' },
+    { value: 'camera', label: '相機' },
+    { value: 'none', label: '無背景' },
+  ];
+
+  return (
+    <div className="hs-camera-bg-source">
+      <div className="hs-camera-bg-source-label">
+        <span className="material-symbols-outlined">wallpaper</span>
+        <span>背景類型</span>
+      </div>
+      <div className="hs-bg-type-segmented">
+        {typeOptions.map(opt => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`hs-bg-type-seg ${bgType === opt.value ? 'active' : ''}`}
+            onClick={() => onBgTypeChange(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      {bgType === 'camera' && (
+        <>
+          <div className="hs-camera-bg-source-label" style={{ marginTop: 14 }}>
+            <span className="material-symbols-outlined">videocam</span>
+            <span>背景影像來源</span>
+          </div>
+          <CustomSelect value={deviceId} options={deviceOptions} onChange={onDeviceChange} />
+          <div className="hs-camera-bg-source-hint">
+            可選實體鏡頭或虛擬相機（OBS Virtual Cam 等），與視訊鏡頭獨立
+          </div>
+        </>
       )}
     </div>
   );
@@ -240,6 +342,21 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     }
   });
 
+  // Device ID for the BigScreen camera-background source. Independent from the
+  // host's pose-tracking webcam — supports OBS Virtual Cam / a second physical
+  // camera as the projected scene background.
+  const [cameraBgDeviceId, setCameraBgDeviceId] = useState<string>(() => {
+    try { return localStorage.getItem('bigscreen-cameraBgDeviceId') ?? ''; } catch { return ''; }
+  });
+  // Override for the scene's default backgroundType.
+  const [bgTypeOverride, setBgTypeOverride] = useState<BackgroundTypeOverride>(() => {
+    try {
+      const v = localStorage.getItem('bigscreen-bgTypeOverride');
+      if (v === 'none' || v === 'camera') return v;
+      return 'default';
+    } catch { return 'default'; }
+  });
+
   // Slot assignments: slotId → participant identity
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>(() => {
     try {
@@ -333,6 +450,26 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const broadcastTaskChange = useCallback((tasks: TaskEntry[]) => {
     sessionStorage.setItem('bigscreen-tasks', JSON.stringify(tasks));
     const msg: BigScreenMsg = { type: 'task-change', tasks };
+    channelRef.current?.postMessage(msg);
+  }, []);
+
+  const handleCameraBgDeviceChange = useCallback((deviceId: string) => {
+    setCameraBgDeviceId(deviceId);
+    try {
+      if (deviceId) localStorage.setItem('bigscreen-cameraBgDeviceId', deviceId);
+      else localStorage.removeItem('bigscreen-cameraBgDeviceId');
+    } catch {/* ignore quota */ }
+    const msg: BigScreenMsg = { type: 'camera-bg-device', cameraBgDeviceId: deviceId };
+    channelRef.current?.postMessage(msg);
+  }, []);
+
+  const handleBgTypeOverrideChange = useCallback((next: BackgroundTypeOverride) => {
+    setBgTypeOverride(next);
+    try {
+      if (next === 'default') localStorage.removeItem('bigscreen-bgTypeOverride');
+      else localStorage.setItem('bigscreen-bgTypeOverride', next);
+    } catch {/* ignore quota */ }
+    const msg: BigScreenMsg = { type: 'bg-type-override', bgTypeOverride: next };
     channelRef.current?.postMessage(msg);
   }, []);
 
@@ -1063,7 +1200,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const vrmUrl = (VRM_SOURCES[vrmSourceId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
       ch.postMessage({ type: 'vrm-identity-change', identity, vrmUrl } satisfies BigScreenMsg);
     }
-  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles, hintEnabled, hintLevel]);
+    ch.postMessage({ type: 'camera-bg-device', cameraBgDeviceId } satisfies BigScreenMsg);
+    ch.postMessage({ type: 'bg-type-override', bgTypeOverride } satisfies BigScreenMsg);
+  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles, hintEnabled, hintLevel, cameraBgDeviceId, bgTypeOverride]);
 
   const toggleBigScreenPreview = useCallback(() => {
     setShowBigScreenPreview(prev => {
@@ -1984,6 +2123,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           <button className="panel-close-btn" onClick={() => setShowScenePanel(false)}>✕</button>
         </div>
         <div className="panel-drawer-body">
+          <SceneBackgroundControls
+            bgType={bgTypeOverride}
+            onBgTypeChange={handleBgTypeOverrideChange}
+            deviceId={cameraBgDeviceId}
+            onDeviceChange={handleCameraBgDeviceChange}
+          />
           {THEMES.map((theme) => (
             <div key={theme.id} className="scene-group">
               <div className="scene-group-label"><span className="material-symbols-outlined">{theme.icon}</span> {theme.label}</div>

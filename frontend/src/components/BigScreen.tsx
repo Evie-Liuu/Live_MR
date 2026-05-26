@@ -16,8 +16,13 @@ export interface TaskEntry {
 }
 
 /** Message shape broadcast over BroadcastChannel */
+/** Host override for scene's default backgroundType.
+ *  'default' = use the scene preset's configured backgroundType
+ *  others = force a different background regardless of the scene's config */
+export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
+
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -42,6 +47,10 @@ export interface BigScreenMsg {
   groupId?: string;
   /** For 'group-transform': 變換值（pos m、rot rad） */
   groupTransform?: { pos: [number, number, number]; rot: [number, number, number] };
+  /** For 'camera-bg-device': 大屏相機背景使用的 deviceId（空字串/undefined = 預設相機） */
+  cameraBgDeviceId?: string;
+  /** For 'bg-type-override': 覆蓋場景背景類型；'default' 表示用場景原設定 */
+  bgTypeOverride?: BackgroundTypeOverride;
 }
 
 /**
@@ -97,15 +106,37 @@ function VideoBackground({ src, interval }: { src: string; interval?: number }) 
 }
 
 // ─── Camera Background Sub-Component ──────────────────────────────────────────
-function CameraBackground() {
+function CameraBackground({ deviceId }: { deviceId?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let cancelled = false;
 
     async function startCamera() {
+      // Prefer the explicitly selected deviceId; fall back to default if missing.
+      const tryGet = async (constraints: MediaStreamConstraints) =>
+        navigator.mediaDevices.getUserMedia(constraints);
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        const primary: MediaStreamConstraints = {
+          audio: false,
+          video: deviceId ? { deviceId: { exact: deviceId } } : true,
+        };
+        try {
+          stream = await tryGet(primary);
+        } catch (err) {
+          // deviceId may be stale (device unplugged) — retry with default camera.
+          if (deviceId) {
+            console.warn('[BigScreen] Camera bg deviceId failed, falling back to default:', err);
+            stream = await tryGet({ video: true, audio: false });
+          } else {
+            throw err;
+          }
+        }
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
@@ -115,13 +146,103 @@ function CameraBackground() {
     }
     startCamera();
     return () => {
+      cancelled = true;
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
+  }, [deviceId]);
 
   return <video ref={videoRef} autoPlay muted playsInline />;
+}
+
+// ─── Camera-background device picker ──────────────────────────────────────────
+function CameraDevicePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (deviceId: string) => void;
+}) {
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        // Labels are empty until camera permission is granted at least once in
+        // this origin. Probe once with a tiny stream so the upcoming enumerate
+        // call returns human-readable device names.
+        let probeStream: MediaStream | null = null;
+        try {
+          const all = await navigator.mediaDevices.enumerateDevices();
+          const hasLabels = all.some((d) => d.kind === 'videoinput' && d.label);
+          if (!hasLabels) {
+            probeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          }
+        } catch {/* ignore — selector will just show generic labels */ }
+
+        const list = (await navigator.mediaDevices.enumerateDevices()).filter(
+          (d) => d.kind === 'videoinput',
+        );
+        if (probeStream) probeStream.getTracks().forEach((t) => t.stop());
+        if (!cancelled) setDevices(list);
+      } catch (err) {
+        console.warn('[BigScreen] enumerateDevices failed:', err);
+      }
+    };
+
+    refresh();
+    navigator.mediaDevices.addEventListener?.('devicechange', refresh);
+    return () => {
+      cancelled = true;
+      navigator.mediaDevices.removeEventListener?.('devicechange', refresh);
+    };
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        zIndex: 50,
+        background: 'rgba(0,0,0,0.6)',
+        color: '#fff',
+        borderRadius: 10,
+        padding: '6px 10px',
+        fontSize: 12,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        pointerEvents: 'auto',
+        backdropFilter: 'blur(6px)',
+      }}
+    >
+      <span style={{ opacity: 0.75 }}>背景來源</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          background: 'rgba(255,255,255,0.08)',
+          color: '#fff',
+          border: '1px solid rgba(255,255,255,0.18)',
+          borderRadius: 6,
+          padding: '3px 6px',
+          fontSize: 12,
+          maxWidth: 240,
+        }}
+      >
+        <option value="">預設相機</option>
+        {devices.map((d, i) => (
+          <option key={d.deviceId || i} value={d.deviceId}>
+            {d.label || `Camera ${i + 1}`}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -160,6 +281,26 @@ export default function BigScreen() {
   const [vrmSourceId, setVrmSourceId] = useState<string>(() => {
     return sessionStorage.getItem('bigscreen-vrmSourceId') ?? 'default';
   });
+  // Device ID for the camera-background source — independent from the host's
+  // pose-tracking webcam, so a separate virtual cam / capture card / second
+  // webcam can drive the projected scene background.
+  const [cameraBgDeviceId, setCameraBgDeviceId] = useState<string>(() => {
+    try { return localStorage.getItem('bigscreen-cameraBgDeviceId') ?? ''; } catch { return ''; }
+  });
+  const [bgTypeOverride, setBgTypeOverride] = useState<BackgroundTypeOverride>(() => {
+    try {
+      const v = localStorage.getItem('bigscreen-bgTypeOverride');
+      if (v === 'none' || v === 'camera') return v;
+      return 'default';
+    } catch { return 'default'; }
+  });
+  const handleCameraBgDeviceChange = (id: string) => {
+    setCameraBgDeviceId(id);
+    try {
+      if (id) localStorage.setItem('bigscreen-cameraBgDeviceId', id);
+      else localStorage.removeItem('bigscreen-cameraBgDeviceId');
+    } catch {/* ignore quota */ }
+  };
   const [slotAssignments, setSlotAssignments] = useState<Record<string, string>>(() => {
     try {
       return JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
@@ -1535,6 +1676,20 @@ export default function BigScreen() {
         const gid = msg.groupId;
         const gt = msg.groupTransform;
         setGroupTransforms(prev => ({ ...prev, [gid]: gt }));
+      } else if (msg.type === 'camera-bg-device') {
+        const id = msg.cameraBgDeviceId ?? '';
+        setCameraBgDeviceId(id);
+        try {
+          if (id) localStorage.setItem('bigscreen-cameraBgDeviceId', id);
+          else localStorage.removeItem('bigscreen-cameraBgDeviceId');
+        } catch {/* ignore */ }
+      } else if (msg.type === 'bg-type-override') {
+        const v = msg.bgTypeOverride ?? 'default';
+        setBgTypeOverride(v);
+        try {
+          if (v === 'default') localStorage.removeItem('bigscreen-bgTypeOverride');
+          else localStorage.setItem('bigscreen-bgTypeOverride', v);
+        } catch {/* ignore */ }
       }
     };
 
@@ -1549,18 +1704,22 @@ export default function BigScreen() {
   }, []); // channel lifecycle independent of applyPose/removeAvatar
 
   const currentPreset = useMemo(() => SCENE_PRESETS[sceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID], [sceneId]);
+  // Host can override the scene's default backgroundType (e.g. force a camera
+  // feed for any scene). 'default' = honor the preset; otherwise the override wins.
+  const effectiveBgType: 'image' | 'video' | 'camera' | 'color' | 'none' | undefined =
+    bgTypeOverride === 'default' ? currentPreset?.backgroundType : bgTypeOverride;
 
   return (
     <div className="bigscreen-root">
       {/* 1. Underlying DOM Background Layer */}
-      {currentPreset && currentPreset.backgroundType !== 'none' && (
+      {currentPreset && effectiveBgType !== 'none' && (
         <div
           className="bigscreen-bg"
           style={{
-            backgroundColor: currentPreset.backgroundType === 'color' ? currentPreset.backgroundValue : undefined,
+            backgroundColor: effectiveBgType === 'color' ? currentPreset.backgroundValue : undefined,
           }}
         >
-          {currentPreset.backgroundType === 'image' && currentPreset.backgroundValue && (
+          {effectiveBgType === 'image' && currentPreset.backgroundValue && (
             <img
               src={currentPreset.backgroundValue}
               alt="Background"
@@ -1569,11 +1728,17 @@ export default function BigScreen() {
               onError={() => bumpBootUnit('bg')}
             />
           )}
-          {currentPreset.backgroundType === 'video' && currentPreset.backgroundValue && (
+          {effectiveBgType === 'video' && currentPreset.backgroundValue && (
             <VideoBackground src={currentPreset.backgroundValue} interval={currentPreset.videoLoopInterval} />
           )}
-          {currentPreset.backgroundType === 'camera' && <CameraBackground />}
+          {effectiveBgType === 'camera' && (
+            <CameraBackground deviceId={cameraBgDeviceId || undefined} />
+          )}
         </div>
+      )}
+
+      {effectiveBgType === 'camera' && (
+        <CameraDevicePicker value={cameraBgDeviceId} onChange={handleCameraBgDeviceChange} />
       )}
 
       {/* 2. Transparent 3D Canvas Layer */}

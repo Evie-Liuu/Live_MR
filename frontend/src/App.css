@@ -2372,6 +2372,69 @@ button:disabled {
   background: #f8f9fa;
 }
 
+/* ===== Camera background source picker (scene drawer) ===== */
+.hs-camera-bg-source {
+  margin: 20px 24px 8px;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid #e7e2dc;
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
+.hs-camera-bg-source-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5a4a3c;
+  margin-bottom: 8px;
+}
+
+.hs-camera-bg-source-label .material-symbols-outlined {
+  font-size: 18px;
+  color: #f76e12;
+}
+
+.hs-camera-bg-source-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #9b8e80;
+  line-height: 1.5;
+}
+
+.hs-bg-type-segmented {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: #f5efe9;
+  border-radius: 10px;
+}
+
+.hs-bg-type-seg {
+  flex: 1;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: #6b5d4f;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hs-bg-type-seg:hover {
+  background: rgba(247, 110, 18, 0.08);
+}
+
+.hs-bg-type-seg.active {
+  background: #f76e12;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(247, 110, 18, 0.3);
+}
+
 /* ===== Scene Options ===== */
 .scene-group {
   padding: 0 24px;

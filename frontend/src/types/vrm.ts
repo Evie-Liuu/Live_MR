@@ -115,6 +115,7 @@ export interface SceneModule {
 /** Static scene prop: always visible when the scene is loaded */
 export interface PropConfig {
   id: string;
+  label: string;
   url: string;                                    // GLB path e.g. '/models/cashier_counter.glb'
   position: [x: number, y: number, z: number];
   rotation?: [x: number, y: number, z: number];  // Euler radians

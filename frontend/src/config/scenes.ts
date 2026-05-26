@@ -157,8 +157,8 @@ export const THEMES: ThemeConfig[] = [
           policy: 'auto-swap',
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
-            { id: 'cashier_counter', url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.9, -0.6, -1], rotation: [0, Math.PI / 30, 0], scale: 1.2 },
-            { id: 'rack', url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
+            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.9, -0.6, -1], rotation: [0, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'rack', label: "衣架", url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
@@ -174,7 +174,7 @@ export const THEMES: ThemeConfig[] = [
             id: 'cashier_side',
             label: '收銀區',
             members: [
-              { kind: 'slot',       id: 'cashier' },
+              { kind: 'slot', id: 'cashier' },
               { kind: 'staticProp', id: 'cashier_counter' },
             ],
           },
@@ -182,13 +182,13 @@ export const THEMES: ThemeConfig[] = [
             id: 'customer_side',
             label: '顧客區',
             members: [
-              { kind: 'slot',       id: 'customer' },
+              { kind: 'slot', id: 'customer' },
               { kind: 'staticProp', id: 'rack' },
-              { kind: 'taskProp',   id: 'ask_price_1' },
-              { kind: 'taskProp',   id: 'ask_price_2' },
-              { kind: 'taskProp',   id: 'ask_price_3' },
-              { kind: 'taskProp',   id: 'ask_price_4' },
-              { kind: 'taskProp',   id: 'ask_price_5' },
+              { kind: 'taskProp', id: 'ask_price_1' },
+              { kind: 'taskProp', id: 'ask_price_2' },
+              { kind: 'taskProp', id: 'ask_price_3' },
+              { kind: 'taskProp', id: 'ask_price_4' },
+              { kind: 'taskProp', id: 'ask_price_5' },
             ],
           },
         ],
