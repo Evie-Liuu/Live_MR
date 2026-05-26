@@ -1,6 +1,30 @@
 const OLLAMA_URL = 'http://localhost:11434/api/generate'
 const MODEL = 'qwen2.5:3b'
-const TIMEOUT_MS = 10_000
+const TIMEOUT_MS = 60_000
+const WARMUP_TIMEOUT_MS = 90_000
+
+let warmupPromise: Promise<void> | null = null
+
+export function warmupOllama(): Promise<void> {
+  if (warmupPromise) return warmupPromise
+  warmupPromise = (async () => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS)
+    try {
+      await fetch(OLLAMA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: MODEL, prompt: 'hi', stream: false, options: { num_predict: 1 } }),
+        signal: controller.signal,
+      })
+    } catch {
+      warmupPromise = null
+    } finally {
+      clearTimeout(timer)
+    }
+  })()
+  return warmupPromise
+}
 
 export function toFriendlyError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e)

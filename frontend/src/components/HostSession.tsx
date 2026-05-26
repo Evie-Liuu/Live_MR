@@ -22,7 +22,7 @@ import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
 import { SCENE_CONSTRAINTS, buildPrompt, shuffleWords } from '../config/aiAssistant.ts';
 import type { AIHintMode, AIHintPayload } from '../config/aiAssistant.ts';
-import { generateHint, toFriendlyError } from '../utils/ollamaClient.ts';
+import { generateHint, toFriendlyError, warmupOllama } from '../utils/ollamaClient.ts';
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
@@ -142,7 +142,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     recording: sttRecording, interim: sttInterim, transcript: sttTranscript,
     supported: sttSupported, error: sttError,
     start: startRec, stop: stopRec, clear: clearTranscript,
+    simulate: simulateTranscript,
   } = useSpeechRecording();
+  const [simInput, setSimInput] = useState('');
   // Panel drawer open states
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
@@ -356,6 +358,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, [hintLevel, broadcastHintChange]);
 
   // ─── AI 助理 callbacks ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (rightPanelTab === 'ai-assistant') void warmupOllama();
+  }, [rightPanelTab]);
+
   const broadcastAIHint = useCallback((payload: AIHintPayload) => {
     const msg: BigScreenMsg = { type: 'ai-hint', aiHint: payload };
     channelRef.current?.postMessage(msg);
@@ -383,10 +389,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (!constraint) { setAiError('此場景尚無 AI 助理約束文件'); return; }
     setAiBusy(true); setAiError(null);
     try {
-      let content = await generateHint(buildPrompt(txt, constraint, mode));
-      if (mode === 'rearrange' && !content.includes(' ')) {
-        const complete = await generateHint(buildPrompt(txt, constraint, 'complete'));
-        content = shuffleWords(complete);
+      const promptMode: AIHintMode = mode === 'rearrange' ? 'complete' : mode;
+      let content = await generateHint(buildPrompt(txt, constraint, promptMode));
+      if (mode === 'rearrange') {
+        content = shuffleWords(content);
       }
       const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
       setLatestHint(payload);
@@ -1745,6 +1751,38 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           </div>
                         </div>
                         {sttError && <div className="hs-ai-error">{sttError}</div>}
+                        {import.meta.env.DEV && (
+                          <div className="hs-ai-sim" style={{ marginTop: 8, padding: 8, border: '1px dashed #999', borderRadius: 6, fontSize: 12 }}>
+                            <div style={{ color: '#888', marginBottom: 4 }}>🛠 DEV：模擬錄音（直接帶入文字）</div>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <input
+                                type="text"
+                                value={simInput}
+                                onChange={(e) => setSimInput(e.target.value)}
+                                placeholder="例如：How would you like to pay, cash or card?"
+                                style={{ flex: 1, padding: '4px 6px', fontSize: 12 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && simInput.trim().length >= 3) {
+                                    cancelAutoCountdown();
+                                    setAiError(null);
+                                    simulateTranscript(simInput);
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => {
+                                  cancelAutoCountdown();
+                                  setAiError(null);
+                                  simulateTranscript(simInput);
+                                }}
+                                disabled={simInput.trim().length < 3 || sttRecording}
+                                style={{ padding: '4px 10px', fontSize: 12 }}
+                              >
+                                帶入
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* ── AI 回覆語句 ──────────────────────────────── */}

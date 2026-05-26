@@ -9,6 +9,7 @@ export interface UseSpeechRecordingResult {
   start: () => void
   stop: () => void
   clear: () => void
+  simulate: (text: string) => void
 }
 
 const FILLER_ONLY_RE = /^(uh+|um+|ah+|er+|hmm+|\s)+$/i
@@ -94,6 +95,16 @@ export function useSpeechRecording(): UseSpeechRecordingResult {
     finalBufferRef.current = ''
   }, [])
 
+  const simulate = useCallback((text: string) => {
+    try { recogRef.current?.abort() } catch { /* ignore */ }
+    finalBufferRef.current = ''
+    setInterim('')
+    setError(null)
+    setRecording(false)
+    const t = text.trim()
+    setTranscript(isTooShortOrFiller(t) ? '' : t)
+  }, [])
+
   useEffect(() => {
     return () => {
       try { recogRef.current?.abort() } catch { /* ignore */ }
@@ -102,10 +113,10 @@ export function useSpeechRecording(): UseSpeechRecordingResult {
 
   if (!supported) {
     return {
-      recording: false, interim: '', transcript: '', supported: false,
-      error: null, start: () => {}, stop: () => {}, clear: () => {},
+      recording: false, interim: '', transcript, supported: false,
+      error: null, start: () => {}, stop: () => {}, clear, simulate,
     }
   }
 
-  return { recording, interim, transcript, supported, error, start, stop, clear }
+  return { recording, interim, transcript, supported, error, start, stop, clear, simulate }
 }
