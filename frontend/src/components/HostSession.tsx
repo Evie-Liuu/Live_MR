@@ -1213,7 +1213,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
-          <button
+          {/* <button
             className={`hs-action-btn ${lowPowerMode ? 'hs-action--on' : 'hs-action--off'}`}
             onClick={() => setLowPowerMode(v => !v)}
             title={lowPowerMode ? '關閉省電模式（臉部/手部 15 FPS）' : '開啟省電模式（臉部/手部降至 7.5 FPS）'}
@@ -1221,7 +1221,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <span className="material-symbols-outlined">battery_saver</span>
             <span className="hs-action-label">省電</span>
             <span className={`hs-badge-btn ${lowPowerMode ? 'hs-badge--on' : 'hs-badge--off'}`}>{lowPowerMode ? 'ON' : 'OFF'}</span>
-          </button>
+          </button> */}
 
           <button
             className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--on' : 'hs-action--off'}`}
@@ -1469,7 +1469,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         {selectedTasks[currentTaskIndex]?.label}
                       </span>
                       <span className="hs-task-counter">{doneCount}/{selectedTasks.length}</span>
-                      <button
+                      {/* <button
                         className={`hs-hint-toggle ${hintEnabled ? 'is-on' : ''}`}
                         onClick={(e) => { e.stopPropagation(); toggleHintEnabled(); }}
                         title={hintEnabled ? '關閉任務提示' : '開啟任務提示'}
@@ -1477,7 +1477,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         <span className="material-symbols-outlined">lightbulb</span>
                         <span className="hs-hint-toggle-label">任務提示</span>
                         <span className="hs-hint-toggle-badge">{hintEnabled ? 'ON' : 'OFF'}</span>
-                      </button>
+                      </button> */}
                     </>
                   )}
                 </div>
@@ -1594,13 +1594,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         任務提示
                       </button>
                     )}
-                    <button
+                    {/* <button
                       className={`hs-right-tab ${rightPanelTab === 'ai-assistant' ? 'is-active' : ''}`}
                       onClick={() => setRightPanelTab('ai-assistant')}
                     >
                       <span className="hs-ai-tab-icon">✨</span>
                       AI 助理
-                    </button>
+                    </button> */}
                   </div>
 
                   {hintEnabled && rightPanelTab === 'task-hints' && (
