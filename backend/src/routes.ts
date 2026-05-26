@@ -6,6 +6,7 @@ import { createToken } from './livekit.js'
 import type { RecordingStore } from './recording.js'
 import type { EgressService } from './egress.js'
 import { mergeRecording } from './merge.js'
+import { generateHint as generateAIHint } from './ai.js'
 
 const recordingsDir = path.resolve(process.cwd(), '../recordings')
 
@@ -449,6 +450,24 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       })
     } catch {
       res.status(400).json({ error: 'Invalid path' })
+    }
+  })
+
+  // POST /api/ai/hint — Gemini AI hint generation
+  router.post('/ai/hint', async (req: Request, res: Response) => {
+    const { prompt } = req.body as { prompt?: string }
+    if (typeof prompt !== 'string' || !prompt.trim()) {
+      res.status(400).json({ error: 'prompt is required' })
+      return
+    }
+    try {
+      const text = await generateAIHint(prompt)
+      res.json({ text })
+    } catch (err: any) {
+      const msg = err?.message ?? String(err)
+      console.error('[ai/hint] error:', msg)
+      const status = msg.includes('GEMINI_API_KEY') ? 500 : 502
+      res.status(status).json({ error: msg })
     }
   })
 

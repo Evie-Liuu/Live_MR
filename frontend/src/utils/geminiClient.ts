@@ -1,20 +1,19 @@
-const OLLAMA_URL = 'http://localhost:11434/api/generate'
-const MODEL = 'qwen2.5:3b'
+const ENDPOINT = '/api/ai/hint'
 const TIMEOUT_MS = 60_000
 const WARMUP_TIMEOUT_MS = 90_000
 
 let warmupPromise: Promise<void> | null = null
 
-export function warmupOllama(): Promise<void> {
+export function warmupGemini(): Promise<void> {
   if (warmupPromise) return warmupPromise
   warmupPromise = (async () => {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), WARMUP_TIMEOUT_MS)
     try {
-      await fetch(OLLAMA_URL, {
+      await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: MODEL, prompt: 'hi', stream: false, options: { num_predict: 1 } }),
+        body: JSON.stringify({ prompt: 'hi' }),
         signal: controller.signal,
       })
     } catch {
@@ -28,11 +27,11 @@ export function warmupOllama(): Promise<void> {
 
 export function toFriendlyError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e)
-  if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('ECONNREFUSED')) {
-    return '無法連線 Ollama，請確認本機已啟動 `ollama serve`'
+  if (msg.includes('GEMINI_API_KEY')) {
+    return 'Gemini 尚未設定 API 金鑰，請於後端 .env 設定 GEMINI_API_KEY'
   }
-  if (msg.includes('404')) {
-    return `模型 ${MODEL} 未安裝，請執行 \`ollama pull ${MODEL}\``
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+    return '無法連線後端 AI 服務'
   }
   if (msg.includes('AbortError') || msg.includes('aborted')) {
     return 'AI 回應逾時，請重試'
@@ -51,20 +50,18 @@ export async function generateHint(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   signal?.addEventListener('abort', () => controller.abort())
   try {
-    const res = await fetch(OLLAMA_URL, {
+    const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: MODEL,
-        prompt,
-        stream: false,
-        options: { temperature: 0.6, num_predict: 80 },
-      }),
+      body: JSON.stringify({ prompt }),
       signal: controller.signal,
     })
-    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`)
-    const data = await res.json() as { response?: string }
-    const text = (data.response ?? '').trim()
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as { error?: string }
+      throw new Error(data.error || `AI HTTP ${res.status}`)
+    }
+    const data = await res.json() as { text?: string }
+    const text = (data.text ?? '').trim()
     if (!text) throw new Error('Empty response')
     return text
   } finally {

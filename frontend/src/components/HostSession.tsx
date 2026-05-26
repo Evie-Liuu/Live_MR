@@ -22,7 +22,7 @@ import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
 import { SCENE_CONSTRAINTS, buildPrompt, shuffleWords } from '../config/aiAssistant.ts';
 import type { AIHintMode, AIHintPayload } from '../config/aiAssistant.ts';
-import { generateHint, toFriendlyError, warmupOllama } from '../utils/ollamaClient.ts';
+import { generateHint, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
@@ -496,7 +496,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // ─── AI 助理 callbacks ───────────────────────────────────────────────────
   useEffect(() => {
-    if (rightPanelTab === 'ai-assistant') void warmupOllama();
+    if (rightPanelTab === 'ai-assistant') void warmupGemini();
   }, [rightPanelTab]);
 
   const broadcastAIHint = useCallback((payload: AIHintPayload) => {
