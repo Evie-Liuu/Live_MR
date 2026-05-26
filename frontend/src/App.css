@@ -5229,9 +5229,23 @@ button:disabled {
 /* ════════════════════════════════════════════════════════════════════════
    AI 助理 — 共用模式色彩與 chip
    ──────────────────────────────────────────────────────────────────────── */
-.ai-mode--complete  { --ai-mode-color: #4caf50; --ai-mode-bg: rgba(76, 175, 80, 0.14); --ai-mode-border: rgba(76, 175, 80, 0.5); }
-.ai-mode--rearrange { --ai-mode-color: #ff9800; --ai-mode-bg: rgba(255, 152, 0, 0.14); --ai-mode-border: rgba(255, 152, 0, 0.5); }
-.ai-mode--extend    { --ai-mode-color: #2196f3; --ai-mode-bg: rgba(33, 150, 243, 0.14); --ai-mode-border: rgba(33, 150, 243, 0.5); }
+.ai-mode--complete {
+  --ai-mode-color: #4caf50;
+  --ai-mode-bg: rgba(76, 175, 80, 0.14);
+  --ai-mode-border: rgba(76, 175, 80, 0.5);
+}
+
+.ai-mode--rearrange {
+  --ai-mode-color: #ff9800;
+  --ai-mode-bg: rgba(255, 152, 0, 0.14);
+  --ai-mode-border: rgba(255, 152, 0, 0.5);
+}
+
+.ai-mode--extend {
+  --ai-mode-color: #2196f3;
+  --ai-mode-bg: rgba(33, 150, 243, 0.14);
+  --ai-mode-border: rgba(33, 150, 243, 0.5);
+}
 
 .ai-chip {
   display: inline-block;
@@ -5286,7 +5300,9 @@ button:disabled {
   transition: all 0.15s;
 }
 
-.hs-right-tab:hover { background: rgba(247, 110, 18, 0.08); }
+.hs-right-tab:hover {
+  background: rgba(247, 110, 18, 0.08);
+}
 
 .hs-right-tab.is-active {
   color: var(--primary, #f76e12);
@@ -5294,7 +5310,9 @@ button:disabled {
   background: #fffaf5;
 }
 
-.hs-right-tab .material-symbols-outlined { font-size: 18px; }
+.hs-right-tab .material-symbols-outlined {
+  font-size: 18px;
+}
 
 /* 改寫 hs-hint-panel：tab 內無外框（外框由 .hs-right-panel 提供） */
 .hs-right-panel .hs-hint-panel {
@@ -5319,7 +5337,10 @@ button:disabled {
   overflow-y: auto;
 }
 
-.hs-ai-tab-icon { font-size: 16px; line-height: 1; }
+.hs-ai-tab-icon {
+  font-size: 16px;
+  line-height: 1;
+}
 
 .hs-ai-brand {
   display: flex;
@@ -5343,8 +5364,13 @@ button:disabled {
   letter-spacing: 0.5px;
 }
 
-.hs-ai-brand-ai { color: var(--accent, #00A99D); }
-.hs-ai-brand-tag { color: var(--accent, #00A99D); }
+.hs-ai-brand-ai {
+  color: var(--accent, #00A99D);
+}
+
+.hs-ai-brand-tag {
+  color: var(--accent, #00A99D);
+}
 
 .hs-ai-section {
   display: flex;
@@ -5363,12 +5389,12 @@ button:disabled {
 .hs-ai-record-card {
   display: flex;
   flex-direction: column;
-  /* gap: 12px; */
-  padding: 14px;
-  background: linear-gradient(180deg, #fff3df 0%, #ffe9c5 100%);
+  padding: 16px 20px;
+  gap: 5px;
+  background: #fdf5e6;
   border: 1px solid rgba(247, 110, 18, 0.18);
-  border-radius: 14px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .hs-ai-record-card.is-recording {
@@ -5376,23 +5402,22 @@ button:disabled {
   box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.12);
 }
 
-.hs-ai-record-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+.hs-ai-record-time {
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+  margin-bottom: 8px;
 }
 
 .hs-ai-waveform {
-  flex: 1;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 3px;
-  height: 36px;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to right, black 65%, transparent 100%);
-  mask-image: linear-gradient(to right, black 65%, transparent 100%);
+  height: 55px;
+  margin-bottom: 14px;
 }
 
 .hs-ai-wave-bar {
@@ -5405,45 +5430,47 @@ button:disabled {
   transform-origin: center;
 }
 
+.hs-ai-record-status-row {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a6b50;
+  text-align: center;
+}
+
+
 .hs-ai-waveform.is-active .hs-ai-wave-bar {
   animation: hs-ai-wave 1.2s ease-in-out infinite alternate;
   opacity: 1;
 }
 
 @keyframes hs-ai-wave {
-  0%   { transform: scaleY(0.3); }
-  100% { transform: scaleY(1); }
-}
+  0% {
+    transform: scaleY(0.3);
+  }
 
-.hs-ai-record-time {
-  font-family: 'Consolas', 'Menlo', monospace;
-  font-size: 18px;
-  font-weight: 800;
-  color: #3a2a1a;
-  letter-spacing: 1px;
-  min-width: 56px;
-  text-align: right;
+  100% {
+    transform: scaleY(1);
+  }
 }
 
 .hs-ai-record-actions {
   display: flex;
-  gap: 10px;
+  justify-content: center;
 }
 
 .hs-ai-record-action-btn {
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 14px;
-  background: #fff;
-  border: 1.5px solid rgba(58, 42, 26, 0.15);
-  border-radius: 10px;
-  color: #3a2a1a;
+  padding: 8px 36px;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 24px;
+  color: #333;
   font-family: 'Nunito', inherit;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -5459,19 +5486,12 @@ button:disabled {
 }
 
 .hs-ai-record-action-btn .material-symbols-outlined {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .hs-ai-record-card.is-recording .hs-ai-record-action-btn {
   color: #c62828;
   border-color: rgba(244, 67, 54, 0.4);
-}
-
-.hs-ai-record-status-row {
-  font-size: 12px;
-  font-weight: 700;
-  color: #8a6b50;
-  text-align: center;
 }
 
 /* ── AI 回覆語句 卡片 ─────────────────────────────────────── */
@@ -5536,9 +5556,15 @@ button:disabled {
   background: rgba(247, 110, 18, 0.18);
 }
 
-.hs-ai-reply-speak .material-symbols-outlined { font-size: 20px; }
+.hs-ai-reply-speak .material-symbols-outlined {
+  font-size: 20px;
+}
 
-.hs-ai-warn { color: #d97706; font-size: 12px; font-weight: 700; }
+.hs-ai-warn {
+  color: #d97706;
+  font-size: 12px;
+  font-weight: 700;
+}
 
 /* ── countdown ────────────────────────────────────────────── */
 .hs-ai-countdown {
@@ -5585,7 +5611,7 @@ button:disabled {
   gap: 6px;
   padding: 14px 8px;
   border-radius: 14px;
-  border: 1px solid var(--mode-border, rgba(0,0,0,0.08));
+  border: 1px solid var(--mode-border, rgba(0, 0, 0, 0.08));
   background: var(--mode-bg, #fff);
   color: var(--mode-fg, #3a2a1a);
   font-family: 'Nunito', inherit;
@@ -5606,7 +5632,9 @@ button:disabled {
   color: var(--mode-icon-fg, #fff);
 }
 
-.hs-ai-mode-card-icon .material-symbols-outlined { font-size: 20px; }
+.hs-ai-mode-card-icon .material-symbols-outlined {
+  font-size: 20px;
+}
 
 .hs-ai-mode-card--complete {
   --mode-bg: #e1f4d8;
@@ -5715,8 +5743,15 @@ button:disabled {
 }
 
 @keyframes ss-ai-slide-in {
-  from { transform: translateX(20px); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .ss-ai-card-header {
@@ -5729,8 +5764,15 @@ button:disabled {
   border-radius: 16px 16px 0 0;
 }
 
-.ss-ai-card-icon { font-size: 20px; }
-.ss-ai-card-title { font-weight: 700; font-size: 15px; color: #333; }
+.ss-ai-card-icon {
+  font-size: 20px;
+}
+
+.ss-ai-card-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #333;
+}
 
 .ss-ai-mode-badge {
   padding: 4px 12px;
@@ -5751,7 +5793,9 @@ button:disabled {
   padding: 0 4px;
 }
 
-.ss-ai-card-close:hover { color: rgba(0, 0, 0, 0.7); }
+.ss-ai-card-close:hover {
+  color: rgba(0, 0, 0, 0.7);
+}
 
 .ss-ai-card-body {
   padding: 20px 16px;
@@ -5786,7 +5830,9 @@ button:disabled {
   padding: 2px 0;
 }
 
-.ss-ai-source-toggle:hover { color: rgba(0, 0, 0, 0.6); }
+.ss-ai-source-toggle:hover {
+  color: rgba(0, 0, 0, 0.6);
+}
 
 .ss-ai-source-text {
   margin-top: 4px;
@@ -5821,11 +5867,20 @@ button:disabled {
 }
 
 @keyframes bs-ai-slide-up {
-  from { transform: translate(-50%, 20px); opacity: 0; }
-  to   { transform: translate(-50%, 0); opacity: 1; }
+  from {
+    transform: translate(-50%, 20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
 }
 
-.bs-ai-bar-icon { font-size: 26px; }
+.bs-ai-bar-icon {
+  font-size: 26px;
+}
 
 .bs-ai-bar-mode-tag {
   padding: 4px 12px;
@@ -5848,39 +5903,91 @@ button:disabled {
   font-size: 20px;
   padding: 5px 12px;
 }
+
 /* ── Scene Editor (群組變換編輯抽屜) ───────────────────────────────────── */
 .scene-editor-members {
-  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
 }
+
 .scene-editor-member-chip {
-  background: rgba(0,0,0,0.06); border-radius: 999px;
-  padding: 2px 10px; font-size: 12px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
 }
+
 .scene-editor-section {
-  border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
-  padding: 8px 12px; margin-bottom: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
 }
-.scene-editor-section legend { font-weight: 600; padding: 0 6px; }
+
+.scene-editor-section legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
 .scene-editor-row {
-  display: grid; grid-template-columns: 50px 1fr 80px;
-  gap: 8px; align-items: center; margin: 6px 0;
+  display: grid;
+  grid-template-columns: 50px 1fr 80px;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
 }
-.scene-editor-row input[type="range"] { width: 100%; }
-.scene-editor-row input[type="number"] { width: 100%; }
+
+.scene-editor-row input[type="range"] {
+  width: 100%;
+}
+
+.scene-editor-row input[type="number"] {
+  width: 100%;
+}
+
 .scene-editor-hint {
-  font-size: 12px; color: #b76b00; margin-top: 6px;
+  font-size: 12px;
+  color: #b76b00;
+  margin-top: 6px;
 }
+
 .scene-editor-actions {
-  display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
-.scene-editor-btn-reset, .scene-editor-btn-save {
-  padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600;
+
+.scene-editor-btn-reset,
+.scene-editor-btn-save {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
 }
-.scene-editor-btn-reset { background: rgba(0,0,0,0.08); color: #333; }
-.scene-editor-btn-save { background: #F76E12; color: #fff; }
+
+.scene-editor-btn-reset {
+  background: rgba(0, 0, 0, 0.08);
+  color: #333;
+}
+
+.scene-editor-btn-save {
+  background: #F76E12;
+  color: #fff;
+}
 
 .slot-card-settings-btn {
-  border: none; background: transparent; cursor: pointer;
-  font-size: 18px; padding: 4px 8px; opacity: 0.6;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  opacity: 0.6;
 }
-.slot-card-settings-btn:hover { opacity: 1; }
+
+.slot-card-settings-btn:hover {
+  opacity: 1;
+}
