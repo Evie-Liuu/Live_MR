@@ -1730,7 +1730,7 @@ export default function BigScreen() {
       })()}
 
       {/* AI 助理提示橫條（疊在大屏底部） */}
-      {aiHint && aiHint.content && (
+      {/* {aiHint && aiHint.content && (
         <div className={`bs-ai-bar ai-mode--${aiHint.mode}`}>
           <span className="bs-ai-bar-icon">🤖</span>
           <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
@@ -1744,7 +1744,7 @@ export default function BigScreen() {
               : aiHint.content}
           </span>
         </div>
-      )}
+      )} */}
 
       {/* Settlement overlay on BigScreen */}
       {showSettlement && (

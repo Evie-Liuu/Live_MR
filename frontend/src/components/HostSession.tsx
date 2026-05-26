@@ -443,7 +443,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null; }
       if (tickTimerRef.current) { clearInterval(tickTimerRef.current); tickTimerRef.current = null; }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sttTranscript]);
 
   // unmount 清理倒數
@@ -1707,13 +1707,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                                 45, 55, 85, 100, 95, 80, 65, 50, 40, 30, 25, 35,
                                 55, 70, 80, 60, 45, 30, 20, 15, 12, 10, 8, 5
                               ].map((h, i) => (
-                                <span 
-                                  key={i} 
-                                  className="hs-ai-wave-bar" 
-                                  style={{ 
+                                <span
+                                  key={i}
+                                  className="hs-ai-wave-bar"
+                                  style={{
                                     '--bar-h': `${h}%`,
-                                    animationDelay: `${i * 0.05}s` 
-                                  } as React.CSSProperties} 
+                                    animationDelay: `${i * 0.05}s`
+                                  } as React.CSSProperties}
                                 />
                               ))}
                             </div>
@@ -1733,7 +1733,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                               </span>
                               {sttRecording ? '停止' : '錄音'}
                             </button>
-                            {sttTranscript && !sttRecording && (
+                            {/* {sttTranscript && !sttRecording && (
                               <button
                                 className="hs-ai-record-action-btn hs-ai-record-action-btn--secondary"
                                 onClick={() => { clearTranscript(); setAiError(null); }}
@@ -1742,12 +1742,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                                 <span className="material-symbols-outlined">refresh</span>
                                 重錄
                               </button>
-                            )}
+                            )} */}
                           </div>
                           <div className="hs-ai-record-status-row">
                             {sttRecording ? '錄音中…'
-                              : sttTranscript ? '已凍結老師原話'
-                                : sttSupported ? '按下開始錄音' : '不支援'}
+                              // : sttTranscript ? '已凍結老師原話'
+                              : sttSupported ? '按下開始錄音' : '不支援'}
                           </div>
                         </div>
                         {sttError && <div className="hs-ai-error">{sttError}</div>}
@@ -1845,16 +1845,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         <div className="hs-ai-section-label">提示難度</div>
                         <div className="hs-ai-mode-cards">
                           <button
-                            className="hs-ai-mode-card hs-ai-mode-card--complete"
-                            disabled={!canTrigger || aiBusy}
-                            onClick={() => handleHint('complete')}
-                          >
-                            <span className="hs-ai-mode-card-icon">
-                              <span className="material-symbols-outlined">check_circle</span>
-                            </span>
-                            <span className="hs-ai-mode-card-label">完整</span>
-                          </button>
-                          <button
                             className={`hs-ai-mode-card hs-ai-mode-card--rearrange ${countdown !== null ? 'is-auto-target' : ''}`}
                             disabled={!canTrigger || aiBusy}
                             onClick={() => handleHint('rearrange')}
@@ -1863,6 +1853,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                               <span className="material-symbols-outlined">shuffle</span>
                             </span>
                             <span className="hs-ai-mode-card-label">重組{countdown !== null ? '（自動）' : ''}</span>
+                          </button>
+                          <button
+                            className="hs-ai-mode-card hs-ai-mode-card--complete"
+                            disabled={!canTrigger || aiBusy}
+                            onClick={() => handleHint('complete')}
+                          >
+                            <span className="hs-ai-mode-card-icon">
+                              <span className="material-symbols-outlined">check_circle</span>
+                            </span>
+                            <span className="hs-ai-mode-card-label">完整</span>
                           </button>
                           <button
                             className="hs-ai-mode-card hs-ai-mode-card--extend"
