@@ -28,6 +28,7 @@ import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
 import type { RoomEvent as ApiRoomEvent } from '../api.ts';
+import SceneEditor from './SceneEditor.tsx';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
@@ -145,6 +146,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // Panel drawer open states
   const [showScenePanel, setShowScenePanel] = useState(false);
   const [showSlotPanel, setShowSlotPanel] = useState(false);
+  const [sceneEditorGroupId, setSceneEditorGroupId] = useState<string | null>(null);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [showPendingPanel, setShowPendingPanel] = useState(false);
   const [pending, setPending] = useState<PendingStudent[]>([]);
@@ -1111,6 +1113,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // Derived state: allowed VRMs for current scene
   const currentScenePreset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
+
+  /** Find which group (if any) contains this slot — used for the slot-card ⚙ shortcut */
+  const groupForSlot = (slotId: string) => {
+    return currentScenePreset.groups?.find(g =>
+      g.members.some(m => m.kind === 'slot' && m.id === slotId)
+    );
+  };
   const allowedVrms = useMemo(
     () => currentScenePreset.allowedVrmIds
       ? currentScenePreset.allowedVrmIds.map(id => VRM_SOURCES[id]).filter(Boolean)
@@ -1164,7 +1173,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
   const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); };
   const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
-  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
+  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setSceneEditorGroupId(null); };
 
   return (
     <div className="host-session">
@@ -1864,7 +1873,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       </button>
 
       {/* ── Drawer Backdrop ───────────────────────────────────────────────────── */}
-      {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel) && (
+      {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel || sceneEditorGroupId) && (
         <div className="panel-backdrop" onClick={closeAll} />
       )}
 
@@ -2010,6 +2019,19 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                     <div className="slot-icon-container">
                       {sceneSlot.icon}
                     </div>
+                    {(() => {
+                      const g = groupForSlot(sceneSlot.id);
+                      if (!g) return null;
+                      return (
+                        <button
+                          className="slot-card-settings-btn"
+                          title={`編輯群組：${g.label}`}
+                          onClick={() => setSceneEditorGroupId(g.id)}
+                        >
+                          ⚙
+                        </button>
+                      );
+                    })()}
                     <div className="slot-info">
                       <div className="slot-name">{sceneSlot.label}</div>
                       <div className="slot-status-badge">
@@ -2083,6 +2105,21 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           </div>
         </div>
       )}
+
+      {/* ── Scene Editor Drawer ────────────────────────────────────────────── */}
+      {sceneEditorGroupId && (() => {
+        const g = currentScenePreset.groups?.find(x => x.id === sceneEditorGroupId);
+        if (!g) return null;
+        return (
+          <SceneEditor
+            sceneId={selectedSceneId}
+            group={g}
+            channel={channelRef.current}
+            open={true}
+            onClose={() => setSceneEditorGroupId(null)}
+          />
+        );
+      })()}
 
       {/* ── Task Drawer ──────────────────────────────────────────────────────── */}
       {hasModules && (
