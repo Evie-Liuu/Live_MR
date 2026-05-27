@@ -2343,6 +2343,63 @@ button:disabled {
   }
 }
 
+/* ===== Scene Drawer Header ===== */
+.scene-drawer-header {
+  display: flex;
+  align-items: center;
+  padding: 20px 24px 16px;
+  background: #fff;
+  border-bottom: 2px solid #f0f2f5;
+  flex-shrink: 0;
+}
+
+.scene-drawer-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1;
+}
+
+.scene-drawer-title-zh {
+  font-size: 22px;
+  font-weight: 900;
+  color: #00A99D;
+  letter-spacing: 0.5px;
+}
+
+.scene-drawer-title-en {
+  font-size: 18px;
+  font-weight: 800;
+  color: #00A99D;
+  letter-spacing: 2px;
+  opacity: 0.85;
+}
+
+.scene-drawer-close-btn {
+  background: transparent;
+  border: none;
+  color: #00A99D;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scene-drawer-close-btn:hover {
+  background: rgba(0, 169, 157, 0.1);
+  color: #007a72;
+}
+
+.scene-drawer-close-btn .material-symbols-outlined {
+  font-size: 26px;
+  font-weight: 600;
+}
+
+/* keep existing panel-drawer-header for other drawers */
 .panel-drawer-header {
   display: flex;
   align-items: center;
@@ -2381,55 +2438,139 @@ button:disabled {
   background: #f8f9fa;
 }
 
-/* ===== Camera background source picker (scene drawer) ===== */
-.hs-camera-bg-source {
-  margin: 20px 24px 8px;
-  padding: 14px 16px;
-  background: #ffffff;
-  border: 1px solid #e7e2dc;
-  border-radius: 12px;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+/* ===== Background Source Card (embedded below selected scene card) ===== */
+.hs-bg-source-card {
+  position: relative;
+  margin: 0 8px 8px;
 }
 
-.hs-camera-bg-source-label {
+.hs-bg-source-arrow {
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-bottom: 12px solid #ffffff;
+  margin: 0 auto;
+  filter: drop-shadow(0 -1px 1px rgba(0,0,0,0.06));
+}
+
+.hs-bg-source-inner {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 16px 18px 18px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.hs-bg-source-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #5a4a3c;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
-.hs-camera-bg-source-label .material-symbols-outlined {
-  font-size: 18px;
-  color: #f76e12;
+.hs-bg-source-row-label {
+  font-size: 16px;
+  font-weight: 900;
+  color: #333;
+}
+
+.hs-bg-source-row-label-en {
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
 }
 
 .hs-camera-bg-source-hint {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 11px;
   color: #9b8e80;
   line-height: 1.5;
 }
 
+/* ===== Intensity Slider ===== */
+.hs-intensity-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.hs-intensity-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+}
+
+.hs-intensity-label-en {
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
+}
+
+.hs-intensity-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+}
+
+.hs-intensity-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #00A99D var(--val, 50%), #e0e0e0 var(--val, 50%));
+  outline: none;
+  cursor: pointer;
+}
+
+.hs-intensity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f76e12;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(247, 110, 18, 0.4);
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.hs-intensity-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 2px 14px rgba(247, 110, 18, 0.6);
+}
+
+.hs-intensity-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f76e12;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(247, 110, 18, 0.4);
+  cursor: pointer;
+}
+
+/* ===== Background Type Segmented Control ===== */
 .hs-bg-type-segmented {
   display: flex;
-  gap: 6px;
-  padding: 4px;
-  background: #f5efe9;
+  gap: 0;
+  padding: 0;
+  background: #f0f0f0;
   border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
 }
 
 .hs-bg-type-seg {
   flex: 1;
-  padding: 7px 10px;
+  padding: 10px 10px;
   border: none;
   background: transparent;
-  color: #6b5d4f;
-  font-size: 13px;
+  color: #555;
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -2446,49 +2587,53 @@ button:disabled {
 
 /* ===== Scene Options ===== */
 .scene-group {
-  padding: 0 24px;
-  margin-bottom: 24px;
+  padding: 0 16px;
+  margin-bottom: 8px;
 }
 
-.scene-group:first-of-type {
-  margin-top: 24px;
+.scene-group:first-child {
+  margin-top: 20px;
 }
 
 .scene-group-label {
-  font-size: 18px;
-  font-weight: 800;
-  color: #333;
-  margin-bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 900;
+  color: #222;
+  margin-bottom: 12px;
+  padding-left: 4px;
 }
 
-.scene-options-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 20px;
+/* Single-column list (replaces grid) */
+.scene-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .scene-card-btn {
   background: #ffffff;
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border: 2px solid transparent;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+  border: 3px solid transparent;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
+  margin-bottom: 12px;
 }
 
 .scene-card-btn:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 20px rgba(0, 169, 157, 0.15);
+  border-color: rgba(0, 169, 157, 0.3);
 }
 
 .scene-card-btn.active {
-  border-color: var(--secondary);
+  border-color: #00A99D;
+  /* box-shadow: 0 4px 16px rgba(0, 169, 157, 0.2); */
 }
 
 .scene-card-preview {
@@ -2497,76 +2642,80 @@ button:disabled {
   aspect-ratio: 16 / 9;
   background: #f0f2f5;
   overflow: hidden;
+  border-radius: 11px 11px 0 0;
 }
 
 .scene-card-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
-  padding: 8px;
-  border-radius: 16px;
-}
-
-.scene-card-btn:hover .scene-card-img {
-  /* transform: scale(1.08); */
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.4s ease;
 }
 
 .scene-card-tag {
   position: absolute;
   top: 14px;
-  left: 0px;
-  background: #f76e12ab;
+  left: 8px;
+  background: #f76e12;
   color: #fff;
-  padding: 4px 14px;
-  border-radius: 0 8px 8px 0;
-  margin-left: 8px;
+  padding: 3px 12px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
-  box-shadow: 0 4px 12px rgba(247, 110, 18, 0.3);
+  box-shadow: 0 3px 10px rgba(247, 110, 18, 0.35);
   z-index: 2;
 }
 
 .scene-tag-icon {
-  font-size: 16px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
 }
 
 .scene-tag-label {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .scene-card-info {
-  padding: 16px;
+  padding: 11px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #fff;
+  border-top: 1px solid rgba(0,0,0,0.04);
 }
 
 .scene-card-label-en {
   font-size: 18px;
   font-weight: 800;
-  color: #666;
+  color: #444;
   font-family: 'Nunito', sans-serif;
 }
 
 .scene-card-btn.active .scene-card-label-en {
-  color: #333;
+  color: #222;
 }
 
 .scene-card-check {
-  color: #95CC4D;
+  color: #4CAF50;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #4CAF50;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
 }
 
 .scene-card-check .material-symbols-outlined {
-  font-size: 28px;
-  font-variation-settings: 'FILL' 1;
+  /* font-size: 22px;
+  font-variation-settings: 'FILL' 1; */
+  color: #fff;
 }
 
 
@@ -5585,6 +5734,8 @@ button:disabled {
 }
 
 .hs-ai-reply-label {
+  display: flex;
+  flex-direction: column;
   font-size: 11px;
   font-weight: 800;
   color: #8a6b50;

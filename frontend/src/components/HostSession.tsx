@@ -113,22 +113,21 @@ function CustomSelect({ value, options, onChange, disabled, placeholder: _placeh
   );
 }
 
-// ─── Scene background controls (drawer top) ───────────────────────────────────
-// Two controls bundled into one card:
-//  1. Background type override — let the host force the BigScreen background to
-//     'camera' (or 'none') regardless of the scene's configured backgroundType.
-//  2. Camera device picker — lists physical AND virtual cameras (OBS Virtual
-//     Cam, NDI, etc.) so the background source can differ from the pose webcam.
+// ─── Scene background controls ───────────────────────────────────────────────
 function SceneBackgroundControls({
   bgType,
   onBgTypeChange,
   deviceId,
   onDeviceChange,
+  // bgIntensity,
+  // onBgIntensityChange,
 }: {
   bgType: BackgroundTypeOverride;
   onBgTypeChange: (v: BackgroundTypeOverride) => void;
   deviceId: string;
   onDeviceChange: (deviceId: string) => void;
+  bgIntensity?: number;
+  onBgIntensityChange?: (v: number) => void;
 }) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
 
@@ -137,8 +136,6 @@ function SceneBackgroundControls({
 
     const refresh = async () => {
       try {
-        // Device labels are blank until camera permission has been granted in
-        // this origin. Probe once if needed so the dropdown shows real names.
         let probeStream: MediaStream | null = null;
         try {
           const all = await navigator.mediaDevices.enumerateDevices();
@@ -180,37 +177,62 @@ function SceneBackgroundControls({
     { value: 'none', label: '無背景' },
   ];
 
-  return (
-    <div className="hs-camera-bg-source">
-      <div className="hs-camera-bg-source-label">
-        <span className="material-symbols-outlined">wallpaper</span>
-        <span>背景類型</span>
-      </div>
-      <div className="hs-bg-type-segmented">
-        {typeOptions.map(opt => (
-          <button
-            key={opt.value}
-            type="button"
-            className={`hs-bg-type-seg ${bgType === opt.value ? 'active' : ''}`}
-            onClick={() => onBgTypeChange(opt.value)}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+  // const intensity = bgIntensity ?? 50;
 
-      {bgType === 'camera' && (
-        <>
-          <div className="hs-camera-bg-source-label" style={{ marginTop: 14 }}>
-            <span className="material-symbols-outlined">videocam</span>
-            <span>背景影像來源</span>
-          </div>
-          <CustomSelect value={deviceId} options={deviceOptions} onChange={onDeviceChange} />
-          <div className="hs-camera-bg-source-hint">
-            可選實體鏡頭或虛擬相機（OBS Virtual Cam 等），與視訊鏡頭獨立
-          </div>
-        </>
-      )}
+  return (
+    <div className="hs-bg-source-card">
+      {/* Arrow pointer */}
+      <div className="hs-bg-source-arrow" />
+      <div className="hs-bg-source-inner">
+        {/* Background source row */}
+        <div className="hs-bg-source-row">
+          <span className="hs-bg-source-row-label">背景來源</span>
+        </div>
+        <div className="hs-bg-type-segmented">
+          {typeOptions.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`hs-bg-type-seg ${bgType === opt.value ? 'active' : ''}`}
+              onClick={() => onBgTypeChange(opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {bgType === 'camera' && (
+          <>
+            <div className="hs-bg-source-row" style={{ marginTop: 12 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#00A99D' }}>videocam</span>
+              <span className="hs-bg-source-row-label">背景影像來源</span>
+            </div>
+            <CustomSelect value={deviceId} options={deviceOptions} onChange={onDeviceChange} />
+            <div className="hs-camera-bg-source-hint">
+              可選實體鏡頭或虛擬相機（OBS Virtual Cam 等），與視訊鏡頭獨立
+            </div>
+          </>
+        )}
+
+        {/* Intensity slider */}
+        {/* {onBgIntensityChange && (
+          <>
+            <div className="hs-intensity-row">
+              <span className="hs-intensity-label">強度 <span className="hs-intensity-label-en">(Intensity)</span></span>
+              <span className="hs-intensity-value">{intensity}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={intensity}
+              className="hs-intensity-slider"
+              style={{ '--val': `${intensity}%` } as React.CSSProperties}
+              onChange={(e) => onBgIntensityChange(Number(e.target.value))}
+            />
+          </>
+        )} */}
+      </div>
     </div>
   );
 }
@@ -1982,10 +2004,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           </div>
                           <div className="hs-ai-reply-row">
                             <div className="hs-ai-reply-label">
-                              AI 回覆
-                              {import.meta.env.DEV && aiModel && (
+                              <span>AI 回覆</span>
+                              {/* {import.meta.env.DEV && aiModel && (
                                 <span className="hs-ai-model-badge" title="目前使用的 Gemini 模型">{aiModel}</span>
-                              )}
+                              )} */}
                             </div>
                             <div className="hs-ai-reply-text">
                               {aiBusy
@@ -2172,54 +2194,64 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           <button className="panel-close-btn" onClick={() => setShowScenePanel(false)}>✕</button>
         </div>
         <div className="panel-drawer-body">
-          <SceneBackgroundControls
-            bgType={bgTypeOverride}
-            onBgTypeChange={handleBgTypeOverrideChange}
-            deviceId={cameraBgDeviceId}
-            onDeviceChange={handleCameraBgDeviceChange}
-          />
           {THEMES.map((theme) => (
             <div key={theme.id} className="scene-group">
-              <div className="scene-group-label"><span className="material-symbols-outlined">{theme.icon}</span> {theme.label}</div>
-              <div className="scene-options-grid">
-                {theme.scenes.map((scene) => (
-                  <div
-                    key={scene.id}
-                    className={`scene-card-btn ${selectedSceneId === scene.id ? 'active' : ''}`}
-                    onClick={() => { handleSceneChange(scene.id); setShowScenePanel(false); }}
-                  >
-                    <div className="scene-card-preview">
-                      {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType !== 'video' && (
-                        <div
-                          className="scene-card-img"
-                          style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }}
-                        />
-                      )}
-                      {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType === 'video' && (
-                        <video
-                          className="scene-card-img"
-                          src={SCENE_PRESETS[scene.id].backgroundValue}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                        />
-                      )}
-                      <div className="scene-card-tag">
-                        {scene.icon && <span className="scene-tag-icon"><span className="material-symbols-outlined">{scene.icon}</span></span>}
-                        <span className="scene-tag-label">{scene.label}</span>
-                      </div>
-                    </div>
-                    <div className="scene-card-info">
-                      <span className="scene-card-label-en">{scene.labelEn || scene.label}</span>
-                      {selectedSceneId === scene.id && (
-                        <div className="scene-card-check">
-                          <span className="material-symbols-outlined">check_circle</span>
+              <div className="scene-group-label"><span className="material-symbols-outlined" style={{ marginRight: '5px' }}>{theme.icon}</span> {theme.label}</div>
+              {/* <div className="scene-group-label">{theme.label}</div> */}
+              <div className="scene-options-list">
+                {theme.scenes.map((scene) => {
+                  const isActive = selectedSceneId === scene.id;
+                  return (
+                    <React.Fragment key={scene.id}>
+                      <div
+                        className={`scene-card-btn ${isActive ? 'active' : ''}`}
+                        onClick={() => { handleSceneChange(scene.id); }}
+                      >
+                        <div className="scene-card-preview">
+                          {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType !== 'video' && (
+                            <div
+                              className="scene-card-img"
+                              style={{ backgroundImage: `url(${SCENE_PRESETS[scene.id].backgroundValue})` }}
+                            />
+                          )}
+                          {SCENE_PRESETS[scene.id]?.backgroundValue && SCENE_PRESETS[scene.id]?.backgroundType === 'video' && (
+                            <video
+                              className="scene-card-img"
+                              src={SCENE_PRESETS[scene.id].backgroundValue}
+                              autoPlay
+                              loop
+                              muted
+                              playsInline
+                            />
+                          )}
+                          <div className="scene-card-tag">
+                            {/* {scene.icon && <span className="scene-tag-icon"><span className="material-symbols-outlined">{scene.icon}</span></span>} */}
+                            <span className="scene-tag-label">{scene.label}</span>
+                          </div>
                         </div>
+                        <div className="scene-card-info">
+                          <span className="scene-card-label-en">{scene.labelEn || scene.label}</span>
+                          {isActive && (
+                            <div className="scene-card-check">
+                              <span className="material-symbols-outlined">check</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* Embedded bg-source panel below the active card */}
+                      {isActive && (
+                        <SceneBackgroundControls
+                          bgType={bgTypeOverride}
+                          onBgTypeChange={handleBgTypeOverrideChange}
+                          deviceId={cameraBgDeviceId}
+                          onDeviceChange={handleCameraBgDeviceChange}
+                          bgIntensity={50}
+                          onBgIntensityChange={() => { }}
+                        />
                       )}
-                    </div>
-                  </div>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
           ))}
