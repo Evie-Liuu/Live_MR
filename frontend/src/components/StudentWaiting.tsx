@@ -8,6 +8,7 @@ interface StudentWaitingProps {
   onApproved: (token: string) => void;
   onRejected: () => void;
   onError: (message: string) => void;
+  onExit: () => void;
 }
 
 const POLL_INTERVAL = 2000;
@@ -20,6 +21,7 @@ export default function StudentWaiting({
   onApproved,
   onRejected,
   onError,
+  onExit,
 }: StudentWaitingProps) {
   const [isTimedOut, setIsTimedOut] = useState(false);
   const startTime = useRef(Date.now());
@@ -73,9 +75,9 @@ export default function StudentWaiting({
           <h2 className="timeout-text">等待逾時，請重新加入。</h2>
           <button
             className="timeout-back-btn"
-            onClick={() => window.location.reload()}
+            onClick={onExit}
           >
-            返回
+            返回首頁
           </button>
         </div>
       </div>
@@ -88,6 +90,10 @@ export default function StudentWaiting({
         <div className="gradient-spinner" />
         <h2 className="waiting-text">等待老師允許</h2>
         <p className="waiting-text">{name}，請稍候...</p>
+        <button className="student-back-btn student-back-btn--inline" onClick={onExit} title="返回首頁">
+          <span className="material-symbols-outlined">arrow_back</span>
+          返回首頁
+        </button>
       </div>
     </div>
   );

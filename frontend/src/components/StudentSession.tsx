@@ -12,6 +12,7 @@ interface StudentSessionProps {
   roomId: string;
   token: string;
   name: string;
+  onExit: () => void;
 }
 
 /** 判斷是否為行動裝置（手機 / 平板），支援 touch 事件且非桌機 */
@@ -22,7 +23,7 @@ function isMobileDevice(): boolean {
   return hasTouch && (!/Macintosh/.test(navigator.userAgent) || isIPad);
 }
 
-export default function StudentSession({ roomId, token, name }: StudentSessionProps) {
+export default function StudentSession({ roomId, token, name, onExit }: StudentSessionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [connected, setConnected] = useState(false);
   const roomRef = useRef<Room | null>(null);
@@ -336,6 +337,15 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
         <div className="user-initials-circle">
           {initials}
         </div>
+        <button
+          className="student-session-exit-btn"
+          title="離開課堂"
+          onClick={() => {
+            if (window.confirm('確定要離開課堂並返回首頁？')) onExit();
+          }}
+        >
+          <span className="material-symbols-outlined">logout</span>
+        </button>
       </div>
 
       <div className="student-main-card">

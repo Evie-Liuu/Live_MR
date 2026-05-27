@@ -4,9 +4,10 @@ import { joinRequest } from '../api.ts';
 interface StudentJoinProps {
   roomId: string;
   onSubmitted: (requestId: string, name: string) => void;
+  onExit: () => void;
 }
 
-export default function StudentJoin({ roomId, onSubmitted }: StudentJoinProps) {
+export default function StudentJoin({ roomId, onSubmitted, onExit }: StudentJoinProps) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,6 +29,9 @@ export default function StudentJoin({ roomId, onSubmitted }: StudentJoinProps) {
 
   return (
     <div className="student-join-screen">
+      <button className="student-back-btn" onClick={onExit} title="返回首頁">
+        <span className="material-symbols-outlined">arrow_back</span>
+      </button>
       <div className="student-join-container">
         <h2 className="student-join-title">
           <span className="title-orange">加入</span>

@@ -151,6 +151,7 @@ function App() {
             onSubmitted={(requestId, name) =>
               setState({ screen: 'student-waiting', roomId: state.roomId, requestId, name })
             }
+            onExit={() => setState({ screen: 'select-role' })}
           />
         );
 
@@ -167,6 +168,7 @@ function App() {
               setState({ screen: 'student-rejected', roomId: state.roomId })
             }
             onError={(message) => setState({ screen: 'error', message })}
+            onExit={() => setState({ screen: 'select-role' })}
           />
         );
 
@@ -176,6 +178,7 @@ function App() {
             roomId={state.roomId}
             token={state.token}
             name={state.name}
+            onExit={() => setState({ screen: 'select-role' })}
           />
         );
 
