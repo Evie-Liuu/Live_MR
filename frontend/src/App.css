@@ -5148,6 +5148,14 @@ button:disabled {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
+.student-kicked-icon-wrapper--ended {
+  background-color: #d4edea;
+}
+
+.student-kicked-icon--ended {
+  color: #136B6D;
+}
+
 /* ===== Error Screen (New Design) ===== */
 .error-screen {
   display: flex;

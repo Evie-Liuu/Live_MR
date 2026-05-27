@@ -39,6 +39,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [kicked, setKicked] = useState(false);
+  const [hostLeft, setHostLeft] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -145,6 +146,12 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
 
     room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
       checkHostMetadata(p);
+    });
+
+    room.on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
+      if (isMounted && p.identity.startsWith('host-')) {
+        setHostLeft(true);
+      }
     });
 
     room.on(RoomEvent.ParticipantMetadataChanged, (_metadata: string | undefined, p: Participant) => {
@@ -343,6 +350,26 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             <span className="title-teal">移出教室</span>
           </h2>
           <p className="student-kicked-subtitle">老師已將你從課堂移出。</p>
+          <button className="student-kicked-back-btn" onClick={onExit}>
+            返回首頁
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (hostLeft) {
+    return (
+      <div className="student-kicked-screen">
+        <div className="student-kicked-card">
+          <div className="student-kicked-icon-wrapper student-kicked-icon-wrapper--ended">
+            <span className="material-symbols-outlined student-kicked-icon student-kicked-icon--ended">meeting_room</span>
+          </div>
+          <h2 className="student-kicked-title">
+            <span className="title-orange">課堂</span>
+            <span className="title-teal">已結束</span>
+          </h2>
+          <p className="student-kicked-subtitle">老師已離開房間，本次課堂結束。</p>
           <button className="student-kicked-back-btn" onClick={onExit}>
             返回首頁
           </button>
