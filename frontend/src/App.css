@@ -2451,14 +2451,14 @@ button:disabled {
   border-right: 12px solid transparent;
   border-bottom: 12px solid #ffffff;
   margin: 0 auto;
-  filter: drop-shadow(0 -1px 1px rgba(0,0,0,0.06));
+  filter: drop-shadow(0 -1px 1px rgba(0, 0, 0, 0.06));
 }
 
 .hs-bg-source-inner {
   background: #ffffff;
   border-radius: 14px;
   padding: 16px 18px 18px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
 }
 
 .hs-bg-source-row {
@@ -2472,6 +2472,7 @@ button:disabled {
   font-size: 16px;
   font-weight: 900;
   color: #333;
+  font-family: 'Nunito', sans-serif;
 }
 
 .hs-bg-source-row-label-en {
@@ -2557,22 +2558,30 @@ button:disabled {
   display: flex;
   gap: 0;
   padding: 0;
-  background: #f0f0f0;
+  background: #ffffff;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e0e0e0;
+  border: 0.5px solid #f76e12;
 }
 
 .hs-bg-type-seg {
   flex: 1;
-  padding: 10px 10px;
-  border: none;
+  padding: 8px 10px;
+  border: 0.5px solid #f76e12;
+  border-radius: 0;
   background: transparent;
-  color: #555;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hs-bg-type-seg:first-child {
+  border-radius: 9.5px 0 0 9.5px;
+}
+
+.hs-bg-type-seg:last-child {
+  border-radius: 0 9.5px 9.5px 0;
 }
 
 .hs-bg-type-seg:hover {
@@ -2592,18 +2601,19 @@ button:disabled {
 }
 
 .scene-group:first-child {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .scene-group-label {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 19px;
-  font-weight: 900;
+  font-size: 20px;
+  font-weight: 800;
   color: #222;
   margin-bottom: 12px;
   padding-left: 4px;
+  font-family: 'Nunito', sans-serif;
 }
 
 /* Single-column list (replaces grid) */
@@ -2687,14 +2697,14 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   background: #fff;
-  border-top: 1px solid rgba(0,0,0,0.04);
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .scene-card-label-en {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   color: #444;
-  font-family: 'Nunito', sans-serif;
+  /* font-family: 'Nunito', sans-serif; */
 }
 
 .scene-card-btn.active .scene-card-label-en {
@@ -2708,8 +2718,8 @@ button:disabled {
   justify-content: center;
   background: #4CAF50;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
 }
 
 .scene-card-check .material-symbols-outlined {

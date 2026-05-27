@@ -204,13 +204,13 @@ function SceneBackgroundControls({
         {bgType === 'camera' && (
           <>
             <div className="hs-bg-source-row" style={{ marginTop: 12 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#00A99D' }}>videocam</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#00A99D' }}>videocam</span>
               <span className="hs-bg-source-row-label">背景影像來源</span>
             </div>
             <CustomSelect value={deviceId} options={deviceOptions} onChange={onDeviceChange} />
-            <div className="hs-camera-bg-source-hint">
+            {/* <div className="hs-camera-bg-source-hint">
               可選實體鏡頭或虛擬相機（OBS Virtual Cam 等），與視訊鏡頭獨立
-            </div>
+            </div> */}
           </>
         )}
 
