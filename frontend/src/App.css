@@ -6016,6 +6016,12 @@ button:disabled {
   gap: 8px;
   padding: 16px 48px 12px 16px;
   position: relative;
+  cursor: grab;
+  user-select: none;
+}
+
+.ss-ai-card-header:active {
+  cursor: grabbing;
 }
 
 .ss-ai-card-icon {

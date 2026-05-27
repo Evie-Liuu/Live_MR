@@ -45,6 +45,52 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const [extending, setExtending] = useState(false);
   const [extendError, setExtendError] = useState<string | null>(null);
 
+  // ── 拖曳移動提示卡片 ──────────────────────────────────────────────────────
+  const cardRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+
+  const handleCardDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+    // Resolve actual pixel position from current rendered rect (works whether
+    // the card is CSS-centered via transform or already explicitly positioned)
+    const rect = card.getBoundingClientRect();
+    card.style.left = `${rect.left}px`;
+    card.style.top = `${rect.top}px`;
+    card.style.transform = 'none';
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: rect.left,
+      originY: rect.top,
+    };
+    card.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }, []);
+
+  const handleCardDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const card = cardRef.current;
+    if (!drag || !card || e.pointerId !== drag.pointerId) return;
+    const x = drag.originX + (e.clientX - drag.startX);
+    const y = drag.originY + (e.clientY - drag.startY);
+    const maxX = window.innerWidth - card.offsetWidth;
+    const maxY = window.innerHeight - card.offsetHeight;
+    card.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
+    card.style.top  = `${Math.max(0, Math.min(y, maxY))}px`;
+  }, []);
+
+  const handleCardDragEnd = useCallback(() => {
+    dragRef.current = null;
+  }, []);
+
   const publishPose = useCallback(
     (data: Uint8Array) => {
       const room = roomRef.current;
@@ -346,8 +392,17 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
 
       {/* AI 助理提示卡片（右上角 overlay） */}
       {aiHint && aiHint.content && (
-        <div className="ss-ai-card">
-          <div className="ss-ai-card-header">
+        <div
+          className="ss-ai-card"
+          ref={cardRef}
+          onPointerMove={handleCardDragMove}
+          onPointerUp={handleCardDragEnd}
+          onPointerCancel={handleCardDragEnd}
+        >
+          <div
+            className="ss-ai-card-header"
+            onPointerDown={handleCardDragStart}
+          >
             <span className="ss-ai-card-icon">🤖</span>
             <span className="ss-ai-card-title">老師提示</span>
             <span className={`ss-ai-mode-badge ai-mode--${aiHint.mode}`}>
