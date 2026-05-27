@@ -42,10 +42,14 @@ ${transcript}
 """
 
 Generate a sample reply for the STUDENT to respond to the teacher.
+
+IMPORTANT — Handling missing information:
+If the teacher's question refers to details that have NOT been provided (e.g. a price, size, color, stock, discount, brand), you MUST INVENT a reasonable, realistic value yourself and use it in the reply. Never produce a vague or incomplete answer such as "It is." or "It costs." Always commit to a concrete value (e.g. a specific dollar amount, a specific size). Treat the scene as if you were an actual shop assistant who knows the answer.
+
 Requirements:
 ${MODE_INSTRUCTIONS[mode]}
 
-Output ONLY the final answer. No explanation, no preamble, no Chinese.`
+Output ONLY the final answer as ONE grammatically complete sentence. No explanation, no preamble, no Chinese, no ellipsis, no trailing blanks.`
 }
 
 export function shuffleWords(sentence: string): string {
