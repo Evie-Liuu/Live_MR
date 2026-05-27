@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client';
+import { DisconnectReason } from '@livekit/protocol';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
@@ -37,6 +38,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const isMobile = isMobileDevice();
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [kicked, setKicked] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,8 +151,12 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       checkHostMetadata(p);
     });
 
-    room.on(RoomEvent.Disconnected, () => {
-      if (isMounted) setConnected(false);
+    room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+      if (!isMounted) return;
+      setConnected(false);
+      if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+        setKicked(true);
+      }
     });
 
     room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
@@ -324,6 +330,26 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   }, [extension]);
 
   const initials = name ? name.substring(0, 2).toLowerCase() : 'ss';
+
+  if (kicked) {
+    return (
+      <div className="student-kicked-screen">
+        <div className="student-kicked-card">
+          <div className="student-kicked-icon-wrapper">
+            <span className="material-symbols-outlined student-kicked-icon">person_remove</span>
+          </div>
+          <h2 className="student-kicked-title">
+            <span className="title-orange">已被</span>
+            <span className="title-teal">移出教室</span>
+          </h2>
+          <p className="student-kicked-subtitle">老師已將你從課堂移出。</p>
+          <button className="student-kicked-back-btn" onClick={onExit}>
+            返回首頁
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="student-session-container">
