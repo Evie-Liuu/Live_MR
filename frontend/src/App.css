@@ -3686,6 +3686,12 @@ button:disabled {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.hs-brand:hover {
+  opacity: 0.85;
 }
 
 .hs-brand-dot {

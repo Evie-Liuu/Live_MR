@@ -1385,6 +1385,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
   const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setSceneEditorGroupId(null); };
 
+  const handleBrandClick = () => {
+    sessionStorage.clear();
+    window.location.href = '/';
+  };
+
   return (
     <div className="host-session">
       {/* Hidden video for teacher pose detection */}
@@ -1395,7 +1400,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
       {/* ── Top Bar ──────────────────────────────────────────────────────────── */}
       <div className="hs-topbar">
-        <div className="hs-brand">
+        <div className="hs-brand" onClick={handleBrandClick}>
           {/* <div className="hs-brand-dot" /> */}
           <div className="hs-brand-logo-wrapper">
             <img src="/logo.webp" alt="Logo" />
