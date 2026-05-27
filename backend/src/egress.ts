@@ -92,4 +92,21 @@ export class EgressService {
 
     await this.roomService.mutePublishedTrack(roomId, identity, track.sid, muted)
   }
+
+  /**
+   * Forcibly disconnect a participant from a room. The LiveKit server tears
+   * down their connection; the client receives a Disconnected event.
+   * No-op (does not throw) if the participant has already left.
+   */
+  async removeParticipant(roomId: string, identity: string): Promise<void> {
+    try {
+      await this.roomService.removeParticipant(roomId, identity)
+    } catch (err: any) {
+      const msg = err?.message ?? String(err)
+      // LiveKit returns NOT_FOUND when the participant is already gone — that's
+      // the desired terminal state, so swallow it.
+      if (msg.toLowerCase().includes('not_found') || msg.toLowerCase().includes('not found')) return
+      throw err
+    }
+  }
 }

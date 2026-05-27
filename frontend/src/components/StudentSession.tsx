@@ -5,6 +5,8 @@ import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL } from '../config/constants.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
+import { buildStudentExtendPrompt } from '../config/aiAssistant.ts';
+import { generateHint, toFriendlyError } from '../utils/geminiClient.ts';
 
 interface StudentSessionProps {
   roomId: string;
@@ -39,6 +41,9 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
   const [showSource, setShowSource] = useState(false);
+  const [extension, setExtension] = useState<string | null>(null);
+  const [extending, setExtending] = useState(false);
+  const [extendError, setExtendError] = useState<string | null>(null);
 
   const publishPose = useCallback(
     (data: Uint8Array) => {
@@ -107,7 +112,12 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
         const msg = JSON.parse(new TextDecoder().decode(payload)) as { type?: string; payload?: AIHintPayload };
         if (msg.type === 'ai-hint') {
           const p = msg.payload ?? null;
-          if (isMounted) setAiHint(p && p.content ? p : null);
+          if (isMounted) {
+            setAiHint(p && p.content ? p : null);
+            // New hint arrived from teacher — drop any stale student-side extension
+            setExtension(null);
+            setExtendError(null);
+          }
         }
       } catch { /* pose / other messages */ }
     });
@@ -240,6 +250,32 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
     }
   }, [facingMode, isSwitchingCamera]);
 
+  const handleExtend = useCallback(async () => {
+    if (!aiHint?.content || !aiHint.sourceText || extending) return;
+    setExtending(true);
+    setExtendError(null);
+    try {
+      const result = await generateHint(
+        buildStudentExtendPrompt(aiHint.sourceText, aiHint.content),
+      );
+      setExtension(result.text);
+    } catch (e) {
+      setExtendError(toFriendlyError(e));
+    } finally {
+      setExtending(false);
+    }
+  }, [aiHint, extending]);
+
+  const speakExtension = useCallback(() => {
+    if (!extension) return;
+    try {
+      const u = new SpeechSynthesisUtterance(extension);
+      u.lang = 'en-US';
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch { /* ignore */ }
+  }, [extension]);
+
   const initials = name ? name.substring(0, 2).toLowerCase() : 'ss';
 
   return (
@@ -325,6 +361,52 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
               : <div className="ss-ai-content">{aiHint.content}</div>
             }
           </div>
+
+          {/* 學生端 — 延伸提示按鈕（rearrange / complete 才顯示；extend 已是延伸版） */}
+          {aiHint.mode !== 'extend' && aiHint.sourceText && (
+            <div className="ss-ai-extend">
+              {!extension && !extending && (
+                <button
+                  className="ss-ai-extend-btn"
+                  onClick={handleExtend}
+                  disabled={extending}
+                >
+                  <span className="material-symbols-outlined">auto_awesome</span>
+                  延伸提示
+                </button>
+              )}
+              {extending && (
+                <div className="ss-ai-extend-loading">AI 生成中…</div>
+              )}
+              {extendError && (
+                <div className="ss-ai-extend-error">{extendError}</div>
+              )}
+              {extension && (
+                <div className="ss-ai-extend-result">
+                  <div className="ss-ai-extend-label">延伸</div>
+                  <div className="ss-ai-extend-text">{extension}</div>
+                  <div className="ss-ai-extend-actions">
+                    <button
+                      className="ss-ai-extend-action"
+                      title="朗讀"
+                      onClick={speakExtension}
+                    >
+                      <span className="material-symbols-outlined">volume_up</span>
+                    </button>
+                    <button
+                      className="ss-ai-extend-action"
+                      title="再延伸一次"
+                      onClick={handleExtend}
+                      disabled={extending}
+                    >
+                      <span className="material-symbols-outlined">refresh</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {aiHint.sourceText && (
             <div className="ss-ai-source">
               <button className="ss-ai-source-toggle" onClick={() => setShowSource(v => !v)}>

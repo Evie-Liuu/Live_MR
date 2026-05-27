@@ -471,6 +471,23 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     }
   })
 
+  // POST /api/rooms/:roomId/participants/:identity/remove — host kicks student
+  router.post(
+    '/rooms/:roomId/participants/:identity/remove',
+    async (req: Request, res: Response) => {
+      if (!recording) { res.status(501).json({ error: 'LiveKit admin not configured' }); return }
+      const roomId = req.params.roomId as string
+      const identity = req.params.identity as string
+      try {
+        await recording.egressService.removeParticipant(roomId, identity)
+        res.json({ success: true })
+      } catch (err: any) {
+        console.error('Failed to remove participant:', err)
+        res.status(500).json({ error: 'Failed to remove participant', message: err.message })
+      }
+    },
+  )
+
   router.post(
     '/rooms/:roomId/participants/:identity/mute',
     async (req: Request, res: Response) => {

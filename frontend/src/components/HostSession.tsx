@@ -26,7 +26,7 @@ import { generateHint, toFriendlyError, warmupGemini } from '../utils/geminiClie
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
-import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
+import { subscribeToRoomEvents, approveRequest, rejectRequest, removeParticipant } from '../api.ts';
 import type { RoomEvent as ApiRoomEvent } from '../api.ts';
 import SceneEditor from './SceneEditor.tsx';
 
@@ -320,6 +320,17 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       // ignore
     }
   };
+
+  const handleRemoveStudent = useCallback(async (identity: string) => {
+    const ok = window.confirm(`確定要將「${identity}」移出教室嗎？`);
+    if (!ok) return;
+    try {
+      await removeParticipant(roomId, identity);
+    } catch (err) {
+      console.error('Failed to remove participant:', err);
+      window.alert('移出失敗，請稍後再試');
+    }
+  }, [roomId]);
 
 
   // Teacher's own video ref (for pose detection)
@@ -1725,6 +1736,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         vrmSourceId={hasSlots && !assignedSlot ? null : currentVrmId}
                         muteState={muteState[info.participant.identity]}
                         onToggleMute={toggleMute}
+                        onRemove={handleRemoveStudent}
                         slotLabel={assignedSlot?.label}
                       />
                     </div>

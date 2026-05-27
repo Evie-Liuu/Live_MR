@@ -174,3 +174,13 @@ export async function muteParticipant(
   });
   if (!res.ok) throw new Error(`muteParticipant failed: ${res.status}`);
 }
+
+export async function removeParticipant(
+  roomId: string,
+  identity: string,
+): Promise<void> {
+  const res = await fetch(`/api/rooms/${roomId}/participants/${identity}/remove`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`removeParticipant failed: ${res.status}`);
+}

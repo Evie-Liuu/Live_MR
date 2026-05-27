@@ -12,6 +12,7 @@ interface StudentTileProps {
   vrmSourceId?: string | null
   muteState?: MuteState
   onToggleMute?: (identity: string, trackType: 'audio' | 'video') => void
+  onRemove?: (identity: string) => void
   slotLabel?: string | null
 }
 
@@ -22,6 +23,7 @@ export default function StudentTile({
   vrmSourceId,
   muteState,
   onToggleMute,
+  onRemove,
   slotLabel,
 }: StudentTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -98,26 +100,39 @@ export default function StudentTile({
         </div> */}
 
         {/* Bottom Right Mute Controls */}
-        {onToggleMute && (
+        {(onToggleMute || onRemove) && (
           <div className="tile-action-controls">
-            <button
-              className={`tile-action-btn ${muteState?.audio ? 'muted' : 'active'}`}
-              onClick={() => onToggleMute(participant.identity, 'audio')}
-              title={muteState?.audio ? '取消靜音' : '靜音'}
-            >
-              <span className="material-symbols-outlined">
-                {muteState?.audio ? 'mic_off' : 'mic'}
-              </span>
-            </button>
-            <button
-              className={`tile-action-btn ${muteState?.video ? 'muted' : 'active'}`}
-              onClick={() => onToggleMute(participant.identity, 'video')}
-              title={muteState?.video ? '開啟鏡頭' : '關閉鏡頭'}
-            >
-              <span className="material-symbols-outlined">
-                {muteState?.video ? 'videocam_off' : 'videocam'}
-              </span>
-            </button>
+            {onToggleMute && (
+              <>
+                <button
+                  className={`tile-action-btn ${muteState?.audio ? 'muted' : 'active'}`}
+                  onClick={() => onToggleMute(participant.identity, 'audio')}
+                  title={muteState?.audio ? '取消靜音' : '靜音'}
+                >
+                  <span className="material-symbols-outlined">
+                    {muteState?.audio ? 'mic_off' : 'mic'}
+                  </span>
+                </button>
+                <button
+                  className={`tile-action-btn ${muteState?.video ? 'muted' : 'active'}`}
+                  onClick={() => onToggleMute(participant.identity, 'video')}
+                  title={muteState?.video ? '開啟鏡頭' : '關閉鏡頭'}
+                >
+                  <span className="material-symbols-outlined">
+                    {muteState?.video ? 'videocam_off' : 'videocam'}
+                  </span>
+                </button>
+              </>
+            )}
+            {onRemove && (
+              <button
+                className="tile-action-btn tile-action-btn--danger"
+                onClick={() => onRemove(participant.identity)}
+                title="移出教室"
+              >
+                <span className="material-symbols-outlined">person_remove</span>
+              </button>
+            )}
           </div>
         )}
       </div>

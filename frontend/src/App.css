@@ -962,6 +962,15 @@ button:disabled {
   color: rgba(255, 255, 255, 0.4);
 }
 
+.tile-action-btn--danger {
+  background: rgba(220, 38, 38, 0.55);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.tile-action-btn--danger:hover {
+  background: rgba(220, 38, 38, 0.85);
+}
+
 .tile-footer-bar {
   height: 48px;
   padding: 0 16px;
@@ -5920,6 +5929,116 @@ button:disabled {
   color: rgba(0, 0, 0, 0.6);
   line-height: 1.4;
   text-align: center;
+}
+
+/* 學生端 — 延伸提示 */
+.ss-ai-extend {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.ss-ai-extend-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  color: #fff;
+  font-family: 'Nunito', inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.ss-ai-extend-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4);
+}
+
+.ss-ai-extend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ss-ai-extend-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.ss-ai-extend-loading {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.5);
+  padding: 6px 0;
+}
+
+.ss-ai-extend-error {
+  font-size: 12px;
+  color: #dc2626;
+  padding: 4px 0;
+}
+
+.ss-ai-extend-result {
+  text-align: left;
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  position: relative;
+}
+
+.ss-ai-extend-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #c2410c;
+  margin-bottom: 4px;
+}
+
+.ss-ai-extend-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1.45;
+}
+
+.ss-ai-extend-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.ss-ai-extend-action {
+  border: none;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #c2410c;
+  transition: background 0.15s ease;
+}
+
+.ss-ai-extend-action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 1);
+}
+
+.ss-ai-extend-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ss-ai-extend-action .material-symbols-outlined {
+  font-size: 16px;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
