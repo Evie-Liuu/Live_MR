@@ -232,7 +232,15 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const prevCurrentTaskIdRef = useRef<string | undefined>(undefined);
 
   // ─── AI 助理 state ───────────────────────────────────────────────────────
-  const [rightPanelTab, setRightPanelTab] = useState<'task-hints' | 'ai-assistant'>('ai-assistant');
+  const [rightPanelTab, setRightPanelTab] = useState<'task-hints' | 'ai-assistant'>(
+    () => {
+      const v = sessionStorage.getItem('bigscreen-rightPanelTab');
+      return v === 'task-hints' || v === 'ai-assistant' ? v : 'ai-assistant';
+    },
+  );
+  useEffect(() => {
+    try { sessionStorage.setItem('bigscreen-rightPanelTab', rightPanelTab); } catch { /* ignore */ }
+  }, [rightPanelTab]);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
@@ -1133,7 +1141,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         }
       })
       .catch((err) => {
-        if (isMounted) console.error('Failed to connect to room:', err);
+        if (!isMounted) return;
+        console.error('Failed to connect to room:', err);
+        // Likely an expired token persisted from a previous session — wipe
+        // sessionStorage so the next reload returns to role selection.
+        try { sessionStorage.removeItem('live-mr-app-state'); } catch { /* ignore */ }
       });
 
     return () => {

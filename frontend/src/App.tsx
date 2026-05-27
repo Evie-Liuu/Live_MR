@@ -34,12 +34,37 @@ function AppSpinner() {
   );
 }
 
+const APP_STATE_STORAGE_KEY = 'live-mr-app-state';
+
+function loadPersistedState(): AppState | null {
+  try {
+    const raw = sessionStorage.getItem(APP_STATE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AppState;
+    if (parsed && typeof parsed === 'object' && typeof parsed.screen === 'string') {
+      return parsed;
+    }
+  } catch { /* ignore corrupt storage */ }
+  return null;
+}
+
 function getInitialState(): AppState {
   const params = new URLSearchParams(window.location.search);
-  const roomId = params.get('roomId');
-  if (roomId) {
-    return { screen: 'student-join', roomId };
+  const urlRoomId = params.get('roomId');
+
+  // URL ?roomId= always wins — supports student deep-link / QR scans
+  if (urlRoomId) {
+    const persisted = loadPersistedState();
+    // If persisted state matches this room and is a student-side screen, restore it
+    if (persisted && 'roomId' in persisted && persisted.roomId === urlRoomId &&
+        (persisted.screen === 'student-waiting' || persisted.screen === 'student-session')) {
+      return persisted;
+    }
+    return { screen: 'student-join', roomId: urlRoomId };
   }
+
+  const persisted = loadPersistedState();
+  if (persisted) return persisted;
   return { screen: 'select-role' };
 }
 
@@ -78,6 +103,20 @@ function App() {
       }
     }
   }, [state.screen]);
+
+  // Persist AppState to sessionStorage so a page refresh restores the user back
+  // to the same screen (and auto-rejoins their LiveKit room when applicable).
+  // sessionStorage scope = current tab only, so closing the tab still resets.
+  useEffect(() => {
+    try {
+      if (state.screen === 'select-role' || state.screen === 'error' ||
+          state.screen === 'student-rejected') {
+        sessionStorage.removeItem(APP_STATE_STORAGE_KEY);
+      } else {
+        sessionStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
+      }
+    } catch { /* quota / disabled storage — ignore */ }
+  }, [state]);
 
   const renderScreen = () => {
     switch (state.screen) {

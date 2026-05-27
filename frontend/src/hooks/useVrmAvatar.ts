@@ -181,12 +181,13 @@ export function useVrmAvatar(
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
       ro.disconnect();
-      // Force the old WebGL context to be fully torn down before the next
-      // effect run creates a new renderer on the same canvas element.
-      // Without this, some GPU drivers leave partial shader state that causes
-      // specific meshes (e.g. head with transparency) to not render on the
-      // new model.
-      renderer.forceContextLoss();
+      // NOTE: do NOT call renderer.forceContextLoss() here.
+      // Callers swap models via <canvas key={vrmSourceId}>, which already
+      // destroys the canvas DOM element on model change — so shader-state
+      // leakage between models can't happen. forceContextLoss() additionally
+      // breaks React 18 StrictMode dev double-invoke: cleanup loses the
+      // context, then the remount tries to acquire a new context on the same
+      // canvas and getContext() returns null, crashing WebGLRenderer.
       renderer.dispose();
       if (vrmRef.current) {
         scene.remove(vrmRef.current.scene);
