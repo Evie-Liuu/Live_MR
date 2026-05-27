@@ -5156,6 +5156,111 @@ button:disabled {
   color: #136B6D;
 }
 
+/* 學生端 — 離開課堂確認 modal */
+.ss-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: ss-confirm-fade-in 0.15s ease-out;
+}
+
+@keyframes ss-confirm-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.ss-confirm-modal {
+  background: #fff;
+  border-radius: 24px;
+  padding: 36px 28px 28px;
+  width: 320px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  animation: ss-confirm-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  font-family: 'Nunito', sans-serif;
+}
+
+@keyframes ss-confirm-pop {
+  from { transform: scale(0.88); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.ss-confirm-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: #fce9d7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.ss-confirm-icon {
+  font-size: 32px !important;
+  color: #d97706;
+}
+
+.ss-confirm-title {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #1a1a1a;
+  margin: 0 0 8px;
+}
+
+.ss-confirm-body {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 0 0 28px;
+  line-height: 1.5;
+}
+
+.ss-confirm-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.ss-confirm-btn {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: 999px;
+  border: none;
+  font-family: 'Nunito', inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ss-confirm-btn--cancel {
+  background: #f3f4f6;
+  color: #555;
+}
+
+.ss-confirm-btn--cancel:hover {
+  background: #e5e7eb;
+}
+
+.ss-confirm-btn--confirm {
+  background: #136B6D;
+  color: #fff;
+}
+
+.ss-confirm-btn--confirm:hover {
+  background: #0d4d4f;
+  box-shadow: 0 4px 12px rgba(19, 107, 109, 0.3);
+}
+
 /* ===== Error Screen (New Design) ===== */
 .error-screen {
   display: flex;

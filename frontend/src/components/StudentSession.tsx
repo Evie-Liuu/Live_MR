@@ -40,6 +40,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [kicked, setKicked] = useState(false);
   const [hostLeft, setHostLeft] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -393,9 +394,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
         <button
           className="student-session-exit-btn"
           title="離開課堂"
-          onClick={() => {
-            if (window.confirm('確定要離開課堂並返回首頁？')) onExit();
-          }}
+          onClick={() => setShowExitConfirm(true)}
         >
           <span className="material-symbols-outlined">logout</span>
         </button>
@@ -562,6 +561,33 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
                 onClick={() => window.location.reload()}
               >
                 返回
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 離開課堂確認 modal */}
+      {showExitConfirm && (
+        <div className="ss-confirm-backdrop" onClick={() => setShowExitConfirm(false)}>
+          <div className="ss-confirm-modal" onClick={e => e.stopPropagation()}>
+            <div className="ss-confirm-icon-wrapper">
+              <span className="material-symbols-outlined ss-confirm-icon">logout</span>
+            </div>
+            <h3 className="ss-confirm-title">離開課堂？</h3>
+            <p className="ss-confirm-body">確定要離開課堂並返回首頁嗎？</p>
+            <div className="ss-confirm-actions">
+              <button
+                className="ss-confirm-btn ss-confirm-btn--cancel"
+                onClick={() => setShowExitConfirm(false)}
+              >
+                取消
+              </button>
+              <button
+                className="ss-confirm-btn ss-confirm-btn--confirm"
+                onClick={onExit}
+              >
+                確認離開
               </button>
             </div>
           </div>
