@@ -47,7 +47,8 @@ export async function generateHint(prompt: string, signal?: AbortSignal): Promis
           contents: prompt,
           config: {
             temperature: 0.6,
-            maxOutputTokens: 80,
+            maxOutputTokens: 128,
+            thinkingConfig: { thinkingBudget: 0 },
             abortSignal: controller.signal,
           },
         })
