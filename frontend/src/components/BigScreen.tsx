@@ -391,7 +391,7 @@ export default function BigScreen() {
   // to gate video-bg redraws. Toggled via backtick key on BigScreen.
   const rvfcEnabledRef = useRef(true);
   const rvfcResetRef = useRef(false); // pulsed to force re-arm inside the closure
-  const [rvfcEnabled, setRvfcEnabled] = useState(true);
+  const [/* rvfcEnabled */, setRvfcEnabled] = useState(true);
 
   // Adjustable THREE.js render FPS cap (10–60, 0 = unlimited).
   // Passed to useBigScreenScene via renderFpsLimit option (read every frame via ref).

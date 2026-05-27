@@ -14,7 +14,7 @@ import type { BigScreenMsg, TaskEntry, BackgroundTypeOverride } from './BigScree
 import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
-import PerformanceMonitor from './PerformanceMonitor.tsx';
+// import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
@@ -29,6 +29,7 @@ import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest, removeParticipant } from '../api.ts';
 import type { RoomEvent as ApiRoomEvent } from '../api.ts';
 import SceneEditor from './SceneEditor.tsx';
+import ConfirmationModal from './ConfirmationModal.tsx';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
@@ -222,7 +223,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
   const [handEnabled, _] = useState(faceEnabled);
-  const [lowPowerMode, setLowPowerMode] = useState(true);
+  const [lowPowerMode] = useState(true);
   const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintEnabled') ?? 'false'); } catch { return false; }
   });
@@ -277,6 +278,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // Embedded BigScreen preview in sidebar
   const [showBigScreenPreview, setShowBigScreenPreview] = useState(false);
 
+  // Student removal confirmation modal state
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [studentToRemove, setStudentToRemove] = useState<string | null>(null);
+
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
   // BroadcastChannel to push pose data to big screen
@@ -321,16 +326,28 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     }
   };
 
-  const handleRemoveStudent = useCallback(async (identity: string) => {
-    const ok = window.confirm(`確定要將「${identity}」移出教室嗎？`);
-    if (!ok) return;
+  const handleRemoveStudent = useCallback((identity: string) => {
+    setStudentToRemove(identity);
+    setShowRemoveConfirm(true);
+  }, []);
+
+  const confirmRemoveStudent = useCallback(async () => {
+    if (!studentToRemove) return;
     try {
-      await removeParticipant(roomId, identity);
+      await removeParticipant(roomId, studentToRemove);
     } catch (err) {
       console.error('Failed to remove participant:', err);
       window.alert('移出失敗，請稍後再試');
+    } finally {
+      setShowRemoveConfirm(false);
+      setStudentToRemove(null);
     }
-  }, [roomId]);
+  }, [roomId, studentToRemove]);
+
+  const cancelRemoveStudent = useCallback(() => {
+    setShowRemoveConfirm(false);
+    setStudentToRemove(null);
+  }, []);
 
 
   // Teacher's own video ref (for pose detection)
@@ -1966,9 +1983,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           <div className="hs-ai-reply-row">
                             <div className="hs-ai-reply-label">
                               AI 回覆
-                              {/* {import.meta.env.DEV && aiModel && (
+                              {import.meta.env.DEV && aiModel && (
                                 <span className="hs-ai-model-badge" title="目前使用的 Gemini 模型">{aiModel}</span>
-                              )} */}
+                              )}
                             </div>
                             <div className="hs-ai-reply-text">
                               {aiBusy
@@ -2437,6 +2454,15 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         </div>
       )}
 
+      <ConfirmationModal
+        isOpen={showRemoveConfirm}
+        title="移出教室"
+        description={`確定要將「${studentToRemove || ''}」移出教室嗎？`}
+        confirmText="確定"
+        cancelText="取消"
+        onConfirm={confirmRemoveStudent}
+        onCancel={cancelRemoveStudent}
+      />
     </div>
   );
 }

@@ -1,0 +1,129 @@
+/* ConfirmationModal.css */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.55); /* Subtle dark overlay */
+  backdrop-filter: blur(16px); /* Heavy high-fidelity background blur */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999999;
+  animation: modal-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-container {
+  background: #ffffff;
+  border-radius: 24px; /* Highly rounded corners */
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.15), 
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  width: 90%;
+  max-width: 380px; /* Refined compact professional size */
+  padding: 36px 32px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: modal-scale-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-icon-container {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-warning-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.modal-message {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 19px;
+  font-weight: 500;
+  color: #111827; /* Near black */
+  margin-bottom: 28px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+.modal-actions {
+  display: flex;
+  width: 100%;
+  gap: 12px;
+}
+
+.modal-btn {
+  flex: 1;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  height: 48px;
+  border-radius: 24px; /* Perfectly pill-shaped */
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  outline: none;
+}
+
+/* LEFT Button - Confirm (Orange background, white text) */
+.modal-btn.confirm {
+  background-color: #FF7029; /* Coral Orange */
+  color: #ffffff;
+}
+
+.modal-btn.confirm:hover {
+  background-color: #FF5F10;
+  transform: translateY(-0.5px);
+}
+
+.modal-btn.confirm:active {
+  transform: translateY(0.5px);
+}
+
+/* RIGHT Button - Cancel (Grey background, dark slate text) */
+.modal-btn.cancel {
+  background-color: #EAECEF; /* Soft light grey */
+  color: #4B5563; /* Slate grey text */
+}
+
+.modal-btn.cancel:hover {
+  background-color: #E2E4E8;
+  color: #1F2937;
+  transform: translateY(-0.5px);
+}
+
+.modal-btn.cancel:active {
+  transform: translateY(0.5px);
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
