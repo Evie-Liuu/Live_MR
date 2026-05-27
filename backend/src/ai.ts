@@ -29,7 +29,12 @@ function isRetryable(err: unknown): boolean {
   )
 }
 
-export async function generateHint(prompt: string, signal?: AbortSignal): Promise<string> {
+export interface HintResult {
+  text: string
+  model: string
+}
+
+export async function generateHint(prompt: string, signal?: AbortSignal): Promise<HintResult> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   signal?.addEventListener('abort', () => controller.abort())
@@ -48,7 +53,7 @@ export async function generateHint(prompt: string, signal?: AbortSignal): Promis
         })
         const text = (res.text ?? '').trim()
         if (!text) throw new Error('Empty response')
-        return text
+        return { text, model }
       } catch (err) {
         lastErr = err
         const msg = err instanceof Error ? err.message : String(err)

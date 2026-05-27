@@ -42,10 +42,15 @@ export function toFriendlyError(e: unknown): string {
   return `AI 生成失敗：${msg}`
 }
 
+export interface HintResult {
+  text: string
+  model: string
+}
+
 export async function generateHint(
   prompt: string,
   signal?: AbortSignal,
-): Promise<string> {
+): Promise<HintResult> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   signal?.addEventListener('abort', () => controller.abort())
@@ -60,10 +65,10 @@ export async function generateHint(
       const data = await res.json().catch(() => ({})) as { error?: string }
       throw new Error(data.error || `AI HTTP ${res.status}`)
     }
-    const data = await res.json() as { text?: string }
+    const data = await res.json() as { text?: string; model?: string }
     const text = (data.text ?? '').trim()
     if (!text) throw new Error('Empty response')
-    return text
+    return { text, model: data.model ?? 'unknown' }
   } finally {
     clearTimeout(timer)
   }

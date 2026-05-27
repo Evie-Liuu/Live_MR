@@ -5580,6 +5580,22 @@ button:disabled {
   font-weight: 800;
   color: #8a6b50;
   letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hs-ai-model-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #5b4a3a;
+  background: rgba(138, 107, 80, 0.12);
+  border: 1px solid rgba(138, 107, 80, 0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .hs-ai-reply-text {

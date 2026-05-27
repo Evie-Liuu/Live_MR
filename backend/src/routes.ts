@@ -461,8 +461,8 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       return
     }
     try {
-      const text = await generateAIHint(prompt)
-      res.json({ text })
+      const { text, model } = await generateAIHint(prompt)
+      res.json({ text, model })
     } catch (err: any) {
       const msg = err?.message ?? String(err)
       console.error('[ai/hint] error:', msg)

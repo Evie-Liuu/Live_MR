@@ -236,6 +236,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -527,7 +528,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     setAiBusy(true); setAiError(null);
     try {
       const promptMode: AIHintMode = mode === 'rearrange' ? 'complete' : mode;
-      let content = await generateHint(buildPrompt(txt, constraint, promptMode));
+      const result = await generateHint(buildPrompt(txt, constraint, promptMode));
+      setAiModel(result.model);
+      let content = result.text;
       if (mode === 'rearrange') {
         content = shuffleWords(content);
       }
@@ -1937,7 +1940,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                             </div>
                           </div>
                           <div className="hs-ai-reply-row">
-                            <div className="hs-ai-reply-label">AI 回覆</div>
+                            <div className="hs-ai-reply-label">
+                              AI 回覆
+                              {/* {import.meta.env.DEV && aiModel && (
+                                <span className="hs-ai-model-badge" title="目前使用的 Gemini 模型">{aiModel}</span>
+                              )} */}
+                            </div>
                             <div className="hs-ai-reply-text">
                               {aiBusy
                                 ? <span className="hs-ai-reply-placeholder">AI 生成中…</span>
