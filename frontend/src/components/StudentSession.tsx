@@ -347,7 +347,7 @@ export default function StudentSession({ roomId, token, name }: StudentSessionPr
       {/* AI 助理提示卡片（右上角 overlay） */}
       {aiHint && aiHint.content && (
         <div className="ss-ai-card">
-          <div className={`ss-ai-card-header ai-mode--${aiHint.mode}`}>
+          <div className="ss-ai-card-header">
             <span className="ss-ai-card-icon">🤖</span>
             <span className="ss-ai-card-title">老師提示</span>
             <span className={`ss-ai-mode-badge ai-mode--${aiHint.mode}`}>
