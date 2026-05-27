@@ -203,8 +203,8 @@ function SceneBackgroundControls({
 
         {bgType === 'camera' && (
           <>
-            <div className="hs-bg-source-row" style={{ marginTop: 12 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 20, color: '#00A99D' }}>videocam</span>
+            <div className="hs-bg-source-row" style={{ marginTop: 18 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 22, color: '#00A99D' }}>videocam</span>
               <span className="hs-bg-source-row-label">背景影像來源</span>
             </div>
             <CustomSelect value={deviceId} options={deviceOptions} onChange={onDeviceChange} />
