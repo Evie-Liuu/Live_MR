@@ -86,6 +86,9 @@ export default function StudentWaiting({
 
   return (
     <div className="student-waiting-screen">
+      {/* <button className="student-back-btn" onClick={onExit} title="返回首頁">
+        <span className="material-symbols-outlined">arrow_back</span>
+      </button> */}
       <div className="waiting-inner">
         <div className="gradient-spinner" />
         <h2 className="waiting-text">等待老師允許</h2>

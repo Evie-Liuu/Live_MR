@@ -13,9 +13,10 @@ interface HostLobbyProps {
   hostToken: string;
   livekitToken: string;
   onStart: (livekitToken: string) => void;
+  onExit: () => void;
 }
 
-export default function HostLobby({ roomId, hostToken, livekitToken, onStart }: HostLobbyProps) {
+export default function HostLobby({ roomId, hostToken, livekitToken, onStart, onExit }: HostLobbyProps) {
   const [pending, setPending] = useState<PendingStudent[]>([]);
   const [approvedCount, setApprovedCount] = useState(0);
 
@@ -75,6 +76,9 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart }: 
 
   return (
     <div className="host-lobby-screen">
+      <button className="student-back-btn" onClick={onExit} title="返回首頁">
+        <span className="material-symbols-outlined">arrow_back</span>
+      </button>
       <h2 className="host-lobby-title">
         <span className="title-orange">等待</span><span className="title-teal">學生加入</span>
       </h2>

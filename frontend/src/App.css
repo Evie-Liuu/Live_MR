@@ -533,7 +533,8 @@ button:disabled {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
   transition: background 0.15s, color 0.15s;
 }
 
@@ -5091,7 +5092,7 @@ button:disabled {
   border-radius: 36px;
   padding: 48px;
   width: 100%;
-  max-width: 440px;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -132,6 +132,7 @@ function App() {
             onStart={(livekitToken) =>
               setState({ screen: 'host-session', roomId: state.roomId, hostToken: state.hostToken, livekitToken })
             }
+            onExit={() => setState({ screen: 'select-role' })}
           />
         );
 
