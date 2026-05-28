@@ -49,8 +49,9 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [extension, setExtension] = useState<string | null>(null);
   const [extending, setExtending] = useState(false);
   const [extendError, setExtendError] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
 
-  // ── 拖曳移動提示卡片 ──────────────────────────────────────────────────────
+  // ── 拖曳移動 & 縮放提示卡片 ──────────────────────────────────────────────
   const cardRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     pointerId: number;
@@ -58,6 +59,13 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     startY: number;
     originX: number;
     originY: number;
+  } | null>(null);
+  const reszRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originW: number;
+    originH: number;
   } | null>(null);
 
   const handleCardDragStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -80,20 +88,45 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     e.preventDefault();
   }, []);
 
+  const handleResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const card = cardRef.current;
+    if (!card) return;
+    reszRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originW: card.offsetWidth,
+      originH: card.offsetHeight,
+    };
+    card.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   const handleCardDragMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
+    const resz = reszRef.current;
     const card = cardRef.current;
-    if (!drag || !card || e.pointerId !== drag.pointerId) return;
-    const x = drag.originX + (e.clientX - drag.startX);
-    const y = drag.originY + (e.clientY - drag.startY);
-    const maxX = window.innerWidth - card.offsetWidth;
-    const maxY = window.innerHeight - card.offsetHeight;
-    card.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
-    card.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
+    if (!card) return;
+    if (drag && e.pointerId === drag.pointerId) {
+      const x = drag.originX + (e.clientX - drag.startX);
+      const y = drag.originY + (e.clientY - drag.startY);
+      const maxX = window.innerWidth - card.offsetWidth;
+      const maxY = window.innerHeight - card.offsetHeight;
+      card.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
+      card.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
+    } else if (resz && e.pointerId === resz.pointerId) {
+      const newW = Math.max(260, resz.originW + (e.clientX - resz.startX));
+      const newH = Math.max(80, resz.originH + (e.clientY - resz.startY));
+      card.style.width = `${newW}px`;
+      card.style.maxWidth = 'none';
+      card.style.height = `${newH}px`;
+    }
   }, []);
 
   const handleCardDragEnd = useCallback(() => {
     dragRef.current = null;
+    reszRef.current = null;
   }, []);
 
   const publishPose = useCallback(
@@ -455,7 +488,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       {/* AI 助理提示卡片（右上角 overlay） */}
       {aiHint && aiHint.content && (
         <div
-          className="ss-ai-card"
+          className={`ss-ai-card${isMinimized ? ' ss-ai-card--minimized' : ''}`}
           ref={cardRef}
           onPointerMove={handleCardDragMove}
           onPointerUp={handleCardDragEnd}
@@ -470,67 +503,88 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             <span className={`ss-ai-mode-badge ai-mode--${aiHint.mode}`}>
               {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
             </span>
+            {/* 最小化按鈕 */}
+            <button
+              className="ss-ai-card-minimize"
+              title={isMinimized ? '展開' : '最小化'}
+              onClick={() => setIsMinimized(v => !v)}
+            >
+              <span className="material-symbols-outlined">
+                {isMinimized ? 'expand_more' : 'expand_less'}
+              </span>
+            </button>
             <button className="ss-ai-card-close" onClick={() => setAiHint(null)}>✕</button>
           </div>
-          <div className="ss-ai-card-body">
-            {aiHint.mode === 'rearrange'
-              ? <div className="ss-ai-chips">{aiHint.content.split(' ').map((w, i) => <span key={i} className="ai-chip">{w}</span>)}</div>
-              : <div className="ss-ai-content">{aiHint.content}</div>
-            }
-          </div>
 
-          {/* 學生端 — 延伸提示按鈕（rearrange / complete 才顯示；extend 已是延伸版） */}
-          {aiHint.mode !== 'extend' && aiHint.sourceText && (
-            <div className="ss-ai-extend">
-              {!extension && !extending && (
-                <button
-                  className="ss-ai-extend-btn"
-                  onClick={handleExtend}
-                  disabled={extending}
-                >
-                  <span className="material-symbols-outlined">auto_awesome</span>
-                  延伸提示
-                </button>
-              )}
-              {extending && (
-                <div className="ss-ai-extend-loading">AI 生成中…</div>
-              )}
-              {extendError && (
-                <div className="ss-ai-extend-error">{extendError}</div>
-              )}
-              {extension && (
-                <div className="ss-ai-extend-result">
-                  <div className="ss-ai-extend-label">延伸</div>
-                  <div className="ss-ai-extend-text">{extension}</div>
-                  <div className="ss-ai-extend-actions">
+          {!isMinimized && (
+            <>
+              <div className="ss-ai-card-body">
+                {aiHint.mode === 'rearrange'
+                  ? <div className="ss-ai-chips">{aiHint.content.split(' ').map((w, i) => <span key={i} className="ai-chip">{w}</span>)}</div>
+                  : <div className="ss-ai-content">{aiHint.content}</div>
+                }
+              </div>
+
+              {/* 學生端 — 延伸提示按鈕（rearrange / complete 才顯示；extend 已是延伸版） */}
+              {aiHint.mode !== 'extend' && aiHint.sourceText && (
+                <div className="ss-ai-extend">
+                  {!extension && !extending && (
                     <button
-                      className="ss-ai-extend-action"
-                      title="朗讀"
-                      onClick={speakExtension}
-                    >
-                      <span className="material-symbols-outlined">volume_up</span>
-                    </button>
-                    <button
-                      className="ss-ai-extend-action"
-                      title="再延伸一次"
+                      className="ss-ai-extend-btn"
                       onClick={handleExtend}
                       disabled={extending}
                     >
-                      <span className="material-symbols-outlined">refresh</span>
+                      <span className="material-symbols-outlined">auto_awesome</span>
+                      延伸提示
                     </button>
-                  </div>
+                  )}
+                  {extending && (
+                    <div className="ss-ai-extend-loading">AI 生成中…</div>
+                  )}
+                  {extendError && (
+                    <div className="ss-ai-extend-error">{extendError}</div>
+                  )}
+                  {extension && (
+                    <div className="ss-ai-extend-result">
+                      <div className="ss-ai-extend-label">延伸</div>
+                      <div className="ss-ai-extend-text">{extension}</div>
+                      <div className="ss-ai-extend-actions">
+                        <button
+                          className="ss-ai-extend-action"
+                          title="朗讀"
+                          onClick={speakExtension}
+                        >
+                          <span className="material-symbols-outlined">volume_up</span>
+                        </button>
+                        <button
+                          className="ss-ai-extend-action"
+                          title="再延伸一次"
+                          onClick={handleExtend}
+                          disabled={extending}
+                        >
+                          <span className="material-symbols-outlined">refresh</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
-          {aiHint.sourceText && (
-            <div className="ss-ai-source">
-              <button className="ss-ai-source-toggle" onClick={() => setShowSource(v => !v)}>
-                {showSource ? '▴' : '▾'} 老師原話
-              </button>
-              {showSource && <div className="ss-ai-source-text">"{aiHint.sourceText}"</div>}
-            </div>
+              {aiHint.sourceText && (
+                <div className="ss-ai-source">
+                  <button className="ss-ai-source-toggle" onClick={() => setShowSource(v => !v)}>
+                    {showSource ? '▴' : '▾'} 老師原話
+                  </button>
+                  {showSource && <div className="ss-ai-source-text">"{aiHint.sourceText}"</div>}
+                </div>
+              )}
+
+              {/* 縮放把手 */}
+              <div
+                className="ss-ai-card-resize-handle"
+                onPointerDown={handleResizeStart}
+              />
+            </>
           )}
         </div>
       )}
