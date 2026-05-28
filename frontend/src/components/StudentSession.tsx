@@ -465,7 +465,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             className="ss-ai-card-header"
             onPointerDown={handleCardDragStart}
           >
-            <span className="ss-ai-card-icon">🤖</span>
+            <span className="ss-ai-card-icon"><img src="images/UI/robot_avatar.png" alt="機器人頭像" /></span>
             <span className="ss-ai-card-title">老師提示</span>
             <span className={`ss-ai-mode-badge ai-mode--${aiHint.mode}`}>
               {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}

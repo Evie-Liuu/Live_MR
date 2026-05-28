@@ -5170,8 +5170,13 @@ button:disabled {
 }
 
 @keyframes ss-confirm-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .ss-confirm-modal {
@@ -5190,8 +5195,15 @@ button:disabled {
 }
 
 @keyframes ss-confirm-pop {
-  from { transform: scale(0.88); opacity: 0; }
-  to   { transform: scale(1);    opacity: 1; }
+  from {
+    transform: scale(0.88);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .ss-confirm-icon-wrapper {
@@ -6240,7 +6252,7 @@ button:disabled {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 360px;
+  width: 410px;
   max-width: 92vw;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.07);
@@ -6267,8 +6279,8 @@ button:disabled {
 .ss-ai-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 16px 48px 12px 16px;
+  gap: 2px;
+  padding: 20px 48px 12px 16px;
   position: relative;
   cursor: grab;
   user-select: none;
@@ -6281,22 +6293,25 @@ button:disabled {
 .ss-ai-card-icon {
   font-size: 26px;
   line-height: 1;
+  width: 40px;
 }
 
 .ss-ai-card-title {
   font-weight: 800;
-  font-size: 17px;
+  font-size: 20px;
   color: #222;
 }
 
 .ss-ai-mode-badge {
-  padding: 3px 10px;
+  padding: 2px 10px;
   border-radius: 999px;
-  background: #2E7D71;
+  background: var(--secondary);
   color: #fff;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 14px;
+  /* font-weight: 800; */
   letter-spacing: 0.3px;
+  margin-left: 8px;
+
 }
 
 .ss-ai-card-close {
@@ -6317,7 +6332,7 @@ button:disabled {
 }
 
 .ss-ai-card-body {
-  padding: 4px 16px 16px;
+  padding: 14px 18px 24px;
   font-size: 16px;
   line-height: 1.5;
   font-weight: 700;
@@ -6338,10 +6353,11 @@ button:disabled {
   font-size: 17px;
   font-weight: 700;
   background: #fff;
-  border: 2px dashed #f97316;
+  border: 1.9px dashed #f97316;
   border-radius: 10px;
   color: #222;
   margin: 0;
+  box-shadow: 3px 3px 5px 1px rgba(0, 0, 0, 0.15);
 }
 
 .ss-ai-content {
@@ -6435,18 +6451,20 @@ button:disabled {
 
 .ss-ai-extend-result {
   text-align: left;
-  background: rgba(249, 115, 22, 0.07);
-  border: 1.5px dashed rgba(249, 115, 22, 0.45);
+  /* background: rgba(249, 115, 22, 0.07); */
+  background: #FBF3E0;
+  /* border: 1.5px dashed rgba(249, 115, 22, 0.45); */
   border-radius: 12px;
   padding: 12px 14px 10px;
 }
 
 .ss-ai-extend-label {
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: #c2410c;
+  /* color: #c2410c; */
+  color: #C79455;
   margin-bottom: 6px;
 }
 
@@ -6459,27 +6477,31 @@ button:disabled {
 
 .ss-ai-extend-actions {
   display: flex;
-  gap: 4px;
+  gap: 10px;
   justify-content: flex-end;
   margin-top: 8px;
 }
 
 .ss-ai-extend-action {
   border: none;
-  background: rgba(249, 115, 22, 0.1);
-  border-radius: 7px;
+  /* background: rgba(249, 115, 22, 0.1); */
+  background: #fff;
+  border-radius: 100%;
   width: 30px;
-  height: 30px;
+  /* height: 30px; */
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #c2410c;
-  transition: background 0.15s ease;
+  /* color: #c2410c; */
+  transition: background 0.15s ease, color 0.15s ease;
+  box-shadow: 2px 2px 4px 1px rgba(0, 0, 0, 0.1);
 }
 
 .ss-ai-extend-action:hover:not(:disabled) {
-  background: rgba(249, 115, 22, 0.2);
+  /* background: rgba(249, 115, 22, 0.2); */
+  background: var(--primary);
+  color: #fff;
 }
 
 .ss-ai-extend-action:disabled {
@@ -6488,7 +6510,7 @@ button:disabled {
 }
 
 .ss-ai-extend-action .material-symbols-outlined {
-  font-size: 16px;
+  font-size: 20px;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
