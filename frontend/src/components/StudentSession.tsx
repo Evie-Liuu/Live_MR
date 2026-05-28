@@ -89,7 +89,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     const maxX = window.innerWidth - card.offsetWidth;
     const maxY = window.innerHeight - card.offsetHeight;
     card.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
-    card.style.top  = `${Math.max(0, Math.min(y, maxY))}px`;
+    card.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
   }, []);
 
   const handleCardDragEnd = useCallback(() => {
@@ -391,13 +391,6 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
         <div className="user-initials-circle">
           {initials}
         </div>
-        <button
-          className="student-session-exit-btn"
-          title="離開課堂"
-          onClick={() => setShowExitConfirm(true)}
-        >
-          <span className="material-symbols-outlined">logout</span>
-        </button>
       </div>
 
       <div className="student-main-card">
@@ -443,6 +436,13 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             </button>
           )}
         </div>
+        <button
+          className="student-session-exit-btn tile-action-btn--danger"
+          title="離開課堂"
+          onClick={() => setShowExitConfirm(true)}
+        >
+          <span className="material-symbols-outlined">logout</span>
+        </button>
       </div>
 
       {/* 連線中重試提示 */}

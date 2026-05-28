@@ -563,6 +563,10 @@ button:disabled {
 
 /* StudentSession header — 離開按鈕 */
 .student-session-exit-btn {
+  position: absolute;
+  bottom: 36px;
+  right: 36px;
+  z-index: 10;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -571,7 +575,8 @@ button:disabled {
   border-radius: 50%;
   border: 2px solid rgba(19, 107, 109, 0.3);
   background: rgba(255, 255, 255, 0.85);
-  color: #136B6D;
+  /* color: #136B6D; */
+  color: #fff;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   flex-shrink: 0;
@@ -579,7 +584,8 @@ button:disabled {
 
 .student-session-exit-btn:hover {
   background: #fff;
-  border-color: #136B6D;
+  /* border-color: #136B6D; */
+  transform: scale(1.05);
 }
 
 .student-session-exit-btn .material-symbols-outlined {
@@ -1142,6 +1148,7 @@ button:disabled {
 }
 
 .student-main-card {
+  position: relative;
   background: white;
   border-radius: 40px;
   padding: 24px;
