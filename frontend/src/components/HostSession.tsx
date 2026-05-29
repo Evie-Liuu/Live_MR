@@ -22,6 +22,8 @@ import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
 import { SCENE_CONSTRAINTS, buildPrompt, shuffleWords } from '../config/aiAssistant.ts';
 import type { AIHintMode, AIHintPayload } from '../config/aiAssistant.ts';
+import { passThroughGate } from '../config/transcriptGate.ts';
+import type { TranscriptGate } from '../config/transcriptGate.ts';
 import { generateHint, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useRecording } from '../hooks/useRecording.ts';
@@ -272,6 +274,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [aiError, setAiError] = useState<string | null>(null);
   const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
   const [aiModel, setAiModel] = useState<string | null>(null);
+  const transcriptGateRef = useRef<TranscriptGate>(passThroughGate);
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -594,6 +597,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (aiBusy) return;
     const txt = sttTranscript.trim();
     if (txt.length < 3) return;
+    if (!transcriptGateRef.current.accept(txt, { sceneId: selectedSceneId, source: 'button' })) return;
     const constraint = SCENE_CONSTRAINTS[selectedSceneId];
     if (!constraint) { setAiError('此場景尚無 AI 助理約束文件'); return; }
     setAiBusy(true); setAiError(null);
