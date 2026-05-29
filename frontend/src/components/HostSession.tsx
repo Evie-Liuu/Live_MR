@@ -31,6 +31,10 @@ import type { RoomEvent as ApiRoomEvent } from '../api.ts';
 import SceneEditor from './SceneEditor.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 
+// ─── Module-level constants & types ─────────────────────────────────────────
+const SCRIPT_RECORD_SECONDS = 15;
+type InteractionPhase = 'idle' | 'recording' | 'generating' | 'student';
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
   roomId: string;
@@ -273,8 +277,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [recordDuration, setRecordDuration] = useState(0);
   // ── 開始互動自動腳本（固定 15 秒）─────────────────────────────
-  const SCRIPT_RECORD_SECONDS = 15;
-  type InteractionPhase = 'idle' | 'recording' | 'generating' | 'student';
   const [interactionPhase, setInteractionPhase] = useState<InteractionPhase>('idle');
   const interactionPhaseRef = useRef<InteractionPhase>('idle');
   useEffect(() => { interactionPhaseRef.current = interactionPhase; }, [interactionPhase]);
@@ -690,6 +692,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       if (!sttSupported || !SCENE_CONSTRAINTS[spacebarSceneIdRef.current]) return;
       // 已在錄音中（可能是按鈕觸發），不重複啟動
       if (sttRecordingRef.current) return;
+      if (interactionPhaseRef.current !== 'idle') return; // 自動腳本進行中，空白鍵不介入
       e.preventDefault();
       cancelAutoCountdown();
       clearTranscript();
@@ -706,6 +709,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         target.isContentEditable
       ) return;
       if (!sttRecordingRef.current) return;
+      if (interactionPhaseRef.current !== 'idle') return; // 自動腳本控制此次錄音
       e.preventDefault();
       // 標記「由空白鍵觸發停止」，transcript effect 偵測到後直接送出（不倒數）
       spacebarTriggerRef.current = true;
@@ -729,7 +733,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     const isAutoScript = autoScriptTriggerRef.current;
     autoScriptTriggerRef.current = false;
 
-    if (!sttTranscript || sttTranscript.length < 3) return;
+    if (!sttTranscript || sttTranscript.length < 3) {
+      if (isAutoScript) { setAiError('未偵測到語音，請再試一次'); setInteractionPhase('idle'); }
+      return;
+    }
     if (!SCENE_CONSTRAINTS[selectedSceneId]) return;
 
     if (isSpacebarTrigger || isAutoScript) {
