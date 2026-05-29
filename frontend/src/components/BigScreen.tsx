@@ -22,7 +22,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -51,6 +51,8 @@ export interface BigScreenMsg {
   cameraBgDeviceId?: string;
   /** For 'bg-type-override': 覆蓋場景背景類型；'default' 表示用場景原設定 */
   bgTypeOverride?: BackgroundTypeOverride;
+  /** For 'speaking': 目前正在說話的 participant identity 清單 */
+  speakingIdentities?: string[];
 }
 
 /**
@@ -345,6 +347,12 @@ export default function BigScreen() {
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // 正在說話的 identity 集合（由 HostSession 'speaking' 訊息驅動）
+  const [speakingIdentities, setSpeakingIdentities] = useState<Set<string>>(new Set());
+  const speakingIdentitiesRef = useRef<Set<string>>(speakingIdentities);
+  speakingIdentitiesRef.current = speakingIdentities;
+
   const currentTaskId = activeTasks.find(t => !t.completed)?.id;
 
   // Settlement panel: shown when all tasks are done
@@ -1690,6 +1698,8 @@ export default function BigScreen() {
           if (v === 'default') localStorage.removeItem('bigscreen-bgTypeOverride');
           else localStorage.setItem('bigscreen-bgTypeOverride', v);
         } catch {/* ignore */ }
+      } else if (msg.type === 'speaking') {
+        setSpeakingIdentities(new Set(msg.speakingIdentities ?? []));
       }
     };
 
@@ -1708,6 +1718,16 @@ export default function BigScreen() {
   // feed for any scene). 'default' = honor the preset; otherwise the override wins.
   const effectiveBgType: 'image' | 'video' | 'camera' | 'color' | 'none' | undefined =
     bgTypeOverride === 'default' ? currentPreset?.backgroundType : bgTypeOverride;
+
+  const teacherSpeaking = useMemo(
+    () => Array.from(speakingIdentities).some(id => id.startsWith('host-')),
+    [speakingIdentities],
+  );
+  const studentSpeaking = useMemo(
+    () => Array.from(speakingIdentities).some(id => !id.startsWith('host-')),
+    [speakingIdentities],
+  );
+  void teacherSpeaking; void studentSpeaking; void speakingIdentitiesRef;
 
   return (
     <div className="bigscreen-root">

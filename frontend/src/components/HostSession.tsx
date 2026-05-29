@@ -1051,6 +1051,15 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     };
   }, []);
 
+  // 廣播「正在說話」清單給大屏（單一來源 = LiveKit ActiveSpeakers）
+  useEffect(() => {
+    const msg: BigScreenMsg = {
+      type: 'speaking',
+      speakingIdentities: Array.from(speakingSet),
+    };
+    channelRef.current?.postMessage(msg);
+  }, [speakingSet]);
+
   // ─── Teacher pose detection ───────────────────────────────────────────────
   const teacherPublishPose = useCallback(
     (data: Uint8Array) => {
