@@ -5948,6 +5948,23 @@ button:disabled {
   text-align: center;
 }
 
+/* 空白鍵圖示 */
+.hs-ai-kbd {
+  display: inline-block;
+  padding: 1px 7px;
+  background: #f5ece4;
+  border: 1px solid #d4b89a;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  color: #7a5c3e;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
 
 .hs-ai-waveform.is-active .hs-ai-wave-bar {
   animation: hs-ai-wave 1.2s ease-in-out infinite alternate;

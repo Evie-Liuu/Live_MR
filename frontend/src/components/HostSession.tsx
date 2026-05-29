@@ -605,6 +605,15 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const handleHintRef = useRef(handleHint);
   useEffect(() => { handleHintRef.current = handleHint; }, [handleHint]);
 
+  // ── 空白鍵錄音輔助 refs（供穩定事件監聽器讀取最新值）────────────────────
+  // 標記「此次 stop 是由空白鍵觸發」，讓 transcript effect 跳過倒數直接送出
+  const spacebarTriggerRef = useRef(false);
+  // 鏡像 sttRecording / selectedSceneId 給 keydown/keyup handler 讀取（避免 stale closure）
+  const sttRecordingRef = useRef(sttRecording);
+  useEffect(() => { sttRecordingRef.current = sttRecording; }, [sttRecording]);
+  const spacebarSceneIdRef = useRef(selectedSceneId);
+  useEffect(() => { spacebarSceneIdRef.current = selectedSceneId; }, [selectedSceneId]);
+
   const handleClearAIHint = useCallback(() => {
     cancelAutoCountdown();
     const payload: AIHintPayload = { mode: null, content: null, sourceText: null, ts: Date.now() };
@@ -623,10 +632,68 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     }
   }, [sttRecording, stopRec, startRec, cancelAutoCountdown, clearTranscript]);
 
-  // 3 秒自動倒數 — 監看 transcript 變化（停止錄音時凍結）
+  // ── 空白鍵：按住開始收音，放開即送 AI 並推播提示 ─────────────────────────
   useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      // 不攔截輸入框內的空白鍵
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) return;
+      // 場景尚無 AI 約束 或 不支援 STT 時不動作
+      if (!sttSupported || !SCENE_CONSTRAINTS[spacebarSceneIdRef.current]) return;
+      // 已在錄音中（可能是按鈕觸發），不重複啟動
+      if (sttRecordingRef.current) return;
+      e.preventDefault();
+      cancelAutoCountdown();
+      clearTranscript();
+      setAiError(null);
+      startRec();
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) return;
+      if (!sttRecordingRef.current) return;
+      e.preventDefault();
+      // 標記「由空白鍵觸發停止」，transcript effect 偵測到後直接送出（不倒數）
+      spacebarTriggerRef.current = true;
+      stopRec();
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keyup', onKeyUp);
+    };
+    // cancelAutoCountdown / clearTranscript / startRec / stopRec 均為穩定 useCallback，不需列入依賴
+  }, [sttSupported, cancelAutoCountdown, clearTranscript, startRec, stopRec]);
+
+  // transcript 更新時：空白鍵模式 → 立即送出；按鈕模式 → 3 秒倒數後送出
+  useEffect(() => {
+    // 無論何種情況都先消耗 flag，避免殘留到下一次 transcript
+    const isSpacebarTrigger = spacebarTriggerRef.current;
+    spacebarTriggerRef.current = false;
+
     if (!sttTranscript || sttTranscript.length < 3) return;
     if (!SCENE_CONSTRAINTS[selectedSceneId]) return;
+
+    if (isSpacebarTrigger) {
+      // 空白鍵放開：跳過倒數，直接呼叫 AI 並推播提示給學生
+      handleHintRef.current('rearrange');
+      return;
+    }
+
+    // 按鈕模式：3 秒自動倒數
     setCountdown(3);
     tickTimerRef.current = setInterval(() => {
       setCountdown((c) => (c !== null && c > 1 ? c - 1 : c));
@@ -1934,28 +2001,22 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                               className="hs-ai-record-action-btn"
                               disabled={!sttSupported}
                               onClick={handleToggleRecord}
-                              title={sttRecording ? '停止錄音' : '開始錄音'}
+                              title={sttRecording ? '停止錄音' : '備用：點擊開始錄音'}
                             >
                               <span className="material-symbols-outlined">
                                 {sttRecording ? 'stop_circle' : 'mic'}
                               </span>
-                              {sttRecording ? '停止' : '錄音'}
+                              {sttRecording ? '停止' : '備用'}
                             </button>
-                            {/* {sttTranscript && !sttRecording && (
-                              <button
-                                className="hs-ai-record-action-btn hs-ai-record-action-btn--secondary"
-                                onClick={() => { clearTranscript(); setAiError(null); }}
-                                title="清除錄音內容"
-                              >
-                                <span className="material-symbols-outlined">refresh</span>
-                                重錄
-                              </button>
-                            )} */}
                           </div>
                           <div className="hs-ai-record-status-row">
-                            {sttRecording ? '錄音中…'
-                              // : sttTranscript ? '已凍結老師原話'
-                              : sttSupported ? '按下開始錄音' : '不支援'}
+                            {sttRecording
+                              ? '錄音中… 放開 Space 即送出'
+                              : sttSupported
+                                ? <>
+                                  按住 <kbd className="hs-ai-kbd">Space</kbd> 開始，放開即發送
+                                </>
+                                : '不支援'}
                           </div>
                         </div>
                         {sttError && <div className="hs-ai-error">{sttError}</div>}
