@@ -116,10 +116,18 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       card.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
       card.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
     } else if (resz && e.pointerId === resz.pointerId) {
-      const newW = Math.max(260, resz.originW + (e.clientX - resz.startX));
-      const newH = Math.max(80, resz.originH + (e.clientY - resz.startY));
+      const newW = Math.max(300, resz.originW + (e.clientX - resz.startX));
       card.style.width = `${newW}px`;
       card.style.maxWidth = 'none';
+
+      // Temporarily set height to auto to measure the natural content height at the new width
+      const prevHeight = card.style.height;
+      card.style.height = 'auto';
+      const naturalHeight = card.scrollHeight;
+      card.style.height = prevHeight;
+
+      // Ensure height does not go below the natural height to avoid content compression
+      const newH = Math.max(naturalHeight, resz.originH + (e.clientY - resz.startY));
       card.style.height = `${newH}px`;
     }
   }, []);
