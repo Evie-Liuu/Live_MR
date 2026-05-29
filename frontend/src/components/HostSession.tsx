@@ -761,6 +761,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   useEffect(() => () => cancelAutoCountdown(), [cancelAutoCountdown]);
   useEffect(() => () => cancelInteractionScript(), [cancelInteractionScript]);
 
+  // 進入「輪到學生」相位後，數秒自動回到 idle，讓「開始互動」可再次使用
+  useEffect(() => {
+    if (interactionPhase !== 'student') return;
+    const t = setTimeout(() => setInteractionPhase('idle'), 8000);
+    return () => clearTimeout(t);
+  }, [interactionPhase]);
+
   // ─── 錄音時長計時 ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!sttRecording) {
