@@ -1823,93 +1823,83 @@ export default function BigScreen() {
         </div>
       )}
 
-      {activeTasks.length > 0 && (() => {
+      {/* 中央米色對話框 (顯示當前任務 / AI 助理提示) */}
+      {(() => {
         const currentTask = activeTasks.find(t => !t.completed);
-        // const otherTasks = activeTasks.filter(t => t.id !== currentTask?.id && !t.completed);
+        const hasAiHint = !!(aiHint && aiHint.content);
+
+        if (!currentTask && !hasAiHint) return null;
 
         return (
-          <>
-            {currentTask && (
-              <div className="bigscreen-current-task-container">
-                <div className="bigscreen-current-task-label">{currentTask.label}</div>
-                {/* Hint bar — 附著在中央米色對話框底部，顯示當前任務選定階的提示 */}
-                {hintEnabled && hintLevel && currentTaskId && (() => {
-                  const hint = TASK_HINTS[currentTaskId];
-                  const meta = hintLevelMeta(hintLevel);
-                  return (
-                    <div className="bs-hint-bar">
-                      <span className="bs-hint-bar-tag">{meta.num} {meta.label}</span>
-                      <span className="bs-hint-bar-content">
-                        {!hint ? (
-                          <span className="bs-hint-empty">此任務尚無提示</span>
-                        ) : hintLevel === 'unscramble' ? (
-                          hint.unscramble.map((w, i) => <span key={i} className="bs-hint-chip">{w}</span>)
-                        ) : hintLevel === 'extraPhrases' ? (
-                          hint.extraPhrases.map((o, i) => (
-                            <span key={i} className="bs-hint-opt"><b>{i + 1}.</b> {o}</span>
-                          ))
-                        ) : (
-                          <span className="bs-hint-line">
-                            {hintLevel === 'completeSentence' ? hint.completeSentence
-                              : hintLevel === 'keyStructure' ? hint.keyStructure
-                                : hint.partialSentence}
-                          </span>
-                        )}
+          <div className={`bigscreen-current-task-container ${!currentTask ? 'no-background' : ''}`}>
+            {currentTask && <div className="bigscreen-current-task-label">{currentTask.label}</div>}
+
+            {/* Hint bar — 附著在中央米色對話框底部，顯示當前任務選定階的提示 */}
+            {currentTask && hintEnabled && hintLevel && currentTaskId && (() => {
+              const hint = TASK_HINTS[currentTaskId];
+              const meta = hintLevelMeta(hintLevel);
+              return (
+                <div className="bs-hint-bar">
+                  <span className="bs-hint-bar-tag">{meta.num} {meta.label}</span>
+                  <span className="bs-hint-bar-content">
+                    {!hint ? (
+                      <span className="bs-hint-empty">此任務尚無提示</span>
+                    ) : hintLevel === 'unscramble' ? (
+                      hint.unscramble.map((w, i) => <span key={i} className="bs-hint-chip">{w}</span>)
+                    ) : hintLevel === 'extraPhrases' ? (
+                      hint.extraPhrases.map((o, i) => (
+                        <span key={i} className="bs-hint-opt"><b>{i + 1}.</b> {o}</span>
+                      ))
+                    ) : (
+                      <span className="bs-hint-line">
+                        {hintLevel === 'completeSentence' ? hint.completeSentence
+                          : hintLevel === 'keyStructure' ? hint.keyStructure
+                            : hint.partialSentence}
                       </span>
-                    </div>
-                  );
-                })()}
+                    )}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* AI 助理提示 (機器人說話框呈現) */}
+            {aiHint && aiHint.content && (
+              <div className={`bs-ai-bar ai-mode--${aiHint.mode}`}>
+                <div className="bs-ai-bar-avatar-container">
+                  <img src="/images/UI/robot_avatar.png" alt="🤖" className="bs-ai-bar-avatar" />
+                  <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
+                    {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
+                  </span>
+                </div>
+                <div className="bs-ai-bubble">
+                  <span className="bs-ai-bar-content">
+                    {aiHint.mode === 'rearrange'
+                      ? aiHint.content.split(' ').map((w, i) => (
+                        <span key={i} className="ai-chip">{w}</span>
+                      ))
+                      : aiHint.content}
+                  </span>
+                </div>
               </div>
             )}
-
-            <div className="bigscreen-tasks-container">
-              <div className="bigscreen-tasks-progress-header">
-                對話進度 ({activeTasks.filter(t => t.completed).length}/{activeTasks.length})
-              </div>
-              <div className="bigscreen-tasks-progress-bg">
-                <div
-                  className="bigscreen-tasks-progress-fill"
-                  style={{ width: `${activeTasks.length > 0 ? (activeTasks.filter(t => t.completed).length / activeTasks.length) * 100 : 0}%` }}
-                />
-              </div>
-              {/* <div className="bigscreen-tasks-list">
-                {otherTasks.map((t, idx) => {
-                  // Re-calculate the original index for display
-                  const originalIndex = activeTasks.findIndex(it => it.id === t.id);
-                  return (
-                    <div
-                      key={`${t.id}-${originalIndex}`}
-                      className={`bigscreen-task-item ${t.completed ? 'completed' : ''}`}
-                    >
-                      <div className="bigscreen-task-status">
-                        {t.completed ? '✓' : '?'}
-                      </div>
-                      <div className="bigscreen-task-label">{t.label}</div>
-                    </div>
-                  );
-                })}
-              </div> */}
-            </div>
-          </>
+          </div>
         );
       })()}
 
-      {/* AI 助理提示橫條（疊在大屏底部） */}
-      {/* {aiHint && aiHint.content && (
-        <div className={`bs-ai-bar ai-mode--${aiHint.mode}`}>
-          <span className="bs-ai-bar-icon">🤖</span>
-          <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
-            {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
-          </span>
-          <span className="bs-ai-bar-content">
-            {aiHint.mode === 'rearrange'
-              ? aiHint.content.split(' ').map((w, i) => (
-                  <span key={i} className="ai-chip">{w}</span>
-                ))
-              : aiHint.content}
-          </span>
+      {/* 對話進度 container */}
+      {activeTasks.length > 0 && (
+        <div className="bigscreen-tasks-container">
+          <div className="bigscreen-tasks-progress-header">
+            對話進度 ({activeTasks.filter(t => t.completed).length}/{activeTasks.length})
+          </div>
+          <div className="bigscreen-tasks-progress-bg">
+            <div
+              className="bigscreen-tasks-progress-fill"
+              style={{ width: `${(activeTasks.filter(t => t.completed).length / activeTasks.length) * 100}%` }}
+            />
+          </div>
         </div>
-      )} */}
+      )}
 
       {/* Settlement overlay on BigScreen */}
       {showSettlement && (
