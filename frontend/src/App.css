@@ -2939,19 +2939,19 @@ button:disabled {
   min-width: 480px;
   max-width: 900px;
   /* background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8)); */
-  background: rgba(252, 233, 215, 0.92);
-  backdrop-filter: blur(20px);
+  /* background: rgba(252, 233, 215, 0.92); */
+  /* backdrop-filter: blur(20px); */
   /* border: 1px solid rgba(255, 255, 255, 0.2); */
-  border: 1px solid rgba(247, 110, 18, 0.3);
+  /* border: 1px solid rgba(247, 110, 18, 0.3);
   border-radius: 24px;
-  padding: 20px 40px;
+  padding: 20px 40px; */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(247, 110, 18, 0.15);
-  animation: slideDownFade 0.8s cubic-bezier(0.16, 1, 0.3, 1), taskGlow 3s ease-in-out infinite 0.8s;
-  overflow: hidden;
+  /* box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(247, 110, 18, 0.15);
+  animation: slideDownFade 0.8s cubic-bezier(0.16, 1, 0.3, 1), taskGlow 3s ease-in-out infinite 0.8s; */
+  /* overflow: hidden; */
 }
 
 .bigscreen-current-task-container.no-background {
@@ -3010,11 +3010,18 @@ button:disabled {
 }
 
 .bigscreen-current-task-label {
+  background: rgba(252, 233, 215, 0.92);
+  border: 1px solid rgba(247, 110, 18, 0.3);
+  border-radius: 24px;
+  padding: 20px 40px;
   color: var(--text);
   font-size: 24px;
   font-weight: 800;
   text-align: center;
   letter-spacing: 0.5px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(247, 110, 18, 0.15);
+  animation: slideDownFade 0.8s cubic-bezier(0.16, 1, 0.3, 1), taskGlow 3s ease-in-out infinite 0.8s;
+  overflow: hidden;
 }
 
 /* ===== Settlement Trigger Button (in task-banner allDone state) ===== */
@@ -6624,7 +6631,7 @@ button:disabled {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  margin-top: 14px;
+  margin-top: 8px;
   padding: 8px 12px 4px 12px;
   width: 100%;
   max-width: 820px;
