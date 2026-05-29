@@ -487,6 +487,7 @@ export default function BigScreen() {
   // 說話中 avatar 頭部 UV 座標（由 useBigScreenScene 回呼）
   const [speakerAnchors, setSpeakerAnchors] = useState<Record<string, { x: number; y: number }>>({});
 
+  const speakingIdentitiesArray = useMemo(() => Array.from(speakingIdentities), [speakingIdentities]);
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
@@ -498,7 +499,7 @@ export default function BigScreen() {
     isRecording: isActivelyRecording,
     onPostRenderRef: postRenderRef,
     groupTransforms,
-    speakingIdentities: useMemo(() => Array.from(speakingIdentities), [speakingIdentities]),
+    speakingIdentities: speakingIdentitiesArray,
     onSpeakerAnchors: setSpeakerAnchors,
   });
   const removeAvatarRef = useRef(removeAvatar);

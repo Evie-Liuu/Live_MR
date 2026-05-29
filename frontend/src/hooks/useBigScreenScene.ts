@@ -654,6 +654,7 @@ export function useBigScreenScene(
             }
           } else {
             const anchors: Record<string, { x: number; y: number }> = {};
+            let any = false;
             for (const id of speaking) {
               const slot = avatarsRef.current.get(id);
               if (!slot) continue;
@@ -663,9 +664,14 @@ export function useBigScreenScene(
               _headWorld.y += 0.22; // 抬到頭頂上方
               projectToUV(_headWorld, cam, _headUV);
               anchors[id] = { x: _headUV.x, y: _headUV.y };
+              any = true;
             }
-            hadAnchorsRef.current = Object.keys(anchors).length > 0;
-            cb(anchors);
+            if (!any) {
+              if (hadAnchorsRef.current) { hadAnchorsRef.current = false; cb({}); }
+            } else {
+              hadAnchorsRef.current = true;
+              cb(anchors);
+            }
           }
         }
       }
