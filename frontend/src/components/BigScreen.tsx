@@ -350,8 +350,6 @@ export default function BigScreen() {
 
   // 正在說話的 identity 集合（由 HostSession 'speaking' 訊息驅動）
   const [speakingIdentities, setSpeakingIdentities] = useState<Set<string>>(new Set());
-  const speakingIdentitiesRef = useRef<Set<string>>(speakingIdentities);
-  speakingIdentitiesRef.current = speakingIdentities;
 
   const currentTaskId = activeTasks.find(t => !t.completed)?.id;
 
@@ -486,6 +484,9 @@ export default function BigScreen() {
   // avoids a competing second requestAnimationFrame for the composite canvas.
   const postRenderRef = useRef<((ts: number) => void) | null>(null)
 
+  // 說話中 avatar 頭部 UV 座標（由 useBigScreenScene 回呼）
+  const [speakerAnchors, setSpeakerAnchors] = useState<Record<string, { x: number; y: number }>>({});
+
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
@@ -497,6 +498,8 @@ export default function BigScreen() {
     isRecording: isActivelyRecording,
     onPostRenderRef: postRenderRef,
     groupTransforms,
+    speakingIdentities: useMemo(() => Array.from(speakingIdentities), [speakingIdentities]),
+    onSpeakerAnchors: setSpeakerAnchors,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -1727,7 +1730,6 @@ export default function BigScreen() {
     () => Array.from(speakingIdentities).some(id => !id.startsWith('host-')),
     [speakingIdentities],
   );
-  void teacherSpeaking; void studentSpeaking; void speakingIdentitiesRef;
 
   return (
     <div className="bigscreen-root">
@@ -1775,6 +1777,20 @@ export default function BigScreen() {
       <div className="bigscreen-overlay">
         <span className="bigscreen-title">MR 雙語角 — 大屏顯示</span>
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
+      </div>
+
+      {/* 3b. 各角色 VRM 頭上說話標記 */}
+      <div className="bs-speaker-anchors" aria-hidden={Object.keys(speakerAnchors).length === 0}>
+        {Object.entries(speakerAnchors).map(([id, p]) => (
+          <div
+            key={id}
+            className={`bs-speaker-badge${id.startsWith('host-') ? ' is-teacher' : ' is-student'}`}
+            style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+          >
+            <span className="bs-speaker-badge-dot" />
+            <span className="bs-speaker-badge-wave" />
+          </div>
+        ))}
       </div>
 
       {isActivelyRecording && (
@@ -1882,26 +1898,33 @@ export default function BigScreen() {
               );
             })()}
 
-            {/* AI 助理提示 (機器人說話框呈現) */}
-            {aiHint && aiHint.content && (
-              <div className={`bs-ai-bar ai-mode--${aiHint.mode}`}>
-                <div className="bs-ai-bar-avatar-container">
-                  <img src="/images/UI/robot_avatar.png" alt="🤖" className="bs-ai-bar-avatar" />
+            {/* 常駐中央機器人 + 環狀波動（有人說話時啟動，依老師/學生著色） */}
+            <div
+              className={`bs-robot-zone${teacherSpeaking ? ' is-teacher-speaking' : ''}${studentSpeaking ? ' is-student-speaking' : ''}`}
+            >
+              <div className="bs-robot-rings" aria-hidden="true">
+                <span className="bs-robot-ring" />
+                <span className="bs-robot-ring" />
+                <span className="bs-robot-ring" />
+              </div>
+              <img src="/images/UI/robot_avatar.png" alt="🤖" className="bs-robot-avatar" />
+              {aiHint && aiHint.content && (
+                <div className={`bs-ai-bubble-wrap ai-mode--${aiHint.mode}`}>
                   <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
                     {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
                   </span>
+                  <div className="bs-ai-bubble">
+                    <span className="bs-ai-bar-content">
+                      {aiHint.mode === 'rearrange'
+                        ? aiHint.content.split(' ').map((w, i) => (
+                          <span key={i} className="ai-chip">{w}</span>
+                        ))
+                        : aiHint.content}
+                    </span>
+                  </div>
                 </div>
-                <div className="bs-ai-bubble">
-                  <span className="bs-ai-bar-content">
-                    {aiHint.mode === 'rearrange'
-                      ? aiHint.content.split(' ').map((w, i) => (
-                        <span key={i} className="ai-chip">{w}</span>
-                      ))
-                      : aiHint.content}
-                  </span>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         );
       })()}

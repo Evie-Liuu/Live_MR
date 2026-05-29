@@ -6819,3 +6819,93 @@ button:disabled {
 .slot-card-settings-btn:hover {
   opacity: 1;
 }
+
+/* ── 大屏常駐機器人 + 環狀波動 ───────────────────────────────── */
+.bs-robot-zone {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.bs-robot-avatar {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+}
+.bs-robot-rings {
+  position: absolute;
+  left: 48px;
+  bottom: 48px;
+  width: 0;
+  height: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.bs-robot-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 96px;
+  height: 96px;
+  margin-left: -48px;
+  margin-top: -48px;
+  border-radius: 50%;
+  border: 3px solid rgba(0, 169, 157, 0.0);
+  transform: scale(0.6);
+  opacity: 0;
+}
+.bs-robot-zone.is-teacher-speaking .bs-robot-ring,
+.bs-robot-zone.is-student-speaking .bs-robot-ring {
+  animation: bs-ring-pulse 1.8s ease-out infinite;
+}
+.bs-robot-zone.is-teacher-speaking .bs-robot-ring { border-color: rgba(0, 169, 157, 0.7); }
+.bs-robot-zone.is-student-speaking .bs-robot-ring { border-color: rgba(247, 110, 18, 0.7); }
+.bs-robot-ring:nth-child(2) { animation-delay: 0.6s; }
+.bs-robot-ring:nth-child(3) { animation-delay: 1.2s; }
+@keyframes bs-ring-pulse {
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.bs-ai-bubble-wrap {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 2;
+  max-width: 46vw;
+}
+/* ── 各角色 VRM 頭上說話標記 ───────────────────────────────── */
+.bs-speaker-anchors {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.bs-speaker-badge {
+  position: absolute;
+  transform: translate(-50%, -120%);
+  width: 26px;
+  height: 26px;
+}
+.bs-speaker-badge-dot,
+.bs-speaker-badge-wave {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.bs-speaker-badge-dot { width: 12px; height: 12px; }
+.bs-speaker-badge-wave { width: 12px; height: 12px; }
+.bs-speaker-badge.is-teacher .bs-speaker-badge-dot { background: #00a99d; }
+.bs-speaker-badge.is-student .bs-speaker-badge-dot { background: #f76e12; }
+.bs-speaker-badge.is-teacher .bs-speaker-badge-wave { border: 2px solid rgba(0, 169, 157, 0.6); }
+.bs-speaker-badge.is-student .bs-speaker-badge-wave { border: 2px solid rgba(247, 110, 18, 0.6); }
+.bs-speaker-badge-wave { animation: bs-badge-wave 1.2s ease-out infinite; }
+@keyframes bs-badge-wave {
+  0%   { width: 12px; height: 12px; opacity: 0.8; }
+  100% { width: 40px; height: 40px; opacity: 0; }
+}

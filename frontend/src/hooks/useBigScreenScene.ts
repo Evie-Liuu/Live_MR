@@ -103,6 +103,10 @@ const GRAB_RELEASE_COOLDOWN_MS = 600;
 /** Reusable Vector3 for prop returning target — avoids per-frame allocation */
 const _displayPosVec = new THREE.Vector3();
 
+/** Reusable vectors for per-frame head projection — avoids allocation. */
+const _headWorld = new THREE.Vector3();
+const _headUV = { x: 0, y: 0 };
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Resolve the X position for avatar at index `i` centred around origin */
@@ -142,13 +146,20 @@ interface UseBigScreenSceneOptions {
   onPostRenderRef?: { current: ((timestamp: number) => void) | null };
   /** 群組變換：groupId → {pos, rot}（rot 為 radian）。改變時自動 re-apply。 */
   groupTransforms?: Record<string, { pos: [number, number, number]; rot: [number, number, number] }>;
+  /** 目前正在說話的 identity 清單（驅動頭上標記投影）。 */
+  speakingIdentities?: string[];
+  /**
+   * 每幀（節流）回呼說話中 avatar 的頭部 UV 座標（0..1，左上為原點）。
+   * 無人說話時回呼空物件一次以清除標記。
+   */
+  onSpeakerAnchors?: (anchors: Record<string, { x: number; y: number }>) => void;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -220,6 +231,15 @@ export function useBigScreenScene(
   const originalDprRef = useRef(Math.min(window.devicePixelRatio, 2));
 
   const avgPoseIntervalsRef = useRef<Record<string, number>>({});
+
+  const speakingIdentitiesRef = useRef<string[]>([]);
+  speakingIdentitiesRef.current = speakingIdentities ?? [];
+  const onSpeakerAnchorsRef = useRef<UseBigScreenSceneOptions['onSpeakerAnchors']>(undefined);
+  onSpeakerAnchorsRef.current = onSpeakerAnchors;
+  /** 上次回呼頭部座標的時間（節流） */
+  const lastAnchorAtRef = useRef(0);
+  /** 上次是否回報過非空 anchors（用來只在「轉為空」時清一次） */
+  const hadAnchorsRef = useRef(false);
 
   // ─── Group transform helpers ──────────────────────────────────────────────
   const memberBase = useCallback(
@@ -618,6 +638,36 @@ export function useBigScreenScene(
 
       if (cameraRef.current) {
         renderer.render(scene, cameraRef.current);
+      }
+
+      // ── 說話中 avatar 頭上標記投影（節流 ~100ms）───────────────────────
+      {
+        const cb = onSpeakerAnchorsRef.current;
+        const cam = cameraRef.current;
+        if (cb && cam && timestamp - lastAnchorAtRef.current >= 100) {
+          lastAnchorAtRef.current = timestamp;
+          const speaking = speakingIdentitiesRef.current;
+          if (speaking.length === 0) {
+            if (hadAnchorsRef.current) {
+              hadAnchorsRef.current = false;
+              cb({});
+            }
+          } else {
+            const anchors: Record<string, { x: number; y: number }> = {};
+            for (const id of speaking) {
+              const slot = avatarsRef.current.get(id);
+              if (!slot) continue;
+              const head = slot.vrm.humanoid?.getNormalizedBoneNode('head');
+              if (!head) continue;
+              head.getWorldPosition(_headWorld);
+              _headWorld.y += 0.22; // 抬到頭頂上方
+              projectToUV(_headWorld, cam, _headUV);
+              anchors[id] = { x: _headUV.x, y: _headUV.y };
+            }
+            hadAnchorsRef.current = Object.keys(anchors).length > 0;
+            cb(anchors);
+          }
+        }
       }
 
       // Lower pixel ratio to 1 during recording — composite canvas already caps at 1080p,
