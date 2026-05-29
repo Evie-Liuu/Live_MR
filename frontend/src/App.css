@@ -6313,8 +6313,9 @@ button:disabled {
 /* 最小化按鈕 */
 .ss-ai-card-minimize {
   position: absolute;
-  top: 14px;
-  right: 40px;
+  top: 16px;
+  /* right: 40px; */
+  right: 12px;
   border: none;
   background: transparent;
   color: rgba(0, 0, 0, 0.35);
@@ -6392,11 +6393,9 @@ button:disabled {
   cursor: nwse-resize;
   /* 三角形視覺提示 */
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       transparent 50%,
-      rgba(0, 0, 0, 0.15) 50%
-    );
+      rgba(0, 0, 0, 0.15) 50%);
   border-bottom-right-radius: 20px;
   touch-action: none;
   z-index: 10;
@@ -6404,11 +6403,9 @@ button:disabled {
 
 .ss-ai-card-resize-handle:hover {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       transparent 50%,
-      rgba(0, 0, 0, 0.3) 50%
-    );
+      rgba(0, 0, 0, 0.3) 50%);
 }
 
 .ss-ai-card-body {

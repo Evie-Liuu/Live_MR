@@ -516,12 +516,19 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
               className="ss-ai-card-minimize"
               title={isMinimized ? '展開' : '最小化'}
               onClick={() => setIsMinimized(v => !v)}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <span className="material-symbols-outlined">
                 {isMinimized ? 'expand_more' : 'expand_less'}
               </span>
             </button>
-            <button className="ss-ai-card-close" onClick={() => setAiHint(null)}>✕</button>
+            {/* <button
+              className="ss-ai-card-close"
+              onClick={() => setAiHint(null)}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              ✕
+            </button> */}
           </div>
 
           {!isMinimized && (
