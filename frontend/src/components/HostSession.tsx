@@ -273,7 +273,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
-  const [aiModel, setAiModel] = useState<string | null>(null);
+  const [, setAiModel] = useState<string | null>(null);
   const transcriptGateRef = useRef<TranscriptGate>(passThroughGate);
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
