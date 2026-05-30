@@ -34,24 +34,54 @@ export interface HintResult {
   model: string
 }
 
-export async function generateHint(prompt: string, signal?: AbortSignal): Promise<HintResult> {
+export interface ChatTurn {
+  role: 'user' | 'model'
+  text: string
+}
+
+export interface GenerateHintOptions {
+  history?: ChatTurn[]
+  systemInstruction?: string
+  signal?: AbortSignal
+}
+
+export async function generateHint(
+  prompt: string,
+  opts: GenerateHintOptions = {},
+): Promise<HintResult> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
-  signal?.addEventListener('abort', () => controller.abort())
+  opts.signal?.addEventListener('abort', () => controller.abort())
   try {
     let lastErr: unknown = new Error('No models configured')
+
+    // Build the request shape once: stateless string prompt OR multi-turn contents array.
+    const useMultiTurn = !!opts.history && opts.history.length > 0
+    const contents: unknown = useMultiTurn
+      ? [
+          ...opts.history!.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
+          { role: 'user', parts: [{ text: prompt }] },
+        ]
+      : prompt
+
     for (const model of MODELS) {
       try {
-        const res = await getClient().models.generateContent({
+        const params: Record<string, unknown> = {
           model,
-          contents: prompt,
+          contents,
           config: {
             temperature: 0.6,
             maxOutputTokens: 128,
             thinkingConfig: { thinkingBudget: 0 },
             abortSignal: controller.signal,
           },
-        })
+        }
+        if (opts.systemInstruction) {
+          // @google/genai accepts systemInstruction at top level (string or content)
+          params.systemInstruction = opts.systemInstruction
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await getClient().models.generateContent(params as any)
         const text = (res.text ?? '').trim()
         if (!text) throw new Error('Empty response')
         return { text, model }

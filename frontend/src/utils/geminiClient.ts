@@ -47,18 +47,30 @@ export interface HintResult {
   model: string
 }
 
+export interface GenerateHintOptions {
+  /** Prior chat turns; when provided, the request becomes multi-turn. */
+  history?: Array<{ role: 'user' | 'model'; text: string }>
+  /** Gemini systemInstruction applied to the whole conversation. */
+  systemInstruction?: string
+  /** Caller-provided cancellation signal. */
+  signal?: AbortSignal
+}
+
 export async function generateHint(
   prompt: string,
-  signal?: AbortSignal,
+  opts: GenerateHintOptions = {},
 ): Promise<HintResult> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
-  signal?.addEventListener('abort', () => controller.abort())
+  opts.signal?.addEventListener('abort', () => controller.abort())
   try {
+    const body: Record<string, unknown> = { prompt }
+    if (opts.history && opts.history.length > 0) body.history = opts.history
+    if (opts.systemInstruction) body.systemInstruction = opts.systemInstruction
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     })
     if (!res.ok) {

@@ -455,13 +455,28 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
 
   // POST /api/ai/hint — Gemini AI hint generation
   router.post('/ai/hint', async (req: Request, res: Response) => {
-    const { prompt } = req.body as { prompt?: string }
+    const { prompt, history, systemInstruction } = req.body as {
+      prompt?: string
+      history?: Array<{ role: 'user' | 'model'; text: string }>
+      systemInstruction?: string
+    }
     if (typeof prompt !== 'string' || !prompt.trim()) {
       res.status(400).json({ error: 'prompt is required' })
       return
     }
+    // Lightweight validation for history shape (drop silently if malformed — passthrough single-turn instead)
+    const safeHistory = Array.isArray(history)
+      ? history.filter(h =>
+          h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string',
+        )
+      : undefined
     try {
-      const { text, model } = await generateAIHint(prompt)
+      const { text, model } = await generateAIHint(prompt, {
+        history: safeHistory && safeHistory.length > 0 ? safeHistory : undefined,
+        systemInstruction: typeof systemInstruction === 'string' && systemInstruction.trim()
+          ? systemInstruction
+          : undefined,
+      })
       res.json({ text, model })
     } catch (err: any) {
       const msg = err?.message ?? String(err)

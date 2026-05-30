@@ -27,6 +27,36 @@ const MODE_INSTRUCTIONS: Record<AIHintMode, string> = {
     'Output ONE more complete English sentence with additional details, modifiers, or a follow-up question. Example: "It is 200 dollars, but we have a 10% discount today. Would you like to try it on?"',
 }
 
+export interface ChatTurn {
+  role: 'user' | 'model'
+  text: string
+}
+
+/**
+ * Build a Gemini systemInstruction for the multi-turn chat flow.
+ * The user turns will contain raw teacher transcripts; the model turns will
+ * contain prior AI sample replies. The system instruction sets the persona,
+ * scene constraint, and current output mode.
+ */
+export function buildSystemInstruction(
+  sceneConstraint: string,
+  mode: AIHintMode,
+): string {
+  return `You are an English conversation teaching assistant. The student is learning conversation in the following setting:
+
+${sceneConstraint}
+
+The user messages in this conversation will contain things the TEACHER says. Generate sample replies the STUDENT should say back to the teacher. Maintain continuity with earlier turns in this chat — if you already invented specific values (price, size, color, brand, stock), reuse them consistently and let the story progress naturally.
+
+IMPORTANT — Handling missing information:
+If the teacher's question refers to details that have NOT been provided, INVENT a reasonable, realistic value yourself and commit to it. Never produce a vague or incomplete answer like "It is." Always commit to a concrete value (a specific dollar amount, a specific size, etc.).
+
+Requirements:
+${MODE_INSTRUCTIONS[mode]}
+
+Output ONLY the final answer as ONE grammatically complete sentence. No explanation, no preamble, no Chinese, no ellipsis, no trailing blanks.`
+}
+
 export function buildPrompt(
   transcript: string,
   sceneConstraint: string,

@@ -20,8 +20,8 @@ import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
-import { SCENE_CONSTRAINTS, buildPrompt, shuffleWords } from '../config/aiAssistant.ts';
-import type { AIHintMode, AIHintPayload } from '../config/aiAssistant.ts';
+import { SCENE_CONSTRAINTS, shuffleWords, buildSystemInstruction } from '../config/aiAssistant.ts';
+import type { AIHintMode, AIHintPayload, ChatTurn } from '../config/aiAssistant.ts';
 import { passThroughGate } from '../config/transcriptGate.ts';
 import type { TranscriptGate } from '../config/transcriptGate.ts';
 import { generateHint, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
@@ -275,6 +275,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
   const [, setAiModel] = useState<string | null>(null);
   const transcriptGateRef = useRef<TranscriptGate>(passThroughGate);
+  const chatHistoryRef = useRef<ChatTurn[]>([]);
+  const resetChatHistory = useCallback(() => {
+    chatHistoryRef.current = [];
+  }, []);
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -603,8 +607,17 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     setAiBusy(true); setAiError(null);
     try {
       const promptMode: AIHintMode = mode === 'rearrange' ? 'complete' : mode;
-      const result = await generateHint(buildPrompt(txt, constraint, promptMode));
+      const systemInstruction = buildSystemInstruction(constraint, promptMode);
+      const history = chatHistoryRef.current;
+      const result = await generateHint(txt, { history, systemInstruction });
       setAiModel(result.model);
+      // Append both turns to history AFTER success so failures don't pollute it.
+      // Store the raw AI text (pre-shuffle) so the model sees what it actually produced.
+      chatHistoryRef.current = [
+        ...history,
+        { role: 'user', text: txt },
+        { role: 'model', text: result.text },
+      ];
       let content = result.text;
       if (mode === 'rearrange') {
         content = shuffleWords(content);
@@ -662,6 +675,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (sttRecording || aiBusy || interactionPhaseRef.current !== 'idle') return;
 
     cancelAutoCountdown();
+    resetChatHistory();
     clearTranscript();
     setAiError(null);
     setInteractionPhase('recording');
@@ -679,7 +693,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       setInteractionPhase('generating');
       stopRec();
     }, SCRIPT_RECORD_SECONDS * 1000);
-  }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, clearTranscript, startRec, stopRec]);
+  }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, clearTranscript, startRec, stopRec]);
 
   // ── 空白鍵：按住開始收音，放開即送 AI 並推播提示 ─────────────────────────
   useEffect(() => {
@@ -860,6 +874,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       if (sttRecording) stopRec();
       clearTranscript();
       setLatestHint(null);
+      resetChatHistory();
       setAiError(null);
       broadcastAIHint({ mode: null, content: null, sourceText: null, ts: Date.now() });
       broadcastSceneChange(sceneId);
@@ -906,7 +921,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         });
       }
     },
-    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, cancelInteractionScript, sttRecording, stopRec, clearTranscript, broadcastAIHint],
+    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, cancelInteractionScript, sttRecording, stopRec, clearTranscript, resetChatHistory, broadcastAIHint],
   );
 
   // const handleVrmChange = useCallback(
