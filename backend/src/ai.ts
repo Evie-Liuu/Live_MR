@@ -66,22 +66,23 @@ export async function generateHint(
 
     for (const model of MODELS) {
       try {
-        const params: Record<string, unknown> = {
+        // @google/genai v2.x: systemInstruction belongs inside config, alongside
+        // temperature / maxOutputTokens etc. Putting it at the top level silently
+        // no-ops the system prompt at runtime.
+        const config: Record<string, unknown> = {
+          temperature: 0.6,
+          maxOutputTokens: 128,
+          thinkingConfig: { thinkingBudget: 0 },
+          abortSignal: controller.signal,
+        }
+        if (opts.systemInstruction) config.systemInstruction = opts.systemInstruction
+        const res = await getClient().models.generateContent({
           model,
-          contents,
-          config: {
-            temperature: 0.6,
-            maxOutputTokens: 128,
-            thinkingConfig: { thinkingBudget: 0 },
-            abortSignal: controller.signal,
-          },
-        }
-        if (opts.systemInstruction) {
-          // @google/genai accepts systemInstruction at top level (string or content)
-          params.systemInstruction = opts.systemInstruction
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const res = await getClient().models.generateContent(params as any)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          contents: contents as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          config: config as any,
+        })
         const text = (res.text ?? '').trim()
         if (!text) throw new Error('Empty response')
         return { text, model }
