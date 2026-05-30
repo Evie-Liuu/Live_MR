@@ -85,3 +85,45 @@ export async function generateHint(
     clearTimeout(timer)
   }
 }
+
+export interface HintsResult {
+  complete: string
+  extend: string
+  model: string
+}
+
+const HINTS_ENDPOINT = '/api/ai/hints'
+
+export async function generateHints(
+  prompt: string,
+  opts: GenerateHintOptions = {},
+): Promise<HintsResult> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  opts.signal?.addEventListener('abort', () => controller.abort())
+  try {
+    const body: Record<string, unknown> = { prompt }
+    if (opts.history && opts.history.length > 0) body.history = opts.history
+    if (opts.systemInstruction) body.systemInstruction = opts.systemInstruction
+    const res = await fetch(HINTS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as { error?: string }
+      throw new Error(data.error || `AI HTTP ${res.status}`)
+    }
+    const data = await res.json() as { complete?: string; extend?: string; model?: string }
+    const complete = (data.complete ?? '').trim()
+    if (!complete) throw new Error('Empty response')
+    return {
+      complete,
+      extend: (data.extend ?? '').trim(),
+      model: data.model ?? 'unknown',
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}

@@ -45,6 +45,76 @@ export interface GenerateHintOptions {
   signal?: AbortSignal
 }
 
+export interface HintsResult {
+  complete: string
+  extend: string
+  model: string
+}
+
+export async function generateHints(
+  prompt: string,
+  opts: GenerateHintOptions = {},
+): Promise<HintsResult> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  opts.signal?.addEventListener('abort', () => controller.abort())
+  try {
+    let lastErr: unknown = new Error('No models configured')
+    const useMultiTurn = !!opts.history && opts.history.length > 0
+    const contents: unknown = useMultiTurn
+      ? [
+          ...opts.history!.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
+          { role: 'user', parts: [{ text: prompt }] },
+        ]
+      : prompt
+
+    for (const model of MODELS) {
+      try {
+        const config: Record<string, unknown> = {
+          temperature: 0.6,
+          maxOutputTokens: 256,
+          thinkingConfig: { thinkingBudget: 0 },
+          abortSignal: controller.signal,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              complete: { type: 'STRING' },
+              extend: { type: 'STRING' },
+            },
+            required: ['complete', 'extend'],
+          },
+        }
+        if (opts.systemInstruction) config.systemInstruction = opts.systemInstruction
+        const res = await getClient().models.generateContent({
+          model,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          contents: contents as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          config: config as any,
+        })
+        const raw = (res.text ?? '').trim()
+        if (!raw) throw new Error('Empty response')
+        let parsed: { complete?: unknown; extend?: unknown }
+        try { parsed = JSON.parse(raw) }
+        catch { parsed = { complete: raw, extend: '' } } // fallback: treat as plain complete
+        const complete = typeof parsed.complete === 'string' ? parsed.complete.trim() : ''
+        const extend = typeof parsed.extend === 'string' ? parsed.extend.trim() : ''
+        if (!complete) throw new Error('Empty complete field')
+        return { complete, extend, model }
+      } catch (err) {
+        lastErr = err
+        const msg = err instanceof Error ? err.message : String(err)
+        if (!isRetryable(err)) throw err
+        console.warn(`[ai/hints] ${model} failed (${msg.slice(0, 120)}), trying next model`)
+      }
+    }
+    throw lastErr
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function generateHint(
   prompt: string,
   opts: GenerateHintOptions = {},

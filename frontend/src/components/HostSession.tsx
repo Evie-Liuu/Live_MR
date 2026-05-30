@@ -20,11 +20,11 @@ import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
-import { SCENE_CONSTRAINTS, shuffleWords, buildSystemInstruction } from '../config/aiAssistant.ts';
-import type { AIHintMode, AIHintPayload, ChatTurn } from '../config/aiAssistant.ts';
+import { SCENE_CONSTRAINTS, shuffleWords, buildHintsSystemInstruction } from '../config/aiAssistant.ts';
+import type { AIHintMode, AIHintPayload, ChatTurn, CachedReplies } from '../config/aiAssistant.ts';
 import { passThroughGate } from '../config/transcriptGate.ts';
 import type { TranscriptGate } from '../config/transcriptGate.ts';
-import { generateHint, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
+import { generateHints, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
@@ -278,6 +278,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const chatHistoryRef = useRef<ChatTurn[]>([]);
   const resetChatHistory = useCallback(() => {
     chatHistoryRef.current = [];
+  }, []);
+  const cachedRepliesRef = useRef<CachedReplies | null>(null);
+  const cachedSourceTextRef = useRef<string | null>(null);
+  const resetCachedReplies = useCallback(() => {
+    cachedRepliesRef.current = null;
+    cachedSourceTextRef.current = null;
   }, []);
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -604,24 +610,43 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (!transcriptGateRef.current.accept(txt, { sceneId: selectedSceneId, source: 'button' })) return;
     const constraint = SCENE_CONSTRAINTS[selectedSceneId];
     if (!constraint) { setAiError('此場景尚無 AI 助理約束文件'); return; }
+
+    // ── Cache-first path: if we already generated for this transcript, just broadcast.
+    if (cachedRepliesRef.current && cachedSourceTextRef.current === txt) {
+      const cached = cachedRepliesRef.current;
+      const content = mode === 'complete' ? cached.complete
+        : mode === 'extend' ? cached.extend
+        : cached.rearrange;
+      if (!content) return;
+      const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
+      setLatestHint(payload);
+      broadcastAIHint(payload);
+      return;
+    }
+
+    // ── Cold path: one AI call → cache {complete, rearrange, extend} → broadcast the requested mode.
     setAiBusy(true); setAiError(null);
     try {
-      const promptMode: AIHintMode = mode === 'rearrange' ? 'complete' : mode;
-      const systemInstruction = buildSystemInstruction(constraint, promptMode);
+      const systemInstruction = buildHintsSystemInstruction(constraint);
       const history = chatHistoryRef.current;
-      const result = await generateHint(txt, { history, systemInstruction });
+      const result = await generateHints(txt, { history, systemInstruction });
       setAiModel(result.model);
-      // Append both turns to history AFTER success so failures don't pollute it.
-      // Store the raw AI text (pre-shuffle) so the model sees what it actually produced.
+      const cached: CachedReplies = {
+        complete: result.complete,
+        rearrange: shuffleWords(result.complete),
+        extend: result.extend || result.complete,
+      };
+      cachedRepliesRef.current = cached;
+      cachedSourceTextRef.current = txt;
+      // Append ONCE per transcript: the canonical student utterance is `complete`.
       chatHistoryRef.current = [
         ...history,
         { role: 'user', text: txt },
-        { role: 'model', text: result.text },
+        { role: 'model', text: result.complete },
       ];
-      let content = result.text;
-      if (mode === 'rearrange') {
-        content = shuffleWords(content);
-      }
+      const content = mode === 'complete' ? cached.complete
+        : mode === 'extend' ? cached.extend
+        : cached.rearrange;
       const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
       setLatestHint(payload);
       broadcastAIHint(payload);
@@ -646,10 +671,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   const handleClearAIHint = useCallback(() => {
     cancelAutoCountdown();
+    resetCachedReplies();
     const payload: AIHintPayload = { mode: null, content: null, sourceText: null, ts: Date.now() };
     setLatestHint(null);
     broadcastAIHint(payload);
-  }, [cancelAutoCountdown, broadcastAIHint]);
+  }, [cancelAutoCountdown, resetCachedReplies, broadcastAIHint]);
 
   const handleToggleRecord = useCallback(() => {
     if (sttRecording) {
@@ -676,6 +702,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
     cancelAutoCountdown();
     resetChatHistory();
+    resetCachedReplies();
     clearTranscript();
     setAiError(null);
     setInteractionPhase('recording');
@@ -693,7 +720,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       setInteractionPhase('generating');
       stopRec();
     }, SCRIPT_RECORD_SECONDS * 1000);
-  }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, clearTranscript, startRec, stopRec]);
+  }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, resetCachedReplies, clearTranscript, startRec, stopRec]);
 
   // ── 空白鍵：按住開始收音，放開即送 AI 並推播提示 ─────────────────────────
   useEffect(() => {
@@ -745,6 +772,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // transcript 更新時：空白鍵模式 → 立即送出；按鈕模式 → 3 秒倒數後送出
   useEffect(() => {
+    // 新 transcript 進來 → 失效舊 cache（即使 transcript 太短也要清，避免殘留）
+    if (cachedSourceTextRef.current !== null && cachedSourceTextRef.current !== sttTranscript.trim()) {
+      cachedRepliesRef.current = null;
+      cachedSourceTextRef.current = null;
+    }
     // 無論何種情況都先消耗 flag，避免殘留到下一次 transcript
     const isSpacebarTrigger = spacebarTriggerRef.current;
     spacebarTriggerRef.current = false;
@@ -875,6 +907,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       clearTranscript();
       setLatestHint(null);
       resetChatHistory();
+      resetCachedReplies();
       setAiError(null);
       broadcastAIHint({ mode: null, content: null, sourceText: null, ts: Date.now() });
       broadcastSceneChange(sceneId);
@@ -921,7 +954,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         });
       }
     },
-    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, cancelInteractionScript, sttRecording, stopRec, clearTranscript, resetChatHistory, broadcastAIHint],
+    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, cancelInteractionScript, sttRecording, stopRec, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint],
   );
 
   // const handleVrmChange = useCallback(

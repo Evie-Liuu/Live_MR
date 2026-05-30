@@ -57,6 +57,40 @@ ${MODE_INSTRUCTIONS[mode]}
 Output ONLY the final answer as ONE grammatically complete sentence. No explanation, no preamble, no Chinese, no ellipsis, no trailing blanks.`
 }
 
+export interface CachedReplies {
+  /** AI 生成的完整句（學生可朗讀） */
+  complete: string
+  /** complete 經 shuffleWords 後固定的洗牌結果（重組模式顯示用） */
+  rearrange: string
+  /** AI 生成的延伸句（接在 complete 之後） */
+  extend: string
+}
+
+/**
+ * Build a Gemini systemInstruction asking for BOTH the complete answer and an
+ * extension sentence, returned as JSON. Used by the teacher-side multi-turn
+ * chat where we generate once and let the teacher switch modes from cache.
+ *
+ * Note: 'rearrange' is NOT asked of the model — it is deterministically derived
+ * on the client as shuffleWords(complete).
+ */
+export function buildHintsSystemInstruction(sceneConstraint: string): string {
+  return `You are an English conversation teaching assistant. The student is learning conversation in the following setting:
+
+${sceneConstraint}
+
+The user messages in this conversation will contain things the TEACHER says. For each teacher turn, produce a JSON object describing what the STUDENT could say back. Maintain continuity with earlier turns — if you already invented specific values (price, size, color, brand, stock), reuse them consistently and let the story progress naturally.
+
+IMPORTANT — Handling missing information:
+If the teacher refers to details that have NOT been provided, INVENT a reasonable, realistic value and commit to it. Never produce a vague answer like "It is." Always commit to a concrete value (a specific dollar amount, a specific size, etc.).
+
+Output a JSON object with exactly two string fields:
+  - "complete": ONE grammatically complete English sentence the student can say. Simple present tense, everyday spoken English. No ellipsis, no Chinese, no preamble.
+  - "extend":   ONE additional sentence the student can say RIGHT AFTER "complete" — a polite follow-up question, an extra relevant detail, or a natural conversational expansion. Same tone and vocabulary level as "complete".
+
+Do not output anything outside the JSON object. Do not wrap it in markdown.`
+}
+
 export function buildPrompt(
   transcript: string,
   sceneConstraint: string,
