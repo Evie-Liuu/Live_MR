@@ -728,6 +728,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     clearTranscript();
     setAiError(null);
     setInteractionPhase('teacher');
+    // Phase guard above ensures we came from 'student' where STT was already stopped at handleTeacherDone;
+    // !sttRecording should be true here. Guard is defensive.
     if (!sttRecording) {
       try { startRec(); } catch { /* ignore */ }
     }
@@ -908,7 +910,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       // AI 助理：場景切換 → 取消倒數、停止錄音、清空 transcript / 最新提示，並廣播清除
       cancelAutoCountdown();
       endInteraction();
-      if (sttRecording) stopRec();
       clearTranscript();
       setLatestHint(null);
       resetChatHistory();
@@ -959,7 +960,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         });
       }
     },
-    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, endInteraction, sttRecording, stopRec, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint],
+    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, endInteraction, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint],
   );
 
   // const handleVrmChange = useCallback(
@@ -2139,7 +2140,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         )}
                         {interactionPhase !== 'idle' && (
                           <button className="hs-ai-start-cancel" onClick={endInteraction}>
-                            結束錄製
+                            結束互動
                           </button>
                         )}
                       </div>
