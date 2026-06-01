@@ -665,10 +665,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       broadcastAIHint(payload);
     } catch (e) {
       setAiError(toFriendlyError(e));
+      // 自動腳本路徑：transcript effect 在送 AI 後同步把 phase 設為 'student'。
+      // 若 AI 失敗，回到 'teacher' 並重新錄音，避免學生卡停在「無提示」狀態。
+      if (interactionPhaseRef.current === 'student') {
+        setInteractionPhase('teacher');
+        if (!sttRecordingRef.current) {
+          try { startRec(); } catch { /* ignore */ }
+        }
+      }
     } finally {
       setAiBusy(false);
     }
-  }, [aiBusy, sttTranscript, selectedSceneId, cancelAutoCountdown, broadcastAIHint]);
+  }, [aiBusy, sttTranscript, selectedSceneId, cancelAutoCountdown, broadcastAIHint, startRec]);
 
   const handleHintRef = useRef(handleHint);
   useEffect(() => { handleHintRef.current = handleHint; }, [handleHint]);

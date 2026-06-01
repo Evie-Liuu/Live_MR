@@ -347,7 +347,6 @@ export default function BigScreen() {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
-  const [, setInteractionPhase] = useState<string>('idle');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -1707,8 +1706,6 @@ export default function BigScreen() {
         } catch {/* ignore */ }
       } else if (msg.type === 'speaking') {
         setSpeakingIdentities(new Set(msg.speakingIdentities ?? []));
-      } else if (msg.type === 'interaction-phase') {
-        setInteractionPhase(msg.interactionPhase ?? 'idle');
       }
     };
 
