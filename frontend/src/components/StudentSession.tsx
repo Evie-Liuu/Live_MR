@@ -643,7 +643,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             <div className="ss-confirm-icon-wrapper">
               <span className="material-symbols-outlined ss-confirm-icon">logout</span>
             </div>
-            <h3 className="ss-confirm-title">離開課堂？</h3>
+            <h3 className="ss-confirm-title">離開課堂</h3>
             <p className="ss-confirm-body">確定要離開課堂並返回首頁嗎？</p>
             <div className="ss-confirm-actions">
               <button

@@ -1865,10 +1865,10 @@ export default function BigScreen() {
         const currentTask = activeTasks.find(t => !t.completed);
         const hasAiHint = !!(aiHint && aiHint.content);
 
-        if (!currentTask && !hasAiHint) return null;
+        // if (!currentTask && !hasAiHint) return null;
 
         return (
-          <div className={`bigscreen-current-task-container ${!currentTask ? 'no-background' : ''}`}>
+          <div className="bigscreen-current-task-container">
             {currentTask && <div className="bigscreen-current-task-label">{currentTask.label}</div>}
 
             {/* Hint bar — 附著在中央米色對話框底部，顯示當前任務選定階的提示 */}
@@ -1908,7 +1908,7 @@ export default function BigScreen() {
                 <span className="bs-robot-ring" />
                 <span className="bs-robot-ring" />
               </div>
-              <img src="/images/UI/robot_avatar.png" alt="🤖" className="bs-robot-avatar" />
+              <img src="/images/UI/robot_avatar.png" alt="🤖" className={`bs-robot-avatar`} />
               {aiHint && aiHint.content && (
                 <div className={`bs-ai-bubble-wrap ai-mode--${aiHint.mode}`}>
                   <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>

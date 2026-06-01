@@ -330,6 +330,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState<string | null>(null);
 
+  // 離開課堂確認 modal state
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
   // BroadcastChannel to push pose data to big screen
@@ -616,7 +619,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const cached = cachedRepliesRef.current;
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
-        : cached.rearrange;
+          : cached.rearrange;
       if (!content) return;
       const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
       setLatestHint(payload);
@@ -646,7 +649,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       ];
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
-        : cached.rearrange;
+          : cached.rearrange;
       const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
       setLatestHint(payload);
       broadcastAIHint(payload);
@@ -1576,8 +1579,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setSceneEditorGroupId(null); };
 
   const handleBrandClick = () => {
-    sessionStorage.clear();
-    window.location.href = '/';
+    setShowExitConfirm(true);
+    // sessionStorage.clear();
+    // window.location.href = '/';
   };
 
   return (
@@ -2706,6 +2710,17 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         cancelText="取消"
         onConfirm={confirmRemoveStudent}
         onCancel={cancelRemoveStudent}
+      />
+
+      {/* 離開課堂確認 modal */}
+      <ConfirmationModal
+        isOpen={showExitConfirm}
+        title="離開課堂"
+        description={`確定要離開課堂並返回首頁嗎？`}
+        confirmText="確定"
+        cancelText="取消"
+        onConfirm={() => { sessionStorage.clear(); window.location.href = '/'; }}
+        onCancel={() => setShowExitConfirm(false)}
       />
     </div>
   );
