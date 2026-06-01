@@ -724,12 +724,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   const handleTeacherDone = useCallback(() => {
     if (interactionPhaseRef.current !== 'teacher') return;
+    if (aiBusy) {
+      setAiError('上一輪 AI 仍在生成中，請稍候');
+      return;
+    }
     autoScriptTriggerRef.current = true;
     setInteractionPhase('generating');
     if (sttRecording) {
       try { stopRec(); } catch { /* ignore */ }
     }
-  }, [sttRecording, stopRec]);
+  }, [aiBusy, sttRecording, stopRec]);
 
   const handleTeacherTakeover = useCallback(() => {
     if (interactionPhaseRef.current !== 'student') return;
@@ -1317,26 +1321,29 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       // _kind?: DataPacket_Kind,
     ) => {
       if (!participant) return;
-      // 先嘗試把 payload 當控制訊息（JSON）解析；解析失敗（如 binary pose 資料）則沉默落到 pose 解碼。
-      try {
-        const text = new TextDecoder().decode(payload);
-        const parsed = JSON.parse(text);
-        if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
-          if (parsed.type === 'student-done') {
-            if (interactionPhaseRef.current === 'student') {
-              cancelAutoCountdown();
-              clearTranscript();
-              setAiError(null);
-              setInteractionPhase('teacher');
-              if (!sttRecordingRef.current) {
-                try { startRec(); } catch { /* ignore */ }
+      // Fast path: pose payloads are binary; control messages are JSON objects starting with '{'. Skip the
+      // decode+parse on the hot pose path to avoid ~150 thrown exceptions/sec at 30fps × N students.
+      if (payload.length > 0 && payload[0] === 0x7B) {
+        try {
+          const text = new TextDecoder().decode(payload);
+          const parsed = JSON.parse(text);
+          if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
+            if (parsed.type === 'student-done') {
+              if (interactionPhaseRef.current === 'student') {
+                cancelAutoCountdown();
+                clearTranscript();
+                setAiError(null);
+                setInteractionPhase('teacher');
+                if (!sttRecordingRef.current) {
+                  try { startRec(); } catch { /* ignore */ }
+                }
               }
+              return;
             }
-            return;
+            // 其他可能的控制訊息可在此擴充
           }
-          // 其他可能的控制訊息可在此擴充
-        }
-      } catch { /* fall through to pose decode */ }
+        } catch { /* fall through to pose decode */ }
+      }
       try {
         let pool = studentPoolsRef.current.get(participant.identity);
         if (!pool) {
@@ -2148,10 +2155,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         {interactionPhase === 'teacher' && (
                           <button
                             className={`hs-ai-start-btn phase-${interactionPhase}`}
+                            disabled={aiBusy}
                             onClick={handleTeacherDone}
                           >
                             <span className="material-symbols-outlined">swap_horiz</span>
-                            換學生
+                            {aiBusy ? '上一輪生成中…' : '換學生'}
                           </button>
                         )}
                         {interactionPhase === 'generating' && (
