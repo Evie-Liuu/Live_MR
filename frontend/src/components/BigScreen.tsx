@@ -347,7 +347,7 @@ export default function BigScreen() {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
-  const [interactionPhase, setInteractionPhase] = useState<string>('idle');
+  const [, setInteractionPhase] = useState<string>('idle');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -1868,9 +1868,6 @@ export default function BigScreen() {
       {/* 中央米色對話框 (顯示當前任務 / AI 助理提示) */}
       {(() => {
         const currentTask = activeTasks.find(t => !t.completed);
-        const hasAiHint = !!(aiHint && aiHint.content);
-
-        // if (!currentTask && !hasAiHint) return null;
 
         return (
           <div className="bigscreen-current-task-container">
