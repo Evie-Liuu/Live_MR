@@ -34,8 +34,7 @@ import SceneEditor from './SceneEditor.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 
 // ─── Module-level constants & types ─────────────────────────────────────────
-const SCRIPT_RECORD_SECONDS = 10;
-type InteractionPhase = 'idle' | 'recording' | 'generating' | 'student';
+type InteractionPhase = 'idle' | 'teacher' | 'generating' | 'student';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
@@ -300,9 +299,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, [interactionPhase]);
   // 標記「此次 stop 由開始互動腳本觸發」→ transcript effect 立即送出（不倒數）
   const autoScriptTriggerRef = useRef(false);
-  const scriptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scriptTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [scriptCountdown, setScriptCountdown] = useState<number | null>(null);
   const {
     recording: sttRecording, interim: sttInterim, transcript: sttTranscript,
     supported: sttSupported, error: sttError,
@@ -696,16 +692,15 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     }
   }, [sttRecording, stopRec, startRec, cancelAutoCountdown, clearTranscript]);
 
-  const cancelInteractionScript = useCallback(() => {
-    if (scriptTimerRef.current) { clearTimeout(scriptTimerRef.current); scriptTimerRef.current = null; }
-    if (scriptTickRef.current) { clearInterval(scriptTickRef.current); scriptTickRef.current = null; }
+  const endInteraction = useCallback(() => {
     autoScriptTriggerRef.current = false;
-    setScriptCountdown(null);
+    if (sttRecording) {
+      try { stopRec(); } catch { /* ignore */ }
+    }
     setInteractionPhase('idle');
-    // setRecordDuration(0);
-  }, []);
+  }, [sttRecording, stopRec]);
 
-  const startInteractionScript = useCallback(() => {
+  const startInteraction = useCallback(() => {
     if (!sttSupported || !SCENE_CONSTRAINTS[selectedSceneId]) return;
     if (sttRecording || aiBusy || interactionPhaseRef.current !== 'idle') return;
 
@@ -714,22 +709,29 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     resetCachedReplies();
     clearTranscript();
     setAiError(null);
-    setInteractionPhase('recording');
+    setInteractionPhase('teacher');
     startRec();
+  }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, resetCachedReplies, clearTranscript, startRec]);
 
-    setScriptCountdown(SCRIPT_RECORD_SECONDS);
-    scriptTickRef.current = setInterval(() => {
-      setScriptCountdown((c) => (c !== null && c > 1 ? c - 1 : c));
-    }, 1000);
-    scriptTimerRef.current = setTimeout(() => {
-      if (scriptTickRef.current) { clearInterval(scriptTickRef.current); scriptTickRef.current = null; }
-      scriptTimerRef.current = null;
-      setScriptCountdown(null);
-      autoScriptTriggerRef.current = true;
-      setInteractionPhase('generating');
-      stopRec();
-    }, SCRIPT_RECORD_SECONDS * 1000);
-  }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, resetCachedReplies, clearTranscript, startRec, stopRec]);
+  const handleTeacherDone = useCallback(() => {
+    if (interactionPhaseRef.current !== 'teacher') return;
+    autoScriptTriggerRef.current = true;
+    setInteractionPhase('generating');
+    if (sttRecording) {
+      try { stopRec(); } catch { /* ignore */ }
+    }
+  }, [sttRecording, stopRec]);
+
+  const handleTeacherTakeover = useCallback(() => {
+    if (interactionPhaseRef.current !== 'student') return;
+    cancelAutoCountdown();
+    clearTranscript();
+    setAiError(null);
+    setInteractionPhase('teacher');
+    if (!sttRecording) {
+      try { startRec(); } catch { /* ignore */ }
+    }
+  }, [cancelAutoCountdown, clearTranscript, sttRecording, startRec]);
 
   // ── 空白鍵：按住開始收音，放開即送 AI 並推播提示 ─────────────────────────
   useEffect(() => {
@@ -825,14 +827,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // unmount 清理倒數
   useEffect(() => () => cancelAutoCountdown(), [cancelAutoCountdown]);
-  useEffect(() => () => cancelInteractionScript(), [cancelInteractionScript]);
+  useEffect(() => () => endInteraction(), [endInteraction]);
 
-  // 進入「輪到學生」相位後，數秒自動回到 idle，讓「開始互動」可再次使用
-  useEffect(() => {
-    if (interactionPhase !== 'student') return;
-    const t = setTimeout(() => setInteractionPhase('idle'), 8000);
-    return () => clearTimeout(t);
-  }, [interactionPhase]);
 
   // ─── 錄音時長計時 ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -911,7 +907,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       channelRef.current?.postMessage(taskClearMsg);
       // AI 助理：場景切換 → 取消倒數、停止錄音、清空 transcript / 最新提示，並廣播清除
       cancelAutoCountdown();
-      cancelInteractionScript();
+      endInteraction();
       if (sttRecording) stopRec();
       clearTranscript();
       setLatestHint(null);
@@ -963,7 +959,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         });
       }
     },
-    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, cancelInteractionScript, sttRecording, stopRec, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint],
+    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, endInteraction, sttRecording, stopRec, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint],
   );
 
   // const handleVrmChange = useCallback(
@@ -2106,25 +2102,44 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         <div className="hs-ai-error">此場景尚無 AI 助理約束文件</div>
                       ) : null}
 
-                      {/* ── 開始互動（自動腳本）──────────────────────── */}
+                      {/* ── 開始互動（開放式輪流）─────────────────────── */}
                       <div className="hs-ai-section">
-                        <button
-                          className={`hs-ai-start-btn phase-${interactionPhase}`}
-                          disabled={!sttSupported || !hasConstraint || sttRecording || aiBusy || interactionPhase !== 'idle'}
-                          onClick={startInteractionScript}
-                        >
-                          <span className="material-symbols-outlined">smart_toy</span>
-                          {interactionPhase === 'recording'
-                            ? `老師說話中… ${scriptCountdown ?? ''}s`
-                            : interactionPhase === 'generating'
-                              ? 'AI 生成中…'
-                              : interactionPhase === 'student'
-                                ? '輪到學生回答'
-                                : '開始互動'}
-                        </button>
+                        {interactionPhase === 'idle' && (
+                          <button
+                            className={`hs-ai-start-btn phase-${interactionPhase}`}
+                            disabled={!sttSupported || !hasConstraint || sttRecording || aiBusy}
+                            onClick={startInteraction}
+                          >
+                            <span className="material-symbols-outlined">smart_toy</span>
+                            開始互動
+                          </button>
+                        )}
+                        {interactionPhase === 'teacher' && (
+                          <button
+                            className={`hs-ai-start-btn phase-${interactionPhase}`}
+                            onClick={handleTeacherDone}
+                          >
+                            <span className="material-symbols-outlined">swap_horiz</span>
+                            換學生
+                          </button>
+                        )}
+                        {interactionPhase === 'generating' && (
+                          <button className={`hs-ai-start-btn phase-${interactionPhase}`} disabled>
+                            AI 生成中…
+                          </button>
+                        )}
+                        {interactionPhase === 'student' && (
+                          <button
+                            className={`hs-ai-start-btn phase-${interactionPhase}`}
+                            onClick={handleTeacherTakeover}
+                          >
+                            <span className="material-symbols-outlined">undo</span>
+                            輪到自己
+                          </button>
+                        )}
                         {interactionPhase !== 'idle' && (
-                          <button className="hs-ai-start-cancel" onClick={cancelInteractionScript}>
-                            取消互動
+                          <button className="hs-ai-start-cancel" onClick={endInteraction}>
+                            結束錄製
                           </button>
                         )}
                       </div>
