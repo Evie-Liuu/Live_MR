@@ -6945,3 +6945,57 @@ button:disabled {
   cursor: pointer;
 }
 
+/* ── 學生端「輪到你說話」置中卡 ───────────────────────────── */
+.ss-turn-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 50;
+}
+.ss-turn-card {
+  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.96);
+  border: 2px solid #00a99d;
+  border-radius: 16px;
+  padding: 24px 28px;
+  min-width: 320px;
+  max-width: 80vw;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  align-items: center;
+}
+.ss-turn-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #00897b;
+}
+.ss-turn-hint {
+  font-size: 18px;
+  line-height: 1.5;
+  color: #222;
+  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.ss-turn-hint--empty { color: #999; }
+.ss-turn-done-btn {
+  margin-top: 4px;
+  padding: 12px 32px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #00a99d, #00897b);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.1s;
+}
+.ss-turn-done-btn:hover { filter: brightness(1.06); }
+.ss-turn-done-btn:active { transform: translateY(1px); }

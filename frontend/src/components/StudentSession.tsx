@@ -45,6 +45,9 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const MAX_RETRIES = 3;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
+  const [interactionPhase, setInteractionPhase] = useState<
+    'idle' | 'teacher' | 'generating' | 'student'
+  >('idle');
   const [showSource, setShowSource] = useState(false);
   const [extension, setExtension] = useState<string | null>(null);
   const [extending, setExtending] = useState(false);
@@ -211,7 +214,11 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
       if (!participant?.identity.startsWith('host-')) return;
       try {
-        const msg = JSON.parse(new TextDecoder().decode(payload)) as { type?: string; payload?: AIHintPayload };
+        const msg = JSON.parse(new TextDecoder().decode(payload)) as {
+          type?: string;
+          payload?: AIHintPayload;
+          phase?: 'idle' | 'teacher' | 'generating' | 'student';
+        };
         if (msg.type === 'ai-hint') {
           const p = msg.payload ?? null;
           if (isMounted) {
@@ -220,6 +227,8 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             setExtension(null);
             setExtendError(null);
           }
+        } else if (msg.type === 'interaction-phase' && msg.phase) {
+          if (isMounted) setInteractionPhase(msg.phase);
         }
       } catch { /* pose / other messages */ }
     });
@@ -377,6 +386,21 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       window.speechSynthesis.speak(u);
     } catch { /* ignore */ }
   }, [extension]);
+
+  const sendStudentDone = useCallback(() => {
+    const room = roomRef.current;
+    if (!room || room.state !== 'connected') return;
+    try {
+      const bytes = new TextEncoder().encode(JSON.stringify({ type: 'student-done' }));
+      room.localParticipant.publishData(bytes, { reliable: true });
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleStudentDoneClick = useCallback(() => {
+    // 樂觀本地切回 teacher（隱藏卡）；老師端會用權威 phase 廣播確認
+    setInteractionPhase('teacher');
+    sendStudentDone();
+  }, [sendStudentDone]);
 
   const initials = name ? name.substring(0, 2).toLowerCase() : 'ss';
 
@@ -659,6 +683,28 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
                 確認離開
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {interactionPhase === 'student' && (
+        <div className="ss-turn-overlay" role="dialog" aria-modal="false">
+          <div className="ss-turn-card">
+            <div className="ss-turn-title">🎤 輪到你說話了</div>
+            {aiHint && aiHint.content ? (
+              <div className="ss-turn-hint">
+                {aiHint.mode === 'rearrange'
+                  ? aiHint.content.split(' ').map((w, i) => (
+                      <span key={i} className="ai-chip">{w}</span>
+                    ))
+                  : aiHint.content}
+              </div>
+            ) : (
+              <div className="ss-turn-hint ss-turn-hint--empty">（尚無提示）</div>
+            )}
+            <button className="ss-turn-done-btn" onClick={handleStudentDoneClick}>
+              ✓ 說完了
+            </button>
           </div>
         </div>
       )}
