@@ -292,10 +292,19 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [interactionPhase, setInteractionPhase] = useState<InteractionPhase>('idle');
   const interactionPhaseRef = useRef<InteractionPhase>('idle');
   useEffect(() => { interactionPhaseRef.current = interactionPhase; }, [interactionPhase]);
-  // 廣播互動相位給 BigScreen（控制中央機器人顯示/隱藏）
+  // 廣播互動相位給 BigScreen（BroadcastChannel）與學生端（LiveKit publishData）
   useEffect(() => {
     const msg: BigScreenMsg = { type: 'interaction-phase', interactionPhase };
     channelRef.current?.postMessage(msg);
+    const room = roomRef.current;
+    if (room && room.state === 'connected') {
+      try {
+        const bytes = new TextEncoder().encode(
+          JSON.stringify({ type: 'interaction-phase', phase: interactionPhase }),
+        );
+        room.localParticipant.publishData(bytes, { reliable: true });
+      } catch { /* ignore */ }
+    }
   }, [interactionPhase]);
   // 標記「此次 stop 由開始互動腳本觸發」→ transcript effect 立即送出（不倒數）
   const autoScriptTriggerRef = useRef(false);
@@ -1308,6 +1317,26 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       // _kind?: DataPacket_Kind,
     ) => {
       if (!participant) return;
+      // 先嘗試把 payload 當控制訊息（JSON）解析；解析失敗（如 binary pose 資料）則沉默落到 pose 解碼。
+      try {
+        const text = new TextDecoder().decode(payload);
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
+          if (parsed.type === 'student-done') {
+            if (interactionPhaseRef.current === 'student') {
+              cancelAutoCountdown();
+              clearTranscript();
+              setAiError(null);
+              setInteractionPhase('teacher');
+              if (!sttRecordingRef.current) {
+                try { startRec(); } catch { /* ignore */ }
+              }
+            }
+            return;
+          }
+          // 其他可能的控制訊息可在此擴充
+        }
+      } catch { /* fall through to pose decode */ }
       try {
         let pool = studentPoolsRef.current.get(participant.identity);
         if (!pool) {
@@ -1408,6 +1437,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         room.disconnect();
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [livekitToken, updateParticipant]);
 
   // Sync faceEnabled to LiveKit metadata for students to pick up
