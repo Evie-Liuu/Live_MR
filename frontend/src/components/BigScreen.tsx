@@ -22,7 +22,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -53,6 +53,8 @@ export interface BigScreenMsg {
   bgTypeOverride?: BackgroundTypeOverride;
   /** For 'speaking': 目前正在說話的 participant identity 清單 */
   speakingIdentities?: string[];
+  /** For 'interaction-phase': 目前互動腳本相位（'idle' 表示未互動） */
+  interactionPhase?: string;
 }
 
 /**
@@ -345,6 +347,7 @@ export default function BigScreen() {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
+  const [interactionPhase, setInteractionPhase] = useState<string>('idle');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -1704,6 +1707,8 @@ export default function BigScreen() {
         } catch {/* ignore */ }
       } else if (msg.type === 'speaking') {
         setSpeakingIdentities(new Set(msg.speakingIdentities ?? []));
+      } else if (msg.type === 'interaction-phase') {
+        setInteractionPhase(msg.interactionPhase ?? 'idle');
       }
     };
 
@@ -1899,7 +1904,8 @@ export default function BigScreen() {
               );
             })()}
 
-            {/* 常駐中央機器人 + 環狀波動（有人說話時啟動，依老師/學生著色） */}
+            {/* 中央機器人 + 環狀波動（僅在互動進行中顯示） */}
+            {/* {interactionPhase !== 'idle' && ( */}
             <div
               className={`bs-robot-zone${teacherSpeaking ? ' is-teacher-speaking' : ''}${studentSpeaking ? ' is-student-speaking' : ''}`}
             >
@@ -1926,6 +1932,7 @@ export default function BigScreen() {
                 </div>
               )}
             </div>
+            {/* )} */}
           </div>
         );
       })()}

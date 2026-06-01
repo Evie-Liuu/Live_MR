@@ -34,7 +34,7 @@ import SceneEditor from './SceneEditor.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 
 // ─── Module-level constants & types ─────────────────────────────────────────
-const SCRIPT_RECORD_SECONDS = 15;
+const SCRIPT_RECORD_SECONDS = 10;
 type InteractionPhase = 'idle' | 'recording' | 'generating' | 'student';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -293,6 +293,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [interactionPhase, setInteractionPhase] = useState<InteractionPhase>('idle');
   const interactionPhaseRef = useRef<InteractionPhase>('idle');
   useEffect(() => { interactionPhaseRef.current = interactionPhase; }, [interactionPhase]);
+  // 廣播互動相位給 BigScreen（控制中央機器人顯示/隱藏）
+  useEffect(() => {
+    const msg: BigScreenMsg = { type: 'interaction-phase', interactionPhase };
+    channelRef.current?.postMessage(msg);
+  }, [interactionPhase]);
   // 標記「此次 stop 由開始互動腳本觸發」→ transcript effect 立即送出（不倒數）
   const autoScriptTriggerRef = useRef(false);
   const scriptTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -697,6 +702,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     autoScriptTriggerRef.current = false;
     setScriptCountdown(null);
     setInteractionPhase('idle');
+    // setRecordDuration(0);
   }, []);
 
   const startInteractionScript = useCallback(() => {
