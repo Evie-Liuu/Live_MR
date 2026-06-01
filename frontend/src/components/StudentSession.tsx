@@ -392,7 +392,10 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     if (!room || room.state !== 'connected') return;
     try {
       const bytes = new TextEncoder().encode(JSON.stringify({ type: 'student-done' }));
-      room.localParticipant.publishData(bytes, { reliable: true });
+      // publishData returns a Promise; swallow async rejection too (we already optimistically
+      // flipped phase to 'teacher'; teacher's authoritative re-broadcast or the 輪到自己 escape
+      // covers the lost-message case).
+      void room.localParticipant.publishData(bytes, { reliable: true }).catch(() => { /* ignore */ });
     } catch { /* ignore */ }
   }, []);
 
@@ -688,9 +691,9 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       )}
 
       {interactionPhase === 'student' && (
-        <div className="ss-turn-overlay" role="dialog" aria-modal="false">
+        <div className="ss-turn-overlay" role="dialog" aria-modal="false" aria-labelledby="ss-turn-title">
           <div className="ss-turn-card">
-            <div className="ss-turn-title">🎤 輪到你說話了</div>
+            <div id="ss-turn-title" className="ss-turn-title">🎤 輪到你說話了</div>
             {aiHint && aiHint.content ? (
               <div className="ss-turn-hint">
                 {aiHint.mode === 'rearrange'
@@ -702,7 +705,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             ) : (
               <div className="ss-turn-hint ss-turn-hint--empty">（尚無提示）</div>
             )}
-            <button className="ss-turn-done-btn" onClick={handleStudentDoneClick}>
+            <button className="ss-turn-done-btn" onClick={handleStudentDoneClick} autoFocus>
               ✓ 說完了
             </button>
           </div>

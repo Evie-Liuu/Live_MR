@@ -1264,6 +1264,19 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           return prev;
         });
       }
+
+      // 新學生加入 / 重連 → 立刻把目前 phase 補送一次（單一接收端，不全廣播）
+      const phaseNow = interactionPhaseRef.current;
+      try {
+        const bytes = new TextEncoder().encode(
+          JSON.stringify({ type: 'interaction-phase', phase: phaseNow }),
+        );
+        // publishData 可指定 destinationIdentities 限定接收者；缺省則 broadcast。
+        // 這裡用單一目標以避免干擾既存學生（他們已有正確 phase）。
+        void roomRef.current?.localParticipant
+          .publishData(bytes, { reliable: true, destinationIdentities: [participant.identity] })
+          .catch(() => { /* ignore */ });
+      } catch { /* ignore */ }
     };
 
     const handleDisconnected = (participant: RemoteParticipant) => {

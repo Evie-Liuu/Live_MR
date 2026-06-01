@@ -6953,7 +6953,7 @@ button:disabled {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  z-index: 50;
+  z-index: 1100; /* above .ss-ai-card (z-index:1000) so the 說完了 button is clickable when a hint card is also visible */
 }
 .ss-turn-card {
   pointer-events: auto;
