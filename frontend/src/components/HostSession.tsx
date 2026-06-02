@@ -20,8 +20,9 @@ import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
+import { TASK_HINTS } from '../config/taskHints.ts';
 import { SCENE_CONSTRAINTS, shuffleWords, buildHintsSystemInstruction } from '../config/aiAssistant.ts';
-import type { AIHintMode, AIHintPayload, ChatTurn, CachedReplies } from '../config/aiAssistant.ts';
+import type { AIHintMode, AIHintPayload, ChatTurn, CachedReplies, HintTaskContext } from '../config/aiAssistant.ts';
 import { passThroughGate } from '../config/transcriptGate.ts';
 import type { TranscriptGate } from '../config/transcriptGate.ts';
 import { generateHints, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
@@ -41,6 +42,13 @@ type InteractionPhase = 'idle' | 'teacher' | 'generating' | 'student';
 // 故上限需足以涵蓋一個完整場景對話；history 為短句文字、記憶體成本極小，
 // 此上限主要作用是避免病態長對話讓每次送往 Gemini 的 token 線性暴增。
 const MAX_CHAT_TURNS = 40;
+
+// 將學生指派的 VRM 角色 id 對應為 AI 提示用的英文人設描述。
+// 店員類角色 → shop assistant;其餘(學生/顧客/預設) → customer。
+function vrmRoleToPersona(roleId: string | undefined): string | undefined {
+  if (!roleId) return undefined;
+  return /staff/i.test(roleId) ? 'a shop assistant' : 'a customer';
+}
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
@@ -339,6 +347,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [hasRecorded, setHasRecorded] = useState(false);
   // Set of participant identities currently speaking
   const [speakingSet, setSpeakingSet] = useState<Set<string>>(new Set());
+  // 最近一位「正在說話的學生」(排除 host) — 供 AI 提示判斷學生身分/角色。
+  // 用「最近」而非「當下」:老師觸發提示時學生通常剛說完、已不在 speakingSet。
+  const lastSpeakingStudentRef = useRef<string | null>(null);
   // Embedded BigScreen preview in sidebar
   const [showBigScreenPreview, setShowBigScreenPreview] = useState(false);
 
@@ -678,7 +689,20 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     // ── Cold path: one AI call → cache {complete, rearrange, extend} → broadcast the requested mode.
     setAiBusy(true); setAiError(null);
     try {
-      const systemInstruction = buildHintsSystemInstruction(constraint);
+      // 依「當前進行中的任務 + 下一個任務 + 說話學生身分」調整 AI 回答方向。
+      // 優先任務 = 第一個未完成;接續任務 = 其後第一個未完成(供自然鋪陳銜接)。
+      const incompleteTasks = selectedTasks.filter(t => !t.completed);
+      const currentTask = incompleteTasks[0];
+      const nextTask = incompleteTasks[1];
+      const speakerId = lastSpeakingStudentRef.current;
+      const taskContext: HintTaskContext = {
+        studentRole: vrmRoleToPersona(speakerId ? studentRoles[speakerId] : undefined),
+        currentTaskLabel: currentTask?.label,
+        currentTargetSentence: currentTask ? TASK_HINTS[currentTask.id]?.completeSentence : undefined,
+        nextTaskLabel: nextTask?.label,
+        nextTargetSentence: nextTask ? TASK_HINTS[nextTask.id]?.completeSentence : undefined,
+      };
+      const systemInstruction = buildHintsSystemInstruction(constraint, taskContext);
       const history = chatHistoryRef.current;
       const result = await generateHints(txt, { history, systemInstruction });
       setAiModel(result.model);
@@ -694,8 +718,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       // 無限成長（記憶體耗盡），同時控制每次送往 Gemini 的 token 量。
       chatHistoryRef.current = [
         ...history,
-        { role: 'user', text: txt },
-        { role: 'model', text: result.complete },
+        { role: 'user' as const, text: txt },
+        { role: 'model' as const, text: result.complete },
       ].slice(-MAX_CHAT_TURNS);
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
@@ -716,7 +740,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     } finally {
       setAiBusy(false);
     }
-  }, [aiBusy, sttTranscript, selectedSceneId, cancelAutoCountdown, broadcastAIHint, startRec]);
+  }, [aiBusy, sttTranscript, selectedSceneId, selectedTasks, studentRoles, cancelAutoCountdown, broadcastAIHint, startRec]);
 
   const handleHintRef = useRef(handleHint);
   useEffect(() => { handleHintRef.current = handleHint; }, [handleHint]);
@@ -1258,6 +1282,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       speakingIdentities: Array.from(speakingSet),
     };
     channelRef.current?.postMessage(msg);
+    // 記下最近一位開口的學生(排除 host),供 AI 提示沿用其角色身分
+    for (const id of speakingSet) {
+      if (!id.startsWith('host-')) { lastSpeakingStudentRef.current = id; break; }
+    }
   }, [speakingSet]);
 
   // ─── Teacher pose detection ───────────────────────────────────────────────
@@ -1353,6 +1381,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       channelRef.current?.postMessage({ type: 'leave', identity: participant.identity });
       delete poseSnapshotRef.current[participant.identity];
       studentPoolsRef.current.delete(participant.identity);
+      if (lastSpeakingStudentRef.current === participant.identity) lastSpeakingStudentRef.current = null;
       // Prune stale identity from studentRoles so BigScreen re-open won't reload ghost avatars
       setStudentRoles((prev) => {
         if (!(participant.identity in prev)) return prev;

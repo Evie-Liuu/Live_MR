@@ -67,14 +67,64 @@ export interface CachedReplies {
 }
 
 /**
+ * Optional teaching context for the active task, injected into the hints
+ * system instruction so the AI steers the student's reply toward the task the
+ * class is currently practising, in the persona the speaking student plays,
+ * while leaving room to flow into the next task.
+ */
+export interface HintTaskContext {
+  /** English persona of the responding student, e.g. "a customer" / "a shop assistant". */
+  studentRole?: string
+  /** Human-readable current task label, e.g. "Ask for the price of a blue T-shirt." */
+  currentTaskLabel?: string
+  /** Target sentence the current task practises (TASK_HINTS[id].completeSentence). */
+  currentTargetSentence?: string
+  /** Next task's label — used only to lead the conversation toward it, not to jump ahead. */
+  nextTaskLabel?: string
+  /** Next task's target sentence, for a richer lead-in. */
+  nextTargetSentence?: string
+}
+
+/** Render the "Current teaching focus" block, or '' when no context is available. */
+function buildTaskFocusBlock(ctx: HintTaskContext): string {
+  const lines: string[] = []
+  if (ctx.studentRole) {
+    lines.push(
+      `- The student who is responding is playing the role of ${ctx.studentRole}. Keep the reply natural and appropriate for that persona.`,
+    )
+  }
+  if (ctx.currentTaskLabel) {
+    const target = ctx.currentTargetSentence
+      ? ` The target language pattern to practise is: "${ctx.currentTargetSentence}". Make "complete" follow this pattern closely, but adapt the specific item/value/wording to fit what the teacher actually said — do not copy it verbatim when it does not fit.`
+      : ''
+    lines.push(`- The current practice task is: "${ctx.currentTaskLabel}".${target}`)
+  }
+  if (ctx.nextTaskLabel) {
+    const nextTarget = ctx.nextTargetSentence ? ` (e.g. "${ctx.nextTargetSentence}")` : ''
+    lines.push(
+      `- The NEXT task will be: "${ctx.nextTaskLabel}"${nextTarget}. Do NOT jump ahead to it, but you may leave the conversation slightly open so it can naturally lead into that next step.`,
+    )
+  }
+  if (lines.length === 0) return ''
+  return `\n\nCurrent teaching focus (prioritise this):\n${lines.join('\n')}`
+}
+
+/**
  * Build a Gemini systemInstruction asking for BOTH the complete answer and an
  * extension sentence, returned as JSON. Used by the teacher-side multi-turn
  * chat where we generate once and let the teacher switch modes from cache.
  *
+ * When `taskContext` is supplied, a "Current teaching focus" block steers the
+ * reply toward the active task, persona, and the upcoming task.
+ *
  * Note: 'rearrange' is NOT asked of the model — it is deterministically derived
  * on the client as shuffleWords(complete).
  */
-export function buildHintsSystemInstruction(sceneConstraint: string): string {
+export function buildHintsSystemInstruction(
+  sceneConstraint: string,
+  taskContext?: HintTaskContext,
+): string {
+  const focusBlock = taskContext ? buildTaskFocusBlock(taskContext) : ''
   return `You are an English conversation teaching assistant. The student is learning conversation in the following setting:
 
 ${sceneConstraint}
@@ -82,7 +132,7 @@ ${sceneConstraint}
 The user messages in this conversation will contain things the TEACHER says. For each teacher turn, produce a JSON object describing what the STUDENT could say back. Maintain continuity with earlier turns — if you already invented specific values (price, size, color, brand, stock), reuse them consistently and let the story progress naturally.
 
 IMPORTANT — Handling missing information:
-If the teacher refers to details that have NOT been provided, INVENT a reasonable, realistic value and commit to it. Never produce a vague answer like "It is." Always commit to a concrete value (a specific dollar amount, a specific size, etc.).
+If the teacher refers to details that have NOT been provided, INVENT a reasonable, realistic value and commit to it. Never produce a vague answer like "It is." Always commit to a concrete value (a specific dollar amount, a specific size, etc.).${focusBlock}
 
 Output a JSON object with exactly two string fields:
   - "complete": ONE grammatically complete English sentence the student can say. Simple present tense, everyday spoken English. No ellipsis, no Chinese, no preamble.
