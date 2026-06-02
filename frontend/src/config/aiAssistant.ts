@@ -9,11 +9,10 @@ export interface AIHintPayload {
 
 export const SCENE_CONSTRAINTS: Record<string, string> = {
   clothingStore_cashier: `
-Setting: A clothing store checkout. The student plays a customer, the teacher plays a shop assistant.
-Language: English, everyday shopping conversation.
-Grammar: Use simple present tense primarily. Avoid past tense and complex constructions.
-Vocabulary: prices (dollars, cost, price), sizes (small, medium, large), colors,
-payment methods (cash, card), polite expressions (please, thank you).
+Setting: A clothing store checkout. The student plays a customer, the teacher plays a shop assistant. Shopping is the default backdrop, but the conversation may naturally drift into everyday small talk when the teacher leads there.
+Language: Everyday spoken English. Shopping vocabulary is the core, but follow the teacher into other everyday topics (weekend, hobbies, weather, etc.) when asked.
+Grammar: Keep it simple and natural for a learner. Use whatever tense the teacher's question calls for — if the teacher asks about the past, reply in the past tense; about plans, use the future. Avoid overly complex constructions.
+Vocabulary: prices (dollars, cost, price), sizes (small, medium, large), colors, payment methods (cash, card), polite expressions (please, thank you), plus common everyday words when the topic shifts.
 Response style: short, conversational, natural — 1 to 2 sentences.
 `.trim(),
 }
@@ -95,7 +94,7 @@ function buildTaskFocusBlock(ctx: HintTaskContext): string {
   }
   if (ctx.currentTaskLabel) {
     const target = ctx.currentTargetSentence
-      ? ` The target language pattern to practise is: "${ctx.currentTargetSentence}". Make "complete" follow this pattern closely, but adapt the specific item/value/wording to fit what the teacher actually said — do not copy it verbatim when it does not fit.`
+      ? ` When the teacher's turn relates to this task, make "complete" follow this target pattern: "${ctx.currentTargetSentence}", adapting the specific item/value/wording to what the teacher actually said.`
       : ''
     lines.push(`- The current practice task is: "${ctx.currentTaskLabel}".${target}`)
   }
@@ -105,8 +104,14 @@ function buildTaskFocusBlock(ctx: HintTaskContext): string {
       `- The NEXT task will be: "${ctx.nextTaskLabel}"${nextTarget}. Do NOT jump ahead to it, but you may leave the conversation slightly open so it can naturally lead into that next step.`,
     )
   }
+  // 題外話讓步:任務引導只在切題時生效,老師若問無關的日常問題就自然回答。
+  if (ctx.currentTaskLabel) {
+    lines.push(
+      `- If the teacher's turn is unrelated to the current task (small talk, a different everyday topic, a personal question), simply answer it naturally and ignore the task pattern — do not force the conversation back to the task.`,
+    )
+  }
   if (lines.length === 0) return ''
-  return `\n\nCurrent teaching focus (prioritise this):\n${lines.join('\n')}`
+  return `\n\nCurrent teaching focus:\n${lines.join('\n')}`
 }
 
 /**
