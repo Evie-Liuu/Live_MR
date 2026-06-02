@@ -618,24 +618,31 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const handleHint = useCallback(async (mode: AIHintMode) => {
     cancelAutoCountdown();
     if (aiBusy) return;
+
+    // ── Cache-first path: if we already generated for this transcript, just switch mode and broadcast.
+    if (cachedRepliesRef.current) {
+      const cached = cachedRepliesRef.current;
+      const content = mode === 'complete' ? cached.complete
+        : mode === 'extend' ? cached.extend
+          : cached.rearrange;
+      if (content) {
+        const payload: AIHintPayload = {
+          mode,
+          content,
+          sourceText: cachedSourceTextRef.current || sttTranscript.trim(),
+          ts: Date.now()
+        };
+        setLatestHint(payload);
+        broadcastAIHint(payload);
+        return;
+      }
+    }
+
     const txt = sttTranscript.trim();
     if (txt.length < 3) return;
     if (!transcriptGateRef.current.accept(txt, { sceneId: selectedSceneId, source: 'button' })) return;
     const constraint = SCENE_CONSTRAINTS[selectedSceneId];
     if (!constraint) { setAiError('此場景尚無 AI 助理約束文件'); return; }
-
-    // ── Cache-first path: if we already generated for this transcript, just broadcast.
-    if (cachedRepliesRef.current && cachedSourceTextRef.current === txt) {
-      const cached = cachedRepliesRef.current;
-      const content = mode === 'complete' ? cached.complete
-        : mode === 'extend' ? cached.extend
-          : cached.rearrange;
-      if (!content) return;
-      const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
-      setLatestHint(payload);
-      broadcastAIHint(payload);
-      return;
-    }
 
     // ── Cold path: one AI call → cache {complete, rearrange, extend} → broadcast the requested mode.
     setAiBusy(true); setAiError(null);
@@ -2368,8 +2375,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         <div className="hs-ai-section-label">提示難度</div>
                         <div className="hs-ai-mode-cards">
                           <button
-                            className={`hs-ai-mode-card hs-ai-mode-card--rearrange ${countdown !== null ? 'is-auto-target' : ''}`}
-                            disabled={!canTrigger || aiBusy}
+                            className={`hs-ai-mode-card hs-ai-mode-card--rearrange ${countdown !== null ? 'is-auto-target' : ''} ${latestHint?.mode === 'rearrange' ? 'is-active' : ''}`}
+                            disabled={aiBusy || !(canTrigger || latestHint !== null)}
                             onClick={() => handleHint('rearrange')}
                           >
                             <span className="hs-ai-mode-card-icon">
@@ -2378,8 +2385,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                             <span className="hs-ai-mode-card-label">重組{countdown !== null ? '（自動）' : ''}</span>
                           </button>
                           <button
-                            className="hs-ai-mode-card hs-ai-mode-card--complete"
-                            disabled={!canTrigger || aiBusy}
+                            className={`hs-ai-mode-card hs-ai-mode-card--complete ${latestHint?.mode === 'complete' ? 'is-active' : ''}`}
+                            disabled={aiBusy || !(canTrigger || latestHint !== null)}
                             onClick={() => handleHint('complete')}
                           >
                             <span className="hs-ai-mode-card-icon">
@@ -2388,8 +2395,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                             <span className="hs-ai-mode-card-label">完整</span>
                           </button>
                           <button
-                            className="hs-ai-mode-card hs-ai-mode-card--extend"
-                            disabled={!canTrigger || aiBusy}
+                            className={`hs-ai-mode-card hs-ai-mode-card--extend ${latestHint?.mode === 'extend' ? 'is-active' : ''}`}
+                            disabled={aiBusy || !(canTrigger || latestHint !== null)}
                             onClick={() => handleHint('extend')}
                           >
                             <span className="hs-ai-mode-card-icon">

@@ -6238,6 +6238,13 @@ button:disabled {
   outline-offset: 2px;
 }
 
+.hs-ai-mode-card.is-active {
+  outline: 2px solid var(--mode-icon-bg);
+  outline-offset: 2px;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
 .hs-ai-error {
   padding: 8px 10px;
   background: rgba(244, 67, 54, 0.1);
@@ -6499,6 +6506,7 @@ button:disabled {
 }
 
 .ss-ai-content {
+  margin: 15px 0;
   font-size: 17px;
   font-weight: 700;
   color: #222;
@@ -6536,8 +6544,9 @@ button:disabled {
 
 /* 學生端 — 延伸提示 */
 .ss-ai-extend {
+  width: 100%;
   padding: 0 16px 16px;
-  text-align: center;
+  /* text-align: center; */
 }
 
 .ss-ai-extend-btn {
@@ -6545,12 +6554,12 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-  padding: 13px 0;
+  /* padding: 13px 0; */
   border-radius: 999px;
+  margin-right: auto;
   border: none;
-  background: #f97316;
-  color: #fff;
+  background: #FBF3E0;
+  color: #f97316;
   font-family: 'Nunito', inherit;
   font-size: 15px;
   font-weight: 800;
@@ -6561,7 +6570,9 @@ button:disabled {
 }
 
 .ss-ai-extend-btn:hover:not(:disabled) {
-  background: #ea6c0b;
+  /* background: #ea6c0b; */
+  background: #fffaf5;
+  /* border: 2px dashed rgba(247, 110, 18, 0.45); */
   box-shadow: 0 4px 14px rgba(249, 115, 22, 0.38);
 }
 
@@ -6854,6 +6865,7 @@ button:disabled {
   align-items: flex-end;
   gap: 14px;
 }
+
 .bs-robot-avatar {
   width: 96px;
   height: 96px;
@@ -6862,6 +6874,7 @@ button:disabled {
   z-index: 2;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
 }
+
 .bs-robot-rings {
   position: absolute;
   left: 48px;
@@ -6871,6 +6884,7 @@ button:disabled {
   z-index: 1;
   pointer-events: none;
 }
+
 .bs-robot-ring {
   position: absolute;
   left: 50%;
@@ -6884,18 +6898,40 @@ button:disabled {
   transform: scale(0.6);
   opacity: 0;
 }
+
 .bs-robot-zone.is-teacher-speaking .bs-robot-ring,
 .bs-robot-zone.is-student-speaking .bs-robot-ring {
   animation: bs-ring-pulse 1.8s ease-out infinite;
 }
-.bs-robot-zone.is-teacher-speaking .bs-robot-ring { border-color: rgba(0, 169, 157, 0.7); }
-.bs-robot-zone.is-student-speaking .bs-robot-ring { border-color: rgba(247, 110, 18, 0.7); }
-.bs-robot-ring:nth-child(2) { animation-delay: 0.6s; }
-.bs-robot-ring:nth-child(3) { animation-delay: 1.2s; }
-@keyframes bs-ring-pulse {
-  0%   { transform: scale(0.5); opacity: 0.8; }
-  100% { transform: scale(2.0); opacity: 0; }
+
+.bs-robot-zone.is-teacher-speaking .bs-robot-ring {
+  border-color: rgba(0, 169, 157, 0.7);
 }
+
+.bs-robot-zone.is-student-speaking .bs-robot-ring {
+  border-color: rgba(247, 110, 18, 0.7);
+}
+
+.bs-robot-ring:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.bs-robot-ring:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes bs-ring-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(2.0);
+    opacity: 0;
+  }
+}
+
 .bs-ai-bubble-wrap {
   position: relative;
   display: flex;
@@ -6904,6 +6940,7 @@ button:disabled {
   z-index: 2;
   max-width: 46vw;
 }
+
 /* ── 各角色 VRM 頭上說話標記 ───────────────────────────────── */
 .bs-speaker-anchors {
   position: absolute;
@@ -6911,12 +6948,14 @@ button:disabled {
   pointer-events: none;
   z-index: 6;
 }
+
 .bs-speaker-badge {
   position: absolute;
   transform: translate(-50%, -120%);
   width: 26px;
   height: 26px;
 }
+
 .bs-speaker-badge-dot,
 .bs-speaker-badge-wave {
   position: absolute;
@@ -6925,16 +6964,49 @@ button:disabled {
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
-.bs-speaker-badge-dot { width: 12px; height: 12px; }
-.bs-speaker-badge-wave { width: 12px; height: 12px; }
-.bs-speaker-badge.is-teacher .bs-speaker-badge-dot { background: #00a99d; }
-.bs-speaker-badge.is-student .bs-speaker-badge-dot { background: #f76e12; }
-.bs-speaker-badge.is-teacher .bs-speaker-badge-wave { border: 2px solid rgba(0, 169, 157, 0.6); }
-.bs-speaker-badge.is-student .bs-speaker-badge-wave { border: 2px solid rgba(247, 110, 18, 0.6); }
-.bs-speaker-badge-wave { animation: bs-badge-wave 1.2s ease-out infinite; }
+
+.bs-speaker-badge-dot {
+  width: 12px;
+  height: 12px;
+}
+
+.bs-speaker-badge-wave {
+  width: 12px;
+  height: 12px;
+}
+
+.bs-speaker-badge.is-teacher .bs-speaker-badge-dot {
+  background: #00a99d;
+}
+
+.bs-speaker-badge.is-student .bs-speaker-badge-dot {
+  background: #f76e12;
+}
+
+.bs-speaker-badge.is-teacher .bs-speaker-badge-wave {
+  border: 2px solid rgba(0, 169, 157, 0.6);
+}
+
+.bs-speaker-badge.is-student .bs-speaker-badge-wave {
+  border: 2px solid rgba(247, 110, 18, 0.6);
+}
+
+.bs-speaker-badge-wave {
+  animation: bs-badge-wave 1.2s ease-out infinite;
+}
+
 @keyframes bs-badge-wave {
-  0%   { width: 12px; height: 12px; opacity: 0.8; }
-  100% { width: 40px; height: 40px; opacity: 0; }
+  0% {
+    width: 12px;
+    height: 12px;
+    opacity: 0.8;
+  }
+
+  100% {
+    width: 40px;
+    height: 40px;
+    opacity: 0;
+  }
 }
 
 /* ── 開始互動按鈕 ──────────────────────────────────────────── */
@@ -6954,13 +7026,33 @@ button:disabled {
   cursor: pointer;
   transition: filter 0.15s, transform 0.1s;
 }
-.hs-ai-start-btn:hover:not(:disabled) { filter: brightness(1.06); }
-.hs-ai-start-btn:active:not(:disabled) { transform: translateY(1px); }
-.hs-ai-start-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.hs-ai-start-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.hs-ai-start-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.hs-ai-start-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .hs-ai-start-btn.phase-recording,
-.hs-ai-start-btn.phase-teacher { background: linear-gradient(135deg, #f76e12, #e25a00); }
-.hs-ai-start-btn.phase-generating { background: linear-gradient(135deg, #6b7280, #4b5563); }
-.hs-ai-start-btn.phase-student { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.hs-ai-start-btn.phase-teacher {
+  background: linear-gradient(135deg, #f76e12, #e25a00);
+}
+
+.hs-ai-start-btn.phase-generating {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+}
+
+.hs-ai-start-btn.phase-student {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
 .hs-ai-start-cancel {
   width: 100%;
   margin-top: 6px;
@@ -6975,6 +7067,7 @@ button:disabled {
 
 /* ── 學生端「說完了」按鈕（整合進 ss-ai-card 內） ───────────── */
 .ss-turn-done-btn {
+  width: 100%;
   margin-top: 4px;
   padding: 12px 32px;
   font-size: 17px;
@@ -6986,5 +7079,11 @@ button:disabled {
   cursor: pointer;
   transition: filter 0.15s, transform 0.1s;
 }
-.ss-turn-done-btn:hover { filter: brightness(1.06); }
-.ss-turn-done-btn:active { transform: translateY(1px); }
+
+.ss-turn-done-btn:hover {
+  filter: brightness(1.06);
+}
+
+.ss-turn-done-btn:active {
+  transform: translateY(1px);
+}
