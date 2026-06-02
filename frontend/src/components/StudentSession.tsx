@@ -140,6 +140,19 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     reszRef.current = null;
   }, []);
 
+  // 內容區塊展開/收合時，若有固定高度且自然高度超過目前高度，自動把卡片撐高（不縮）
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card || !card.style.height || isMinimized) return;
+    const prevHeight = card.style.height;
+    card.style.height = 'auto';
+    const natural = card.scrollHeight;
+    card.style.height = prevHeight;
+    // if (natural > card.clientHeight) {
+    card.style.height = `${natural}px`;
+    // }
+  }, [showSource, extension, extending, extendError, aiHint, isMinimized, interactionPhase]);
+
   const publishPose = useCallback(
     (data: Uint8Array) => {
       const room = roomRef.current;
@@ -520,25 +533,31 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
         </div>
       )}
 
-      {/* AI 助理提示卡片（右上角 overlay） */}
-      {aiHint && aiHint.content && (
+      {/* 輪到學生說話時的整合面板（保留老師提示功能：延伸 / 原話 / 拖曳 / 縮放 / 最小化） */}
+      {interactionPhase === 'student' && (
         <div
-          className={`ss-ai-card${isMinimized ? ' ss-ai-card--minimized' : ''}`}
+          className={`ss-ai-card ss-ai-card--turn${isMinimized ? ' ss-ai-card--minimized' : ''}`}
           ref={cardRef}
           onPointerMove={handleCardDragMove}
           onPointerUp={handleCardDragEnd}
           onPointerCancel={handleCardDragEnd}
+          role="dialog"
+          aria-modal="false"
+          aria-labelledby="ss-turn-title"
         >
           <div
             className="ss-ai-card-header"
             onPointerDown={handleCardDragStart}
           >
-            <span className="ss-ai-card-icon"><img src="images/UI/robot_avatar.png" alt="機器人頭像" /></span>
-            <span className="ss-ai-card-title">老師提示</span>
-            <span className={`ss-ai-mode-badge ai-mode--${aiHint.mode}`}>
-              {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
+            <span className="ss-ai-card-icon ss-ai-card-icon--mic">
+              <span className="material-symbols-outlined">mic</span>
             </span>
-            {/* 最小化按鈕 */}
+            <span id="ss-turn-title" className="ss-ai-card-title">輪到你說話了</span>
+            {aiHint?.content && (
+              <span className={`ss-ai-mode-badge ai-mode--${aiHint.mode}`}>
+                {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
+              </span>
+            )}
             <button
               className="ss-ai-card-minimize"
               title={isMinimized ? '展開' : '最小化'}
@@ -549,26 +568,22 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
                 {isMinimized ? 'expand_more' : 'expand_less'}
               </span>
             </button>
-            {/* <button
-              className="ss-ai-card-close"
-              onClick={() => setAiHint(null)}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              ✕
-            </button> */}
           </div>
 
           {!isMinimized && (
             <>
               <div className="ss-ai-card-body">
-                {aiHint.mode === 'rearrange'
-                  ? <div className="ss-ai-chips">{aiHint.content.split(' ').map((w, i) => <span key={i} className="ai-chip">{w}</span>)}</div>
-                  : <div className="ss-ai-content">{aiHint.content}</div>
-                }
+                {aiHint?.content ? (
+                  aiHint.mode === 'rearrange'
+                    ? <div className="ss-ai-chips">{aiHint.content.split(' ').map((w, i) => <span key={i} className="ai-chip">{w}</span>)}</div>
+                    : <div className="ss-ai-content">{aiHint.content}</div>
+                ) : (
+                  <div className="ss-ai-content ss-ai-content--empty">（尚無提示）</div>
+                )}
               </div>
 
-              {/* 學生端 — 延伸提示按鈕（rearrange / complete 才顯示；extend 已是延伸版） */}
-              {aiHint.mode !== 'extend' && aiHint.sourceText && (
+              {/* 延伸提示（rearrange / complete 才顯示；extend 已是延伸版） */}
+              {aiHint?.content && aiHint.mode !== 'extend' && aiHint.sourceText && (
                 <div className="ss-ai-extend">
                   {!extension && !extending && (
                     <button
@@ -612,7 +627,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
                 </div>
               )}
 
-              {aiHint.sourceText && (
+              {aiHint?.sourceText && (
                 <div className="ss-ai-source">
                   <button className="ss-ai-source-toggle" onClick={() => setShowSource(v => !v)}>
                     {showSource ? '▴' : '▾'} 老師原話
@@ -620,6 +635,12 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
                   {showSource && <div className="ss-ai-source-text">"{aiHint.sourceText}"</div>}
                 </div>
               )}
+
+              <div className="ss-ai-card-action">
+                <button className="ss-turn-done-btn" onClick={handleStudentDoneClick} autoFocus>
+                  ✓ 說完了
+                </button>
+              </div>
 
               {/* 縮放把手 */}
               <div
@@ -690,27 +711,6 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
         </div>
       )}
 
-      {interactionPhase === 'student' && (
-        <div className="ss-turn-overlay" role="dialog" aria-modal="false" aria-labelledby="ss-turn-title">
-          <div className="ss-turn-card">
-            <div id="ss-turn-title" className="ss-turn-title">🎤 輪到你說話了</div>
-            {aiHint && aiHint.content ? (
-              <div className="ss-turn-hint">
-                {aiHint.mode === 'rearrange'
-                  ? aiHint.content.split(' ').map((w, i) => (
-                      <span key={i} className="ai-chip">{w}</span>
-                    ))
-                  : aiHint.content}
-              </div>
-            ) : (
-              <div className="ss-turn-hint ss-turn-hint--empty">（尚無提示）</div>
-            )}
-            <button className="ss-turn-done-btn" onClick={handleStudentDoneClick} autoFocus>
-              ✓ 說完了
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

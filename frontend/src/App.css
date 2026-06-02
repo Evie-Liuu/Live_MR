@@ -6451,6 +6451,33 @@ button:disabled {
   color: #333;
 }
 
+/* 整合後的「輪到你說話了」卡片 — 強調框與麥克風圖示 */
+.ss-ai-card--turn {
+  border: 2px solid #00a99d;
+}
+
+.ss-ai-card-icon--mic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #00897b;
+}
+
+.ss-ai-card-icon--mic .material-symbols-outlined {
+  font-size: 28px;
+}
+
+.ss-ai-content--empty {
+  color: #999;
+  font-weight: 600;
+}
+
+.ss-ai-card-action {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 18px;
+}
+
 .ss-ai-chips {
   display: flex;
   flex-wrap: wrap;
@@ -6946,46 +6973,7 @@ button:disabled {
   cursor: pointer;
 }
 
-/* ── 學生端「輪到你說話」置中卡 ───────────────────────────── */
-.ss-turn-overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 1100; /* above .ss-ai-card (z-index:1000) so the 說完了 button is clickable when a hint card is also visible */
-}
-.ss-turn-card {
-  pointer-events: auto;
-  background: rgba(255, 255, 255, 0.96);
-  border: 2px solid #00a99d;
-  border-radius: 16px;
-  padding: 24px 28px;
-  min-width: 320px;
-  max-width: 80vw;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  align-items: center;
-}
-.ss-turn-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #00897b;
-}
-.ss-turn-hint {
-  font-size: 18px;
-  line-height: 1.5;
-  color: #222;
-  text-align: center;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-.ss-turn-hint--empty { color: #999; }
+/* ── 學生端「說完了」按鈕（整合進 ss-ai-card 內） ───────────── */
 .ss-turn-done-btn {
   margin-top: 4px;
   padding: 12px 32px;
