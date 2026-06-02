@@ -750,12 +750,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     }
     autoScriptTriggerRef.current = true;
     // TODO Test
-    console.log(sttTranscript);
-    if (!sttTranscript) {
-      const defaultText = 'How are you?';
-      setSimInput(defaultText);
-      simulateTranscript(defaultText);
-    }
+    // console.log(sttTranscript);
+    // if (!sttTranscript) {
+    //   const defaultText = 'How are you?';
+    //   setSimInput(defaultText);
+    //   simulateTranscript(defaultText);
+    // }
 
     setInteractionPhase('generating');
     if (sttRecording) {
