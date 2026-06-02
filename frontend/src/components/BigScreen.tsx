@@ -497,14 +497,19 @@ export default function BigScreen() {
   // 開發階段：按 B 強制所有已知 avatar 都顯示說話中徽章，用於樣式調整
   const [forceShowSpeakerBadges, setForceShowSpeakerBadges] = useState(false);
 
+  // 徽章顯示對象 = 目前互動相位的角色（teacher → host-*；student → 非 host-*）。
+  // 注意：這驅動 useBigScreenScene 的 onSpeakerAnchors 回呼以取得頭部 UV，與
+  // 真正的「正在發聲」是兩件事；等化器條的波動由下方 JSX 讀取 speakingIdentities 控制。
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
-      // 用 participantNames（場上實際出現過的 avatars）以便定位到正確頭部 UV
       const ids = Array.from(participantNames.keys());
       return ids.length > 0 ? ids : Array.from(speakingIdentities);
     }
-    return Array.from(speakingIdentities);
-  }, [speakingIdentities, forceShowSpeakerBadges, participantNames]);
+    const ids = Array.from(participantNames.keys());
+    if (interactionPhase === 'teacher') return ids.filter(id => id.startsWith('host-'));
+    if (interactionPhase === 'student') return ids.filter(id => !id.startsWith('host-'));
+    return [];
+  }, [interactionPhase, forceShowSpeakerBadges, participantNames, speakingIdentities]);
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
@@ -1833,10 +1838,12 @@ export default function BigScreen() {
       <div className="bs-speaker-anchors" aria-hidden={Object.keys(speakerAnchors).length === 0}>
         {Object.entries(speakerAnchors).map(([id, p]) => {
           const isTeacher = id.startsWith('host-');
+          // 接收到聲音時等化器條才波動；dev 強制顯示時一律視為接收中，方便調整樣式
+          const isReceiving = forceShowSpeakerBadges || speakingIdentities.has(id);
           return (
             <div
               key={id}
-              className={`bs-speaker-badge${isTeacher ? ' is-teacher' : ' is-student'}`}
+              className={`bs-speaker-badge${isTeacher ? ' is-teacher' : ' is-student'}${isReceiving ? ' is-receiving' : ''}`}
               style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
             >
               {/* <span className="bs-speaker-badge-halo" aria-hidden="true" /> */}

@@ -7109,9 +7109,14 @@ button:disabled {
 .bs-speaker-badge-eq span {
   display: block;
   width: 3px;
-  height: 6px;
+  height: 5px;
   background: #fff;
   border-radius: 2px;
+  /* 預設靜止（未接收聲音）— 只有 .is-receiving 時才播放波動 */
+  transition: height 0.18s ease-out;
+}
+
+.bs-speaker-badge.is-receiving .bs-speaker-badge-eq span {
   animation: bs-eq-bounce 0.9s ease-in-out infinite;
 }
 
