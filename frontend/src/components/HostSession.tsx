@@ -36,6 +36,12 @@ import ConfirmationModal from './ConfirmationModal.tsx';
 // ─── Module-level constants & types ─────────────────────────────────────────
 type InteractionPhase = 'idle' | 'teacher' | 'generating' | 'student';
 
+// AI 對話輪替保留的最大歷史筆數（user/model 各算一筆 → 40 = 最近 20 組問答）。
+// history 用於維持場景連貫性（沿用先前虛構的價格/尺寸/顏色、推進劇情），
+// 故上限需足以涵蓋一個完整場景對話；history 為短句文字、記憶體成本極小，
+// 此上限主要作用是避免病態長對話讓每次送往 Gemini 的 token 線性暴增。
+const MAX_CHAT_TURNS = 40;
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface HostSessionProps {
   roomId: string;
@@ -419,6 +425,31 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const teacherPoolRef = useRef<PoseDecodePool>(createPoseDecodePool());
   const studentPoolsRef = useRef<Map<string, PoseDecodePool>>(new Map());
 
+  // 節流寫入 sessionStorage 快照：此快照僅供大屏「冷啟動 / 重新整理」時讀取一次，
+  // 現場 pose 已透過 BroadcastChannel 即時推送。先前每一幀 pose（30fps × N 名學生）
+  // 都 JSON.stringify 整份快照並同步寫入 sessionStorage，是造成主執行緒卡頓與
+  // 大量 GC（記憶體耗盡）的主因。改為最多每秒寫入一次。
+  const snapshotPersistRef = useRef<{ last: number; timer: ReturnType<typeof setTimeout> | null }>({ last: 0, timer: null });
+  const persistPoseSnapshot = useCallback(() => {
+    const state = snapshotPersistRef.current;
+    const flush = () => {
+      state.last = Date.now();
+      state.timer = null;
+      try {
+        sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
+      } catch { /* ignore */ }
+    };
+    const elapsed = Date.now() - state.last;
+    if (elapsed >= 1000) {
+      flush();
+    } else if (!state.timer) {
+      state.timer = setTimeout(flush, 1000 - elapsed);
+    }
+  }, []);
+  useEffect(() => () => {
+    if (snapshotPersistRef.current.timer) clearTimeout(snapshotPersistRef.current.timer);
+  }, []);
+
   // ─── Scene / VRM source selection ─────────────────────────────────────────
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
@@ -659,11 +690,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       cachedRepliesRef.current = cached;
       cachedSourceTextRef.current = txt;
       // Append ONCE per transcript: the canonical student utterance is `complete`.
+      // 對話輪替會無上限累積；只保留最近 MAX_CHAT_TURNS 筆，避免長課堂中 history
+      // 無限成長（記憶體耗盡），同時控制每次送往 Gemini 的 token 量。
       chatHistoryRef.current = [
         ...history,
         { role: 'user', text: txt },
         { role: 'model', text: result.complete },
-      ];
+      ].slice(-MAX_CHAT_TURNS);
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
           : cached.rearrange;
@@ -1237,15 +1270,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         if (!connectedRoom) return;
         const identity = connectedRoom.localParticipant.identity;
         poseSnapshotRef.current[identity] = parsed;
-        // Update sessionStorage to keep snapshot in sync
-        try {
-          sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
-        } catch {/* ignore */ }
+        // Throttled snapshot persistence (live pose flows via BroadcastChannel below)
+        persistPoseSnapshot();
         const msg: BigScreenMsg = { type: 'pose', identity, poseData: parsed };
         channelRef.current?.postMessage(msg);
       } catch { /* ignore */ }
     },
-    [connectedRoom],
+    [connectedRoom, persistPoseSnapshot],
   );
 
   usePoseDetection(teacherVideoRef, teacherPublishPose, undefined, faceEnabled, handEnabled, lowPowerMode);
@@ -1409,10 +1440,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         }));
 
         poseSnapshotRef.current[participant.identity] = data;
-        // Update sessionStorage to keep snapshot in sync
-        try {
-          sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
-        } catch {/* ignore */ }
+        // Throttled snapshot persistence (live pose flows via BroadcastChannel below)
+        persistPoseSnapshot();
         const msg: BigScreenMsg = { type: 'pose', identity: participant.identity, poseData: data };
         channelRef.current?.postMessage(msg);
       } catch {
