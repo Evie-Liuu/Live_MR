@@ -661,7 +661,7 @@ export function useBigScreenScene(
               const head = slot.vrm.humanoid?.getNormalizedBoneNode('head');
               if (!head) continue;
               head.getWorldPosition(_headWorld);
-              _headWorld.y += 0.22; // 抬到頭頂上方
+              _headWorld.y += 0.44; // 抬到頭頂上方
               projectToUV(_headWorld, cam, _headUV);
               anchors[id] = { x: _headUV.x, y: _headUV.y };
               any = true;

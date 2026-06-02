@@ -1839,19 +1839,20 @@ export default function BigScreen() {
               className={`bs-speaker-badge${isTeacher ? ' is-teacher' : ' is-student'}`}
               style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
             >
-              <span className="bs-speaker-badge-halo" aria-hidden="true" />
-              <span className="bs-speaker-badge-ring" aria-hidden="true" />
-              <span className="bs-speaker-badge-sparkles" aria-hidden="true">
+              {/* <span className="bs-speaker-badge-halo" aria-hidden="true" /> */}
+              {/* <span className="bs-speaker-badge-ring" aria-hidden="true" /> */}
+              {/* <span className="bs-speaker-badge-sparkles" aria-hidden="true">
                 <span className="bs-speaker-badge-sparkle s1" />
                 <span className="bs-speaker-badge-sparkle s2" />
                 <span className="bs-speaker-badge-sparkle s3" />
-              </span>
+              </span> */}
               <div className="bs-speaker-badge-pill">
                 <span className="bs-speaker-badge-avatar" aria-hidden="true">
                   <span className="material-symbols-outlined">person</span>
                 </span>
                 <span className="bs-speaker-badge-label">
-                  {isTeacher ? '說話中' : '輪到你回答'}
+                  {/* {isTeacher ? '說話中' : '輪到你回答'} */}
+                  輪到你說話
                 </span>
                 <span className="bs-speaker-badge-eq" aria-hidden="true">
                   <span /><span /><span /><span />

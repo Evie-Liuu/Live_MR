@@ -6958,6 +6958,7 @@ button:disabled {
   pointer-events: none;
   padding-bottom: 8px;
   isolation: isolate;
+  gap: 10px;
 }
 
 /* 聚光燈光暈 — 標示「只收音此人」的視覺焦點 */
@@ -7149,6 +7150,9 @@ button:disabled {
   border-left: 11px solid transparent;
   border-right: 11px solid transparent;
   margin-top: -1px;
+  /* box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.22); */
   animation: bs-pill-bob 1.8s ease-in-out infinite;
 }
 
