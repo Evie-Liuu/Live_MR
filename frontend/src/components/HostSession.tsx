@@ -752,15 +752,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     // TODO Test
     console.log(sttTranscript);
     if (!sttTranscript) {
-      setSimInput('How are you?')
-      simulateTranscript(simInput)
+      const defaultText = 'How are you?';
+      setSimInput(defaultText);
+      simulateTranscript(defaultText);
     }
 
     setInteractionPhase('generating');
     if (sttRecording) {
       try { stopRec(); } catch { /* ignore */ }
     }
-  }, [aiBusy, sttRecording, stopRec]);
+  }, [aiBusy, sttRecording, stopRec, sttTranscript, simulateTranscript]);
 
   const handleTeacherTakeover = useCallback(() => {
     if (interactionPhaseRef.current !== 'student') return;

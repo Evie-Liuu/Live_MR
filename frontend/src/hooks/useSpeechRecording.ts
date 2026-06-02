@@ -38,6 +38,7 @@ export function useSpeechRecording(): UseSpeechRecordingResult {
 
   const recogRef = useRef<AnySpeechRecognition>(null)
   const finalBufferRef = useRef('')
+  const abortedRef = useRef(false)
 
   const stop = useCallback(() => {
     recogRef.current?.stop()
@@ -46,8 +47,9 @@ export function useSpeechRecording(): UseSpeechRecordingResult {
   const start = useCallback(() => {
     if (!SpeechRecognitionCtor) return
     if (recogRef.current) {
-      try { recogRef.current.abort() } catch { /* ignore */ }
+      try { abortedRef.current = true; recogRef.current.abort() } catch { /* ignore */ }
     }
+    abortedRef.current = false
     setInterim('')
     setTranscript('')
     setError(null)
@@ -77,6 +79,11 @@ export function useSpeechRecording(): UseSpeechRecordingResult {
     }
 
     recog.onend = () => {
+      if (abortedRef.current) {
+        setInterim('')
+        setRecording(false)
+        return
+      }
       const final = finalBufferRef.current.trim()
       setTranscript(isTooShortOrFiller(final) ? '' : final)
       setInterim('')
@@ -96,6 +103,7 @@ export function useSpeechRecording(): UseSpeechRecordingResult {
   }, [])
 
   const simulate = useCallback((text: string) => {
+    abortedRef.current = true
     try { recogRef.current?.abort() } catch { /* ignore */ }
     finalBufferRef.current = ''
     setInterim('')
