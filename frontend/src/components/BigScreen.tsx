@@ -353,6 +353,11 @@ export default function BigScreen() {
   // 正在說話的 identity 集合（由 HostSession 'speaking' 訊息驅動）
   const [speakingIdentities, setSpeakingIdentities] = useState<Set<string>>(new Set());
 
+  // 互動相位（'idle' | 'teacher' | 'generating' | 'student'）
+  const [interactionPhase, setInteractionPhase] = useState<string>(() => {
+    return sessionStorage.getItem('bigscreen-interactionPhase') ?? 'idle';
+  });
+
   const currentTaskId = activeTasks.find(t => !t.completed)?.id;
 
   // Settlement panel: shown when all tasks are done
@@ -1706,6 +1711,12 @@ export default function BigScreen() {
         } catch {/* ignore */ }
       } else if (msg.type === 'speaking') {
         setSpeakingIdentities(new Set(msg.speakingIdentities ?? []));
+      } else if (msg.type === 'interaction-phase') {
+        const phase = msg.interactionPhase ?? 'idle';
+        setInteractionPhase(phase);
+        try {
+          sessionStorage.setItem('bigscreen-interactionPhase', phase);
+        } catch {/* ignore */}
       }
     };
 
@@ -1899,7 +1910,7 @@ export default function BigScreen() {
             })()}
 
             {/* 中央機器人 + 環狀波動（僅在互動進行中顯示） */}
-            {/* {interactionPhase !== 'idle' && ( */}
+            {interactionPhase !== 'idle' && (
             <div
               className={`bs-robot-zone${teacherSpeaking ? ' is-teacher-speaking' : ''}${studentSpeaking ? ' is-student-speaking' : ''}`}
             >
@@ -1926,7 +1937,7 @@ export default function BigScreen() {
                 </div>
               )}
             </div>
-            {/* )} */}
+            )}
           </div>
         );
       })()}

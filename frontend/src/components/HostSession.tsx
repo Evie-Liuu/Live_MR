@@ -711,15 +711,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   const endInteraction = useCallback(() => {
     autoScriptTriggerRef.current = false;
-    if (sttRecording) {
+    // Use ref so this callback stays stable and doesn't change every time
+    // sttRecording flips — prevents the unmount-cleanup effect from firing
+    // endInteraction (and resetting phase to 'idle') on every recording toggle.
+    if (sttRecordingRef.current) {
       try { stopRec(); } catch { /* ignore */ }
     }
     setInteractionPhase('idle');
-  }, [sttRecording, stopRec]);
+  }, [stopRec]);
 
   const startInteraction = useCallback(() => {
     if (!sttSupported || !SCENE_CONSTRAINTS[selectedSceneId]) return;
-    if (sttRecording || aiBusy || interactionPhaseRef.current !== 'idle') return;
+    if (aiBusy || interactionPhaseRef.current !== 'idle') return;
 
     cancelAutoCountdown();
     resetChatHistory();
@@ -727,7 +730,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     clearTranscript();
     setAiError(null);
     setInteractionPhase('teacher');
-    startRec();
+    if (!sttRecording) {
+      startRec();
+    }
   }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, resetCachedReplies, clearTranscript, startRec]);
 
   const handleTeacherDone = useCallback(() => {
@@ -737,6 +742,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       return;
     }
     autoScriptTriggerRef.current = true;
+    // TODO Test
+    console.log(sttTranscript);
+    if (!sttTranscript) {
+      setSimInput('How are you?')
+      simulateTranscript(simInput)
+    }
+
     setInteractionPhase('generating');
     if (sttRecording) {
       try { stopRec(); } catch { /* ignore */ }
@@ -827,6 +839,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       // 空白鍵放開 / 開始互動腳本：跳過倒數，直接呼叫 AI 並推播提示
       handleHintRef.current('rearrange');
       if (isAutoScript) setInteractionPhase('student');
+      return;
+    }
+
+    if (interactionPhaseRef.current !== 'idle') {
+      // 互動進行中，必須等 handleTeacherDone 觸發 isAutoScript 才會送出，
+      // 平時 transcript 更新不啟動 3 秒倒數。
       return;
     }
 
@@ -2166,7 +2184,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         {interactionPhase === 'idle' && (
                           <button
                             className={`hs-ai-start-btn phase-${interactionPhase}`}
-                            disabled={!sttSupported || !hasConstraint || sttRecording || aiBusy}
+                            disabled={!sttSupported || !hasConstraint || aiBusy}
                             onClick={startInteraction}
                           >
                             <span className="material-symbols-outlined">smart_toy</span>

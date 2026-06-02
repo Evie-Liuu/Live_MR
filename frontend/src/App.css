@@ -6930,7 +6930,8 @@ button:disabled {
 .hs-ai-start-btn:hover:not(:disabled) { filter: brightness(1.06); }
 .hs-ai-start-btn:active:not(:disabled) { transform: translateY(1px); }
 .hs-ai-start-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.hs-ai-start-btn.phase-recording { background: linear-gradient(135deg, #f76e12, #e25a00); }
+.hs-ai-start-btn.phase-recording,
+.hs-ai-start-btn.phase-teacher { background: linear-gradient(135deg, #f76e12, #e25a00); }
 .hs-ai-start-btn.phase-generating { background: linear-gradient(135deg, #6b7280, #4b5563); }
 .hs-ai-start-btn.phase-student { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
 .hs-ai-start-cancel {
