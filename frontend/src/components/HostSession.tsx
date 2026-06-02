@@ -20,7 +20,6 @@ import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
-import { TASK_HINTS } from '../config/taskHints.ts';
 import { SCENE_CONSTRAINTS, shuffleWords, buildHintsSystemInstruction } from '../config/aiAssistant.ts';
 import type { AIHintMode, AIHintPayload, ChatTurn, CachedReplies, HintTaskContext } from '../config/aiAssistant.ts';
 import { passThroughGate } from '../config/transcriptGate.ts';
