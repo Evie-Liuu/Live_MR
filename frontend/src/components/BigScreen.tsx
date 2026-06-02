@@ -494,7 +494,17 @@ export default function BigScreen() {
   // 說話中 avatar 頭部 UV 座標（由 useBigScreenScene 回呼）
   const [speakerAnchors, setSpeakerAnchors] = useState<Record<string, { x: number; y: number }>>({});
 
-  const speakingIdentitiesArray = useMemo(() => Array.from(speakingIdentities), [speakingIdentities]);
+  // 開發階段：按 B 強制所有已知 avatar 都顯示說話中徽章，用於樣式調整
+  const [forceShowSpeakerBadges, setForceShowSpeakerBadges] = useState(false);
+
+  const speakingIdentitiesArray = useMemo(() => {
+    if (forceShowSpeakerBadges) {
+      // 用 participantNames（場上實際出現過的 avatars）以便定位到正確頭部 UV
+      const ids = Array.from(participantNames.keys());
+      return ids.length > 0 ? ids : Array.from(speakingIdentities);
+    }
+    return Array.from(speakingIdentities);
+  }, [speakingIdentities, forceShowSpeakerBadges, participantNames]);
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
@@ -1416,6 +1426,9 @@ export default function BigScreen() {
         const next = cur >= 60 ? 0 : Math.min(60, cur + 5); // 0 = unlimited above 60
         renderFpsRef.current = next;
         setRenderFps(next);
+      } else if (e.key === 'B' || e.key === 'b') {
+        // 開發階段：切換「全部 avatar 強制顯示說話中徽章」
+        setForceShowSpeakerBadges(prev => !prev);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -1716,7 +1729,7 @@ export default function BigScreen() {
         setInteractionPhase(phase);
         try {
           sessionStorage.setItem('bigscreen-interactionPhase', phase);
-        } catch {/* ignore */}
+        } catch {/* ignore */ }
       }
     };
 
@@ -1793,18 +1806,61 @@ export default function BigScreen() {
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
       </div>
 
-      {/* 3b. 各角色 VRM 頭上說話標記 */}
+      {forceShowSpeakerBadges && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 16,
+            left: 16,
+            zIndex: 100,
+            background: 'rgba(0,0,0,0.7)',
+            color: '#ffb347',
+            padding: '6px 12px',
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            pointerEvents: 'none',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          DEV · 強制顯示說話徽章（按 B 關閉）
+        </div>
+      )}
+
+      {/* 3b. 各角色 VRM 頭上說話標記 — 倒三角 callout + 「輪到你回答 / 說話中」
+              標籤 + 聚光燈光暈與等化器條，表明目前只收音此人 */}
       <div className="bs-speaker-anchors" aria-hidden={Object.keys(speakerAnchors).length === 0}>
-        {Object.entries(speakerAnchors).map(([id, p]) => (
-          <div
-            key={id}
-            className={`bs-speaker-badge${id.startsWith('host-') ? ' is-teacher' : ' is-student'}`}
-            style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
-          >
-            <span className="bs-speaker-badge-dot" />
-            <span className="bs-speaker-badge-wave" />
-          </div>
-        ))}
+        {Object.entries(speakerAnchors).map(([id, p]) => {
+          const isTeacher = id.startsWith('host-');
+          return (
+            <div
+              key={id}
+              className={`bs-speaker-badge${isTeacher ? ' is-teacher' : ' is-student'}`}
+              style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
+            >
+              <span className="bs-speaker-badge-halo" aria-hidden="true" />
+              <span className="bs-speaker-badge-ring" aria-hidden="true" />
+              <span className="bs-speaker-badge-sparkles" aria-hidden="true">
+                <span className="bs-speaker-badge-sparkle s1" />
+                <span className="bs-speaker-badge-sparkle s2" />
+                <span className="bs-speaker-badge-sparkle s3" />
+              </span>
+              <div className="bs-speaker-badge-pill">
+                <span className="bs-speaker-badge-avatar" aria-hidden="true">
+                  <span className="material-symbols-outlined">person</span>
+                </span>
+                <span className="bs-speaker-badge-label">
+                  {isTeacher ? '說話中' : '輪到你回答'}
+                </span>
+                <span className="bs-speaker-badge-eq" aria-hidden="true">
+                  <span /><span /><span /><span />
+                </span>
+              </div>
+              <span className="bs-speaker-badge-arrow" aria-hidden="true" />
+            </div>
+          );
+        })}
       </div>
 
       {isActivelyRecording && (
@@ -1911,32 +1967,32 @@ export default function BigScreen() {
 
             {/* 中央機器人 + 環狀波動（僅在互動進行中顯示） */}
             {interactionPhase !== 'idle' && (
-            <div
-              className={`bs-robot-zone${teacherSpeaking ? ' is-teacher-speaking' : ''}${studentSpeaking ? ' is-student-speaking' : ''}`}
-            >
-              <div className="bs-robot-rings" aria-hidden="true">
-                <span className="bs-robot-ring" />
-                <span className="bs-robot-ring" />
-                <span className="bs-robot-ring" />
-              </div>
-              <img src="/images/UI/robot_avatar.png" alt="🤖" className={`bs-robot-avatar`} />
-              {aiHint && aiHint.content && (
-                <div className={`bs-ai-bubble-wrap ai-mode--${aiHint.mode}`}>
-                  <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
-                    {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
-                  </span>
-                  <div className="bs-ai-bubble">
-                    <span className="bs-ai-bar-content">
-                      {aiHint.mode === 'rearrange'
-                        ? aiHint.content.split(' ').map((w, i) => (
-                          <span key={i} className="ai-chip">{w}</span>
-                        ))
-                        : aiHint.content}
-                    </span>
-                  </div>
+              <div
+                className={`bs-robot-zone${teacherSpeaking ? ' is-teacher-speaking' : ''}${studentSpeaking ? ' is-student-speaking' : ''}`}
+              >
+                <div className="bs-robot-rings" aria-hidden="true">
+                  <span className="bs-robot-ring" />
+                  <span className="bs-robot-ring" />
+                  <span className="bs-robot-ring" />
                 </div>
-              )}
-            </div>
+                <img src="/images/UI/robot_avatar.png" alt="🤖" className={`bs-robot-avatar`} />
+                {aiHint && aiHint.content && (
+                  <div className={`bs-ai-bubble-wrap ai-mode--${aiHint.mode}`}>
+                    <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
+                      {aiHint.mode === 'complete' ? '完整' : aiHint.mode === 'rearrange' ? '重組' : '延伸'}
+                    </span>
+                    <div className="bs-ai-bubble">
+                      <span className="bs-ai-bar-content">
+                        {aiHint.mode === 'rearrange'
+                          ? aiHint.content.split(' ').map((w, i) => (
+                            <span key={i} className="ai-chip">{w}</span>
+                          ))
+                          : aiHint.content}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         );
