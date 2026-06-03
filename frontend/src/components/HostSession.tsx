@@ -259,6 +259,12 @@ function SceneBackgroundControls({
 export default function HostSession({ roomId, livekitToken, hostToken }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
+  // true once the local camera track has been attached (LiveKit setCameraEnabled resolved)
+  const [cameraReady, setCameraReady] = useState(false);
+  // true once the hidden <video> has actually rendered a frame — only then is
+  // the camera truly "live"。loading overlay 必須等到此旗標為 true 才能消失,
+  // 否則畫面已露出但鏡頭其實還在連接、第一張影像尚未進來。
+  const [cameraStreaming, setCameraStreaming] = useState(false);
   const roomRef = useRef<Room | null>(null);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
@@ -1513,10 +1519,27 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
         // Attach teacher camera to hidden video for pose detection
         const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
-        if (camPub?.track && teacherVideoRef.current) {
-          teacherVideoRef.current.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
-          teacherVideoRef.current.play().catch(() => {/* autoplay */ });
+        const video = teacherVideoRef.current;
+        if (camPub?.track && video) {
+          video.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
+          video.play().catch(() => {/* autoplay */ });
+          // 等到第一張影像真的解出來再讓 loading overlay 消失。
+          // 優先用 requestVideoFrameCallback(瀏覽器確認影格已可繪製),
+          // 不支援時退回 'playing' 事件(影音管線已開始輸出)。
+          const markStreaming = () => { if (isMounted) setCameraStreaming(true); };
+          type VFC = (cb: () => void) => number;
+          const rvfc = (video as unknown as { requestVideoFrameCallback?: VFC }).requestVideoFrameCallback;
+          if (typeof rvfc === 'function') {
+            rvfc.call(video, markStreaming);
+          } else {
+            video.addEventListener('playing', markStreaming, { once: true });
+          }
+        } else if (isMounted) {
+          // 沒有 camera track(權限被擋等)就不再等影像,以免 overlay 卡死
+          setCameraStreaming(true);
         }
+        // Signal that camera publication finished — overlay text 切到「正在連接影像…」
+        if (isMounted) setCameraReady(true);
 
         // Populate pre-existing remote participants
         for (const [, p] of room.remoteParticipants) {
@@ -1545,6 +1568,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       room.off(RoomEvent.ParticipantMetadataChanged, handleParticipantMetadataChanged as never);
       room.off(RoomEvent.ActiveSpeakersChanged, handleActiveSpeakers as never);
       setConnectedRoom(null);
+      setCameraReady(false);
+      setCameraStreaming(false);
       setSpeakingSet(new Set());
       connectPromise.catch(() => { }).finally(() => {
         room.disconnect();
@@ -1734,6 +1759,23 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     <div className="host-session">
       {/* Hidden video for teacher pose detection */}
       <video ref={teacherVideoRef} autoPlay playsInline muted style={{ display: 'none' }} aria-hidden="true" />
+
+      {/* ── Loading Overlay ─────────────────────────────────────────────────── */}
+      {!cameraStreaming && (
+        <div className="hs-loading-overlay" aria-label="載入中">
+          <div className="hs-loading-card">
+            <div className="hs-loading-logo">
+              <img src="/logo.webp" alt="Logo" />
+            </div>
+            <div className="hs-loading-spinner" aria-hidden="true">
+              <span /><span /><span /><span />
+            </div>
+            <div className="hs-loading-text">
+              {!connectedRoom ? '正在連線…' : !cameraReady ? '正在啟動鏡頭…' : '正在連接影像…'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* <PerformanceMonitor label="App Render FPS" position="top-left" />
       <PerformanceMonitor label="Pose Data FPS" trigger={teacherPoseData} position="bottom-left" /> */}

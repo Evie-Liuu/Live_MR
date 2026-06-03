@@ -7439,3 +7439,106 @@ button:disabled {
 .ss-turn-done-btn:active {
   transform: translateY(1px);
 }
+
+/* ══════════════════════════════════════════════════════
+   HostSession — Initial Loading Overlay
+   Shown until cameraReady=true (room connected + camera on)
+   ══════════════════════════════════════════════════════ */
+@keyframes hs-loading-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes hs-spinner-ring {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes hs-loading-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.95); }
+}
+
+.hs-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Frosted-glass backdrop */
+  background: rgba(245, 247, 249, 0.82);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  animation: hs-loading-fade-in 0.3s ease both;
+}
+
+.hs-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 48px 56px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(247, 110, 18, 0.18);
+  border-radius: 28px;
+  box-shadow:
+    0 8px 32px rgba(247, 110, 18, 0.10),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.hs-loading-logo {
+  animation: hs-loading-pulse 2s ease-in-out infinite;
+}
+
+.hs-loading-logo img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 18px;
+}
+
+/* Four-segment ring spinner */
+.hs-loading-spinner {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+
+.hs-loading-spinner span {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid transparent;
+}
+
+.hs-loading-spinner span:nth-child(1) {
+  border-top-color: #F76E12;
+  animation: hs-spinner-ring 1.1s linear infinite;
+}
+
+.hs-loading-spinner span:nth-child(2) {
+  border-right-color: #00A99D;
+  animation: hs-spinner-ring 1.1s linear infinite 0.18s;
+  opacity: 0.75;
+}
+
+.hs-loading-spinner span:nth-child(3) {
+  border-bottom-color: #95CC4D;
+  animation: hs-spinner-ring 1.1s linear infinite 0.36s;
+  opacity: 0.5;
+}
+
+.hs-loading-spinner span:nth-child(4) {
+  border-left-color: #F76E12;
+  animation: hs-spinner-ring 1.1s linear infinite 0.54s;
+  opacity: 0.3;
+}
+
+.hs-loading-text {
+  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #8a5230;
+  letter-spacing: 0.02em;
+}
