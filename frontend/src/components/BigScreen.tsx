@@ -392,13 +392,22 @@ export default function BigScreen() {
   useEffect(() => { hintEnabledRef.current = hintEnabled; }, [hintEnabled]);
   const hintLevelRef = useRef<HintLevel | null>(hintLevel);
   useEffect(() => { hintLevelRef.current = hintLevel; }, [hintLevel]);
+  // AI 助理相關狀態 ref — 提供給錄製合成畫面的繪製函式讀取
+  // (speakerAnchors / forceShowSpeakerBadges 的 ref 在其 state 宣告之後另行建立,
+  //  以避免 block-scoped variable used before its declaration)
+  const aiHintRef = useRef<AIHintPayload | null>(aiHint);
+  useEffect(() => { aiHintRef.current = aiHint; }, [aiHint]);
+  const interactionPhaseRef = useRef<string>(interactionPhase);
+  useEffect(() => { interactionPhaseRef.current = interactionPhase; }, [interactionPhase]);
+  const speakingIdentitiesRef = useRef<Set<string>>(speakingIdentities);
+  useEffect(() => { speakingIdentitiesRef.current = speakingIdentities; }, [speakingIdentities]);
 
   // Bump overlay version whenever any input the overlay reads from changes.
   // The recording loop's dirty-check uses this to skip ~all overlay redraws
   // while the UI is steady, which is most of a session.
   useEffect(() => {
     overlayVersionRef.current++;
-  }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded, hintEnabled, hintLevel, aiHint]);
+  }, [activeTasks, sceneId, showSettlement, participantNames, isActivelyRecording, hasRecorded, hintEnabled, hintLevel, aiHint, interactionPhase, speakingIdentities]);
 
   // rVFC toggle — controls whether the recording loop uses requestVideoFrameCallback
   // to gate video-bg redraws. Toggled via backtick key on BigScreen.
@@ -496,6 +505,15 @@ export default function BigScreen() {
 
   // 開發階段：按 B 強制所有已知 avatar 都顯示說話中徽章，用於樣式調整
   const [forceShowSpeakerBadges, setForceShowSpeakerBadges] = useState(false);
+
+  // 說話徽章繪製用 ref + 同步 overlay 版本（補回上方因宣告順序限制延後建立的兩個 ref）
+  const speakerAnchorsRef = useRef<Record<string, { x: number; y: number }>>(speakerAnchors);
+  useEffect(() => { speakerAnchorsRef.current = speakerAnchors; }, [speakerAnchors]);
+  const forceShowSpeakerBadgesRef = useRef<boolean>(forceShowSpeakerBadges);
+  useEffect(() => { forceShowSpeakerBadgesRef.current = forceShowSpeakerBadges; }, [forceShowSpeakerBadges]);
+  useEffect(() => {
+    overlayVersionRef.current++;
+  }, [speakerAnchors, forceShowSpeakerBadges]);
 
   // 徽章顯示對象 = 目前互動相位的角色（teacher → host-*；student → 非 host-*）。
   // 注意：這驅動 useBigScreenScene 的 onSpeakerAnchors 回呼以取得頭部 UV，與
@@ -600,6 +618,21 @@ export default function BigScreen() {
     return found;
   };
 
+  /** Cached robot avatar img for the AI assistant overlay — mirrors medal cache. */
+  const robotImgCacheRef = useRef<HTMLImageElement | null>(null);
+  const getRobotImg = (): HTMLImageElement | null => {
+    const cached = robotImgCacheRef.current;
+    if (cached && cached.isConnected) return cached;
+    const found = document.querySelector('.bs-robot-avatar') as HTMLImageElement | null;
+    robotImgCacheRef.current = found;
+    if (found && !(found.complete && found.naturalWidth > 0)) {
+      const onReady = () => { overlayVersionRef.current++; };
+      found.addEventListener('load', onReady, { once: true });
+      found.addEventListener('error', onReady, { once: true });
+    }
+    return found;
+  };
+
   /** Bumped whenever overlay-relevant state changes; recording loop reads this
    *  to decide whether to repaint the offscreen overlay canvas. */
   const overlayVersionRef = useRef(0);
@@ -612,6 +645,10 @@ export default function BigScreen() {
     const tasks = activeTasksRef.current;
     const settlement = showSettlementRef.current;
     ctx.save();
+
+    // 中央容器(.bigscreen-current-task-container)的有效底部 — 隨任務框/提示欄向下生長,
+    // 後續 AI 助理機器人區段以此為基準向下定位。
+    let taskContainerBottomY = 96;
 
     // ── 1. Top pill (bigscreen-overlay) ──────────────────────────────────────
     const titleText = 'MR 雙語角 — 大屏顯示';
@@ -688,6 +725,7 @@ export default function BigScreen() {
       ctx.textBaseline = 'middle';
       ctx.fillText(currentTask.label, cw / 2, boxY + boxH / 2, maxLW);
       ctx.textAlign = 'left';
+      taskContainerBottomY = boxY + boxH;
 
       // ── 2b. Hint bar (bs-hint-bar) — attached below the task box ───────────
       if (hintActive) {
@@ -839,6 +877,7 @@ export default function BigScreen() {
           ctx.textAlign = 'left';
           ctx.fillText(text, cx, midY, maxCX - cx);
         }
+        taskContainerBottomY = barY + barH;
       }
     }
 
@@ -906,7 +945,286 @@ export default function BigScreen() {
       // }
     }
 
-    // ── 4. Settlement overlay (bs-settlement-overlay) ─────────────────────────
+    // ── 4. AI 助理機器人區 (bs-robot-zone) ──────────────────────────────────
+    // 互動進行中時,在中央任務框下方畫出機器人 + (可選的) AI 提示說話泡泡。
+    const phase = interactionPhaseRef.current;
+    if (phase !== 'idle') {
+      const aiHintNow = aiHintRef.current;
+      const showBubble = !!(aiHintNow && aiHintNow.content);
+
+      const robotWrapW = 108;
+      const robotWrapH = 108;
+      const robotImgSize = 100;
+      const bubblePadX = 20;
+      const bubblePadY = 12;
+      const bubbleH = 52;
+      const modeTagH = 18;
+      const robotToBubbleGap = 8;
+      const tagToBubbleGap = 8;
+
+      // 1) 量測泡泡與模式標籤寬度 (僅在 showBubble 時使用)
+      let bubbleW = 0;
+      let modeTagW = 0;
+      let modeLabel = '';
+      let modeColor = '#ff9800';
+      let modeBorder = 'rgba(255, 152, 0, 0.5)';
+      const isRearrange = showBubble && aiHintNow!.mode === 'rearrange';
+      if (showBubble) {
+        const mode = aiHintNow!.mode;
+        if (mode === 'complete') {
+          modeLabel = '完整'; modeColor = '#4caf50'; modeBorder = 'rgba(76, 175, 80, 0.5)';
+        } else if (mode === 'extend') {
+          modeLabel = '延伸'; modeColor = '#2196f3'; modeBorder = 'rgba(33, 150, 243, 0.5)';
+        } else {
+          modeLabel = '重組'; modeColor = '#ff9800'; modeBorder = 'rgba(255, 152, 0, 0.5)';
+        }
+        ctx.font = '800 11px system-ui, sans-serif';
+        modeTagW = ctx.measureText(modeLabel).width + 16;
+
+        if (isRearrange) {
+          ctx.font = '700 20px system-ui, sans-serif';
+          const words = aiHintNow!.content!.split(' ').filter(Boolean);
+          let contentW = 0;
+          for (let i = 0; i < words.length; i++) {
+            contentW += ctx.measureText(words[i]).width + 24;
+            if (i < words.length - 1) contentW += 8;
+          }
+          bubbleW = contentW + bubblePadX * 2;
+        } else {
+          ctx.font = '800 22px system-ui, sans-serif';
+          bubbleW = ctx.measureText(aiHintNow!.content!).width + bubblePadX * 2;
+        }
+        // 限制泡泡最大寬度,避免長句把整列推出畫面
+        const maxBubbleW = Math.min(cw * 0.46, 720);
+        bubbleW = Math.min(bubbleW, maxBubbleW);
+      }
+
+      const totalRowW = robotWrapW + (showBubble ? robotToBubbleGap + modeTagW + tagToBubbleGap + bubbleW : 0);
+      const zoneTop = taskContainerBottomY > 96 ? taskContainerBottomY + 10 : 96;
+      const rowLeftX = (cw - totalRowW) / 2;
+
+      // 機器人柔光暈 (徑向漸層)
+      const robotImgX = rowLeftX + (robotWrapW - robotImgSize) / 2;
+      const robotImgY = zoneTop + (robotWrapH - robotImgSize) / 2;
+      const haloR = 74;
+      const haloCx = robotImgX + robotImgSize / 2;
+      const haloCy = robotImgY + robotImgSize / 2;
+      const haloGrad = ctx.createRadialGradient(haloCx, haloCy, 0, haloCx, haloCy, haloR);
+      haloGrad.addColorStop(0, 'rgba(120, 168, 230, 0.53)');
+      haloGrad.addColorStop(0.48, 'rgba(120, 168, 230, 0.20)');
+      haloGrad.addColorStop(0.72, 'rgba(120, 168, 230, 0)');
+      ctx.fillStyle = haloGrad;
+      ctx.beginPath();
+      ctx.arc(haloCx, haloCy, haloR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 機器人本體
+      const robotImg = getRobotImg();
+      if (robotImg && robotImg.complete && robotImg.naturalWidth > 0) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.32)';
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 8;
+        ctx.drawImage(robotImg, robotImgX, robotImgY, robotImgSize, robotImgSize);
+        ctx.restore();
+      }
+
+      // 模式標籤 + 泡泡 (底邊對齊機器人底邊)
+      if (showBubble) {
+        const rowBottom = zoneTop + robotWrapH;
+        const tagX = rowLeftX + robotWrapW + robotToBubbleGap;
+        const tagY = rowBottom - modeTagH - 4;
+        ctx.fillStyle = modeColor;
+        rrPath(ctx, tagX, tagY, modeTagW, modeTagH, modeTagH / 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 11px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(modeLabel, tagX + modeTagW / 2, tagY + modeTagH / 2);
+
+        // 泡泡白底 + 模式色邊框
+        const bubbleX = tagX + modeTagW + tagToBubbleGap;
+        const bubbleY = rowBottom - bubbleH;
+        ctx.fillStyle = '#ffffff';
+        rrPath(ctx, bubbleX, bubbleY, bubbleW, bubbleH, 18);
+        ctx.fill();
+        ctx.strokeStyle = modeBorder;
+        ctx.lineWidth = 2.5;
+        rrPath(ctx, bubbleX, bubbleY, bubbleW, bubbleH, 18);
+        ctx.stroke();
+
+        // 泡泡左側三角指針
+        const arrowAnchorY = bubbleY + 18;
+        ctx.fillStyle = modeBorder;
+        ctx.beginPath();
+        ctx.moveTo(bubbleX - 10, arrowAnchorY);
+        ctx.lineTo(bubbleX, arrowAnchorY - 8);
+        ctx.lineTo(bubbleX, arrowAnchorY + 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(bubbleX - 7, arrowAnchorY);
+        ctx.lineTo(bubbleX, arrowAnchorY - 8);
+        ctx.lineTo(bubbleX, arrowAnchorY + 8);
+        ctx.closePath();
+        ctx.fill();
+
+        // 泡泡內容文字
+        const contentMaxW = bubbleW - bubblePadX * 2;
+        const contentCY = bubbleY + bubbleH / 2;
+        if (isRearrange) {
+          ctx.font = '700 20px system-ui, sans-serif';
+          const words = aiHintNow!.content!.split(' ').filter(Boolean);
+          let cx2 = bubbleX + bubblePadX;
+          const chipH = 32;
+          for (const word of words) {
+            const ww = ctx.measureText(word).width + 24;
+            ctx.save();
+            ctx.setLineDash([4, 3]);
+            ctx.strokeStyle = modeColor;
+            ctx.lineWidth = 1.5;
+            rrPath(ctx, cx2, contentCY - chipH / 2, ww, chipH, 8);
+            ctx.fillStyle = 'rgba(0,0,0,0.04)';
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+            ctx.fillStyle = '#333333';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(word, cx2 + ww / 2, contentCY);
+            cx2 += ww + 8;
+            if (cx2 > bubbleX + bubbleW - bubblePadX) break;
+          }
+        } else {
+          ctx.font = '800 22px system-ui, sans-serif';
+          ctx.fillStyle = '#333333';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(aiHintNow!.content!, bubbleX + bubblePadX, contentCY, contentMaxW);
+        }
+      }
+    }
+
+    // ── 5. 各角色 VRM 頭上說話徽章 (bs-speaker-badge) ───────────────────────
+    {
+      const anchors = speakerAnchorsRef.current;
+      const speaking = speakingIdentitiesRef.current;
+      const forceShow = forceShowSpeakerBadgesRef.current;
+      const anchorIds = Object.keys(anchors);
+      if (anchorIds.length > 0) {
+        const label = '輪到你說話';
+        const avatarSize = 28;
+        const pillPadL = 8;
+        const pillPadR = 18;
+        const pillGap = 10;
+        const eqW = 21; // 4 條 × 3px + 3 gap × 3px
+        const pillH = 44;
+        const arrowH = 15;
+        const arrowHalfW = 11;
+        const pillToArrowGap = 10;
+        const badgePadBottom = 8;
+
+        ctx.font = '800 16px system-ui, sans-serif';
+        const labelW = ctx.measureText(label).width;
+        const pillW = pillPadL + avatarSize + pillGap + labelW + pillGap + eqW + pillPadR;
+
+        for (const id of anchorIds) {
+          const p = anchors[id];
+          const isTeacher = id.startsWith('host-');
+          const isReceiving = forceShow || speaking.has(id);
+
+          const anchorX = p.x * cw;
+          const anchorY = p.y * ch;
+
+          // 徽章 transform: translate(-50%, -100%) → 底邊中心位於 anchor
+          const arrowBottomY = anchorY - badgePadBottom;
+          const arrowTopY = arrowBottomY - arrowH;
+          const pillBottomY = arrowTopY - pillToArrowGap;
+          const pillTopY = pillBottomY - pillH;
+          const pillX = anchorX - pillW / 2;
+
+          // Pill 漸層底
+          ctx.save();
+          const pillGrad = ctx.createLinearGradient(pillX, pillTopY, pillX + pillW, pillTopY + pillH);
+          if (isTeacher) {
+            pillGrad.addColorStop(0, '#ff8a3d');
+            pillGrad.addColorStop(1, '#e25a00');
+          } else {
+            pillGrad.addColorStop(0, '#2dd4bf');
+            pillGrad.addColorStop(1, '#00897b');
+          }
+          ctx.fillStyle = pillGrad;
+          ctx.shadowColor = 'rgba(0,0,0,0.32)';
+          ctx.shadowBlur = 18;
+          ctx.shadowOffsetY = 6;
+          rrPath(ctx, pillX, pillTopY, pillW, pillH, pillH / 2);
+          ctx.fill();
+          ctx.restore();
+
+          // Pill 內側白邊
+          ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+          ctx.lineWidth = 2;
+          rrPath(ctx, pillX + 1, pillTopY + 1, pillW - 2, pillH - 2, (pillH - 2) / 2);
+          ctx.stroke();
+
+          // 人物 icon 圓底 (用 emoji 取代 material symbol 字型,避免字型載入問題)
+          const avX = pillX + pillPadL;
+          const avY = pillTopY + (pillH - avatarSize) / 2;
+          const avCx = avX + avatarSize / 2;
+          const avCy = avY + avatarSize / 2;
+          ctx.fillStyle = 'rgba(255,255,255,0.22)';
+          ctx.beginPath();
+          ctx.arc(avCx, avCy, avatarSize / 2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(avCx, avCy, avatarSize / 2 - 0.75, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '600 18px "Segoe UI Emoji", "Apple Color Emoji", system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(isTeacher ? '👤' : '👤', avCx, avCy + 1);
+
+          // 標籤文字
+          ctx.fillStyle = '#ffffff';
+          ctx.font = '800 16px system-ui, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          const labelX = avX + avatarSize + pillGap;
+          ctx.fillText(label, labelX, pillTopY + pillH / 2);
+
+          // 等化器 4 條 — 收音中時取高低錯落的快照,否則一律最小高度
+          const eqX = labelX + labelW + pillGap;
+          const eqMidY = pillTopY + pillH / 2;
+          const bars = isReceiving ? [11, 16, 7, 13] : [5, 5, 5, 5];
+          for (let i = 0; i < 4; i++) {
+            const bx = eqX + i * 6;
+            const bh = bars[i];
+            ctx.fillStyle = '#ffffff';
+            rrPath(ctx, bx, eqMidY - bh / 2, 3, bh, 1.5);
+            ctx.fill();
+          }
+
+          // 倒三角箭頭
+          ctx.fillStyle = isTeacher ? '#F0843D' : '#2ACAB6';
+          ctx.beginPath();
+          ctx.moveTo(anchorX - arrowHalfW, arrowTopY);
+          ctx.lineTo(anchorX + arrowHalfW, arrowTopY);
+          ctx.lineTo(anchorX, arrowTopY + arrowH);
+          ctx.closePath();
+          ctx.fill();
+        }
+        // reset text alignment for subsequent sections
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
+    }
+
+    // ── 6. Settlement overlay (bs-settlement-overlay) ─────────────────────────
     if (settlement) {
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
       ctx.fillRect(0, 0, cw, ch);
