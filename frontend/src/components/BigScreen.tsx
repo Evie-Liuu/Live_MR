@@ -1978,12 +1978,19 @@ export default function BigScreen() {
               <div
                 className={`bs-robot-zone${teacherSpeaking ? ' is-teacher-speaking' : ''}${studentSpeaking ? ' is-student-speaking' : ''}`}
               >
-                <div className="bs-robot-rings" aria-hidden="true">
-                  <span className="bs-robot-ring" />
-                  <span className="bs-robot-ring" />
-                  <span className="bs-robot-ring" />
+                <div className="bs-robot-avatar-wrap">
+                  <span className="bs-robot-halo" aria-hidden="true" />
+                  {/* <div className="bs-robot-rings" aria-hidden="true">
+                    <span className="bs-robot-ring" />
+                    <span className="bs-robot-ring" />
+                    <span className="bs-robot-ring" />
+                  </div> */}
+                  <img src="/images/UI/robot_avatar.png" alt="🤖" className="bs-robot-avatar" />
+                  {/* <span className="bs-robot-badge" aria-hidden="true">
+                    <span className="bs-robot-badge-dot" />
+                    AI 助理
+                  </span> */}
                 </div>
-                <img src="/images/UI/robot_avatar.png" alt="🤖" className={`bs-robot-avatar`} />
                 {aiHint && aiHint.content && (
                   <div className={`bs-ai-bubble-wrap ai-mode--${aiHint.mode}`}>
                     <span className={`bs-ai-bar-mode-tag ai-mode--${aiHint.mode}`}>
