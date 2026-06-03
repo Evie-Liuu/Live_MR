@@ -44,6 +44,10 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [retryCount, setRetryCount] = useState(0);
   const MAX_RETRIES = 3;
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 教師端離線寬限期 — 重整/網路短暫斷線時不立刻把學生踢到「課堂已結束」畫面,
+  // 給老師 N 秒重連回來;期間若有任何 host-* 重新加入就取消倒數。
+  const hostGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const HOST_GRACE_PERIOD_MS = 15000;
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
   const [interactionPhase, setInteractionPhase] = useState<
     'idle' | 'teacher' | 'generating' | 'student'
@@ -204,12 +208,26 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
 
     room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
       checkHostMetadata(p);
+      // 教師重連回來 — 取消任何進行中的「課堂已結束」倒數
+      if (p.identity.startsWith('host-') && hostGraceTimerRef.current) {
+        clearTimeout(hostGraceTimerRef.current);
+        hostGraceTimerRef.current = null;
+      }
     });
 
     room.on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
-      if (isMounted && p.identity.startsWith('host-')) {
-        setHostLeft(true);
-      }
+      if (!isMounted || !p.identity.startsWith('host-')) return;
+      // 若房內還有其他 host-*(多教師情境),不啟動倒數
+      const stillHasHost = Array.from(room.remoteParticipants.values()).some(
+        (rp) => rp.identity.startsWith('host-'),
+      );
+      if (stillHasHost) return;
+      // 啟動寬限期 — 期間若 host 重連會在 ParticipantConnected 取消
+      if (hostGraceTimerRef.current) clearTimeout(hostGraceTimerRef.current);
+      hostGraceTimerRef.current = setTimeout(() => {
+        hostGraceTimerRef.current = null;
+        if (isMounted) setHostLeft(true);
+      }, HOST_GRACE_PERIOD_MS);
     });
 
     room.on(RoomEvent.ParticipantMetadataChanged, (_metadata: string | undefined, p: Participant) => {
@@ -312,6 +330,10 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
+      }
+      if (hostGraceTimerRef.current) {
+        clearTimeout(hostGraceTimerRef.current);
+        hostGraceTimerRef.current = null;
       }
       // 釋放本地預覽的 camera stream
       if (displayStreamRef.current) {
