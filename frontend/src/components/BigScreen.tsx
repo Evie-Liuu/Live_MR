@@ -956,7 +956,7 @@ export default function BigScreen() {
       const robotWrapH = 108;
       const robotImgSize = 100;
       const bubblePadX = 20;
-      const bubblePadY = 12;
+      const _bubblePadY = 12;
       const bubbleH = 52;
       const modeTagH = 18;
       const robotToBubbleGap = 8;
