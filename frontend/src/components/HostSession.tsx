@@ -835,6 +835,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // ── 空白鍵：按住開始收音，放開即送 AI 並推播提示 ─────────────────────────
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      return
       if (e.code !== 'Space' || e.repeat) return;
       // 不攔截輸入框內的空白鍵
       const target = e.target as HTMLElement;
@@ -856,6 +857,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
+      return
       if (e.code !== 'Space') return;
       const target = e.target as HTMLElement;
       if (
@@ -2310,7 +2312,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                               />
                             ))}
                           </div>
-                          <div className="hs-ai-record-actions">
+                          {/* <div className="hs-ai-record-actions">
                             <button
                               className="hs-ai-record-action-btn"
                               disabled={!sttSupported}
@@ -2331,7 +2333,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                                   按住 <kbd className="hs-ai-kbd">Space</kbd> 開始，放開即發送
                                 </>
                                 : '不支援'}
-                          </div>
+                          </div> */}
                         </div>
                         {sttError && <div className="hs-ai-error">{sttError}</div>}
                         {import.meta.env.DEV && (
