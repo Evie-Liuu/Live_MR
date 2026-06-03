@@ -4,7 +4,7 @@ import { DisconnectReason } from '@livekit/protocol';
 import { usePoseDetection } from '../hooks/usePoseDetection';
 import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
-import { LIVEKIT_URL } from '../config/constants.ts';
+import { LIVEKIT_URL, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import { buildStudentExtendPrompt } from '../config/aiAssistant.ts';
 import { generateHint, toFriendlyError } from '../utils/geminiClient.ts';
@@ -300,7 +300,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           await room.localParticipant.publishTrack(stream.getVideoTracks()[0].clone(), {
             source: Track.Source.Camera,
           });
-          await room.localParticipant.setMicrophoneEnabled(true);
+          await room.localParticipant.setMicrophoneEnabled(true, MIC_AUDIO_OPTIONS);
         } catch (e) {
           if (isMounted) {
             console.error("Failed to enable camera/microphone:", e);

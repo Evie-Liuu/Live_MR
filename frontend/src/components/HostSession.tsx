@@ -15,7 +15,7 @@ import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 // import PerformanceMonitor from './PerformanceMonitor.tsx';
-import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
+import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
 import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
@@ -1512,7 +1512,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
         try {
           await room.localParticipant.setCameraEnabled(true);
-          await room.localParticipant.setMicrophoneEnabled(true);
+          await room.localParticipant.setMicrophoneEnabled(true, MIC_AUDIO_OPTIONS);
         } catch (err) {
           if (isMounted) console.error('Failed to enable camera/microphone:', err);
         }
