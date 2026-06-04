@@ -47,7 +47,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   // 教師端離線寬限期 — 重整/網路短暫斷線時不立刻把學生踢到「課堂已結束」畫面,
   // 給老師 N 秒重連回來;期間若有任何 host-* 重新加入就取消倒數。
   const hostGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const HOST_GRACE_PERIOD_MS = 15000;
+  const HOST_GRACE_PERIOD_MS = 10000;
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
   const [interactionPhase, setInteractionPhase] = useState<
     'idle' | 'teacher' | 'generating' | 'student'
