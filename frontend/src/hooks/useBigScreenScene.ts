@@ -29,6 +29,9 @@ import {
   disposeStaticProps,
   disposeTaskProps,
 } from '../utils/propLoader';
+import { loadOccluderGlb, disposeOccluder } from '../utils/occluderLoader';
+import { OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders';
+import type { SceneOccluderInstance } from '../types/sceneOccluder';
 import type { PoseFrame, SceneConfig, AvatarSpawnConfig, GroupMemberRef } from '../types/vrm';
 import {
   applyGroupTransform,
@@ -153,13 +156,19 @@ interface UseBigScreenSceneOptions {
    * 無人說話時回呼空物件一次以清除標記。
    */
   onSpeakerAnchors?: (anchors: Record<string, { x: number; y: number }>) => void;
+  /**
+   * 當前場景的遮罩物件實例清單。改變時依 instanceId 做 diff:
+   * 新增 → 載入 GLB;移除 → dispose;保留 → 同步 transform。
+   * scene unmount 時全部 dispose。
+   */
+  occluderInstances?: SceneOccluderInstance[];
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -207,8 +216,104 @@ export function useBigScreenScene(
   const staticPropPoolRef = useRef<Map<string, THREE.Group>>(new Map());
   const taskPropPoolRef = useRef<Map<string, THREE.Group>>(new Map());
 
+  /**
+   * 已掛載的遮罩物件:instanceId → THREE.Group。
+   * 每次 occluderInstances prop 變動時做 diff sync;scene unmount 時整批 dispose。
+   */
+  const occluderPoolRef = useRef<Map<string, THREE.Group>>(new Map());
+  /** 記錄每個 instanceId 目前用的 libraryId,以判斷是否需要重新載入(libraryId 改變)。 */
+  const occluderLibIdsRef = useRef<Map<string, string>>(new Map());
+  /** in-flight 載入旗標,避免同一 instanceId 重複觸發載入。 */
+  const occluderLoadingRef = useRef<Set<string>>(new Set());
+
   const groupTransformsRef = useRef<Record<string, { pos: [number, number, number]; rot: [number, number, number] }>>({});
   useEffect(() => { groupTransformsRef.current = groupTransforms ?? {}; }, [groupTransforms]);
+
+  // ─── Occluder diff sync ────────────────────────────────────────────────────
+  // 依 instanceId 比對:
+  //  - 新增 instanceId → 載入 GLB 並設定 transform
+  //  - 既有 instanceId 但 libraryId 改變 → dispose 舊的,重新載入(MVP 罕見;
+  //    drawer 不提供「換成另一個 library 物件」流程,但保險為之)
+  //  - 既有 instanceId 且 libraryId 同 → 只更新 transform
+  //  - 移除的 instanceId → dispose
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const next = occluderInstances ?? [];
+    const nextIds = new Set(next.map((i) => i.instanceId));
+
+    // 移除不再存在的 instance
+    for (const [id, group] of occluderPoolRef.current.entries()) {
+      if (!nextIds.has(id)) {
+        disposeOccluder(group, scene);
+        occluderPoolRef.current.delete(id);
+        occluderLibIdsRef.current.delete(id);
+      }
+    }
+
+    // 新增 / 更新
+    for (const inst of next) {
+      const existing = occluderPoolRef.current.get(inst.instanceId);
+      const sameLib = occluderLibIdsRef.current.get(inst.instanceId) === inst.libraryId;
+
+      if (existing && sameLib) {
+        existing.position.set(...inst.position);
+        existing.rotation.set(...inst.rotation);
+        existing.scale.setScalar(inst.scale);
+        continue;
+      }
+
+      // library 變了 — 先 dispose 舊的
+      if (existing && !sameLib) {
+        disposeOccluder(existing, scene);
+        occluderPoolRef.current.delete(inst.instanceId);
+        occluderLibIdsRef.current.delete(inst.instanceId);
+      }
+
+      // 跳過進行中載入,避免同 instance 連續變更導致重複載入
+      if (occluderLoadingRef.current.has(inst.instanceId)) continue;
+
+      const libItem = OCCLUDER_LIBRARY_BY_ID[inst.libraryId];
+      if (!libItem) {
+        // library 已被開發者移除 — 視同失效,drawer 端會顯示 (已失效)
+        continue;
+      }
+
+      occluderLoadingRef.current.add(inst.instanceId);
+      const sceneAtLoad = scene; // capture,避免在切場景後寫進舊 scene
+      loadOccluderGlb(libItem.glbUrl, sceneAtLoad)
+        .then((group) => {
+          occluderLoadingRef.current.delete(inst.instanceId);
+          if (!group) return;
+          // 載入完成時可能已切場景或 instance 已被刪除,需驗證
+          if (sceneRef.current !== sceneAtLoad) {
+            disposeOccluder(group, sceneAtLoad);
+            return;
+          }
+          // instance 還在嗎?
+          const stillExpected = (occluderInstancesRef.current ?? []).some(
+            (i) => i.instanceId === inst.instanceId && i.libraryId === inst.libraryId,
+          );
+          if (!stillExpected) {
+            disposeOccluder(group, sceneAtLoad);
+            return;
+          }
+          group.position.set(...inst.position);
+          group.rotation.set(...inst.rotation);
+          group.scale.setScalar(inst.scale);
+          occluderPoolRef.current.set(inst.instanceId, group);
+          occluderLibIdsRef.current.set(inst.instanceId, inst.libraryId);
+        })
+        .catch((err) => {
+          occluderLoadingRef.current.delete(inst.instanceId);
+          console.warn('[BigScreenScene] occluder load error:', err);
+        });
+    }
+  }, [occluderInstances]);
+
+  /** 給 in-flight 載入完成回呼判斷 instance 是否仍被要求渲染。 */
+  const occluderInstancesRef = useRef<SceneOccluderInstance[]>(occluderInstances ?? []);
+  useEffect(() => { occluderInstancesRef.current = occluderInstances ?? []; }, [occluderInstances]);
 
   /** 套用群組變換後的 taskProp displayPos：taskId → final pos。 */
   const effectiveDisplayPosRef = useRef<Map<string, Vec3>>(new Map());
@@ -738,6 +843,13 @@ export function useBigScreenScene(
       spawnOverridesRef.current.clear();
       disposeStaticProps(staticPropPoolRef.current, scene);
       disposeTaskProps(taskPropPoolRef.current, scene);
+      // 釋放所有遮罩物件
+      for (const group of occluderPoolRef.current.values()) {
+        disposeOccluder(group, scene);
+      }
+      occluderPoolRef.current.clear();
+      occluderLibIdsRef.current.clear();
+      occluderLoadingRef.current.clear();
       heldByIdentityRef.current.clear();
       avgPoseIntervalsRef.current = {};
       scene.remove(shadowFloor);

@@ -31,7 +31,9 @@ import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest, removeParticipant } from '../api.ts';
 import type { RoomEvent as ApiRoomEvent } from '../api.ts';
 import SceneEditor from './SceneEditor.tsx';
+import SceneOccludersPanel from './SceneOccludersPanel.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
+import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 
 // ─── Module-level constants & types ─────────────────────────────────────────
 type InteractionPhase = 'idle' | 'teacher' | 'generating' | 'student';
@@ -340,6 +342,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [sceneEditorGroupId, setSceneEditorGroupId] = useState<string | null>(null);
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [showPendingPanel, setShowPendingPanel] = useState(false);
+  const [showOccludersPanel, setShowOccludersPanel] = useState(false);
   const [pending, setPending] = useState<PendingStudent[]>([]);
   // Settlement modal (shown when allDone)
   const [showSettlement, setShowSettlement] = useState(false);
@@ -470,6 +473,37 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
   );
+
+  // ─── 場景遮罩物件(occluders) — per-scene 編輯狀態 ──────────────────────
+  const OCCLUDERS_STORAGE_KEY = 'bigscreen-scene-occluders';
+  const readOccludersForScene = useCallback((sceneId: string): SceneOccluderInstance[] => {
+    try {
+      const all = JSON.parse(localStorage.getItem(OCCLUDERS_STORAGE_KEY) || '{}') as Record<string, SceneOccluderInstance[]>;
+      const list = all[sceneId];
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  }, []);
+  const writeOccludersForScene = useCallback((sceneId: string, list: SceneOccluderInstance[]) => {
+    try {
+      const all = JSON.parse(localStorage.getItem(OCCLUDERS_STORAGE_KEY) || '{}') as Record<string, SceneOccluderInstance[]>;
+      all[sceneId] = list;
+      localStorage.setItem(OCCLUDERS_STORAGE_KEY, JSON.stringify(all));
+    } catch (e) {
+      console.warn('[HostSession] save occluders failed:', e);
+    }
+  }, []);
+  const [occluderInstances, setOccluderInstances] = useState<SceneOccluderInstance[]>(
+    () => readOccludersForScene(sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID),
+  );
+  /** drawer 編輯 callback — 寫 localStorage 並廣播給 BigScreen。 */
+  const handleOccludersChange = useCallback((next: SceneOccluderInstance[]) => {
+    setOccluderInstances(next);
+    writeOccludersForScene(selectedSceneId, next);
+    const msg: BigScreenMsg = { type: 'occluders-set', occluders: next };
+    channelRef.current?.postMessage(msg);
+  }, [selectedSceneId, writeOccludersForScene]);
   // Global default VRM for new avatars (students who haven't picked their own)
   const [selectedVrmSourceId, setSelectedVrmSourceId] = useState<string | null>(
     () => sessionStorage.getItem('bigscreen-vrmSourceId') ?? null,
@@ -1018,6 +1052,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       setHasRecorded(false);
       const taskClearMsg: BigScreenMsg = { type: 'task-change', tasks: [] };
       channelRef.current?.postMessage(taskClearMsg);
+      // 切到新場景時:讀該場景的遮罩物件清單並廣播。BigScreen 端在 'scene-change'
+      // 後也會從 localStorage 重讀,這裡額外廣播是為了避免 race。
+      const nextOccluders = readOccludersForScene(sceneId);
+      setOccluderInstances(nextOccluders);
+      const occMsg: BigScreenMsg = { type: 'occluders-set', occluders: nextOccluders };
+      channelRef.current?.postMessage(occMsg);
       // AI 助理：場景切換 → 取消倒數、停止錄音、清空 transcript / 最新提示，並廣播清除
       cancelAutoCountdown();
       endInteraction();
@@ -1071,7 +1111,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         });
       }
     },
-    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, endInteraction, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint],
+    [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, endInteraction, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint, readOccludersForScene],
   );
 
   // const handleVrmChange = useCallback(
@@ -1743,11 +1783,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const currentTaskIndex = selectedTasks.findIndex(t => !t.completed);
 
   // Helpers to open exactly one panel at a time
-  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
-  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
-  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); };
-  const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); };
-  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setSceneEditorGroupId(null); };
+  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
+  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
+  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
+  const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowOccludersPanel(false); };
+  const openOccluders = () => { setShowOccludersPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
+  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setSceneEditorGroupId(null); };
 
   const handleBrandClick = () => {
     setShowExitConfirm(true);
@@ -1973,6 +2014,18 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                 <span className="hs-scene-thumb-icon">{currentSceneVariant?.icon ?? '🎬'}</span>
               </div>
               <span className="hs-scene-label">{currentScenePreset.label}</span>
+            </div>
+          </div>
+
+          {/* 場景物件(遮罩)卡 — 在 camera 背景下用虛擬物件擋住真實環境干擾 */}
+          <div
+            className={`hs-card hs-card--scene ${showOccludersPanel ? 'hs-card--open' : ''}`}
+            onClick={openOccluders}
+          >
+            <div className="hs-card-header">
+              <span className="hs-card-icon">🪴</span>
+              <span className="hs-card-title">場景物件</span>
+              <span className="hs-badge hs-badge--info">{occluderInstances.length}</span>
             </div>
           </div>
 
@@ -2791,6 +2844,15 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           </div>
         </div>
       )}
+
+      {/* ── 場景遮罩物件 Drawer ────────────────────────────────────────────── */}
+      <SceneOccludersPanel
+        sceneId={selectedSceneId}
+        instances={occluderInstances}
+        onChange={handleOccludersChange}
+        open={showOccludersPanel}
+        onClose={() => setShowOccludersPanel(false)}
+      />
 
       {/* ── Scene Editor Drawer ────────────────────────────────────────────── */}
       {sceneEditorGroupId && (() => {

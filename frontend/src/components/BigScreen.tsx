@@ -8,6 +8,7 @@ import { getRecordings } from '../api.ts';
 import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel } from '../config/taskHints.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
+import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 
 export interface TaskEntry {
   id: string;
@@ -22,7 +23,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -55,6 +56,19 @@ export interface BigScreenMsg {
   speakingIdentities?: string[];
   /** For 'interaction-phase': 目前互動腳本相位（'idle' 表示未互動） */
   interactionPhase?: string;
+  /** For 'occluders-set': 當前場景的完整遮罩物件清單 */
+  occluders?: SceneOccluderInstance[];
+}
+
+/** 共用:從 localStorage 讀某場景的遮罩物件清單(失敗則回空陣列)。 */
+function readOccludersForScene(sceneId: string): SceneOccluderInstance[] {
+  try {
+    const all = JSON.parse(localStorage.getItem('bigscreen-scene-occluders') || '{}') as Record<string, SceneOccluderInstance[]>;
+    const list = all[sceneId];
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -343,6 +357,16 @@ export default function BigScreen() {
     }
   }, [sceneId]);
 
+  // 場景遮罩物件 — 同樣以 sceneId 為 key 存 localStorage,切場景時重讀。
+  // 由 HostSession 透過 'occluders-set' 訊息推送變動;BigScreen 端僅顯示與快取,
+  // 不自行編輯。
+  const [occluderInstances, setOccluderInstances] = useState<SceneOccluderInstance[]>(
+    () => readOccludersForScene(sceneId),
+  );
+  useEffect(() => {
+    setOccluderInstances(readOccludersForScene(sceneId));
+  }, [sceneId]);
+
   const [hintLevel, setHintLevel] = useState<HintLevel | null>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
@@ -541,6 +565,7 @@ export default function BigScreen() {
     groupTransforms,
     speakingIdentities: speakingIdentitiesArray,
     onSpeakerAnchors: setSpeakerAnchors,
+    occluderInstances,
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -2053,6 +2078,10 @@ export default function BigScreen() {
         try {
           sessionStorage.setItem('bigscreen-interactionPhase', phase);
         } catch {/* ignore */ }
+      } else if (msg.type === 'occluders-set') {
+        // HostSession 已先寫好 localStorage,這裡只更新 state 觸發 hook diff
+        const list = Array.isArray(msg.occluders) ? msg.occluders : [];
+        setOccluderInstances(list);
       }
     };
 
