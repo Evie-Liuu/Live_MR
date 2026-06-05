@@ -360,6 +360,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const lastSpeakingStudentRef = useRef<string | null>(null);
   // Embedded BigScreen preview in sidebar
   const [showBigScreenPreview, setShowBigScreenPreview] = useState(false);
+  const [bigScreenMenuOpen, setBigScreenMenuOpen] = useState(false);
 
   // Student removal confirmation modal state
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
@@ -1618,7 +1619,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, [connectedRoom, faceEnabled]);
 
   // ─── Big-screen controls ───────────────────────────────────────────────────
-  const openBigScreen = useCallback(() => {
+  const openBigScreen = useCallback((mode: 'display' | 'edit' = 'display') => {
     try {
       sessionStorage.setItem('bigscreen-roomId', roomId);
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
@@ -1633,10 +1634,20 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       sessionStorage.setItem('bigscreen-hintLevel', JSON.stringify(hintLevel));
     } catch {/* ignore */ }
 
-    const url = `${window.location.origin}/?screen=bigscreen`;
-    const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
+    const url = `${window.location.origin}/?screen=bigscreen${mode === 'edit' ? '&mode=edit' : ''}`;
+    const win = window.open(url, mode === 'edit' ? 'live-mr-bigscreen-edit' : 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
   }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId, hintEnabled, hintLevel]);
+
+  useEffect(() => {
+    if (!bigScreenMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t?.closest('.hs-bigscreen-fab-wrap')) setBigScreenMenuOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [bigScreenMenuOpen]);
 
   // ─── Embedded BigScreen preview ────────────────────────────────────────────
   // iframe 有獨立的 sessionStorage，透過 BroadcastChannel 補送完整狀態來同步
@@ -2578,11 +2589,33 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       </div>
 
       {/* ── Big Screen FAB (bottom-right) ────────────────────────────────────── */}
-      <button id="open-bigscreen-btn" className="hs-bigscreen-fab" onClick={openBigScreen} title="在新視窗開啟大屏顯示">
-        {/* <span className="hs-fab-icon"></span> */}
-        <span className="material-symbols-outlined">rocket_launch</span>
-        <span className="hs-fab-label">開啟大屏</span>
-      </button>
+      <div className="hs-bigscreen-fab-wrap">
+        {bigScreenMenuOpen && (
+          <div className="hs-bigscreen-fab-menu">
+            <button
+              className="hs-bigscreen-fab-menu-item"
+              onClick={() => { openBigScreen('display'); setBigScreenMenuOpen(false); }}
+            >
+              <span className="material-symbols-outlined">visibility</span> 顯示模式
+            </button>
+            <button
+              className="hs-bigscreen-fab-menu-item"
+              onClick={() => { openBigScreen('edit'); setBigScreenMenuOpen(false); }}
+            >
+              <span className="material-symbols-outlined">edit</span> 編輯模式
+            </button>
+          </div>
+        )}
+        <button
+          id="open-bigscreen-btn"
+          className="hs-bigscreen-fab"
+          onClick={() => setBigScreenMenuOpen(v => !v)}
+          title="在新視窗開啟大屏"
+        >
+          <span className="material-symbols-outlined">rocket_launch</span>
+          <span className="hs-fab-label">開啟大屏</span>
+        </button>
+      </div>
 
       {/* ── Drawer Backdrop ───────────────────────────────────────────────────── */}
       {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel || sceneEditorGroupId) && (
