@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { BigScreenEditorApi } from '../hooks/useBigScreenEditor'
 import type { SceneConfig } from '../types/vrm'
+import type { GizmoHandle } from '../utils/editorGizmo'
+import type { Object3D } from 'three'
 import { OCCLUDER_LIBRARY, OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders'
 import { MAX_OCCLUDERS_PER_SCENE } from '../hooks/useBigScreenEditor.reducer'
 import './BigScreenEditorOverlay.css'
@@ -24,10 +26,28 @@ interface Props {
   editor: BigScreenEditorApi
   scene: SceneConfig
   onExit: () => void
+  gizmoHandle: GizmoHandle | null
+  occluderRoots: ReadonlyMap<string, Object3D>
 }
 
-export default function BigScreenEditorOverlay({ editor, scene, onExit }: Props) {
+export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHandle, occluderRoots }: Props) {
   const { state } = editor
+
+  useEffect(() => {
+    if (!gizmoHandle) return
+    const sel = state.selection
+    if (sel?.kind === 'occluder') {
+      const root = occluderRoots.get(sel.id) ?? null
+      gizmoHandle.setTarget(root)
+    } else {
+      gizmoHandle.setTarget(null)
+    }
+  }, [gizmoHandle, occluderRoots, state.selection])
+
+  useEffect(() => {
+    gizmoHandle?.setMode(state.gizmoMode)
+  }, [gizmoHandle, state.gizmoMode])
+
   const [libraryOpen, setLibraryOpen] = useState(false)
 
   const occluders = state.draft.occluders
@@ -40,6 +60,27 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit }: Props)
       <div className="bs-editor-header">
         <span className="bs-editor-title">編輯模式</span>
         <button className="bs-editor-exit" onClick={onExit}>✕ 退出</button>
+      </div>
+
+      {/* Toolbar */}
+      <div className="bs-editor-toolbar">
+        {editor.state.selection?.kind === 'occluder' && (
+          <>
+            <button
+              className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'translate' ? 'bs-editor-tb-btn--active' : ''}`}
+              onClick={() => editor.setGizmoMode('translate')}
+              title="移動 (Translate)"
+            >↔</button>
+            <button
+              className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'rotate' ? 'bs-editor-tb-btn--active' : ''}`}
+              onClick={() => editor.setGizmoMode('rotate')}
+              title="旋轉 (Rotate)"
+            >↻</button>
+            <span className="bs-editor-tb-sep" />
+          </>
+        )}
+        <button className="bs-editor-tb-btn" disabled={editor.state.past.length === 0} onClick={editor.undo} title="Undo (Ctrl+Z)">↶</button>
+        <button className="bs-editor-tb-btn" disabled={editor.state.future.length === 0} onClick={editor.redo} title="Redo (Ctrl+Shift+Z)">↷</button>
       </div>
 
       {/* Section: occluders */}
@@ -118,6 +159,19 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit }: Props)
 
       <OccluderEditor editor={editor} />
       <GroupEditor editor={editor} scene={scene} />
+
+      <section className="bs-editor-footer">
+        {editor.state.dirty && <div className="bs-editor-dirty-hint">⚠ 未保存變動</div>}
+        <button
+          className="bs-editor-btn-primary"
+          disabled={!editor.state.dirty}
+          onClick={editor.commit}
+        >💾 保存</button>
+        <button
+          className="bs-editor-btn-secondary"
+          onClick={() => { if (confirm('將清除此場景所有自訂(物件實例 + 群組變換)。確定?')) editor.resetScene() }}
+        >↺ 場景重置</button>
+      </section>
     </div>
   )
 }
