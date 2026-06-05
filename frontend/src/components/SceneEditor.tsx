@@ -96,6 +96,9 @@ export default function SceneEditor({ sceneId, group, channel, open, onClose }: 
         <div className="slot-drawer-title">
           <span className="orange">場景編輯</span> <span className="teal">{group.label}</span>
         </div>
+        <div className="scene-editor-hint" style={{ marginRight: 8, fontSize: 11 }}>
+          💡 在大屏編輯模式可整合調整
+        </div>
         <button className="panel-close-btn" onClick={onClose}>✕</button>
       </div>
       <div className="panel-drawer-body">

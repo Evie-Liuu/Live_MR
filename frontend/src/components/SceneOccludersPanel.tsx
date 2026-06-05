@@ -114,6 +114,9 @@ export default function SceneOccludersPanel({
           <span className="orange">場景物件</span>{' '}
           <span className="teal">遮罩編輯</span>
         </div>
+        <div className="scene-editor-hint" style={{ marginRight: 8, fontSize: 11 }}>
+          💡 在大屏編輯模式可整合調整
+        </div>
         <button className="panel-close-btn" onClick={onClose}>✕</button>
       </div>
       <div className="panel-drawer-body">
