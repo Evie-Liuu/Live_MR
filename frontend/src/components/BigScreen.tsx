@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
+import { useBigScreenEditor } from '../hooks/useBigScreenEditor';
+import BigScreenEditorOverlay from './BigScreenEditorOverlay';
+import type { GizmoHandle } from '../utils/editorGizmo';
+import type { Object3D } from 'three';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
@@ -296,6 +300,15 @@ export default function BigScreen() {
   });
   const sceneIdRef = useRef<string>(sceneId);
   useEffect(() => { sceneIdRef.current = sceneId; }, [sceneId]);
+  // 編輯模式
+  const initialEditMode = (() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('mode') === 'edit';
+    } catch { return false; }
+  })();
+  const [editMode, setEditMode] = useState<boolean>(initialEditMode);
+
   const [vrmSourceId, setVrmSourceId] = useState<string>(() => {
     return sessionStorage.getItem('bigscreen-vrmSourceId') ?? 'default';
   });
@@ -373,6 +386,7 @@ export default function BigScreen() {
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const channelRef = useRef<BroadcastChannel | null>(null);
 
   // 正在說話的 identity 集合（由 HostSession 'speaking' 訊息驅動）
   const [speakingIdentities, setSpeakingIdentities] = useState<Set<string>>(new Set());
@@ -542,6 +556,21 @@ export default function BigScreen() {
   // 徽章顯示對象 = 目前互動相位的角色（teacher → host-*；student → 非 host-*）。
   // 注意：這驅動 useBigScreenScene 的 onSpeakerAnchors 回呼以取得頭部 UV，與
   // 真正的「正在發聲」是兩件事；等化器條的波動由下方 JSX 讀取 speakingIdentities 控制。
+  const editor = useBigScreenEditor({
+    sceneId,
+    editMode,
+    channel: channelRef.current,
+    onCommit: (committed) => {
+      // 同步上游 state,讓退出編輯模式後 fall back 正確
+      setOccluderInstances(committed.occluders);
+      setGroupTransforms(committed.groupTransforms);
+    },
+    onCommitError: (err) => {
+      console.warn('[BigScreen] commit failed:', err);
+      alert('保存失敗 — localStorage 可能配額已滿。請刪除一些物件後再試。');
+    },
+  });
+
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
       const ids = Array.from(participantNames.keys());
@@ -552,6 +581,18 @@ export default function BigScreen() {
     if (interactionPhase === 'student') return ids.filter(id => !id.startsWith('host-'));
     return [];
   }, [interactionPhase, forceShowSpeakerBadges, participantNames, speakingIdentities]);
+  const effectiveOccluders = editMode ? editor.state.draft.occluders : occluderInstances;
+  const effectiveGroupTransforms = editMode ? editor.state.draft.groupTransforms : groupTransforms;
+
+  const placeholderSlots = useMemo(() => {
+    if (!editMode) return [];
+    const preset = SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID];
+    return (preset.slots ?? []).filter(s => !slotAssignments[s.id]);
+  }, [editMode, sceneId, slotAssignments]);
+
+  const [gizmoHandle, setGizmoHandle] = useState<GizmoHandle | null>(null);
+  const [occluderRoots, setOccluderRoots] = useState<ReadonlyMap<string, Object3D>>(new Map());
+
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
@@ -562,10 +603,25 @@ export default function BigScreen() {
     renderFpsLimit: renderFps,
     isRecording: isActivelyRecording,
     onPostRenderRef: postRenderRef,
-    groupTransforms,
+    groupTransforms: effectiveGroupTransforms,
     speakingIdentities: speakingIdentitiesArray,
     onSpeakerAnchors: setSpeakerAnchors,
-    occluderInstances,
+    occluderInstances: effectiveOccluders,
+    editorPlaceholderSlots: placeholderSlots,
+    editorGizmoEnabled: editMode,
+    onGizmoHandle: setGizmoHandle,
+    onOccluderRoots: setOccluderRoots,
+    onGizmoDragStart: (target) => { target.userData.editorPinned = true; },
+    onGizmoDragEnd: (target) => {
+      target.userData.editorPinned = false;
+      const sel = editor.state.selection;
+      if (sel?.kind === 'occluder') {
+        editor.updateOccluder(sel.id, {
+          position: [target.position.x, target.position.y, target.position.z],
+          rotation: [target.rotation.x, target.rotation.y, target.rotation.z],
+        });
+      }
+    },
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
@@ -1747,7 +1803,22 @@ export default function BigScreen() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === '`') {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'e' || e.key === 'E') {
+        // dirty guard 在 T13;先簡單 toggle
+        setEditMode(v => !v);
+      } else if (e.ctrlKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        if (editMode) { e.preventDefault(); editor.undo(); }
+      } else if (e.ctrlKey && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        if (editMode) { e.preventDefault(); editor.redo(); }
+      } else if (e.key === 'Escape') {
+        if (editMode) {
+          if (editor.state.selection) editor.deselect();
+          else setEditMode(false);
+        }
+      } else if (e.key === '`') {
         /*
         setShowStats(v => {
           if (v) setStatsData(null);
@@ -1781,7 +1852,7 @@ export default function BigScreen() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [editMode, editor]);
 
   // Apply snapshot stored by HostSession before the window was opened
   useEffect(() => {
@@ -1883,6 +1954,7 @@ export default function BigScreen() {
   // Listen for ongoing pose/leave/scene-change updates
   useEffect(() => {
     const channel = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME);
+    channelRef.current = channel;
 
     channel.onmessage = (ev: MessageEvent) => {
       const msg = ev.data as BigScreenMsg;
@@ -2086,6 +2158,7 @@ export default function BigScreen() {
 
     return () => {
       channel.close()
+      channelRef.current = null
       postRenderRef.current = null
       const mr = mediaRecorderRef.current
       if (mr && mr.state !== 'inactive') {
@@ -2140,6 +2213,19 @@ export default function BigScreen() {
       {effectiveBgType === 'camera' && (
         <CameraDevicePicker value={cameraBgDeviceId} onChange={handleCameraBgDeviceChange} />
       )}
+
+      {/* 編輯模式切換按鈕 */}
+      <button
+        className="bs-editmode-toggle"
+        title={editMode ? '退出編輯模式 (E)' : '進入編輯模式 (E)'}
+        onClick={() => setEditMode(v => !v)}
+        style={{
+          position: 'absolute', top: 16, left: 16, zIndex: 60,
+          background: editMode ? '#f76e12' : 'rgba(0,0,0,0.5)',
+          color: '#fff', border: '1px solid rgba(255,255,255,0.18)',
+          borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
+        }}
+      >{editMode ? '✕ 退出編輯' : '✏️ 編輯'}</button>
 
       {/* 2. Transparent 3D Canvas Layer */}
       <canvas
@@ -2488,6 +2574,16 @@ export default function BigScreen() {
             <div className="bs-loading-pct">{bootProgress}%</div>
           </div>
         </div>
+      )}
+
+      {editMode && (
+        <BigScreenEditorOverlay
+          editor={editor}
+          scene={SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID]}
+          onExit={() => setEditMode(false)}
+          gizmoHandle={gizmoHandle}
+          occluderRoots={occluderRoots}
+        />
       )}
     </div >
   );
