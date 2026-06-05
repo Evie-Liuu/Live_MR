@@ -3,6 +3,7 @@ import {
   initialEditorState,
   editorReducer,
   type EditorDraft,
+  COALESCE_WINDOW_MS,
 } from './useBigScreenEditor.reducer'
 
 vi.mock('../config/sceneOccluders', () => ({
@@ -107,5 +108,132 @@ describe('editorReducer — duplicate-occluder', () => {
     const state = initialEditorState(seed)
     const next = editorReducer(state, { type: 'duplicate-occluder', instanceId: 'i0', newInstanceId: 'new' })
     expect(next).toBe(state)
+  })
+})
+
+describe('editorReducer — update-group + coalesce', () => {
+  it('two updates within window collapse to one undo entry', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1000 })
+    expect(s.past).toHaveLength(1)
+    s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [2, 0, 0], rot: [0, 0, 0] }, ts: 1000 + COALESCE_WINDOW_MS - 50 })
+    expect(s.past).toHaveLength(1) // coalesced
+    expect(s.draft.groupTransforms.g1.pos).toEqual([2, 0, 0])
+  })
+
+  it('updates beyond window push new entry', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1000 })
+    s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [2, 0, 0], rot: [0, 0, 0] }, ts: 1000 + COALESCE_WINDOW_MS + 1 })
+    expect(s.past).toHaveLength(2)
+  })
+
+  it('different targets do not coalesce', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1000 })
+    s = editorReducer(s, { type: 'update-group', groupId: 'g2', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1001 })
+    expect(s.past).toHaveLength(2)
+  })
+})
+
+describe('editorReducer — reset-item', () => {
+  it('resets occluder to library default', () => {
+    let s = initialEditorState({
+      sceneId: 'x',
+      occluders: [{ instanceId: 'a', libraryId: 'rack', position: [5, 5, 5], rotation: [1, 1, 1], scale: 3 }],
+      groupTransforms: {},
+    })
+    s = editorReducer(s, { type: 'reset-item', kind: 'occluder', id: 'a' })
+    expect(s.draft.occluders[0]).toMatchObject({ position: [0, 1, -1], rotation: [0, 0, 0], scale: 1 })
+    expect(s.past).toHaveLength(1)
+  })
+
+  it('resets group to identity', () => {
+    let s = initialEditorState({
+      sceneId: 'x',
+      occluders: [],
+      groupTransforms: { g1: { pos: [3, 3, 3], rot: [1, 1, 1] } },
+    })
+    s = editorReducer(s, { type: 'reset-item', kind: 'group', id: 'g1' })
+    expect(s.draft.groupTransforms.g1).toEqual({ pos: [0, 0, 0], rot: [0, 0, 0] })
+  })
+
+  it('no-op on missing id', () => {
+    const seed = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    const next = editorReducer(seed, { type: 'reset-item', kind: 'group', id: 'missing' })
+    expect(next).toBe(seed)
+  })
+})
+
+describe('editorReducer — reset-scene', () => {
+  it('empties draft and clears selection', () => {
+    let s = initialEditorState({
+      sceneId: 'x',
+      occluders: [{ instanceId: 'a', libraryId: 'rack', position: [0, 0, 0], rotation: [0, 0, 0], scale: 1 }],
+      groupTransforms: { g: { pos: [1, 0, 0], rot: [0, 0, 0] } },
+    })
+    s = editorReducer(s, { type: 'select', sel: { kind: 'occluder', id: 'a' } })
+    s = editorReducer(s, { type: 'reset-scene' })
+    expect(s.draft.occluders).toEqual([])
+    expect(s.draft.groupTransforms).toEqual({})
+    expect(s.selection).toBeNull()
+    expect(s.dirty).toBe(true)
+  })
+})
+
+describe('editorReducer — undo / redo', () => {
+  it('undo restores prior state and pushes to future', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'a' })
+    expect(s.draft.occluders).toHaveLength(1)
+    s = editorReducer(s, { type: 'undo' })
+    expect(s.draft.occluders).toHaveLength(0)
+    expect(s.future).toHaveLength(1)
+  })
+
+  it('redo replays', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'a' })
+    s = editorReducer(s, { type: 'undo' })
+    s = editorReducer(s, { type: 'redo' })
+    expect(s.draft.occluders).toHaveLength(1)
+    expect(s.future).toHaveLength(0)
+  })
+
+  it('new mutation after undo discards future', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'a' })
+    s = editorReducer(s, { type: 'undo' })
+    s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'b' })
+    expect(s.future).toHaveLength(0)
+    expect(s.draft.occluders[0].instanceId).toBe('b')
+  })
+
+  it('undo on empty past is no-op', () => {
+    const seed = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    const next = editorReducer(seed, { type: 'undo' })
+    expect(next).toBe(seed)
+  })
+})
+
+describe('editorReducer — commit / discard', () => {
+  it('commit clears history + dirty + updates baseline', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'update-group', groupId: 'g', transform: { pos: [1, 0, 0], rot: [0, 0, 0] } })
+    s = editorReducer(s, { type: 'commit' })
+    expect(s.past).toHaveLength(0)
+    expect(s.future).toHaveLength(0)
+    expect(s.dirty).toBe(false)
+    expect(s.baselineGroupTransforms).toEqual({ g: { pos: [1, 0, 0], rot: [0, 0, 0] } })
+  })
+
+  it('discard clears history + dirty, keeps draft', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    s = editorReducer(s, { type: 'update-group', groupId: 'g', transform: { pos: [1, 0, 0], rot: [0, 0, 0] } })
+    const before = s.draft
+    s = editorReducer(s, { type: 'discard' })
+    expect(s.dirty).toBe(false)
+    expect(s.past).toHaveLength(0)
+    expect(s.draft).toBe(before)
   })
 })
