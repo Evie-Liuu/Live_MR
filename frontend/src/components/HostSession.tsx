@@ -801,17 +801,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     broadcastAIHint(payload);
   }, [cancelAutoCountdown, resetCachedReplies, broadcastAIHint]);
 
-  const handleToggleRecord = useCallback(() => {
-    if (sttRecording) {
-      stopRec();
-    } else {
-      cancelAutoCountdown();
-      clearTranscript();
-      setAiError(null);
-      startRec();
-    }
-  }, [sttRecording, stopRec, startRec, cancelAutoCountdown, clearTranscript]);
-
   const endInteraction = useCallback(() => {
     autoScriptTriggerRef.current = false;
     // Use ref so this callback stays stable and doesn't change every time
