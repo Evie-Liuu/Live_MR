@@ -171,13 +171,23 @@ interface UseBigScreenSceneOptions {
    * 退出編輯模式(此 prop 變空)時批次 remove。
    */
   editorPlaceholderSlots?: import('../types/vrm').SceneSlot[];
+  /** 編輯模式 — 為 true 時建立 TransformControls 並接事件;false 釋放。 */
+  editorGizmoEnabled?: boolean;
+  /** 編輯模式 — gizmo 拖拽結束時呼叫(`dragging-changed === false`),帶被 attach 物件最終 transform。 */
+  onGizmoDragEnd?: (target: import('three').Object3D) => void;
+  /** 編輯模式 — 拖拽開始時呼叫(用來把 target 標記為 editorPinned)。 */
+  onGizmoDragStart?: (target: import('three').Object3D) => void;
+  /** Hook 暴露 occluder instanceId → root 的查找 callback;Overlay 用它 setTarget。 */
+  onOccluderRoots?: (map: ReadonlyMap<string, import('three').Object3D>) => void;
+  /** Hook 暴露 gizmo handle(讓 Overlay 直接 setTarget / setMode)。 */
+  onGizmoHandle?: (handle: import('../utils/editorGizmo').GizmoHandle | null) => void;
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances, editorPlaceholderSlots } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances, editorPlaceholderSlots, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -261,6 +271,7 @@ export function useBigScreenScene(
         occluderLibIdsRef.current.delete(id);
       }
     }
+    onOccluderRoots?.(occluderPoolRef.current);
 
     // 新增 / 更新
     for (const inst of next) {
@@ -268,6 +279,7 @@ export function useBigScreenScene(
       const sameLib = occluderLibIdsRef.current.get(inst.instanceId) === inst.libraryId;
 
       if (existing && sameLib) {
+        if (existing.userData.editorPinned) continue;
         existing.position.set(...inst.position);
         existing.rotation.set(...inst.rotation);
         existing.scale.setScalar(inst.scale);
@@ -279,6 +291,7 @@ export function useBigScreenScene(
         disposeOccluder(existing, scene);
         occluderPoolRef.current.delete(inst.instanceId);
         occluderLibIdsRef.current.delete(inst.instanceId);
+        onOccluderRoots?.(occluderPoolRef.current);
       }
 
       // 跳過進行中載入,避免同 instance 連續變更導致重複載入
@@ -314,6 +327,7 @@ export function useBigScreenScene(
           group.scale.setScalar(inst.scale);
           occluderPoolRef.current.set(inst.instanceId, group);
           occluderLibIdsRef.current.set(inst.instanceId, inst.libraryId);
+          onOccluderRoots?.(occluderPoolRef.current);
         })
         .catch((err) => {
           occluderLoadingRef.current.delete(inst.instanceId);
@@ -355,6 +369,44 @@ export function useBigScreenScene(
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorPlaceholderSlots]);
+
+  // ─── TransformControls gizmo lifecycle(編輯模式)──────────────────────
+  useEffect(() => {
+    const enabled = !!editorGizmoEnabled;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    const renderer = rendererRef.current;
+    if (!enabled || !scene || !camera || !renderer) {
+      onGizmoHandle?.(null);
+      return;
+    }
+    // 動態 import 避開 SSR / 同步循環
+    let handle: import('../utils/editorGizmo').GizmoHandle | null = null;
+    let cancelled = false;
+    let onDragChange: ((e: { value: boolean }) => void) | null = null;
+    void import('../utils/editorGizmo').then(({ attachGizmo }) => {
+      if (cancelled) return;
+      handle = attachGizmo(scene, camera, renderer.domElement, 'translate');
+      onDragChange = (e: { value: boolean }) => {
+        const target = (handle!.controls as unknown as { object?: import('three').Object3D }).object;
+        if (!target) return;
+        if (e.value) onGizmoDragStart?.(target);
+        else onGizmoDragEnd?.(target);
+      };
+      handle.controls.addEventListener('dragging-changed', onDragChange as unknown as () => void);
+      onGizmoHandle?.(handle);
+    });
+    return () => {
+      cancelled = true;
+      if (handle) {
+        if (onDragChange) {
+          try { handle.controls.removeEventListener('dragging-changed', onDragChange as unknown as () => void); } catch { /* ignore */ }
+        }
+        handle.dispose();
+      }
+      onGizmoHandle?.(null);
+    };
+  }, [editorGizmoEnabled]);
 
   /** 套用群組變換後的 taskProp displayPos：taskId → final pos。 */
   const effectiveDisplayPosRef = useRef<Map<string, Vec3>>(new Map());
