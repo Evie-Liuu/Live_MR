@@ -65,3 +65,24 @@
 
 .bs-editor-hint { opacity: 0.6; font-style: italic; padding: 4px 8px; }
 .bs-editor-placeholder-section { opacity: 0.4; font-style: italic; }
+
+.bs-editor-row {
+  display: grid; grid-template-columns: 60px 1fr 64px; gap: 8px; align-items: center;
+  padding: 3px 0;
+}
+.bs-editor-row label { font-size: 11px; opacity: 0.7; }
+.bs-editor-row input[type="number"] {
+  background: rgba(255, 255, 255, 0.06); color: #fff; border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px; padding: 2px 4px; width: 100%; font: inherit;
+}
+.bs-editor-row input[type="range"] { width: 100%; }
+
+.bs-editor-actions {
+  display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;
+}
+.bs-editor-btn-secondary, .bs-editor-btn-danger {
+  background: rgba(255, 255, 255, 0.08); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px;
+  padding: 4px 10px; cursor: pointer;
+}
+.bs-editor-btn-danger { background: rgba(220, 53, 69, 0.25); border-color: rgba(220, 53, 69, 0.5); }

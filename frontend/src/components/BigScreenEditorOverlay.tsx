@@ -5,6 +5,21 @@ import { OCCLUDER_LIBRARY, OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOcclude
 import { MAX_OCCLUDERS_PER_SCENE } from '../hooks/useBigScreenEditor.reducer'
 import './BigScreenEditorOverlay.css'
 
+const RAD2DEG = 180 / Math.PI
+const DEG2RAD = Math.PI / 180
+
+function NumberRow({
+  label, min, max, step, value, onChange,
+}: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="bs-editor-row">
+      <label>{label}</label>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input type="number" step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </div>
+  )
+}
+
 interface Props {
   editor: BigScreenEditorApi
   scene: SceneConfig
@@ -101,10 +116,70 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit }: Props)
         </section>
       )}
 
-      {/* Transform editor & toolbar — Task 10 / Task 11 加入 */}
-      <section className="bs-editor-section bs-editor-placeholder-section">
-        (transform editor 待 Task 10 加入)
-      </section>
+      <OccluderEditor editor={editor} />
+      <GroupEditor editor={editor} scene={scene} />
     </div>
+  )
+}
+
+function OccluderEditor({ editor }: { editor: BigScreenEditorApi }) {
+  const sel = editor.state.selection
+  if (sel?.kind !== 'occluder') return null
+  const inst = editor.state.draft.occluders.find(o => o.instanceId === sel.id)
+  if (!inst) return null
+  const lib = OCCLUDER_LIBRARY_BY_ID[inst.libraryId]
+  const update = (patch: Partial<typeof inst>) => editor.updateOccluder(inst.instanceId, patch)
+  return (
+    <section className="bs-editor-section">
+      <div className="bs-editor-section-header"><span>選中變換 — {lib?.label ?? '(已失效)'}</span></div>
+      <NumberRow label="X" min={-5} max={5} step={0.05}
+        value={inst.position[0]} onChange={v => update({ position: [v, inst.position[1], inst.position[2]] })} />
+      <NumberRow label="Y" min={-5} max={5} step={0.05}
+        value={inst.position[1]} onChange={v => update({ position: [inst.position[0], v, inst.position[2]] })} />
+      <NumberRow label="Z" min={-5} max={5} step={0.05}
+        value={inst.position[2]} onChange={v => update({ position: [inst.position[0], inst.position[1], v] })} />
+      <NumberRow label="Yaw(°)" min={-180} max={180} step={1}
+        value={Math.round(inst.rotation[1] * RAD2DEG * 100) / 100}
+        onChange={deg => update({ rotation: [inst.rotation[0], deg * DEG2RAD, inst.rotation[2]] })} />
+      <NumberRow label="Scale" min={0.1} max={5} step={0.05}
+        value={inst.scale} onChange={v => update({ scale: v })} />
+      <div className="bs-editor-actions">
+        <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('occluder', inst.instanceId)}>↺ 單一重置</button>
+        <button className="bs-editor-btn-secondary" onClick={() => editor.duplicateOccluder(inst.instanceId)}>⎘ 複製</button>
+        <button className="bs-editor-btn-danger" onClick={() => editor.deleteOccluder(inst.instanceId)}>🗑 刪除</button>
+      </div>
+    </section>
+  )
+}
+
+function GroupEditor({ editor, scene }: { editor: BigScreenEditorApi; scene: SceneConfig }) {
+  const sel = editor.state.selection
+  if (sel?.kind !== 'group') return null
+  const g = scene.groups?.find(x => x.id === sel.id)
+  if (!g) return null
+  const t = editor.state.draft.groupTransforms[g.id] ?? { pos: [0, 0, 0] as [number, number, number], rot: [0, 0, 0] as [number, number, number] }
+  const setT = (next: typeof t) => editor.updateGroup(g.id, next)
+  return (
+    <section className="bs-editor-section">
+      <div className="bs-editor-section-header"><span>選中變換 — {g.label}</span></div>
+      <NumberRow label="X" min={-5} max={5} step={0.05}
+        value={t.pos[0]} onChange={v => setT({ ...t, pos: [v, t.pos[1], t.pos[2]] })} />
+      <NumberRow label="Y" min={-5} max={5} step={0.05}
+        value={t.pos[1]} onChange={v => setT({ ...t, pos: [t.pos[0], v, t.pos[2]] })} />
+      <NumberRow label="Z" min={-5} max={5} step={0.05}
+        value={t.pos[2]} onChange={v => setT({ ...t, pos: [t.pos[0], t.pos[1], v] })} />
+      <NumberRow label="Pitch(°)" min={-180} max={180} step={1}
+        value={Math.round(t.rot[0] * RAD2DEG * 100) / 100}
+        onChange={deg => setT({ ...t, rot: [deg * DEG2RAD, t.rot[1], t.rot[2]] })} />
+      <NumberRow label="Yaw(°)" min={-180} max={180} step={1}
+        value={Math.round(t.rot[1] * RAD2DEG * 100) / 100}
+        onChange={deg => setT({ ...t, rot: [t.rot[0], deg * DEG2RAD, t.rot[2]] })} />
+      <NumberRow label="Roll(°)" min={-180} max={180} step={1}
+        value={Math.round(t.rot[2] * RAD2DEG * 100) / 100}
+        onChange={deg => setT({ ...t, rot: [t.rot[0], t.rot[1], deg * DEG2RAD] })} />
+      <div className="bs-editor-actions">
+        <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('group', g.id)}>↺ 單一重置</button>
+      </div>
+    </section>
   )
 }
