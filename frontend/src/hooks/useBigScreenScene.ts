@@ -110,6 +110,9 @@ const _displayPosVec = new THREE.Vector3();
 const _headWorld = new THREE.Vector3();
 const _headUV = { x: 0, y: 0 };
 
+/** 編輯模式 placeholder avatar identity 命名空間前綴。 */
+const PLACEHOLDER_PREFIX = '__placeholder__:';
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Resolve the X position for avatar at index `i` centred around origin */
@@ -162,13 +165,19 @@ interface UseBigScreenSceneOptions {
    * scene unmount 時全部 dispose。
    */
   occluderInstances?: SceneOccluderInstance[];
+  /**
+   * 編輯模式專用:列表中每個 slot 用 defaultVrmId spawn 一個 idle avatar。
+   * Identity 自動以 `__placeholder__:<slotId>` 命名,避免與真實 participant 衝突。
+   * 退出編輯模式(此 prop 變空)時批次 remove。
+   */
+  editorPlaceholderSlots?: import('../types/vrm').SceneSlot[];
 }
 
 export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances, editorPlaceholderSlots } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -228,6 +237,8 @@ export function useBigScreenScene(
 
   const groupTransformsRef = useRef<Record<string, { pos: [number, number, number]; rot: [number, number, number] }>>({});
   useEffect(() => { groupTransformsRef.current = groupTransforms ?? {}; }, [groupTransforms]);
+
+  const placeholderIdentitiesRef = useRef<Set<string>>(new Set());
 
   // ─── Occluder diff sync ────────────────────────────────────────────────────
   // 依 instanceId 比對:
@@ -314,6 +325,36 @@ export function useBigScreenScene(
   /** 給 in-flight 載入完成回呼判斷 instance 是否仍被要求渲染。 */
   const occluderInstancesRef = useRef<SceneOccluderInstance[]>(occluderInstances ?? []);
   useEffect(() => { occluderInstancesRef.current = occluderInstances ?? []; }, [occluderInstances]);
+
+  // ─── Editor placeholder slot avatars ─────────────────────────────────────
+  useEffect(() => {
+    const slots = editorPlaceholderSlots ?? [];
+    const wantIds = new Set(slots.map(s => `${PLACEHOLDER_PREFIX}${s.id}`));
+
+    // Remove placeholders no longer expected
+    for (const id of placeholderIdentitiesRef.current) {
+      if (!wantIds.has(id)) {
+        removeAvatar(id);
+        placeholderIdentitiesRef.current.delete(id);
+      }
+    }
+
+    // Spawn missing placeholders
+    for (const slot of slots) {
+      const id = `${PLACEHOLDER_PREFIX}${slot.id}`;
+      if (placeholderIdentitiesRef.current.has(id)) continue;
+      const vrmId = slot.defaultVrmId ?? DEFAULT_VRM_SOURCE_ID;
+      const vrmUrl = (VRM_SOURCES[vrmId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const spawnOverride = {
+        position: slot.position,
+        rotation: slot.rotation,
+        scale: presetRef.current.avatarDefaults?.scale,
+      };
+      void ensureAvatar(id, vrmUrl, spawnOverride);
+      placeholderIdentitiesRef.current.add(id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorPlaceholderSlots]);
 
   /** 套用群組變換後的 taskProp displayPos：taskId → final pos。 */
   const effectiveDisplayPosRef = useRef<Map<string, Vec3>>(new Map());
@@ -761,6 +802,7 @@ export function useBigScreenScene(
             const anchors: Record<string, { x: number; y: number }> = {};
             let any = false;
             for (const id of speaking) {
+              if (id.startsWith('__placeholder__:')) continue;
               const slot = avatarsRef.current.get(id);
               if (!slot) continue;
               const head = slot.vrm.humanoid?.getNormalizedBoneNode('head');
@@ -850,6 +892,9 @@ export function useBigScreenScene(
       occluderPoolRef.current.clear();
       occluderLibIdsRef.current.clear();
       occluderLoadingRef.current.clear();
+      // Placeholder identities already removed by the avatarsRef.current loop above;
+      // just clear the tracking set so the placeholder effect doesn't try to re-remove.
+      placeholderIdentitiesRef.current.clear();
       heldByIdentityRef.current.clear();
       avgPoseIntervalsRef.current = {};
       scene.remove(shadowFloor);
