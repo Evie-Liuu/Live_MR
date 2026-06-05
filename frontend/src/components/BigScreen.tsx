@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { useBigScreenEditor } from '../hooks/useBigScreenEditor';
@@ -570,6 +570,30 @@ export default function BigScreen() {
       alert('保存失敗 — localStorage 可能配額已滿。請刪除一些物件後再試。');
     },
   });
+
+  const editModeRef = useRef(editMode);
+  useEffect(() => { editModeRef.current = editMode; }, [editMode]);
+  const editorDirtyRef = useRef(false);
+  useEffect(() => { editorDirtyRef.current = editor.state.dirty; }, [editor.state.dirty]);
+
+  const tryExitEditMode = useCallback(() => {
+    if (editor.state.dirty) {
+      if (!confirm('未保存的變動會丟失,確定退出編輯模式?')) return;
+      editor.discard();
+    }
+    setEditMode(false);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editMode) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!editor.state.dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [editMode, editor.state.dirty]);
 
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
@@ -1807,8 +1831,7 @@ export default function BigScreen() {
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
       if (e.key === 'e' || e.key === 'E') {
-        // dirty guard 在 T13;先簡單 toggle
-        setEditMode(v => !v);
+        if (editMode) tryExitEditMode(); else setEditMode(true);
       } else if (e.ctrlKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
         if (editMode) { e.preventDefault(); editor.undo(); }
       } else if (e.ctrlKey && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
@@ -1816,7 +1839,7 @@ export default function BigScreen() {
       } else if (e.key === 'Escape') {
         if (editMode) {
           if (editor.state.selection) editor.deselect();
-          else setEditMode(false);
+          else tryExitEditMode();
         }
       } else if (e.key === '`') {
         /*
@@ -1852,7 +1875,7 @@ export default function BigScreen() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editMode, editor]);
+  }, [editMode, editor, tryExitEditMode]);
 
   // Apply snapshot stored by HostSession before the window was opened
   useEffect(() => {
@@ -2060,6 +2083,10 @@ export default function BigScreen() {
           }
         }
       } else if (msg.type === 'scene-change' && msg.sceneId) {
+        if (editModeRef.current && editorDirtyRef.current) {
+          if (!confirm('編輯模式中有未保存變動,確定切換場景?(變動會丟失)')) return;
+          editor.discard();
+        }
         setSceneId(msg.sceneId);
         sessionStorage.setItem('bigscreen-sceneId', msg.sceneId);
         setHasRecorded(false);
@@ -2123,6 +2150,7 @@ export default function BigScreen() {
         const payload = msg.aiHint ?? null;
         setAiHint(payload && payload.content ? payload : null);
       } else if (msg.type === 'group-transform') {
+        if (editModeRef.current) return;
         if (!msg.groupId || !msg.groupTransform) return;
         const gid = msg.groupId;
         const gt = msg.groupTransform;
@@ -2150,6 +2178,7 @@ export default function BigScreen() {
           sessionStorage.setItem('bigscreen-interactionPhase', phase);
         } catch {/* ignore */ }
       } else if (msg.type === 'occluders-set') {
+        if (editModeRef.current) return;
         // HostSession 已先寫好 localStorage,這裡只更新 state 觸發 hook diff
         const list = Array.isArray(msg.occluders) ? msg.occluders : [];
         setOccluderInstances(list);
@@ -2218,7 +2247,7 @@ export default function BigScreen() {
       <button
         className="bs-editmode-toggle"
         title={editMode ? '退出編輯模式 (E)' : '進入編輯模式 (E)'}
-        onClick={() => setEditMode(v => !v)}
+        onClick={() => { if (editMode) tryExitEditMode(); else setEditMode(true); }}
         style={{
           position: 'absolute', top: 16, left: 16, zIndex: 60,
           background: editMode ? '#f76e12' : 'rgba(0,0,0,0.5)',
@@ -2580,7 +2609,7 @@ export default function BigScreen() {
         <BigScreenEditorOverlay
           editor={editor}
           scene={SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID]}
-          onExit={() => setEditMode(false)}
+          onExit={tryExitEditMode}
           gizmoHandle={gizmoHandle}
           occluderRoots={occluderRoots}
         />
