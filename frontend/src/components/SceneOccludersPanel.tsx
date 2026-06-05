@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react'
 import { OCCLUDER_LIBRARY, OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders'
 import type { SceneOccluderInstance } from '../types/sceneOccluder'
+import { defaultOccluderTransform } from '../utils/occluderDefaults'
 
 export const MAX_OCCLUDERS_PER_SCENE = 10
 
@@ -29,15 +30,6 @@ interface SceneOccludersPanelProps {
 const RAD2DEG = 180 / Math.PI
 const DEG2RAD = Math.PI / 180
 
-/** 預設 transform — 場景中央,地面以上 1m,鏡頭前 1m。 */
-function defaultTransform(libraryId: string): Pick<SceneOccluderInstance, 'position' | 'rotation' | 'scale'> {
-  const lib = OCCLUDER_LIBRARY_BY_ID[libraryId]
-  return {
-    position: [0, 1, -1],
-    rotation: [0, 0, 0],
-    scale: lib?.defaultScale ?? 1,
-  }
-}
 
 export default function SceneOccludersPanel({
   sceneId,
@@ -64,7 +56,7 @@ export default function SceneOccludersPanel({
     if (atLimit) return
     const lib = OCCLUDER_LIBRARY_BY_ID[libraryId]
     if (!lib) return
-    const t = defaultTransform(libraryId)
+    const t = defaultOccluderTransform(libraryId)
     const instance: SceneOccluderInstance = {
       instanceId: crypto.randomUUID(),
       libraryId,
