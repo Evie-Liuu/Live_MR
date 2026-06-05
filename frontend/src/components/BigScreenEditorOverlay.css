@@ -1,0 +1,67 @@
+.bs-editor-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100vh;
+  background: rgba(15, 12, 10, 0.92);
+  color: #fff;
+  font: 13px/1.4 system-ui, sans-serif;
+  z-index: 999;
+  overflow-y: auto;
+  backdrop-filter: blur(8px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  pointer-events: auto;
+}
+
+.bs-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.bs-editor-title { font-weight: 700; color: #ffb347; letter-spacing: 0.5px; }
+.bs-editor-exit {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.bs-editor-exit:hover { background: rgba(255, 255, 255, 0.08); }
+
+.bs-editor-section { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.bs-editor-section-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 700; margin-bottom: 8px; color: #d8c8b8;
+}
+.bs-editor-btn-add {
+  background: #f76e12; color: #fff; border: none; border-radius: 6px;
+  padding: 4px 10px; cursor: pointer; font-weight: 700;
+}
+.bs-editor-btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.bs-editor-library { background: rgba(0, 0, 0, 0.35); border-radius: 6px; padding: 6px; margin-bottom: 8px; }
+.bs-editor-library-item {
+  display: block; width: 100%; text-align: left;
+  background: transparent; color: #fff; border: none; border-radius: 4px;
+  padding: 6px 8px; cursor: pointer;
+}
+.bs-editor-library-item:hover { background: rgba(255, 255, 255, 0.08); }
+
+.bs-editor-list-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 8px; border-radius: 4px; cursor: pointer;
+}
+.bs-editor-list-item:hover { background: rgba(255, 255, 255, 0.06); }
+.bs-editor-list-item--selected { background: rgba(247, 110, 18, 0.18); }
+.bs-editor-item-suffix { opacity: 0.55; margin-left: 4px; }
+.bs-editor-item-delete {
+  background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px; padding: 1px 6px; cursor: pointer;
+}
+
+.bs-editor-hint { opacity: 0.6; font-style: italic; padding: 4px 8px; }
+.bs-editor-placeholder-section { opacity: 0.4; font-style: italic; }
