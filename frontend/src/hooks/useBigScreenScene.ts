@@ -12,7 +12,7 @@
  * Scene is re-initialised whenever sceneId changes, so the BigScreen can
  * switch preset on the fly (e.g. via a control panel message).
  */
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { VRMUtils, type VRM } from '@pixiv/three-vrm';
@@ -250,6 +250,11 @@ export function useBigScreenScene(
 
   const placeholderIdentitiesRef = useRef<Set<string>>(new Set());
 
+  // Scene init readiness signal — set true after sceneRef.current = scene,
+  // cleared on scene teardown. Used by effects that depend on the scene existing
+  // (e.g. placeholder spawn) so they re-fire once the scene is up.
+  const [sceneReady, setSceneReady] = useState(false);
+
   // ─── Occluder diff sync ────────────────────────────────────────────────────
   // 依 instanceId 比對:
   //  - 新增 instanceId → 載入 GLB 並設定 transform
@@ -334,14 +339,17 @@ export function useBigScreenScene(
           console.warn('[BigScreenScene] occluder load error:', err);
         });
     }
-  }, [occluderInstances]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [occluderInstances, sceneReady]);
 
   /** 給 in-flight 載入完成回呼判斷 instance 是否仍被要求渲染。 */
   const occluderInstancesRef = useRef<SceneOccluderInstance[]>(occluderInstances ?? []);
   useEffect(() => { occluderInstancesRef.current = occluderInstances ?? []; }, [occluderInstances]);
 
   // ─── Editor placeholder slot avatars ─────────────────────────────────────
+  // 等 sceneReady 為 true 才動作 — 否則 ensureAvatar 會 reject。
   useEffect(() => {
+    if (!sceneReady) return;
     const slots = editorPlaceholderSlots ?? [];
     const wantIds = new Set(slots.map(s => `${PLACEHOLDER_PREFIX}${s.id}`));
 
@@ -364,11 +372,15 @@ export function useBigScreenScene(
         rotation: slot.rotation,
         scale: presetRef.current.avatarDefaults?.scale,
       };
-      void ensureAvatar(id, vrmUrl, spawnOverride);
+      // 防禦:race 情況下若 scene 被 dispose,ensureAvatar 會 reject — 不要冒泡。
+      ensureAvatar(id, vrmUrl, spawnOverride).catch((err) => {
+        console.warn('[BigScreenScene] placeholder spawn failed:', err);
+        placeholderIdentitiesRef.current.delete(id);
+      });
       placeholderIdentitiesRef.current.add(id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorPlaceholderSlots]);
+  }, [editorPlaceholderSlots, sceneReady]);
 
   // ─── TransformControls gizmo lifecycle(編輯模式)──────────────────────
   useEffect(() => {
@@ -406,7 +418,8 @@ export function useBigScreenScene(
       }
       onGizmoHandle?.(null);
     };
-  }, [editorGizmoEnabled]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorGizmoEnabled, sceneReady]);
 
   /** 套用群組變換後的 taskProp displayPos：taskId → final pos。 */
   const effectiveDisplayPosRef = useRef<Map<string, Vec3>>(new Map());
@@ -549,6 +562,7 @@ export function useBigScreenScene(
     const scene = new THREE.Scene();
     // Background is now handled via DOM layers (BigScreen.tsx)
     sceneRef.current = scene;
+    setSceneReady(true);
 
     const { fov, position, lookAt, near = 0.1, far = 50 } = preset.camera;
     const camera = new THREE.PerspectiveCamera(
@@ -953,6 +967,8 @@ export function useBigScreenScene(
       (shadowFloor.material as THREE.Material).dispose();
       shadowFloor.geometry.dispose();
       renderer.dispose();
+      sceneRef.current = null;
+      setSceneReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasRef, sceneId]);
