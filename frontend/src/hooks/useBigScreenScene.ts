@@ -373,10 +373,21 @@ export function useBigScreenScene(
         scale: presetRef.current.avatarDefaults?.scale,
       };
       // 防禦:race 情況下若 scene 被 dispose,ensureAvatar 會 reject — 不要冒泡。
-      ensureAvatar(id, vrmUrl, spawnOverride).catch((err) => {
-        console.warn('[BigScreenScene] placeholder spawn failed:', err);
-        placeholderIdentitiesRef.current.delete(id);
-      });
+      ensureAvatar(id, vrmUrl, spawnOverride)
+        .then((avatarSlot) => {
+          // 沒有 pose driver → 預設停在 T-pose(十字)。在 spawn 完手動把
+          // 上臂放下,讓 placeholder 看起來像 idle 站姿。
+          const h = avatarSlot.vrm.humanoid;
+          if (!h) return;
+          const l = h.getNormalizedBoneNode('leftUpperArm');
+          const r = h.getNormalizedBoneNode('rightUpperArm');
+          if (l) l.rotation.set(0, 0, -(70 * Math.PI) / 180);
+          if (r) r.rotation.set(0, 0, (70 * Math.PI) / 180);
+        })
+        .catch((err) => {
+          console.warn('[BigScreenScene] placeholder spawn failed:', err);
+          placeholderIdentitiesRef.current.delete(id);
+        });
       placeholderIdentitiesRef.current.add(id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
