@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import type { BigScreenEditorApi } from '../hooks/useBigScreenEditor'
 import type { SceneConfig } from '../types/vrm'
 import type { GizmoHandle } from '../utils/editorGizmo'
@@ -48,13 +48,51 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
     gizmoHandle?.setMode(state.gizmoMode)
   }, [gizmoHandle, state.gizmoMode])
 
-  const [libraryOpen, setLibraryOpen] = useState(false)
-
   const occluders = state.draft.occluders
   const groups = scene.groups ?? []
   const atOccluderLimit = occluders.length >= MAX_OCCLUDERS_PER_SCENE
 
   return (
+    <>
+    {/* ── Library panel (left) ──────────────────────────────────────── */}
+    <aside className="bs-editor-library-panel" aria-label="素材庫">
+      <div className="bs-editor-header">
+        <span className="bs-editor-title">素材庫</span>
+        <span className="bs-editor-count">{OCCLUDER_LIBRARY.length}</span>
+      </div>
+      <div className="bs-editor-library-grid">
+        {OCCLUDER_LIBRARY.length === 0 && (
+          <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
+        )}
+        {OCCLUDER_LIBRARY.map(lib => {
+          const usedCount = occluders.filter(o => o.libraryId === lib.id).length
+          return (
+            <div key={lib.id} className="bs-editor-library-card">
+              <div className="bs-editor-library-preview">
+                <span className="bs-editor-library-preview-emoji">🪴</span>
+              </div>
+              <div className="bs-editor-library-card-meta">
+                <span className="bs-editor-library-card-label">{lib.label}</span>
+                {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
+              </div>
+              <button
+                className="bs-editor-btn-add bs-editor-library-card-add"
+                disabled={atOccluderLimit}
+                onClick={() => editor.addOccluder(lib.id)}
+                title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入到當前場景'}
+              >
+                + 加入
+              </button>
+            </div>
+          )
+        })}
+      </div>
+      {atOccluderLimit && (
+        <div className="bs-editor-hint">已達上限 {MAX_OCCLUDERS_PER_SCENE} 個 — 請先刪除一些再加入</div>
+      )}
+    </aside>
+
+    {/* ── Right overlay: 場景物件 + 群組 + 變換 ─────────────────────── */}
     <div className="bs-editor-overlay" aria-label="BigScreen 編輯模式面板">
       {/* Header */}
       <div className="bs-editor-header">
@@ -83,39 +121,14 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
         <button className="bs-editor-tb-btn" disabled={editor.state.future.length === 0} onClick={editor.redo} title="Redo (Ctrl+Shift+Z)">↷</button>
       </div>
 
-      {/* Section: occluders */}
+      {/* Section: occluders(僅顯示已加入;新增請至左側素材庫) */}
       <section className="bs-editor-section">
         <div className="bs-editor-section-header">
           <span>場景物件 ({occluders.length}/{MAX_OCCLUDERS_PER_SCENE})</span>
-          <button
-            className="bs-editor-btn-add"
-            disabled={atOccluderLimit}
-            onClick={() => setLibraryOpen(v => !v)}
-            title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入物件'}
-          >
-            + 加入
-          </button>
         </div>
 
-        {libraryOpen && !atOccluderLimit && (
-          <div className="bs-editor-library">
-            {OCCLUDER_LIBRARY.length === 0 && (
-              <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
-            )}
-            {OCCLUDER_LIBRARY.map(lib => (
-              <button
-                key={lib.id}
-                className="bs-editor-library-item"
-                onClick={() => { editor.addOccluder(lib.id); setLibraryOpen(false) }}
-              >
-                🪴 {lib.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {occluders.length === 0 && !libraryOpen && (
-          <div className="bs-editor-hint">尚未加入物件</div>
+        {occluders.length === 0 && (
+          <div className="bs-editor-hint">尚未加入物件 — 從左側素材庫挑選</div>
         )}
 
         {occluders.map((inst, idx) => {
@@ -173,6 +186,7 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
         >↺ 場景重置</button>
       </section>
     </div>
+    </>
   )
 }
 
