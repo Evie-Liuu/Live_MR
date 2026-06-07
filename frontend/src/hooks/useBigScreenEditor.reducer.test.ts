@@ -16,6 +16,7 @@ const baseDraft: EditorDraft = {
   sceneId: 'scene1',
   occluders: [],
   groupTransforms: {},
+  groupHidden: {},
 }
 
 describe('editorReducer — add-occluder', () => {
@@ -113,7 +114,7 @@ describe('editorReducer — duplicate-occluder', () => {
 
 describe('editorReducer — update-group + coalesce', () => {
   it('two updates within window collapse to one undo entry', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1000 })
     expect(s.past).toHaveLength(1)
     s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [2, 0, 0], rot: [0, 0, 0] }, ts: 1000 + COALESCE_WINDOW_MS - 50 })
@@ -122,14 +123,14 @@ describe('editorReducer — update-group + coalesce', () => {
   })
 
   it('updates beyond window push new entry', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1000 })
     s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [2, 0, 0], rot: [0, 0, 0] }, ts: 1000 + COALESCE_WINDOW_MS + 1 })
     expect(s.past).toHaveLength(2)
   })
 
   it('different targets do not coalesce', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'update-group', groupId: 'g1', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1000 })
     s = editorReducer(s, { type: 'update-group', groupId: 'g2', transform: { pos: [1, 0, 0], rot: [0, 0, 0] }, ts: 1001 })
     expect(s.past).toHaveLength(2)
@@ -142,6 +143,7 @@ describe('editorReducer — reset-item', () => {
       sceneId: 'x',
       occluders: [{ instanceId: 'a', libraryId: 'rack', position: [5, 5, 5], rotation: [1, 1, 1], scale: 3 }],
       groupTransforms: {},
+      groupHidden: {},
     })
     s = editorReducer(s, { type: 'reset-item', kind: 'occluder', id: 'a' })
     expect(s.draft.occluders[0]).toMatchObject({ position: [0, 1, -1], rotation: [0, 0, 0], scale: 1 })
@@ -153,13 +155,14 @@ describe('editorReducer — reset-item', () => {
       sceneId: 'x',
       occluders: [],
       groupTransforms: { g1: { pos: [3, 3, 3], rot: [1, 1, 1] } },
+      groupHidden: {},
     })
     s = editorReducer(s, { type: 'reset-item', kind: 'group', id: 'g1' })
     expect(s.draft.groupTransforms.g1).toEqual({ pos: [0, 0, 0], rot: [0, 0, 0] })
   })
 
   it('no-op on missing id', () => {
-    const seed = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    const seed = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     const next = editorReducer(seed, { type: 'reset-item', kind: 'group', id: 'missing' })
     expect(next).toBe(seed)
   })
@@ -171,19 +174,32 @@ describe('editorReducer — reset-scene', () => {
       sceneId: 'x',
       occluders: [{ instanceId: 'a', libraryId: 'rack', position: [0, 0, 0], rotation: [0, 0, 0], scale: 1 }],
       groupTransforms: { g: { pos: [1, 0, 0], rot: [0, 0, 0] } },
+      groupHidden: { g: true },
     })
     s = editorReducer(s, { type: 'select', sel: { kind: 'occluder', id: 'a' } })
     s = editorReducer(s, { type: 'reset-scene' })
     expect(s.draft.occluders).toEqual([])
     expect(s.draft.groupTransforms).toEqual({})
+    expect(s.draft.groupHidden).toEqual({})
     expect(s.selection).toBeNull()
     expect(s.dirty).toBe(true)
   })
 })
 
+describe('editorReducer — toggle-group-hidden', () => {
+  it('toggles presence in groupHidden', () => {
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
+    s = editorReducer(s, { type: 'toggle-group-hidden', groupId: 'g1' })
+    expect(s.draft.groupHidden).toEqual({ g1: true })
+    expect(s.dirty).toBe(true)
+    s = editorReducer(s, { type: 'toggle-group-hidden', groupId: 'g1' })
+    expect(s.draft.groupHidden).toEqual({})
+  })
+})
+
 describe('editorReducer — undo / redo', () => {
   it('undo restores prior state and pushes to future', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'a' })
     expect(s.draft.occluders).toHaveLength(1)
     s = editorReducer(s, { type: 'undo' })
@@ -192,7 +208,7 @@ describe('editorReducer — undo / redo', () => {
   })
 
   it('redo replays', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'a' })
     s = editorReducer(s, { type: 'undo' })
     s = editorReducer(s, { type: 'redo' })
@@ -201,7 +217,7 @@ describe('editorReducer — undo / redo', () => {
   })
 
   it('new mutation after undo discards future', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'a' })
     s = editorReducer(s, { type: 'undo' })
     s = editorReducer(s, { type: 'add-occluder', libraryId: 'rack', instanceId: 'b' })
@@ -210,7 +226,7 @@ describe('editorReducer — undo / redo', () => {
   })
 
   it('undo on empty past is no-op', () => {
-    const seed = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    const seed = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     const next = editorReducer(seed, { type: 'undo' })
     expect(next).toBe(seed)
   })
@@ -218,7 +234,7 @@ describe('editorReducer — undo / redo', () => {
 
 describe('editorReducer — commit / discard', () => {
   it('commit clears history + dirty + updates baseline', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'update-group', groupId: 'g', transform: { pos: [1, 0, 0], rot: [0, 0, 0] } })
     s = editorReducer(s, { type: 'commit' })
     expect(s.past).toHaveLength(0)
@@ -228,7 +244,7 @@ describe('editorReducer — commit / discard', () => {
   })
 
   it('discard clears history + dirty, keeps draft', () => {
-    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {} })
+    let s = initialEditorState({ sceneId: 'x', occluders: [], groupTransforms: {}, groupHidden: {} })
     s = editorReducer(s, { type: 'update-group', groupId: 'g', transform: { pos: [1, 0, 0], rot: [0, 0, 0] } })
     const before = s.draft
     s = editorReducer(s, { type: 'discard' })

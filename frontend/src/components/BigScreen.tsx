@@ -27,7 +27,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -62,6 +62,8 @@ export interface BigScreenMsg {
   interactionPhase?: string;
   /** For 'occluders-set': 當前場景的完整遮罩物件清單 */
   occluders?: SceneOccluderInstance[];
+  /** For 'group-hidden-set': 當前場景隱藏的 group id 集合(覆蓋式) */
+  groupHidden?: Record<string, true>;
 }
 
 /** 共用:從 localStorage 讀某場景的遮罩物件清單(失敗則回空陣列)。 */
@@ -380,6 +382,20 @@ export default function BigScreen() {
     setOccluderInstances(readOccludersForScene(sceneId));
   }, [sceneId]);
 
+  // Group hidden — 與 group transforms / occluders 同模式
+  const [groupHidden, setGroupHidden] = useState<Record<string, true>>(() => {
+    try {
+      const all = JSON.parse(localStorage.getItem('bigscreen-group-hidden') || '{}') as Record<string, Record<string, true>>;
+      return all[sceneId] ?? {};
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    try {
+      const all = JSON.parse(localStorage.getItem('bigscreen-group-hidden') || '{}') as Record<string, Record<string, true>>;
+      setGroupHidden(all[sceneId] ?? {});
+    } catch { setGroupHidden({}); }
+  }, [sceneId]);
+
   const [hintLevel, setHintLevel] = useState<HintLevel | null>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
@@ -564,6 +580,7 @@ export default function BigScreen() {
       // 同步上游 state,讓退出編輯模式後 fall back 正確
       setOccluderInstances(committed.occluders);
       setGroupTransforms(committed.groupTransforms);
+      setGroupHidden(committed.groupHidden);
     },
     onCommitError: (err) => {
       console.warn('[BigScreen] commit failed:', err);
@@ -607,6 +624,7 @@ export default function BigScreen() {
   }, [interactionPhase, forceShowSpeakerBadges, participantNames, speakingIdentities]);
   const effectiveOccluders = editMode ? editor.state.draft.occluders : occluderInstances;
   const effectiveGroupTransforms = editMode ? editor.state.draft.groupTransforms : groupTransforms;
+  const effectiveHiddenGroups = editMode ? editor.state.draft.groupHidden : groupHidden;
 
   const placeholderSlots = useMemo(() => {
     if (!editMode) return [];
@@ -632,6 +650,7 @@ export default function BigScreen() {
     onSpeakerAnchors: setSpeakerAnchors,
     occluderInstances: effectiveOccluders,
     editorPlaceholderSlots: placeholderSlots,
+    hiddenGroups: effectiveHiddenGroups,
     editorGizmoEnabled: editMode,
     onGizmoHandle: setGizmoHandle,
     onOccluderRoots: setOccluderRoots,
@@ -2182,6 +2201,10 @@ export default function BigScreen() {
         // HostSession 已先寫好 localStorage,這裡只更新 state 觸發 hook diff
         const list = Array.isArray(msg.occluders) ? msg.occluders : [];
         setOccluderInstances(list);
+      } else if (msg.type === 'group-hidden-set') {
+        if (editModeRef.current) return;
+        const next = (msg as { groupHidden?: Record<string, true> }).groupHidden ?? {};
+        setGroupHidden(next);
       }
     };
 

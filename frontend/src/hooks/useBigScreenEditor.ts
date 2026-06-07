@@ -19,6 +19,7 @@ import {
 
 const OCCLUDERS_KEY = 'bigscreen-scene-occluders'
 const GROUP_TRANSFORMS_KEY = 'bigscreen-group-transforms'
+const GROUP_HIDDEN_KEY = 'bigscreen-group-hidden'
 
 function loadOccludersForScene(sceneId: string): SceneOccluderInstance[] {
   try {
@@ -39,19 +40,31 @@ function loadGroupTransformsForScene(sceneId: string): Record<string, StoredGrou
   }
 }
 
+function loadGroupHiddenForScene(sceneId: string): Record<string, true> {
+  try {
+    const all = JSON.parse(localStorage.getItem(GROUP_HIDDEN_KEY) || '{}') as Record<string, Record<string, true>>
+    return all[sceneId] ?? {}
+  } catch {
+    return {}
+  }
+}
+
 function buildInitialDraft(sceneId: string): EditorDraft {
   return {
     sceneId,
     occluders: loadOccludersForScene(sceneId),
     groupTransforms: loadGroupTransformsForScene(sceneId),
+    groupHidden: loadGroupHiddenForScene(sceneId),
   }
 }
 
 export type BigScreenChannelMsg = {
-  type: 'occluders-set' | 'group-transform'
+  type: 'occluders-set' | 'group-transform' | 'group-hidden-set'
   occluders?: SceneOccluderInstance[]
   groupId?: string
   groupTransform?: StoredGroupTransform
+  /** For 'group-hidden-set': 整個場景的隱藏 group 集合(覆蓋式)。 */
+  groupHidden?: Record<string, true>
 }
 
 export interface UseBigScreenEditorOptions {
@@ -72,6 +85,7 @@ export interface BigScreenEditorApi {
   deleteOccluder: (instanceId: string) => void
   duplicateOccluder: (instanceId: string) => void
   updateGroup: (groupId: string, transform: StoredGroupTransform) => void
+  toggleGroupHidden: (groupId: string) => void
   resetItem: (kind: 'occluder' | 'group', id: string) => void
   resetScene: () => void
   select: (sel: Selection) => void
@@ -122,6 +136,10 @@ export function useBigScreenEditor(opts: UseBigScreenEditorOptions): BigScreenEd
       const allGT = JSON.parse(localStorage.getItem(GROUP_TRANSFORMS_KEY) || '{}') as Record<string, Record<string, StoredGroupTransform>>
       allGT[cur.draft.sceneId] = cur.draft.groupTransforms
       localStorage.setItem(GROUP_TRANSFORMS_KEY, JSON.stringify(allGT))
+      // 寫 group hidden
+      const allGH = JSON.parse(localStorage.getItem(GROUP_HIDDEN_KEY) || '{}') as Record<string, Record<string, true>>
+      allGH[cur.draft.sceneId] = cur.draft.groupHidden
+      localStorage.setItem(GROUP_HIDDEN_KEY, JSON.stringify(allGH))
     } catch (err) {
       onCommitError?.(err)
       return // 不更新 reducer,dirty 保留
@@ -148,6 +166,9 @@ export function useBigScreenEditor(opts: UseBigScreenEditorOptions): BigScreenEd
       // 若 group 被刪 (nextT 不存在 baseT 有) — 目前 reducer 沒有 'delete-group' action,先不發訊息
     }
 
+    // 廣播 group hidden(整組覆蓋)
+    channel?.postMessage({ type: 'group-hidden-set', groupHidden: cur.draft.groupHidden })
+
     onCommit?.(cur.draft)
     dispatch({ type: 'commit' })
   }, [channel, onCommit, onCommitError])
@@ -160,6 +181,7 @@ export function useBigScreenEditor(opts: UseBigScreenEditorOptions): BigScreenEd
     deleteOccluder: (instanceId) => dispatch({ type: 'delete-occluder', instanceId }),
     duplicateOccluder: (instanceId) => dispatch({ type: 'duplicate-occluder', instanceId, newInstanceId: crypto.randomUUID() }),
     updateGroup: (groupId, transform) => dispatch({ type: 'update-group', groupId, transform }),
+    toggleGroupHidden: (groupId) => dispatch({ type: 'toggle-group-hidden', groupId }),
     resetItem: (kind, id) => dispatch({ type: 'reset-item', kind, id }),
     resetScene: () => dispatch({ type: 'reset-scene' }),
     select: (sel) => dispatch({ type: 'select', sel }),

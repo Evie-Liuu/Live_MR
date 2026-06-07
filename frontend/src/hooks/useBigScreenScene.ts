@@ -171,6 +171,8 @@ interface UseBigScreenSceneOptions {
    * 退出編輯模式(此 prop 變空)時批次 remove。
    */
   editorPlaceholderSlots?: import('../types/vrm').SceneSlot[];
+  /** 隱藏的 group id 集合(只記錄 hidden = true 的;缺項 = 顯示)。 */
+  hiddenGroups?: Record<string, true>;
   /** 編輯模式 — 為 true 時建立 TransformControls 並接事件;false 釋放。 */
   editorGizmoEnabled?: boolean;
   /** 編輯模式 — gizmo 拖拽結束時呼叫(`dragging-changed === false`),帶被 attach 物件最終 transform。 */
@@ -187,7 +189,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances, editorPlaceholderSlots, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -247,6 +249,9 @@ export function useBigScreenScene(
 
   const groupTransformsRef = useRef<Record<string, { pos: [number, number, number]; rot: [number, number, number] }>>({});
   useEffect(() => { groupTransformsRef.current = groupTransforms ?? {}; }, [groupTransforms]);
+
+  const hiddenGroupsRef = useRef<Record<string, true>>({});
+  useEffect(() => { hiddenGroupsRef.current = hiddenGroups ?? {}; }, [hiddenGroups]);
 
   const placeholderIdentitiesRef = useRef<Set<string>>(new Set());
 
@@ -501,6 +506,46 @@ export function useBigScreenScene(
     [],
   );
 
+  /**
+   * 套用 group 顯示/隱藏到場景物件。slot member 同時嘗試:
+   *  - slotAssignments 指派的真實 identity
+   *  - __placeholder__:<slotId>(編輯模式 placeholder avatar)
+   * 缺項 = 顯示。
+   */
+  const applyAllGroupVisibility = useCallback(() => {
+    const preset = presetRef.current;
+    const groups = preset.groups ?? [];
+    const hidden = hiddenGroupsRef.current;
+    for (const g of groups) {
+      const isHidden = !!hidden[g.id];
+      for (const m of g.members) {
+        if (m.kind === 'slot') {
+          // 真實 identity
+          const realId = slotAssignmentsRef.current?.[m.id];
+          if (realId) {
+            const a = avatarsRef.current.get(realId);
+            if (a) a.vrm.scene.visible = !isHidden;
+          }
+          // placeholder identity
+          const ph = avatarsRef.current.get(`__placeholder__:${m.id}`);
+          if (ph) ph.vrm.scene.visible = !isHidden;
+        } else if (m.kind === 'staticProp') {
+          const obj = staticPropPoolRef.current.get(m.id);
+          if (obj) obj.visible = !isHidden;
+        } else {
+          const obj = taskPropPoolRef.current.get(m.id);
+          if (obj) obj.visible = !isHidden;
+        }
+      }
+    }
+  }, []);
+
+  // hiddenGroups 變動時自動 re-apply。avatar/prop pool 變動時也應 re-apply,
+  // 在各自的 load callback 末端順手呼叫一次(見 ensureAvatar、staticProps/taskProps load)。
+  useEffect(() => {
+    applyAllGroupVisibility();
+  }, [hiddenGroups, applyAllGroupVisibility]);
+
   const applyAllGroupTransforms = useCallback(() => {
     const preset = presetRef.current;
     const groups = preset.groups ?? [];
@@ -632,6 +677,7 @@ export function useBigScreenScene(
 
       Promise.allSettled([staticP, taskP]).then(() => {
         applyAllGroupTransforms();
+        applyAllGroupVisibility();
         notifyPropsReady();
       });
     } else {
@@ -1099,6 +1145,7 @@ export function useBigScreenScene(
           loadingRef.current.delete(identity);
           if (!isSlotPinned) reposition();
           applyAllGroupTransforms();
+          applyAllGroupVisibility();
           return slot;
         })
         .catch((err) => {

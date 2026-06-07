@@ -156,13 +156,21 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
           <div className="bs-editor-section-header"><span>角色群組 ({groups.length})</span></div>
           {groups.map(g => {
             const isSelected = state.selection?.kind === 'group' && state.selection.id === g.id
+            const isHidden = !!state.draft.groupHidden[g.id]
             return (
               <div
                 key={g.id}
-                className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''}`}
+                className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''} ${isHidden ? 'bs-editor-list-item--hidden' : ''}`}
                 onClick={() => editor.select({ kind: 'group', id: g.id })}
               >
                 <span>👥 {g.label}</span>
+                <button
+                  className="bs-editor-item-vis"
+                  title={isHidden ? '顯示此群組' : '隱藏此群組'}
+                  onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
+                >
+                  {isHidden ? '🙈' : '👁'}
+                </button>
               </div>
             )
           })}

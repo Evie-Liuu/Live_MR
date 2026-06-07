@@ -22,6 +22,8 @@ export type EditorDraft = {
   sceneId: string
   occluders: SceneOccluderInstance[]
   groupTransforms: Record<string, StoredGroupTransform>
+  /** 隱藏的 group id 集合(只記錄 hidden = true 的;缺項 = 顯示)。 */
+  groupHidden: Record<string, true>
 }
 
 export type Selection =
@@ -50,6 +52,7 @@ export type EditorAction =
   | { type: 'delete-occluder'; instanceId: string }
   | { type: 'duplicate-occluder'; instanceId: string; newInstanceId: string }
   | { type: 'update-group'; groupId: string; transform: StoredGroupTransform; ts?: number }
+  | { type: 'toggle-group-hidden'; groupId: string }
   | { type: 'reset-item'; kind: 'occluder' | 'group'; id: string }
   | { type: 'reset-scene' }
   | { type: 'select'; sel: Selection }
@@ -168,8 +171,14 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         return pushHistory(state, { ...state.draft, groupTransforms })
       }
     }
+    case 'toggle-group-hidden': {
+      const groupHidden = { ...state.draft.groupHidden }
+      if (groupHidden[action.groupId]) delete groupHidden[action.groupId]
+      else groupHidden[action.groupId] = true
+      return pushHistory(state, { ...state.draft, groupHidden })
+    }
     case 'reset-scene': {
-      const nextDraft = { ...state.draft, occluders: [], groupTransforms: {} }
+      const nextDraft = { ...state.draft, occluders: [], groupTransforms: {}, groupHidden: {} }
       return { ...pushHistory(state, nextDraft), selection: null }
     }
     case 'select':

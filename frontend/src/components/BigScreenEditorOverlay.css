@@ -133,6 +133,12 @@
   background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 4px; padding: 1px 6px; cursor: pointer;
 }
+.bs-editor-item-vis {
+  background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 4px; padding: 1px 6px; cursor: pointer; font-size: 12px;
+}
+.bs-editor-item-vis:hover { background: rgba(255, 255, 255, 0.08); }
+.bs-editor-list-item--hidden > span { opacity: 0.5; text-decoration: line-through; }
 
 .bs-editor-hint { opacity: 0.6; font-style: italic; padding: 4px 8px; }
 .bs-editor-placeholder-section { opacity: 0.4; font-style: italic; }
