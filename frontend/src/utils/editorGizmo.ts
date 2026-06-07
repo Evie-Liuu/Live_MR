@@ -28,7 +28,9 @@ export function attachGizmo(
   const controls = new TransformControls(camera, domElement)
   controls.setMode(mode)
   controls.setSpace('world')
-  scene.add(controls as unknown as THREE.Object3D)
+  // three r0.169+:TransformControls 不再是 Object3D,可見部分由 getHelper() 取得。
+  const helper = controls.getHelper()
+  scene.add(helper)
 
   let attached: THREE.Object3D | null = null
 
@@ -43,7 +45,7 @@ export function attachGizmo(
 
   const dispose = () => {
     try { controls.detach() } catch { /* ignore */ }
-    try { scene.remove(controls as unknown as THREE.Object3D) } catch { /* ignore */ }
+    try { scene.remove(helper) } catch { /* ignore */ }
     try { controls.dispose() } catch { /* ignore */ }
   }
 
