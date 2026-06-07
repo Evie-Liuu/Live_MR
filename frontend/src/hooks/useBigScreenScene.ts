@@ -367,8 +367,10 @@ export function useBigScreenScene(
       if (placeholderIdentitiesRef.current.has(id)) continue;
       const vrmId = slot.defaultVrmId ?? DEFAULT_VRM_SOURCE_ID;
       const vrmUrl = (VRM_SOURCES[vrmId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      // slot.position.y 在真實參與者流程中會被 pose 拉回地面;placeholder 沒有 pose
+      // driver,直接用會懸浮。把 y 壓到 0(腳貼地),x/z 沿用 slot 定義。
       const spawnOverride = {
-        position: slot.position,
+        position: [slot.position[0], 0, slot.position[2]] as [number, number, number],
         rotation: slot.rotation,
         scale: presetRef.current.avatarDefaults?.scale,
       };
