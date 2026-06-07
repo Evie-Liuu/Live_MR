@@ -2261,6 +2261,7 @@ export default function BigScreen() {
         ref={canvasRef}
         id="bigscreen-canvas"
         className="bigscreen-canvas"
+        style={editMode ? { pointerEvents: 'auto' } : undefined}
       />
 
       {/* 2b. Bottom vignette for depth */}
