@@ -5,6 +5,7 @@ import type { GizmoHandle } from '../utils/editorGizmo'
 import type { Object3D } from 'three'
 import { OCCLUDER_LIBRARY, OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders'
 import { MAX_OCCLUDERS_PER_SCENE } from '../hooks/useBigScreenEditor.reducer'
+import OccluderPreview from './OccluderPreview'
 import './BigScreenEditorOverlay.css'
 
 const RAD2DEG = 180 / Math.PI
@@ -68,9 +69,7 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
           const usedCount = occluders.filter(o => o.libraryId === lib.id).length
           return (
             <div key={lib.id} className="bs-editor-library-card">
-              <div className="bs-editor-library-preview">
-                <span className="bs-editor-library-preview-emoji">🪴</span>
-              </div>
+              <OccluderPreview glbUrl={lib.glbUrl} size={140} />
               <div className="bs-editor-library-card-meta">
                 <span className="bs-editor-library-card-label">{lib.label}</span>
                 {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
