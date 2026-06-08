@@ -98,7 +98,7 @@ export default function BigScreenEditorOverlay({
         onClick={() => toggleLeftTab('bg')}
         title="背景來源"
       >
-        <span className="bs-editor-rail-icon" aria-hidden>🎥</span>
+        <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>image</span>
         <span className="bs-editor-rail-label">背景</span>
       </button>
       <button
@@ -106,7 +106,7 @@ export default function BigScreenEditorOverlay({
         onClick={() => toggleLeftTab('library')}
         title="素材庫"
       >
-        <span className="bs-editor-rail-icon" aria-hidden>🪴</span>
+        <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>photo_library</span>
         <span className="bs-editor-rail-label">素材庫</span>
       </button>
     </aside>
