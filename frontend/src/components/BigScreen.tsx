@@ -2262,7 +2262,7 @@ export default function BigScreen() {
         </div>
       )}
 
-      {effectiveBgType === 'camera' && (
+      {effectiveBgType === 'camera' && !editMode && (
         <CameraDevicePicker value={cameraBgDeviceId} onChange={handleCameraBgDeviceChange} />
       )}
 
@@ -2634,6 +2634,10 @@ export default function BigScreen() {
           onExit={tryExitEditMode}
           gizmoHandle={gizmoHandle}
           occluderRoots={occluderRoots}
+          cameraBgDeviceId={cameraBgDeviceId}
+          onCameraBgDeviceChange={handleCameraBgDeviceChange}
+          bgTypeOverride={bgTypeOverride}
+          onBgTypeOverrideChange={setBgTypeOverride}
         />
       )}
     </div >

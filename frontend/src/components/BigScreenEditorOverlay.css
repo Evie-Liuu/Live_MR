@@ -436,3 +436,52 @@
   cursor: not-allowed;
 }
 .bs-editor-library-card-add { width: 100%; }
+
+/* ── Background source tab ──────────────────────────────────────────────── */
+.bs-editor-bg-pane {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bs-editor-bg-section-label {
+  font-size: 11px;
+  color: #8d9099;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin-top: 4px;
+}
+.bs-editor-bg-types {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.bs-editor-bg-type {
+  background: rgba(255, 255, 255, 0.04);
+  color: #d5d7dc;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bs-editor-bg-type:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+.bs-editor-bg-type--active {
+  background: rgba(247, 110, 18, 0.16);
+  color: #ffb37a;
+  border-color: rgba(247, 110, 18, 0.45);
+}
+.bs-editor-bg-select {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bs-editor-bg-select:disabled { opacity: 0.45; cursor: not-allowed; }
+.bs-editor-bg-select option { background: #1a1c22; color: #fff; }

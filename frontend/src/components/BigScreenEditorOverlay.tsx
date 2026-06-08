@@ -36,15 +36,27 @@ function NumberRow({
   )
 }
 
+export type BgTypeOverride = 'default' | 'none' | 'camera'
+
 interface Props {
   editor: BigScreenEditorApi
   scene: SceneConfig
   onExit: () => void
   gizmoHandle: GizmoHandle | null
   occluderRoots: ReadonlyMap<string, Object3D>
+  /** 背景來源:相機 deviceId(空字串 = 預設相機)。 */
+  cameraBgDeviceId: string
+  onCameraBgDeviceChange: (deviceId: string) => void
+  /** 場景背景類型覆蓋(default = 依場景設定)。 */
+  bgTypeOverride: BgTypeOverride
+  onBgTypeOverrideChange: (v: BgTypeOverride) => void
 }
 
-export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHandle, occluderRoots }: Props) {
+export default function BigScreenEditorOverlay({
+  editor, scene, onExit, gizmoHandle, occluderRoots,
+  cameraBgDeviceId, onCameraBgDeviceChange,
+  bgTypeOverride, onBgTypeOverrideChange,
+}: Props) {
   const { state } = editor
 
   useEffect(() => {
@@ -73,41 +85,70 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
     else if (state.selection?.kind === 'group') setTab('groups')
   }, [state.selection])
 
+  // 左側 tab:素材庫 / 背景來源
+  const [leftTab, setLeftTab] = useState<'library' | 'bg'>('library')
+
   return (
     <>
-    {/* ── Library panel (left) ──────────────────────────────────────── */}
-    <aside className="bs-editor-library-panel" aria-label="素材庫">
+    {/* ── Left panel:素材庫 / 背景來源 ───────────────────────────── */}
+    <aside className="bs-editor-library-panel" aria-label="編輯資源">
       <div className="bs-editor-header">
-        <span className="bs-editor-title">素材庫</span>
-        <span className="bs-editor-count">{OCCLUDER_LIBRARY.length}</span>
+        <span className="bs-editor-title">編輯資源</span>
+        <span className="bs-editor-count">
+          {leftTab === 'library' ? OCCLUDER_LIBRARY.length : ''}
+        </span>
       </div>
-      <div className="bs-editor-library-grid">
-        {OCCLUDER_LIBRARY.length === 0 && (
-          <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
-        )}
-        {OCCLUDER_LIBRARY.map(lib => {
-          const usedCount = occluders.filter(o => o.libraryId === lib.id).length
-          return (
-            <div key={lib.id} className="bs-editor-library-card">
-              <OccluderPreview glbUrl={lib.glbUrl} size={140} />
-              <div className="bs-editor-library-card-meta">
-                <span className="bs-editor-library-card-label">{lib.label}</span>
-                {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
-              </div>
-              <button
-                className="bs-editor-btn-add bs-editor-library-card-add"
-                disabled={atOccluderLimit}
-                onClick={() => editor.addOccluder(lib.id)}
-                title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入到當前場景'}
-              >
-                + 加入
-              </button>
-            </div>
-          )
-        })}
+      <div className="bs-editor-tabs">
+        <button
+          className={`bs-editor-tab ${leftTab === 'library' ? 'bs-editor-tab--active' : ''}`}
+          onClick={() => setLeftTab('library')}
+        >🪴 素材庫</button>
+        <button
+          className={`bs-editor-tab ${leftTab === 'bg' ? 'bs-editor-tab--active' : ''}`}
+          onClick={() => setLeftTab('bg')}
+        >🎥 背景來源</button>
       </div>
-      {atOccluderLimit && (
-        <div className="bs-editor-hint">已達上限 {MAX_OCCLUDERS_PER_SCENE} 個 — 請先刪除一些再加入</div>
+
+      {leftTab === 'library' && (
+        <>
+          <div className="bs-editor-library-grid">
+            {OCCLUDER_LIBRARY.length === 0 && (
+              <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
+            )}
+            {OCCLUDER_LIBRARY.map(lib => {
+              const usedCount = occluders.filter(o => o.libraryId === lib.id).length
+              return (
+                <div key={lib.id} className="bs-editor-library-card">
+                  <OccluderPreview glbUrl={lib.glbUrl} size={140} />
+                  <div className="bs-editor-library-card-meta">
+                    <span className="bs-editor-library-card-label">{lib.label}</span>
+                    {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
+                  </div>
+                  <button
+                    className="bs-editor-btn-add bs-editor-library-card-add"
+                    disabled={atOccluderLimit}
+                    onClick={() => editor.addOccluder(lib.id)}
+                    title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入到當前場景'}
+                  >
+                    + 加入
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          {atOccluderLimit && (
+            <div className="bs-editor-hint">已達上限 {MAX_OCCLUDERS_PER_SCENE} 個 — 請先刪除一些再加入</div>
+          )}
+        </>
+      )}
+
+      {leftTab === 'bg' && (
+        <BgSourceTab
+          deviceId={cameraBgDeviceId}
+          onDeviceChange={onCameraBgDeviceChange}
+          bgType={bgTypeOverride}
+          onBgTypeChange={onBgTypeOverrideChange}
+        />
       )}
     </aside>
 
@@ -239,6 +280,84 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
       </section>
     </div>
     </>
+  )
+}
+
+function BgSourceTab({
+  deviceId, onDeviceChange, bgType, onBgTypeChange,
+}: {
+  deviceId: string
+  onDeviceChange: (id: string) => void
+  bgType: BgTypeOverride
+  onBgTypeChange: (v: BgTypeOverride) => void
+}) {
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    const refresh = async () => {
+      try {
+        let probe: MediaStream | null = null
+        try {
+          const all = await navigator.mediaDevices.enumerateDevices()
+          if (!all.some(d => d.kind === 'videoinput' && d.label)) {
+            probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          }
+        } catch { /* ignore — labels may stay generic */ }
+        const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
+        if (probe) probe.getTracks().forEach(t => t.stop())
+        if (!cancelled) setDevices(list)
+      } catch (err) {
+        console.warn('[BgSourceTab] enumerateDevices failed:', err)
+      }
+    }
+    refresh()
+    navigator.mediaDevices.addEventListener?.('devicechange', refresh)
+    return () => {
+      cancelled = true
+      navigator.mediaDevices.removeEventListener?.('devicechange', refresh)
+    }
+  }, [])
+
+  const bgOptions: { value: BgTypeOverride; label: string; hint: string }[] = [
+    { value: 'default', label: '預設', hint: '依場景設定(影片 / 圖片)' },
+    { value: 'none', label: '無', hint: '純黑底,只看角色與物件' },
+    { value: 'camera', label: '相機', hint: '使用攝影機畫面當背景' },
+  ]
+
+  return (
+    <div className="bs-editor-bg-pane">
+      <div className="bs-editor-bg-section-label">背景類型</div>
+      <div className="bs-editor-bg-types">
+        {bgOptions.map(opt => (
+          <button
+            key={opt.value}
+            className={`bs-editor-bg-type ${bgType === opt.value ? 'bs-editor-bg-type--active' : ''}`}
+            onClick={() => onBgTypeChange(opt.value)}
+            title={opt.hint}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <div className="bs-editor-bg-section-label">相機裝置</div>
+      <select
+        className="bs-editor-bg-select"
+        value={deviceId}
+        onChange={(e) => onDeviceChange(e.target.value)}
+        disabled={bgType !== 'camera'}
+      >
+        <option value="">預設相機</option>
+        {devices.map((d, i) => (
+          <option key={d.deviceId || i} value={d.deviceId}>
+            {d.label || `Camera ${i + 1}`}
+          </option>
+        ))}
+      </select>
+      {bgType !== 'camera' && (
+        <div className="bs-editor-hint">切換到「相機」才會啟用裝置選擇</div>
+      )}
+    </div>
   )
 }
 
