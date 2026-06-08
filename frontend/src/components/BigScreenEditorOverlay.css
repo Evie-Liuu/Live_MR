@@ -1,51 +1,304 @@
+/* ─────────────────────────────────────────────────────────────────────────
+ * BigScreen 編輯模式 — refined floating panels(左:素材庫,右:場景物件+群組+變換)
+ * 視覺基調:深色透明底 / 圓角 16 / 軟陰影 / 主色 #f76e12(暖橘)
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/* ── Right overlay ───────────────────────────────────────────────────────── */
 .bs-editor-overlay {
   position: fixed;
   top: 24px;
   right: 24px;
   bottom: 24px;
   width: 360px;
-  background: rgba(15, 12, 10, 0.88);
-  color: #fff;
-  font: 13px/1.4 system-ui, sans-serif;
+  background: rgba(20, 22, 27, 0.88);
+  color: #e8e9ec;
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
   z-index: 999;
   overflow-y: auto;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.55);
   pointer-events: auto;
   display: flex;
   flex-direction: column;
 }
 
+/* ── Header ──────────────────────────────────────────────────────────────── */
 .bs-editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
-.bs-editor-title { font-weight: 700; color: #ffb347; letter-spacing: 0.5px; }
+.bs-editor-title {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.4px;
+  color: #fff;
+}
 .bs-editor-exit {
   background: transparent;
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
+  color: #b9bcc4;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
   padding: 4px 10px;
   cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s, color 0.15s;
 }
-.bs-editor-exit:hover { background: rgba(255, 255, 255, 0.08); }
+.bs-editor-exit:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
 
-.bs-editor-section { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+/* ── Toolbar(轉移到 header 下) ─────────────────────────────────────────── */
+.bs-editor-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 18px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.bs-editor-tb-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: #d5d7dc;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  min-width: 32px;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-editor-tb-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.bs-editor-tb-btn--active { background: #f76e12; border-color: #f76e12; color: #fff; }
+.bs-editor-tb-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.bs-editor-tb-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 4px;
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
+.bs-editor-section {
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
 .bs-editor-section-header {
-  display: flex; justify-content: space-between; align-items: center;
-  font-weight: 700; margin-bottom: 8px; color: #d8c8b8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #f0f1f3;
+  font-size: 13px;
 }
-.bs-editor-btn-add {
-  background: #f76e12; color: #fff; border: none; border-radius: 6px;
-  padding: 4px 10px; cursor: pointer; font-weight: 700;
+.bs-editor-hint {
+  opacity: 0.55;
+  font-style: normal;
+  font-size: 12px;
+  padding: 6px 0;
 }
-.bs-editor-btn-add:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Scene-object list rows(occluder instances) ─────────────────────────── */
+.bs-editor-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-editor-list-item:hover { background: rgba(255, 255, 255, 0.04); }
+.bs-editor-list-item--selected {
+  background: rgba(247, 110, 18, 0.12);
+  border-color: rgba(247, 110, 18, 0.45);
+}
+.bs-editor-item-suffix { opacity: 0.55; margin-left: 4px; font-size: 11px; }
+.bs-editor-item-delete {
+  background: transparent;
+  color: #b9bcc4;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 1px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.bs-editor-item-delete:hover { color: #ff7676; border-color: rgba(255, 118, 118, 0.5); }
+
+/* ── Group cards(本次重點) ─────────────────────────────────────────────── */
+.bs-editor-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bs-editor-group-card {
+  display: grid;
+  grid-template-columns: 6px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.bs-editor-group-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.bs-editor-group-card--selected {
+  background: rgba(255, 255, 255, 0.06);
+  border-width: 1px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.bs-editor-group-card--hidden .bs-editor-group-label {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.bs-editor-group-chip {
+  width: 6px;
+  height: 36px;
+  border-radius: 3px;
+  display: block;
+}
+.bs-editor-group-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.bs-editor-group-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+}
+.bs-editor-group-sub {
+  font-size: 11px;
+  color: #8d9099;
+}
+.bs-editor-group-vis {
+  background: transparent;
+  color: #b9bcc4;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.bs-editor-group-vis:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+
+/* ── Number rows(refined slider + borderless number) ────────────────────── */
+.bs-editor-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  gap: 12px;
+  align-items: center;
+  padding: 5px 0;
+}
+.bs-editor-row label {
+  font-size: 12px;
+  color: #b9bcc4;
+  font-weight: 500;
+}
+.bs-editor-row input[type="range"] {
+  width: 100%;
+  height: 4px;
+  accent-color: #f76e12;
+  cursor: pointer;
+}
+.bs-editor-row-num {
+  background: transparent;
+  color: #fff;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 2px 0;
+  width: 100%;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  outline: none;
+}
+.bs-editor-row-num:focus {
+  border-bottom-color: rgba(247, 110, 18, 0.6);
+}
+.bs-editor-row-num::-webkit-outer-spin-button,
+.bs-editor-row-num::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ── Action buttons in transform editor ──────────────────────────────────── */
+.bs-editor-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.bs-editor-btn-secondary,
+.bs-editor-btn-danger {
+  background: rgba(255, 255, 255, 0.05);
+  color: #d5d7dc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bs-editor-btn-secondary:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.bs-editor-btn-danger {
+  background: rgba(220, 53, 69, 0.2);
+  border-color: rgba(220, 53, 69, 0.45);
+  color: #ff8e8e;
+}
+.bs-editor-btn-danger:hover { background: rgba(220, 53, 69, 0.3); }
+
+/* ── Footer(sticky bottom) ─────────────────────────────────────────────── */
+.bs-editor-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 18px 18px;
+  background: linear-gradient(180deg, rgba(20, 22, 27, 0) 0%, rgba(20, 22, 27, 0.92) 30%);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0 0 16px 16px;
+  margin-top: auto;
+}
+.bs-editor-dirty-hint {
+  color: #ffb347;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bs-editor-btn-primary {
+  background: linear-gradient(180deg, #ff8a3d 0%, #f76e12 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 6px 16px rgba(247, 110, 18, 0.35);
+  transition: filter 0.15s;
+}
+.bs-editor-btn-primary:hover:not(:disabled) { filter: brightness(1.05); }
+.bs-editor-btn-primary:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+  cursor: not-allowed;
+}
 
 /* ── Library panel (left, floating) ─────────────────────────────────────── */
 .bs-editor-library-panel {
@@ -54,42 +307,44 @@
   left: 24px;
   bottom: 24px;
   width: 240px;
-  background: rgba(15, 12, 10, 0.88);
-  color: #fff;
-  font: 13px/1.4 system-ui, sans-serif;
+  background: rgba(20, 22, 27, 0.88);
+  color: #e8e9ec;
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
   z-index: 999;
   overflow-y: auto;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.55);
   pointer-events: auto;
   display: flex;
   flex-direction: column;
 }
 .bs-editor-count {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: #ffb347;
   border-radius: 999px;
   padding: 2px 10px;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
 }
 .bs-editor-library-grid {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  padding: 12px;
+  padding: 14px;
 }
 .bs-editor-library-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   padding: 10px;
+  transition: border-color 0.15s, background 0.15s;
 }
 .bs-editor-library-card:hover {
   background: rgba(255, 255, 255, 0.07);
@@ -97,10 +352,9 @@
 }
 .bs-editor-library-preview {
   align-self: center;
-  background:
-    radial-gradient(circle at 50% 65%, rgba(247, 110, 18, 0.15), rgba(0, 0, 0, 0.45) 70%);
+  background: radial-gradient(circle at 50% 65%, rgba(247, 110, 18, 0.15), rgba(0, 0, 0, 0.45) 70%);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
 }
 .bs-editor-library-card-meta {
@@ -118,76 +372,21 @@
   color: #ffb347;
   opacity: 0.85;
 }
-.bs-editor-library-card-add {
-  width: 100%;
+.bs-editor-btn-add {
+  background: #f76e12;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  transition: filter 0.15s;
 }
-
-.bs-editor-list-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 6px 8px; border-radius: 4px; cursor: pointer;
+.bs-editor-btn-add:hover:not(:disabled) { filter: brightness(1.06); }
+.bs-editor-btn-add:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.35);
+  cursor: not-allowed;
 }
-.bs-editor-list-item:hover { background: rgba(255, 255, 255, 0.06); }
-.bs-editor-list-item--selected { background: rgba(247, 110, 18, 0.18); }
-.bs-editor-item-suffix { opacity: 0.55; margin-left: 4px; }
-.bs-editor-item-delete {
-  background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 4px; padding: 1px 6px; cursor: pointer;
-}
-.bs-editor-item-vis {
-  background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 4px; padding: 1px 6px; cursor: pointer; font-size: 12px;
-}
-.bs-editor-item-vis:hover { background: rgba(255, 255, 255, 0.08); }
-.bs-editor-list-item--hidden > span { opacity: 0.5; text-decoration: line-through; }
-
-.bs-editor-hint { opacity: 0.6; font-style: italic; padding: 4px 8px; }
-.bs-editor-placeholder-section { opacity: 0.4; font-style: italic; }
-
-.bs-editor-row {
-  display: grid; grid-template-columns: 60px 1fr 64px; gap: 8px; align-items: center;
-  padding: 3px 0;
-}
-.bs-editor-row label { font-size: 11px; opacity: 0.7; }
-.bs-editor-row input[type="number"] {
-  background: rgba(255, 255, 255, 0.06); color: #fff; border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px; padding: 2px 4px; width: 100%; font: inherit;
-}
-.bs-editor-row input[type="range"] { width: 100%; }
-
-.bs-editor-actions {
-  display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;
-}
-.bs-editor-btn-secondary, .bs-editor-btn-danger {
-  background: rgba(255, 255, 255, 0.08); color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 6px;
-  padding: 4px 10px; cursor: pointer;
-}
-.bs-editor-btn-danger { background: rgba(220, 53, 69, 0.25); border-color: rgba(220, 53, 69, 0.5); }
-
-.bs-editor-toolbar {
-  display: flex; gap: 6px; padding: 8px 16px; align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-.bs-editor-tb-btn {
-  background: rgba(255, 255, 255, 0.06); color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px;
-  padding: 4px 10px; cursor: pointer; min-width: 32px;
-}
-.bs-editor-tb-btn--active { background: #f76e12; border-color: #f76e12; }
-.bs-editor-tb-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.bs-editor-tb-sep { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.1); margin: 0 4px; }
-
-.bs-editor-footer {
-  position: sticky; bottom: 0;
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.7); border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0 0 16px 16px;
-  margin-top: auto;
-}
-.bs-editor-dirty-hint { color: #ffb347; font-weight: 700; }
-.bs-editor-btn-primary {
-  background: #f76e12; color: #fff; border: none; border-radius: 6px;
-  padding: 8px 14px; cursor: pointer; font-weight: 700;
-}
-.bs-editor-btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+.bs-editor-library-card-add { width: 100%; }

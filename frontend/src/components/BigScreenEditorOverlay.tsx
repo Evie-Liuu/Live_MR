@@ -11,14 +11,27 @@ import './BigScreenEditorOverlay.css'
 const RAD2DEG = 180 / Math.PI
 const DEG2RAD = Math.PI / 180
 
+/** 群組固定 chip 色:依出現順序依序取,循環使用。 */
+const GROUP_CHIP_COLORS = ['#f76e12', '#1fb7a5', '#5aa1e8', '#a16cd6', '#f5b942', '#e25688']
+
 function NumberRow({
-  label, min, max, step, value, onChange,
-}: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void }) {
+  label, min, max, step, value, onChange, accent,
+}: { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void; accent?: string }) {
+  const display = Number.isFinite(value) ? Math.round(value * 100) / 100 : 0
   return (
     <div className="bs-editor-row">
       <label>{label}</label>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <input type="number" step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input
+        type="range" min={min} max={max} step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={accent ? { accentColor: accent } : undefined}
+      />
+      <input
+        className="bs-editor-row-num"
+        type="number" step={step} value={display}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </div>
   )
 }
@@ -154,31 +167,40 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
       {groups.length > 0 && (
         <section className="bs-editor-section">
           <div className="bs-editor-section-header"><span>角色群組 ({groups.length})</span></div>
-          {groups.map(g => {
-            const isSelected = state.selection?.kind === 'group' && state.selection.id === g.id
-            const isHidden = !!state.draft.groupHidden[g.id]
-            return (
-              <div
-                key={g.id}
-                className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''} ${isHidden ? 'bs-editor-list-item--hidden' : ''}`}
-                onClick={() => editor.select({ kind: 'group', id: g.id })}
-              >
-                <span>👥 {g.label}</span>
-                <button
-                  className="bs-editor-item-vis"
-                  title={isHidden ? '顯示此群組' : '隱藏此群組'}
-                  onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
+          <div className="bs-editor-group-list">
+            {groups.map((g, idx) => {
+              const isSelected = state.selection?.kind === 'group' && state.selection.id === g.id
+              const isHidden = !!state.draft.groupHidden[g.id]
+              const color = GROUP_CHIP_COLORS[idx % GROUP_CHIP_COLORS.length]
+              const memberCount = g.members.length
+              return (
+                <div
+                  key={g.id}
+                  className={`bs-editor-group-card ${isSelected ? 'bs-editor-group-card--selected' : ''} ${isHidden ? 'bs-editor-group-card--hidden' : ''}`}
+                  onClick={() => editor.select({ kind: 'group', id: g.id })}
+                  style={isSelected ? { borderColor: color } : undefined}
                 >
-                  {isHidden ? '🙈' : '👁'}
-                </button>
-              </div>
-            )
-          })}
+                  <span className="bs-editor-group-chip" style={{ background: color }} aria-hidden />
+                  <div className="bs-editor-group-meta">
+                    <span className="bs-editor-group-label">{g.label}</span>
+                    <span className="bs-editor-group-sub">{memberCount} 個成員</span>
+                  </div>
+                  <button
+                    className="bs-editor-group-vis"
+                    title={isHidden ? '顯示此群組' : '隱藏此群組'}
+                    onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
+                  >
+                    {isHidden ? '🙈' : '👁'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         </section>
       )}
 
       <OccluderEditor editor={editor} />
-      <GroupEditor editor={editor} scene={scene} />
+      <GroupEditor editor={editor} scene={scene} groups={groups} />
 
       <section className="bs-editor-footer">
         {editor.state.dirty && <div className="bs-editor-dirty-hint">⚠ 未保存變動</div>}
@@ -227,30 +249,34 @@ function OccluderEditor({ editor }: { editor: BigScreenEditorApi }) {
   )
 }
 
-function GroupEditor({ editor, scene }: { editor: BigScreenEditorApi; scene: SceneConfig }) {
+function GroupEditor({ editor, scene, groups }: { editor: BigScreenEditorApi; scene: SceneConfig; groups: NonNullable<SceneConfig['groups']> }) {
   const sel = editor.state.selection
   if (sel?.kind !== 'group') return null
-  const g = scene.groups?.find(x => x.id === sel.id)
+  const idx = groups.findIndex(x => x.id === sel.id)
+  const g = idx >= 0 ? groups[idx] : scene.groups?.find(x => x.id === sel.id)
   if (!g) return null
+  const accent = GROUP_CHIP_COLORS[(idx >= 0 ? idx : 0) % GROUP_CHIP_COLORS.length]
   const t = editor.state.draft.groupTransforms[g.id] ?? { pos: [0, 0, 0] as [number, number, number], rot: [0, 0, 0] as [number, number, number] }
   const setT = (next: typeof t) => editor.updateGroup(g.id, next)
   return (
     <section className="bs-editor-section">
-      <div className="bs-editor-section-header"><span>選中變換 — {g.label}</span></div>
-      <NumberRow label="X" min={-5} max={5} step={0.05}
+      <div className="bs-editor-section-header">
+        <span>選中變換 — <span style={{ color: accent }}>{g.label}</span></span>
+      </div>
+      <NumberRow label="X" min={-5} max={5} step={0.05} accent={accent}
         value={t.pos[0]} onChange={v => setT({ ...t, pos: [v, t.pos[1], t.pos[2]] })} />
-      <NumberRow label="Y" min={-5} max={5} step={0.05}
+      <NumberRow label="Y" min={-5} max={5} step={0.05} accent={accent}
         value={t.pos[1]} onChange={v => setT({ ...t, pos: [t.pos[0], v, t.pos[2]] })} />
-      <NumberRow label="Z" min={-5} max={5} step={0.05}
+      <NumberRow label="Z" min={-5} max={5} step={0.05} accent={accent}
         value={t.pos[2]} onChange={v => setT({ ...t, pos: [t.pos[0], t.pos[1], v] })} />
-      <NumberRow label="Pitch(°)" min={-180} max={180} step={1}
-        value={Math.round(t.rot[0] * RAD2DEG * 100) / 100}
+      <NumberRow label="Pitch(°)" min={-180} max={180} step={1} accent={accent}
+        value={t.rot[0] * RAD2DEG}
         onChange={deg => setT({ ...t, rot: [deg * DEG2RAD, t.rot[1], t.rot[2]] })} />
-      <NumberRow label="Yaw(°)" min={-180} max={180} step={1}
-        value={Math.round(t.rot[1] * RAD2DEG * 100) / 100}
+      <NumberRow label="Yaw(°)" min={-180} max={180} step={1} accent={accent}
+        value={t.rot[1] * RAD2DEG}
         onChange={deg => setT({ ...t, rot: [t.rot[0], deg * DEG2RAD, t.rot[2]] })} />
-      <NumberRow label="Roll(°)" min={-180} max={180} step={1}
-        value={Math.round(t.rot[2] * RAD2DEG * 100) / 100}
+      <NumberRow label="Roll(°)" min={-180} max={180} step={1} accent={accent}
+        value={t.rot[2] * RAD2DEG}
         onChange={deg => setT({ ...t, rot: [t.rot[0], t.rot[1], deg * DEG2RAD] })} />
       <div className="bs-editor-actions">
         <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('group', g.id)}>↺ 單一重置</button>

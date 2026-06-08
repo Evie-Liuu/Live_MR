@@ -1787,7 +1787,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
   const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
   const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowOccludersPanel(false); };
-  const openOccluders = () => { setShowOccludersPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); };
   const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setSceneEditorGroupId(null); };
 
   const handleBrandClick = () => {
@@ -2018,7 +2017,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           </div>
 
           {/* 場景物件(遮罩)卡 — 在 camera 背景下用虛擬物件擋住真實環境干擾 */}
-          <div
+          {/* <div
             className={`hs-card hs-card--scene ${showOccludersPanel ? 'hs-card--open' : ''}`}
             onClick={openOccluders}
           >
@@ -2027,7 +2026,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               <span className="hs-card-title">場景物件</span>
               <span className="hs-badge hs-badge--info">{occluderInstances.length}</span>
             </div>
-          </div>
+          </div> */}
 
           {/* Character / Slot card */}
           {hasSlots && (

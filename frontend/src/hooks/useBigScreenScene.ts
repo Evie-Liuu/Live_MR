@@ -344,7 +344,7 @@ export function useBigScreenScene(
           console.warn('[BigScreenScene] occluder load error:', err);
         });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [occluderInstances, sceneReady]);
 
   /** 給 in-flight 載入完成回呼判斷 instance 是否仍被要求渲染。 */
@@ -375,7 +375,7 @@ export function useBigScreenScene(
       // slot.position.y 在真實參與者流程中會被 pose 拉回地面;placeholder 沒有 pose
       // driver,直接用會懸浮。把 y 壓到 0(腳貼地),x/z 沿用 slot 定義。
       const spawnOverride = {
-        position: [slot.position[0], 0, slot.position[2]] as [number, number, number],
+        position: [slot.position[0], -0.5, slot.position[2]] as [number, number, number],
         rotation: slot.rotation,
         scale: presetRef.current.avatarDefaults?.scale,
       };
@@ -397,7 +397,7 @@ export function useBigScreenScene(
         });
       placeholderIdentitiesRef.current.add(id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorPlaceholderSlots, sceneReady]);
 
   // ─── TransformControls gizmo lifecycle(編輯模式)──────────────────────
@@ -436,7 +436,7 @@ export function useBigScreenScene(
       }
       onGizmoHandle?.(null);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorGizmoEnabled, sceneReady]);
 
   /** 套用群組變換後的 taskProp displayPos：taskId → final pos。 */
