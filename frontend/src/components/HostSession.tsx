@@ -2613,7 +2613,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         >
           <span className="material-symbols-outlined">rocket_launch</span>
           <span className="hs-fab-label">開啟大屏</span>
-          
           <span className="material-symbols-outlined" style={{ marginLeft: '4px', fontSize: '20px', transition: 'transform 0.2s ease', transform: bigScreenMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
             expand_less
           </span>

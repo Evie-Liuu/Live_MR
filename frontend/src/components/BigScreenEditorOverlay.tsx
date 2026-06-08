@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { BigScreenEditorApi } from '../hooks/useBigScreenEditor'
 import type { SceneConfig } from '../types/vrm'
 import type { GizmoHandle } from '../utils/editorGizmo'
@@ -65,6 +65,13 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
   const occluders = state.draft.occluders
   const groups = scene.groups ?? []
   const atOccluderLimit = occluders.length >= MAX_OCCLUDERS_PER_SCENE
+
+  // 列表 tab 切換 — 同時跟著 selection 自動切到對應 tab
+  const [tab, setTab] = useState<'objects' | 'groups'>('objects')
+  useEffect(() => {
+    if (state.selection?.kind === 'occluder') setTab('objects')
+    else if (state.selection?.kind === 'group') setTab('groups')
+  }, [state.selection])
 
   return (
     <>
@@ -133,71 +140,87 @@ export default function BigScreenEditorOverlay({ editor, scene, onExit, gizmoHan
         <button className="bs-editor-tb-btn" disabled={editor.state.future.length === 0} onClick={editor.redo} title="Redo (Ctrl+Shift+Z)">↷</button>
       </div>
 
-      {/* Section: occluders(僅顯示已加入;新增請至左側素材庫) */}
-      <section className="bs-editor-section">
-        <div className="bs-editor-section-header">
-          <span>場景物件 ({occluders.length}/{MAX_OCCLUDERS_PER_SCENE})</span>
-        </div>
+      {/* Tab 切換:場景物件 / 角色群組 — 固定高度,不影響下方變換 bar */}
+      <div className="bs-editor-tabs">
+        <button
+          className={`bs-editor-tab ${tab === 'objects' ? 'bs-editor-tab--active' : ''}`}
+          onClick={() => setTab('objects')}
+        >
+          場景物件 <span className="bs-editor-tab-count">{occluders.length}/{MAX_OCCLUDERS_PER_SCENE}</span>
+        </button>
+        <button
+          className={`bs-editor-tab ${tab === 'groups' ? 'bs-editor-tab--active' : ''}`}
+          onClick={() => setTab('groups')}
+          disabled={groups.length === 0}
+        >
+          角色群組 <span className="bs-editor-tab-count">{groups.length}</span>
+        </button>
+      </div>
 
-        {occluders.length === 0 && (
-          <div className="bs-editor-hint">尚未加入物件 — 從左側素材庫挑選</div>
-        )}
-
-        {occluders.map((inst, idx) => {
-          const lib = OCCLUDER_LIBRARY_BY_ID[inst.libraryId]
-          const isSelected = state.selection?.kind === 'occluder' && state.selection.id === inst.instanceId
-          const sameLibBefore = occluders.slice(0, idx).filter(i => i.libraryId === inst.libraryId).length + 1
-          return (
-            <div
-              key={inst.instanceId}
-              className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''}`}
-              onClick={() => editor.select({ kind: 'occluder', id: inst.instanceId })}
-            >
-              <span>{lib ? `🪴 ${lib.label}` : '⚠ (已失效)'} <span className="bs-editor-item-suffix">#{sameLibBefore}</span></span>
-              <button
-                className="bs-editor-item-delete"
-                onClick={(e) => { e.stopPropagation(); editor.deleteOccluder(inst.instanceId) }}
-              >×</button>
-            </div>
-          )
-        })}
-      </section>
-
-      {/* Section: groups */}
-      {groups.length > 0 && (
-        <section className="bs-editor-section">
-          <div className="bs-editor-section-header"><span>角色群組 ({groups.length})</span></div>
-          <div className="bs-editor-group-list">
-            {groups.map((g, idx) => {
-              const isSelected = state.selection?.kind === 'group' && state.selection.id === g.id
-              const isHidden = !!state.draft.groupHidden[g.id]
-              const color = GROUP_CHIP_COLORS[idx % GROUP_CHIP_COLORS.length]
-              const memberCount = g.members.length
+      <section className="bs-editor-tabpane">
+        {tab === 'objects' && (
+          <>
+            {occluders.length === 0 && (
+              <div className="bs-editor-hint">尚未加入物件 — 從左側素材庫挑選</div>
+            )}
+            {occluders.map((inst, idx) => {
+              const lib = OCCLUDER_LIBRARY_BY_ID[inst.libraryId]
+              const isSelected = state.selection?.kind === 'occluder' && state.selection.id === inst.instanceId
+              const sameLibBefore = occluders.slice(0, idx).filter(i => i.libraryId === inst.libraryId).length + 1
               return (
                 <div
-                  key={g.id}
-                  className={`bs-editor-group-card ${isSelected ? 'bs-editor-group-card--selected' : ''} ${isHidden ? 'bs-editor-group-card--hidden' : ''}`}
-                  onClick={() => editor.select({ kind: 'group', id: g.id })}
-                  style={isSelected ? { borderColor: color } : undefined}
+                  key={inst.instanceId}
+                  className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''}`}
+                  onClick={() => editor.select({ kind: 'occluder', id: inst.instanceId })}
                 >
-                  <span className="bs-editor-group-chip" style={{ background: color }} aria-hidden />
-                  <div className="bs-editor-group-meta">
-                    <span className="bs-editor-group-label">{g.label}</span>
-                    <span className="bs-editor-group-sub">{memberCount} 個成員</span>
-                  </div>
+                  <span>{lib ? `🪴 ${lib.label}` : '⚠ (已失效)'} <span className="bs-editor-item-suffix">#{sameLibBefore}</span></span>
                   <button
-                    className="bs-editor-group-vis"
-                    title={isHidden ? '顯示此群組' : '隱藏此群組'}
-                    onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
-                  >
-                    {isHidden ? '🙈' : '👁'}
-                  </button>
+                    className="bs-editor-item-delete"
+                    onClick={(e) => { e.stopPropagation(); editor.deleteOccluder(inst.instanceId) }}
+                  >×</button>
                 </div>
               )
             })}
-          </div>
-        </section>
-      )}
+          </>
+        )}
+
+        {tab === 'groups' && (
+          <>
+            {groups.length === 0 && (
+              <div className="bs-editor-hint">此場景沒有定義角色群組</div>
+            )}
+            <div className="bs-editor-group-list">
+              {groups.map((g, idx) => {
+                const isSelected = state.selection?.kind === 'group' && state.selection.id === g.id
+                const isHidden = !!state.draft.groupHidden[g.id]
+                const color = GROUP_CHIP_COLORS[idx % GROUP_CHIP_COLORS.length]
+                const memberCount = g.members.length
+                return (
+                  <div
+                    key={g.id}
+                    className={`bs-editor-group-card ${isSelected ? 'bs-editor-group-card--selected' : ''} ${isHidden ? 'bs-editor-group-card--hidden' : ''}`}
+                    onClick={() => editor.select({ kind: 'group', id: g.id })}
+                    style={isSelected ? { borderColor: color } : undefined}
+                  >
+                    <span className="bs-editor-group-chip" style={{ background: color }} aria-hidden />
+                    <div className="bs-editor-group-meta">
+                      <span className="bs-editor-group-label">{g.label}</span>
+                      <span className="bs-editor-group-sub">{memberCount} 個成員</span>
+                    </div>
+                    <button
+                      className="bs-editor-group-vis"
+                      title={isHidden ? '顯示此群組' : '隱藏此群組'}
+                      onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
+                    >
+                      {isHidden ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </section>
 
       <OccluderEditor editor={editor} />
       <GroupEditor editor={editor} scene={scene} groups={groups} />
