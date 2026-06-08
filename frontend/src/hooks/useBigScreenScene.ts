@@ -281,7 +281,7 @@ export function useBigScreenScene(
         occluderLibIdsRef.current.delete(id);
       }
     }
-    onOccluderRoots?.(occluderPoolRef.current);
+    onOccluderRoots?.(new Map(occluderPoolRef.current));
 
     // 新增 / 更新
     for (const inst of next) {
@@ -301,7 +301,7 @@ export function useBigScreenScene(
         disposeOccluder(existing, scene);
         occluderPoolRef.current.delete(inst.instanceId);
         occluderLibIdsRef.current.delete(inst.instanceId);
-        onOccluderRoots?.(occluderPoolRef.current);
+        onOccluderRoots?.(new Map(occluderPoolRef.current));
       }
 
       // 跳過進行中載入,避免同 instance 連續變更導致重複載入
@@ -337,7 +337,7 @@ export function useBigScreenScene(
           group.scale.setScalar(inst.scale);
           occluderPoolRef.current.set(inst.instanceId, group);
           occluderLibIdsRef.current.set(inst.instanceId, inst.libraryId);
-          onOccluderRoots?.(occluderPoolRef.current);
+          onOccluderRoots?.(new Map(occluderPoolRef.current));
         })
         .catch((err) => {
           occluderLoadingRef.current.delete(inst.instanceId);
