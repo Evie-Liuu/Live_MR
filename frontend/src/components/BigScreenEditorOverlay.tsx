@@ -85,72 +85,83 @@ export default function BigScreenEditorOverlay({
     else if (state.selection?.kind === 'group') setTab('groups')
   }, [state.selection])
 
-  // 左側 tab:素材庫 / 背景來源
-  const [leftTab, setLeftTab] = useState<'library' | 'bg'>('library')
+  // 左側 tab:素材庫 / 背景來源(null = 收起)
+  const [leftTab, setLeftTab] = useState<'library' | 'bg' | null>('library')
+  const toggleLeftTab = (t: 'library' | 'bg') => setLeftTab(prev => (prev === t ? null : t))
 
   return (
     <>
-    {/* ── Left panel:素材庫 / 背景來源 ───────────────────────────── */}
-    <aside className="bs-editor-library-panel" aria-label="編輯資源">
-      <div className="bs-editor-header">
-        <span className="bs-editor-title">編輯資源</span>
-        <span className="bs-editor-count">
-          {leftTab === 'library' ? OCCLUDER_LIBRARY.length : ''}
-        </span>
-      </div>
-      <div className="bs-editor-tabs">
-        <button
-          className={`bs-editor-tab ${leftTab === 'library' ? 'bs-editor-tab--active' : ''}`}
-          onClick={() => setLeftTab('library')}
-        >🪴 素材庫</button>
-        <button
-          className={`bs-editor-tab ${leftTab === 'bg' ? 'bs-editor-tab--active' : ''}`}
-          onClick={() => setLeftTab('bg')}
-        >🎥 背景來源</button>
-      </div>
-
-      {leftTab === 'library' && (
-        <>
-          <div className="bs-editor-library-grid">
-            {OCCLUDER_LIBRARY.length === 0 && (
-              <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
-            )}
-            {OCCLUDER_LIBRARY.map(lib => {
-              const usedCount = occluders.filter(o => o.libraryId === lib.id).length
-              return (
-                <div key={lib.id} className="bs-editor-library-card">
-                  <OccluderPreview glbUrl={lib.glbUrl} size={140} />
-                  <div className="bs-editor-library-card-meta">
-                    <span className="bs-editor-library-card-label">{lib.label}</span>
-                    {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
-                  </div>
-                  <button
-                    className="bs-editor-btn-add bs-editor-library-card-add"
-                    disabled={atOccluderLimit}
-                    onClick={() => editor.addOccluder(lib.id)}
-                    title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入到當前場景'}
-                  >
-                    + 加入
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-          {atOccluderLimit && (
-            <div className="bs-editor-hint">已達上限 {MAX_OCCLUDERS_PER_SCENE} 個 — 請先刪除一些再加入</div>
-          )}
-        </>
-      )}
-
-      {leftTab === 'bg' && (
-        <BgSourceTab
-          deviceId={cameraBgDeviceId}
-          onDeviceChange={onCameraBgDeviceChange}
-          bgType={bgTypeOverride}
-          onBgTypeChange={onBgTypeOverrideChange}
-        />
-      )}
+    {/* ── Left rail:icon 工具列(永遠顯示) ───────────────────────── */}
+    <aside className="bs-editor-rail" aria-label="編輯工具列">
+      <button
+        className={`bs-editor-rail-btn ${leftTab === 'bg' ? 'bs-editor-rail-btn--active' : ''}`}
+        onClick={() => toggleLeftTab('bg')}
+        title="背景來源"
+      >
+        <span className="bs-editor-rail-icon" aria-hidden>🎥</span>
+        <span className="bs-editor-rail-label">背景</span>
+      </button>
+      <button
+        className={`bs-editor-rail-btn ${leftTab === 'library' ? 'bs-editor-rail-btn--active' : ''}`}
+        onClick={() => toggleLeftTab('library')}
+        title="素材庫"
+      >
+        <span className="bs-editor-rail-icon" aria-hidden>🪴</span>
+        <span className="bs-editor-rail-label">素材庫</span>
+      </button>
     </aside>
+
+    {/* ── Left content:rail 點選後展開 ────────────────────────────── */}
+    {leftTab && (
+      <aside className="bs-editor-library-panel" aria-label={leftTab === 'library' ? '素材庫' : '背景來源'}>
+        <div className="bs-editor-header">
+          <span className="bs-editor-title">{leftTab === 'library' ? '素材庫' : '背景來源'}</span>
+          <button className="bs-editor-exit" onClick={() => setLeftTab(null)}>✕</button>
+        </div>
+
+        {leftTab === 'library' && (
+          <>
+            <div className="bs-editor-library-grid">
+              {OCCLUDER_LIBRARY.length === 0 && (
+                <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
+              )}
+              {OCCLUDER_LIBRARY.map(lib => {
+                const usedCount = occluders.filter(o => o.libraryId === lib.id).length
+                return (
+                  <div key={lib.id} className="bs-editor-library-card">
+                    <OccluderPreview glbUrl={lib.glbUrl} size={140} />
+                    <div className="bs-editor-library-card-meta">
+                      <span className="bs-editor-library-card-label">{lib.label}</span>
+                      {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
+                    </div>
+                    <button
+                      className="bs-editor-btn-add bs-editor-library-card-add"
+                      disabled={atOccluderLimit}
+                      onClick={() => editor.addOccluder(lib.id)}
+                      title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入到當前場景'}
+                    >
+                      + 加入
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            {atOccluderLimit && (
+              <div className="bs-editor-hint">已達上限 {MAX_OCCLUDERS_PER_SCENE} 個 — 請先刪除一些再加入</div>
+            )}
+          </>
+        )}
+
+        {leftTab === 'bg' && (
+          <BgSourceTab
+            deviceId={cameraBgDeviceId}
+            onDeviceChange={onCameraBgDeviceChange}
+            bgType={bgTypeOverride}
+            onBgTypeChange={onBgTypeOverrideChange}
+          />
+        )}
+      </aside>
+    )}
 
     {/* ── Right overlay: 場景物件 + 群組 + 變換 ─────────────────────── */}
     <div className="bs-editor-overlay" aria-label="BigScreen 編輯模式面板">
