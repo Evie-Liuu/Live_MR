@@ -2266,18 +2266,6 @@ export default function BigScreen() {
         <CameraDevicePicker value={cameraBgDeviceId} onChange={handleCameraBgDeviceChange} />
       )}
 
-      {/* 編輯模式切換按鈕 */}
-      <button
-        className="bs-editmode-toggle"
-        title={editMode ? '退出編輯模式 (E)' : '進入編輯模式 (E)'}
-        onClick={() => { if (editMode) tryExitEditMode(); else setEditMode(true); }}
-        style={{
-          position: 'absolute', top: 16, left: 16, zIndex: 60,
-          background: editMode ? '#f76e12' : 'rgba(0,0,0,0.5)',
-          color: '#fff', border: '1px solid rgba(255,255,255,0.18)',
-          borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
-        }}
-      >{editMode ? '✕ 退出編輯' : '✏️ 編輯'}</button>
 
       {/* 2. Transparent 3D Canvas Layer */}
       <canvas
@@ -2291,9 +2279,19 @@ export default function BigScreen() {
       <div className="bigscreen-vignette-bottom" />
 
       {/* 3. Overlay UI Layer */}
-      <div className="bigscreen-overlay">
+      <div className="bigscreen-overlay" style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto', zIndex: 60 }}>
         <span className="bigscreen-title">MR 雙語角 — 大屏顯示</span>
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
+        <button
+          className="bs-editmode-toggle"
+          title={editMode ? '退出編輯模式 (E)' : '進入編輯模式 (E)'}
+          onClick={() => { if (editMode) tryExitEditMode(); else setEditMode(true); }}
+          style={{
+            background: editMode ? '#f76e12' : 'rgba(255,255,255,0.15)',
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+        </button>
       </div>
 
       {forceShowSpeakerBadges && (
