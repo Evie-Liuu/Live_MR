@@ -106,7 +106,7 @@ export default function BigScreenEditorOverlay({
         onClick={() => toggleLeftTab('library')}
         title="素材庫"
       >
-        <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>photo_library</span>
+        <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>stacks</span>
         <span className="bs-editor-rail-label">素材庫</span>
       </button>
     </aside>
