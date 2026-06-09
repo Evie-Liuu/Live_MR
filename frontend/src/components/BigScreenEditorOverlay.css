@@ -3,6 +3,30 @@
  * 視覺基調:深色透明底 / 圓角 16 / 軟陰影 / 主色 #f76e12(暖橘)
  * ───────────────────────────────────────────────────────────────────────── */
 
+/* ── Entrance animations ─────────────────────────────────────────────────── */
+@keyframes bsEditorSlideInLeft {
+  from { transform: translateX(-24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes bsEditorSlideInRight {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes bsEditorPanelIn {
+  from { transform: translateX(-12px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+/* rail 是 translateY(-50%) 垂直置中,動畫需保留 Y */
+@keyframes bsEditorRailIn {
+  from { transform: translate(-24px, -50%); opacity: 0; }
+  to   { transform: translate(0, -50%); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes bsEditorSlideInLeft { from, to { transform: none; opacity: 1; } }
+  @keyframes bsEditorSlideInRight { from, to { transform: none; opacity: 1; } }
+  @keyframes bsEditorPanelIn { from, to { transform: none; opacity: 1; } }
+}
+
 /* ── Right overlay ───────────────────────────────────────────────────────── */
 .bs-editor-overlay {
   position: fixed;
@@ -23,6 +47,7 @@
   pointer-events: auto;
   display: flex;
   flex-direction: column;
+  animation: bsEditorSlideInRight 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -364,6 +389,7 @@
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
   pointer-events: auto;
+  animation: bsEditorRailIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .bs-editor-rail-btn {
   width: 52px;
@@ -425,6 +451,7 @@
   pointer-events: auto;
   display: flex;
   flex-direction: column;
+  animation: bsEditorPanelIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 /* hover bridge — 從 rail 右緣到 panel 左緣的透明區,接住滑鼠不讓 mouseleave 觸發。 */
 .bs-editor-library-panel::before {
