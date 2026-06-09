@@ -5,44 +5,147 @@
 
 /* ── Entrance animations ─────────────────────────────────────────────────── */
 @keyframes bsEditorSlideInLeft {
-  from { transform: translateX(-24px); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
+
 @keyframes bsEditorSlideInRight {
-  from { transform: translateX(24px); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
+
 @keyframes bsEditorPanelIn {
-  from { transform: translateX(-12px); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
+
 /* rail 是 translateY(-50%) 垂直置中,動畫需保留 Y */
 @keyframes bsEditorRailIn {
-  from { transform: translate(-24px, -50%); opacity: 0; }
-  to   { transform: translate(0, -50%); opacity: 1; }
+  from {
+    transform: translate(-24px, -50%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translate(0, -50%);
+    opacity: 1;
+  }
 }
+
 /* ── Exit (退場) ───────────────────────────────────────────────────────── */
 @keyframes bsEditorSlideOutLeft {
-  from { transform: translateX(0); opacity: 1; }
-  to   { transform: translateX(-24px); opacity: 0; }
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
 }
+
 @keyframes bsEditorSlideOutRight {
-  from { transform: translateX(0); opacity: 1; }
-  to   { transform: translateX(24px); opacity: 0; }
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(24px);
+    opacity: 0;
+  }
 }
+
 @keyframes bsEditorRailOut {
-  from { transform: translate(0, -50%); opacity: 1; }
-  to   { transform: translate(-24px, -50%); opacity: 0; }
+  from {
+    transform: translate(0, -50%);
+    opacity: 1;
+  }
+
+  to {
+    transform: translate(-24px, -50%);
+    opacity: 0;
+  }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  @keyframes bsEditorSlideOutLeft { from, to { transform: none; opacity: 0; } }
-  @keyframes bsEditorSlideOutRight { from, to { transform: none; opacity: 0; } }
-  @keyframes bsEditorRailOut { from, to { transform: translateY(-50%); opacity: 0; } }
+  @keyframes bsEditorSlideOutLeft {
+
+    from,
+    to {
+      transform: none;
+      opacity: 0;
+    }
+  }
+
+  @keyframes bsEditorSlideOutRight {
+
+    from,
+    to {
+      transform: none;
+      opacity: 0;
+    }
+  }
+
+  @keyframes bsEditorRailOut {
+
+    from,
+    to {
+      transform: translateY(-50%);
+      opacity: 0;
+    }
+  }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  @keyframes bsEditorSlideInLeft { from, to { transform: none; opacity: 1; } }
-  @keyframes bsEditorSlideInRight { from, to { transform: none; opacity: 1; } }
-  @keyframes bsEditorPanelIn { from, to { transform: none; opacity: 1; } }
+  @keyframes bsEditorSlideInLeft {
+
+    from,
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  @keyframes bsEditorSlideInRight {
+
+    from,
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  @keyframes bsEditorPanelIn {
+
+    from,
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
 }
 
 /* ── Right overlay ───────────────────────────────────────────────────────── */
@@ -67,6 +170,7 @@
   flex-direction: column;
   animation: bsEditorSlideInRight 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
 .bs-editor-overlay--exiting {
   animation: bsEditorSlideOutRight 200ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
 }
@@ -79,12 +183,14 @@
   padding: 14px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
+
 .bs-editor-title {
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.4px;
   color: #fff;
 }
+
 .bs-editor-exit {
   background: transparent;
   color: #b9bcc4;
@@ -95,7 +201,11 @@
   font-size: 12px;
   transition: background 0.15s, color 0.15s;
 }
-.bs-editor-exit:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+
+.bs-editor-exit:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
 
 /* ── Toolbar(轉移到 header 下) ─────────────────────────────────────────── */
 .bs-editor-toolbar {
@@ -105,6 +215,7 @@
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
+
 .bs-editor-tb-btn {
   background: rgba(255, 255, 255, 0.05);
   color: #d5d7dc;
@@ -116,9 +227,22 @@
   font-size: 14px;
   transition: background 0.15s, border-color 0.15s;
 }
-.bs-editor-tb-btn:hover { background: rgba(255, 255, 255, 0.08); }
-.bs-editor-tb-btn--active { background: #f76e12; border-color: #f76e12; color: #fff; }
-.bs-editor-tb-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.bs-editor-tb-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bs-editor-tb-btn--active {
+  background: #f76e12;
+  border-color: #f76e12;
+  color: #fff;
+}
+
+.bs-editor-tb-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 .bs-editor-tb-sep {
   width: 1px;
   height: 18px;
@@ -132,6 +256,7 @@
   gap: 4px;
   padding: 10px 18px 0;
 }
+
 .bs-editor-tab {
   flex: 1;
   background: rgba(255, 255, 255, 0.04);
@@ -149,13 +274,23 @@
   gap: 6px;
   transition: background 0.15s, color 0.15s;
 }
-.bs-editor-tab:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); color: #fff; }
-.bs-editor-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.bs-editor-tab:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.bs-editor-tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .bs-editor-tab--active {
   background: rgba(247, 110, 18, 0.16);
   color: #ffb37a;
   border-color: rgba(247, 110, 18, 0.4);
 }
+
 .bs-editor-tab-count {
   background: rgba(0, 0, 0, 0.3);
   border-radius: 999px;
@@ -163,7 +298,9 @@
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
+
 .bs-editor-tabpane {
+  height: 200px;
   min-height: 150px;
   overflow-y: auto;
   padding: 10px 18px 14px;
@@ -177,6 +314,7 @@
   padding: 14px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
+
 .bs-editor-section-header {
   display: flex;
   justify-content: space-between;
@@ -186,6 +324,7 @@
   color: #f0f1f3;
   font-size: 13px;
 }
+
 .bs-editor-hint {
   opacity: 0.55;
   font-style: normal;
@@ -204,12 +343,22 @@
   border: 1px solid transparent;
   transition: background 0.15s, border-color 0.15s;
 }
-.bs-editor-list-item:hover { background: rgba(255, 255, 255, 0.04); }
+
+.bs-editor-list-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .bs-editor-list-item--selected {
   background: rgba(247, 110, 18, 0.12);
   border-color: rgba(247, 110, 18, 0.45);
 }
-.bs-editor-item-suffix { opacity: 0.55; margin-left: 4px; font-size: 11px; }
+
+.bs-editor-item-suffix {
+  opacity: 0.55;
+  margin-left: 4px;
+  font-size: 11px;
+}
+
 .bs-editor-item-delete {
   background: transparent;
   color: #b9bcc4;
@@ -220,7 +369,11 @@
   font-size: 14px;
   line-height: 1;
 }
-.bs-editor-item-delete:hover { color: #ff7676; border-color: rgba(255, 118, 118, 0.5); }
+
+.bs-editor-item-delete:hover {
+  color: #ff7676;
+  border-color: rgba(255, 118, 118, 0.5);
+}
 
 /* ── Group cards(本次重點) ─────────────────────────────────────────────── */
 .bs-editor-group-list {
@@ -228,6 +381,7 @@
   flex-direction: column;
   gap: 8px;
 }
+
 .bs-editor-group-card {
   display: grid;
   grid-template-columns: 6px 1fr auto;
@@ -240,39 +394,47 @@
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
+
 .bs-editor-group-card:hover {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(255, 255, 255, 0.14);
 }
+
 .bs-editor-group-card--selected {
   background: rgba(255, 255, 255, 0.06);
   border-width: 1px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.3);
 }
+
 .bs-editor-group-card--hidden .bs-editor-group-label {
   text-decoration: line-through;
   opacity: 0.55;
 }
+
 .bs-editor-group-chip {
   width: 6px;
   height: 36px;
   border-radius: 3px;
   display: block;
 }
+
 .bs-editor-group-meta {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
+
 .bs-editor-group-label {
   font-weight: 600;
   font-size: 13px;
   color: #fff;
 }
+
 .bs-editor-group-sub {
   font-size: 11px;
   color: #8d9099;
 }
+
 .bs-editor-group-vis {
   background: transparent;
   color: #b9bcc4;
@@ -283,7 +445,11 @@
   font-size: 14px;
   line-height: 1;
 }
-.bs-editor-group-vis:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+
+.bs-editor-group-vis:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
 
 /* ── Number rows(refined slider + borderless number) ────────────────────── */
 .bs-editor-row {
@@ -293,17 +459,20 @@
   align-items: center;
   padding: 5px 0;
 }
+
 .bs-editor-row label {
   font-size: 12px;
   color: #b9bcc4;
   font-weight: 500;
 }
+
 .bs-editor-row input[type="range"] {
   width: 100%;
   height: 4px;
   accent-color: #f76e12;
   cursor: pointer;
 }
+
 .bs-editor-row-num {
   background: transparent;
   color: #fff;
@@ -316,9 +485,11 @@
   text-align: right;
   outline: none;
 }
+
 .bs-editor-row-num:focus {
   border-bottom-color: rgba(247, 110, 18, 0.6);
 }
+
 .bs-editor-row-num::-webkit-outer-spin-button,
 .bs-editor-row-num::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -332,6 +503,7 @@
   margin-top: 12px;
   flex-wrap: wrap;
 }
+
 .bs-editor-btn-secondary,
 .bs-editor-btn-danger {
   background: rgba(255, 255, 255, 0.05);
@@ -343,13 +515,21 @@
   font-size: 12px;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.bs-editor-btn-secondary:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+.bs-editor-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
 .bs-editor-btn-danger {
   background: rgba(220, 53, 69, 0.2);
   border-color: rgba(220, 53, 69, 0.45);
   color: #ff8e8e;
 }
-.bs-editor-btn-danger:hover { background: rgba(220, 53, 69, 0.3); }
+
+.bs-editor-btn-danger:hover {
+  background: rgba(220, 53, 69, 0.3);
+}
 
 /* ── Footer(sticky bottom) ─────────────────────────────────────────────── */
 .bs-editor-footer {
@@ -364,6 +544,7 @@
   border-radius: 0 0 16px 16px;
   margin-top: auto;
 }
+
 .bs-editor-dirty-hint {
   color: #ffb347;
   font-weight: 600;
@@ -372,6 +553,7 @@
   align-items: center;
   gap: 6px;
 }
+
 .bs-editor-btn-primary {
   background: linear-gradient(180deg, #ff8a3d 0%, #f76e12 100%);
   color: #fff;
@@ -384,7 +566,11 @@
   box-shadow: 0 6px 16px rgba(247, 110, 18, 0.35);
   transition: filter 0.15s;
 }
-.bs-editor-btn-primary:hover:not(:disabled) { filter: brightness(1.05); }
+
+.bs-editor-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
 .bs-editor-btn-primary:disabled {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.35);
@@ -412,9 +598,11 @@
   pointer-events: auto;
   animation: bsEditorRailIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
 .bs-editor-rail--exiting {
   animation: bsEditorRailOut 200ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
 }
+
 .bs-editor-rail-btn {
   width: 52px;
   height: 56px;
@@ -431,24 +619,29 @@
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   padding: 4px 0;
 }
+
 .bs-editor-rail-btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
+
 .bs-editor-rail-btn--active {
   background: rgba(247, 110, 18, 0.16);
   color: #ffb37a;
   border-color: rgba(247, 110, 18, 0.42);
 }
+
 .bs-editor-rail-icon.material-symbols-outlined {
   font-size: 22px;
   margin-top: 5px;
   line-height: 1;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
 .bs-editor-rail-btn--active .bs-editor-rail-icon.material-symbols-outlined {
   font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
+
 .bs-editor-rail-label {
   font-size: 11px;
   font-weight: 600;
@@ -459,7 +652,8 @@
 .bs-editor-library-panel {
   position: fixed;
   top: 24px;
-  left: 90px; /* 緊貼 rail:24 + 64(rail w incl padding) + 2 ≈ 90 */
+  left: 90px;
+  /* 緊貼 rail:24 + 64(rail w incl padding) + 2 ≈ 90 */
   bottom: 24px;
   width: 240px;
   background: rgba(20, 22, 27, 0.88);
@@ -477,9 +671,11 @@
   flex-direction: column;
   animation: bsEditorPanelIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
 .bs-editor-library-panel--exiting {
   animation: bsEditorSlideOutLeft 180ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
 }
+
 /* hover bridge — 從 rail 右緣到 panel 左緣的透明區,接住滑鼠不讓 mouseleave 觸發。 */
 .bs-editor-library-panel::before {
   content: '';
@@ -490,6 +686,7 @@
   height: 100%;
   pointer-events: auto;
 }
+
 .bs-editor-count {
   background: rgba(255, 255, 255, 0.06);
   color: #ffb347;
@@ -498,6 +695,7 @@
   font-weight: 700;
   font-size: 11px;
 }
+
 .bs-editor-library-grid {
   flex: 1;
   display: grid;
@@ -505,6 +703,7 @@
   gap: 10px;
   padding: 14px;
 }
+
 .bs-editor-library-card {
   display: flex;
   flex-direction: column;
@@ -515,10 +714,12 @@
   padding: 10px;
   transition: border-color 0.15s, background 0.15s;
 }
+
 .bs-editor-library-card:hover {
   background: rgba(255, 255, 255, 0.07);
   border-color: rgba(247, 110, 18, 0.4);
 }
+
 .bs-editor-library-preview {
   align-self: center;
   background: radial-gradient(circle at 50% 65%, rgba(247, 110, 18, 0.15), rgba(0, 0, 0, 0.45) 70%);
@@ -526,21 +727,25 @@
   border-radius: 10px;
   overflow: hidden;
 }
+
 .bs-editor-library-card-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-height: 32px;
 }
+
 .bs-editor-library-card-label {
   font-weight: 700;
   color: #fff;
 }
+
 .bs-editor-library-card-used {
   font-size: 11px;
   color: #ffb347;
   opacity: 0.85;
 }
+
 .bs-editor-btn-add {
   background: #f76e12;
   color: #fff;
@@ -552,13 +757,20 @@
   font-size: 12px;
   transition: filter 0.15s;
 }
-.bs-editor-btn-add:hover:not(:disabled) { filter: brightness(1.06); }
+
+.bs-editor-btn-add:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
 .bs-editor-btn-add:disabled {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.35);
   cursor: not-allowed;
 }
-.bs-editor-library-card-add { width: 100%; }
+
+.bs-editor-library-card-add {
+  width: 100%;
+}
 
 /* ── Background source tab ──────────────────────────────────────────────── */
 .bs-editor-bg-pane {
@@ -567,6 +779,7 @@
   flex-direction: column;
   gap: 8px;
 }
+
 .bs-editor-bg-section-label {
   font-size: 11px;
   color: #8d9099;
@@ -574,11 +787,13 @@
   letter-spacing: 0.4px;
   margin-top: 4px;
 }
+
 .bs-editor-bg-cards {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+
 .bs-editor-bg-card {
   display: flex;
   flex-direction: column;
@@ -593,15 +808,18 @@
   font: inherit;
   transition: background 0.15s, border-color 0.15s;
 }
+
 .bs-editor-bg-card:hover {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.18);
 }
+
 .bs-editor-bg-card--active {
   background: rgba(247, 110, 18, 0.08);
   border-color: #f76e12;
   box-shadow: 0 4px 14px rgba(247, 110, 18, 0.18);
 }
+
 .bs-editor-bg-card-preview {
   position: relative;
   width: 100%;
@@ -611,12 +829,14 @@
   background: #1a1c22;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.bs-editor-bg-card-preview > img {
+
+.bs-editor-bg-card-preview>img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
+
 .bs-editor-bg-card-check {
   position: absolute;
   top: 6px;
@@ -626,6 +846,7 @@
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+
 .bs-editor-bg-preview-fallback {
   width: 100%;
   height: 100%;
@@ -637,6 +858,7 @@
   font-size: 12px;
   letter-spacing: 0.4px;
 }
+
 .bs-editor-bg-preview-camera {
   width: 100%;
   height: 100%;
@@ -646,7 +868,11 @@
   background: radial-gradient(circle at 50% 50%, rgba(247, 110, 18, 0.18), #181a20 70%);
   color: #ffb37a;
 }
-.bs-editor-bg-preview-camera .material-symbols-outlined { font-size: 38px; }
+
+.bs-editor-bg-preview-camera .material-symbols-outlined {
+  font-size: 38px;
+}
+
 .bs-editor-bg-preview-none {
   width: 100%;
   height: 100%;
@@ -659,11 +885,13 @@
   background-position: 0 0, 0 6px, 6px -6px, -6px 0;
   background-color: #14161b;
 }
+
 .bs-editor-bg-card-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .bs-editor-bg-card-title {
   display: flex;
   align-items: center;
@@ -672,14 +900,17 @@
   font-size: 13px;
   color: #fff;
 }
+
 .bs-editor-bg-card-title .material-symbols-outlined {
   font-size: 18px;
   color: #ffb37a;
 }
+
 .bs-editor-bg-card-desc {
   font-size: 11px;
   color: #8d9099;
 }
+
 .bs-editor-bg-card-status {
   font-size: 10px;
   font-weight: 700;
@@ -693,10 +924,12 @@
   justify-content: space-between;
   align-items: center;
 }
+
 .bs-editor-bg-device-label {
   font-size: 12px;
   color: #d5d7dc;
 }
+
 .bs-editor-bg-refresh {
   background: transparent;
   color: #b9bcc4;
@@ -707,8 +940,15 @@
   display: flex;
   align-items: center;
 }
-.bs-editor-bg-refresh:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
-.bs-editor-bg-refresh .material-symbols-outlined { font-size: 16px; }
+
+.bs-editor-bg-refresh:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.bs-editor-bg-refresh .material-symbols-outlined {
+  font-size: 16px;
+}
 
 .bs-editor-bg-select {
   background: rgba(255, 255, 255, 0.05);
@@ -720,8 +960,17 @@
   font-size: 12px;
   cursor: pointer;
 }
-.bs-editor-bg-select:disabled { opacity: 0.45; cursor: not-allowed; }
-.bs-editor-bg-select option { background: #1a1c22; color: #fff; }
+
+.bs-editor-bg-select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bs-editor-bg-select option {
+  background: #1a1c22;
+  color: #fff;
+}
+
 .bs-editor-bg-device-current {
   font-size: 11px;
   color: #8d9099;

@@ -262,7 +262,7 @@ export default function BigScreenEditorOverlay({
                     className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''}`}
                     onClick={() => editor.select({ kind: 'occluder', id: inst.instanceId })}
                   >
-                    <span>{lib ? `🪴 ${lib.label}` : '⚠ (已失效)'} <span className="bs-editor-item-suffix">#{sameLibBefore}</span></span>
+                    <span className="flex items-center gap-2">{lib ? <><span className="material-symbols-outlined">view_in_ar</span> {lib.label}</> : '⚠ (已失效)'} <span className="bs-editor-item-suffix">#{sameLibBefore}</span></span>
                     <button
                       className="bs-editor-item-delete"
                       onClick={(e) => { e.stopPropagation(); editor.deleteOccluder(inst.instanceId) }}
@@ -483,15 +483,18 @@ function OccluderEditor({ editor }: { editor: BigScreenEditorApi }) {
   return (
     <section className="bs-editor-section">
       <div className="bs-editor-section-header"><span>選中變換 — {lib?.label ?? '(已失效)'}</span></div>
+      <div style={{ textAlign: 'left', marginLeft: 8 }}>位置</div>
       <NumberRow label="X" min={-5} max={5} step={0.05}
         value={inst.position[0]} onChange={v => update({ position: [v, inst.position[1], inst.position[2]] })} />
       <NumberRow label="Y" min={-5} max={5} step={0.05}
         value={inst.position[1]} onChange={v => update({ position: [inst.position[0], v, inst.position[2]] })} />
       <NumberRow label="Z" min={-5} max={5} step={0.05}
         value={inst.position[2]} onChange={v => update({ position: [inst.position[0], inst.position[1], v] })} />
-      <NumberRow label="Yaw(°)" min={-180} max={180} step={1}
+      <div style={{ textAlign: 'left', marginLeft: 8 }}>旋轉 (°)</div>
+      <NumberRow label="俯仰角" min={-180} max={180} step={1}
         value={Math.round(inst.rotation[1] * RAD2DEG * 100) / 100}
-        onChange={deg => update({ rotation: [inst.rotation[0], deg * DEG2RAD, inst.rotation[2]] })} />
+        onChange={deg => update({ rotation: [deg * DEG2RAD, inst.rotation[1], inst.rotation[2]] })} />
+      <div style={{ textAlign: 'left', marginLeft: 8 }}>縮放</div>
       <NumberRow label="Scale" min={0.1} max={5} step={0.05}
         value={inst.scale} onChange={v => update({ scale: v })} />
       <div className="bs-editor-actions">
