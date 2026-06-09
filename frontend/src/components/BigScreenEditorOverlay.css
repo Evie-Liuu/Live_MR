@@ -175,6 +175,18 @@
   animation: bsEditorSlideOutRight 200ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
 }
 
+/* ── Minimized state ────────────────────────────────────────────── */
+@keyframes bsEditorMinimize {
+  from { bottom: 24px; }
+  to   { bottom: auto; height: auto; }
+}
+
+.bs-editor-overlay--minimized {
+  bottom: auto;
+  overflow: hidden;
+  transition: height 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .bs-editor-header {
   display: flex;
@@ -182,6 +194,40 @@
   justify-content: space-between;
   padding: 14px 18px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.bs-editor-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Minimize toggle button ───────────────────────────────── */
+.bs-editor-minimize-btn {
+  background: transparent;
+  color: #b9bcc4;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+
+.bs-editor-minimize-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.bs-editor-minimize-btn .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
 
 .bs-editor-title {
@@ -214,6 +260,31 @@
   padding: 10px 18px;
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Save button with dirty indicator */
+.bs-editor-tb-btn--save {
+  position: relative;
+}
+
+.bs-editor-tb-dirty-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f76e12;
+  border: 1.5px solid rgba(20, 22, 27, 0.9);
+  pointer-events: none;
+  animation: bsDirtyPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes bsDirtyPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.8); }
 }
 
 .bs-editor-tb-btn {
