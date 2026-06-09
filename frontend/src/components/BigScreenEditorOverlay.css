@@ -356,6 +356,7 @@
 .bs-editor-item-suffix {
   opacity: 0.55;
   margin-left: 4px;
+  margin-top: 3px;
   font-size: 11px;
 }
 
@@ -975,4 +976,155 @@
   font-size: 11px;
   color: #8d9099;
   padding: 0 2px;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────────────────────── */
+.bs-editor-overlay,
+.bs-editor-tabpane,
+.bs-editor-library-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+.bs-editor-overlay::-webkit-scrollbar,
+.bs-editor-tabpane::-webkit-scrollbar,
+.bs-editor-library-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bs-editor-overlay::-webkit-scrollbar-track,
+.bs-editor-tabpane::-webkit-scrollbar-track,
+.bs-editor-library-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bs-editor-overlay::-webkit-scrollbar-thumb,
+.bs-editor-tabpane::-webkit-scrollbar-thumb,
+.bs-editor-library-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+.bs-editor-overlay::-webkit-scrollbar-thumb:hover,
+.bs-editor-tabpane::-webkit-scrollbar-thumb:hover,
+.bs-editor-library-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(247, 110, 18, 0.45);
+}
+
+/* ── Confirm Modal ───────────────────────────────────────────────────────── */
+@keyframes bsConfirmIn {
+  from {
+    transform: scale(0.93) translateY(8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes bsConfirmBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.bs-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: bsConfirmBackdropIn 160ms ease both;
+}
+
+.bs-confirm-dialog {
+  width: 320px;
+  background: rgba(22, 24, 30, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  padding: 28px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: bsConfirmIn 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bs-confirm-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(220, 53, 69, 0.15);
+  border: 1.5px solid rgba(220, 53, 69, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.bs-confirm-icon .material-symbols-outlined {
+  font-size: 26px;
+  color: #ff8e8e;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.bs-confirm-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+
+.bs-confirm-body {
+  font-size: 12px;
+  color: #9da1aa;
+  text-align: center;
+  line-height: 1.6;
+  padding: 0 4px;
+}
+
+.bs-confirm-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.bs-confirm-btn-cancel,
+.bs-confirm-btn-danger {
+  flex: 1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, filter 0.15s;
+}
+
+.bs-confirm-btn-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: #d5d7dc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.bs-confirm-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.bs-confirm-btn-danger {
+  background: rgba(220, 53, 69, 0.25);
+  color: #ff8e8e;
+  border: 1px solid rgba(220, 53, 69, 0.5);
+}
+
+.bs-confirm-btn-danger:hover {
+  background: rgba(220, 53, 69, 0.38);
+  filter: brightness(1.08);
 }

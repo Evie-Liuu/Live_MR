@@ -420,8 +420,8 @@ export function useBigScreenScene(
       onDragChange = (e: { value: boolean }) => {
         const target = (handle!.controls as unknown as { object?: import('three').Object3D }).object;
         if (!target) return;
-        if (e.value) onGizmoDragStart?.(target);
-        else onGizmoDragEnd?.(target);
+        if (e.value) onGizmoDragStartRef.current?.(target);
+        else onGizmoDragEndRef.current?.(target);
       };
       handle.controls.addEventListener('dragging-changed', onDragChange as unknown as () => void);
       onGizmoHandle?.(handle);
@@ -447,6 +447,11 @@ export function useBigScreenScene(
 
   const onStatsRef = useRef<((s: StatsSnapshot) => void) | undefined>(undefined);
   onStatsRef.current = onStats;
+
+  const onGizmoDragEndRef = useRef(onGizmoDragEnd);
+  onGizmoDragEndRef.current = onGizmoDragEnd;
+  const onGizmoDragStartRef = useRef(onGizmoDragStart);
+  onGizmoDragStartRef.current = onGizmoDragStart;
 
   const onScenePropsReadyRef = useRef<(() => void) | undefined>(undefined);
   onScenePropsReadyRef.current = onScenePropsReady;

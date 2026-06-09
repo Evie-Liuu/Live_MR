@@ -54,6 +54,30 @@ interface Props {
   exiting?: boolean
 }
 
+export function ConfirmModal({ title, message, confirmLabel = '確定', onConfirm, onCancel }: {
+  title: string
+  message: string
+  confirmLabel?: string
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="bs-confirm-backdrop" onClick={onCancel}>
+      <div className="bs-confirm-dialog" onClick={e => e.stopPropagation()}>
+        <div className="bs-confirm-icon">
+          <span className="material-symbols-outlined">warning</span>
+        </div>
+        <div className="bs-confirm-title">{title}</div>
+        <div className="bs-confirm-body">{message}</div>
+        <div className="bs-confirm-actions">
+          <button className="bs-confirm-btn-cancel" onClick={onCancel}>取消</button>
+          <button className="bs-confirm-btn-danger" onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function BigScreenEditorOverlay({
   editor, scene, onExit, gizmoHandle, occluderRoots,
   cameraBgDeviceId, onCameraBgDeviceChange,
@@ -61,6 +85,7 @@ export default function BigScreenEditorOverlay({
   exiting,
 }: Props) {
   const { state } = editor
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
 
   useEffect(() => {
     if (!gizmoHandle) return
@@ -197,6 +222,16 @@ export default function BigScreenEditorOverlay({
         </aside>
       )}
 
+      {showResetConfirm && (
+        <ConfirmModal
+          title="確認場景重置"
+          message="將清除此場景所有自訂（物件實例＋群組變換），此操作不可復原。"
+          confirmLabel="確定重置"
+          onConfirm={() => { setShowResetConfirm(false); editor.resetScene() }}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
+
       {/* ── Right overlay: 場景物件 + 群組 + 變換 ─────────────────────── */}
       <div
         className={`bs-editor-overlay ${exiting ? 'bs-editor-overlay--exiting' : ''}`}
@@ -323,7 +358,7 @@ export default function BigScreenEditorOverlay({
           >保存</button>
           <button
             className="bs-editor-btn-secondary"
-            onClick={() => { if (confirm('將清除此場景所有自訂(物件實例 + 群組變換)。確定?')) editor.resetScene() }}
+            onClick={() => setShowResetConfirm(true)}
           >↺ 場景重置</button>
         </section>
       </div>
@@ -492,7 +527,7 @@ function OccluderEditor({ editor }: { editor: BigScreenEditorApi }) {
         value={inst.position[2]} onChange={v => update({ position: [inst.position[0], inst.position[1], v] })} />
       <div style={{ textAlign: 'left', marginLeft: 8 }}>旋轉 (°)</div>
       <NumberRow label="俯仰角" min={-180} max={180} step={1}
-        value={Math.round(inst.rotation[1] * RAD2DEG * 100) / 100}
+        value={Math.round(inst.rotation[0] * RAD2DEG * 100) / 100}
         onChange={deg => update({ rotation: [deg * DEG2RAD, inst.rotation[1], inst.rotation[2]] })} />
       <div style={{ textAlign: 'left', marginLeft: 8 }}>縮放</div>
       <NumberRow label="Scale" min={0.1} max={5} step={0.05}

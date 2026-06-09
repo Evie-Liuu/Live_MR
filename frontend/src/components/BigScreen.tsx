@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { useBigScreenEditor } from '../hooks/useBigScreenEditor';
-import BigScreenEditorOverlay from './BigScreenEditorOverlay';
+import BigScreenEditorOverlay, { ConfirmModal } from './BigScreenEditorOverlay';
 import type { GizmoHandle } from '../utils/editorGizmo';
 import type { Object3D } from 'three';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
@@ -610,13 +610,21 @@ export default function BigScreen() {
   const editorDirtyRef = useRef(false);
   useEffect(() => { editorDirtyRef.current = editor.state.dirty; }, [editor.state.dirty]);
 
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false)
+
   const tryExitEditMode = useCallback(() => {
     if (editor.state.dirty) {
-      if (!confirm('未保存的變動會丟失,確定退出編輯模式?')) return;
-      editor.discard();
+      setExitConfirmOpen(true)
+    } else {
+      setEditMode(false)
     }
-    setEditMode(false);
-  }, [editor]);
+  }, [editor])
+
+  const confirmExit = useCallback(() => {
+    setExitConfirmOpen(false)
+    editor.discard()
+    setEditMode(false)
+  }, [editor])
 
   useEffect(() => {
     if (!editMode) return;
@@ -2656,6 +2664,16 @@ export default function BigScreen() {
           bgTypeOverride={bgTypeOverride}
           onBgTypeOverrideChange={setBgTypeOverride}
           exiting={overlayExiting}
+        />
+      )}
+
+      {exitConfirmOpen && (
+        <ConfirmModal
+          title="確認退出編輯模式"
+          message="未保存的變動會丟失，確定退出編輯模式？"
+          confirmLabel="確定退出"
+          onConfirm={confirmExit}
+          onCancel={() => setExitConfirmOpen(false)}
         />
       )}
     </div >
