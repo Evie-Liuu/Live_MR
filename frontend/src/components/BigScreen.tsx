@@ -310,6 +310,23 @@ export default function BigScreen() {
     } catch { return false; }
   })();
   const [editMode, setEditMode] = useState<boolean>(initialEditMode);
+  // 延後 unmount,讓 overlay 播完退場動畫(220ms)。
+  const [overlayMounted, setOverlayMounted] = useState<boolean>(initialEditMode);
+  const [overlayExiting, setOverlayExiting] = useState<boolean>(false);
+  useEffect(() => {
+    if (editMode) {
+      setOverlayExiting(false);
+      setOverlayMounted(true);
+      return;
+    }
+    if (!overlayMounted) return;
+    setOverlayExiting(true);
+    const t = window.setTimeout(() => {
+      setOverlayMounted(false);
+      setOverlayExiting(false);
+    }, 220);
+    return () => window.clearTimeout(t);
+  }, [editMode, overlayMounted]);
 
   const [vrmSourceId, setVrmSourceId] = useState<string>(() => {
     return sessionStorage.getItem('bigscreen-vrmSourceId') ?? 'default';
@@ -2627,7 +2644,7 @@ export default function BigScreen() {
         </div>
       )}
 
-      {editMode && (
+      {overlayMounted && (
         <BigScreenEditorOverlay
           editor={editor}
           scene={SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID]}
@@ -2638,6 +2655,7 @@ export default function BigScreen() {
           onCameraBgDeviceChange={handleCameraBgDeviceChange}
           bgTypeOverride={bgTypeOverride}
           onBgTypeOverrideChange={setBgTypeOverride}
+          exiting={overlayExiting}
         />
       )}
     </div >

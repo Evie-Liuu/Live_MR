@@ -50,12 +50,15 @@ interface Props {
   /** 場景背景類型覆蓋(default = 依場景設定)。 */
   bgTypeOverride: BgTypeOverride
   onBgTypeOverrideChange: (v: BgTypeOverride) => void
+  /** true 時播放退場動畫;由父層在 unmount 前短暫設為 true。 */
+  exiting?: boolean
 }
 
 export default function BigScreenEditorOverlay({
   editor, scene, onExit, gizmoHandle, occluderRoots,
   cameraBgDeviceId, onCameraBgDeviceChange,
   bgTypeOverride, onBgTypeOverrideChange,
+  exiting,
 }: Props) {
   const { state } = editor
 
@@ -112,7 +115,7 @@ export default function BigScreenEditorOverlay({
     <>
     {/* ── Left rail:icon 工具列(永遠顯示) ───────────────────────── */}
     <aside
-      className="bs-editor-rail"
+      className={`bs-editor-rail ${exiting ? 'bs-editor-rail--exiting' : ''}`}
       aria-label="編輯工具列"
       onMouseLeave={scheduleClose}
     >
@@ -139,7 +142,7 @@ export default function BigScreenEditorOverlay({
     {/* ── Left content:hover rail 後展開,移到面板上會持續顯示 ───── */}
     {leftTab && (
       <aside
-        className="bs-editor-library-panel"
+        className={`bs-editor-library-panel ${exiting ? 'bs-editor-library-panel--exiting' : ''}`}
         aria-label={leftTab === 'library' ? '素材庫' : '背景來源'}
         onMouseEnter={cancelClose}
         onMouseLeave={scheduleClose}
@@ -195,7 +198,10 @@ export default function BigScreenEditorOverlay({
     )}
 
     {/* ── Right overlay: 場景物件 + 群組 + 變換 ─────────────────────── */}
-    <div className="bs-editor-overlay" aria-label="BigScreen 編輯模式面板">
+    <div
+      className={`bs-editor-overlay ${exiting ? 'bs-editor-overlay--exiting' : ''}`}
+      aria-label="BigScreen 編輯模式面板"
+    >
       {/* Header */}
       <div className="bs-editor-header">
         <span className="bs-editor-title">編輯模式</span>

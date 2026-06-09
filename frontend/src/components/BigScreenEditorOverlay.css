@@ -21,6 +21,24 @@
   from { transform: translate(-24px, -50%); opacity: 0; }
   to   { transform: translate(0, -50%); opacity: 1; }
 }
+/* ── Exit (退場) ───────────────────────────────────────────────────────── */
+@keyframes bsEditorSlideOutLeft {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-24px); opacity: 0; }
+}
+@keyframes bsEditorSlideOutRight {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(24px); opacity: 0; }
+}
+@keyframes bsEditorRailOut {
+  from { transform: translate(0, -50%); opacity: 1; }
+  to   { transform: translate(-24px, -50%); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes bsEditorSlideOutLeft { from, to { transform: none; opacity: 0; } }
+  @keyframes bsEditorSlideOutRight { from, to { transform: none; opacity: 0; } }
+  @keyframes bsEditorRailOut { from, to { transform: translateY(-50%); opacity: 0; } }
+}
 @media (prefers-reduced-motion: reduce) {
   @keyframes bsEditorSlideInLeft { from, to { transform: none; opacity: 1; } }
   @keyframes bsEditorSlideInRight { from, to { transform: none; opacity: 1; } }
@@ -48,6 +66,9 @@
   display: flex;
   flex-direction: column;
   animation: bsEditorSlideInRight 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bs-editor-overlay--exiting {
+  animation: bsEditorSlideOutRight 200ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -391,6 +412,9 @@
   pointer-events: auto;
   animation: bsEditorRailIn 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+.bs-editor-rail--exiting {
+  animation: bsEditorRailOut 200ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
+}
 .bs-editor-rail-btn {
   width: 52px;
   height: 56px;
@@ -452,6 +476,9 @@
   display: flex;
   flex-direction: column;
   animation: bsEditorPanelIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bs-editor-library-panel--exiting {
+  animation: bsEditorSlideOutLeft 180ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
 }
 /* hover bridge — 從 rail 右緣到 panel 左緣的透明區,接住滑鼠不讓 mouseleave 觸發。 */
 .bs-editor-library-panel::before {
