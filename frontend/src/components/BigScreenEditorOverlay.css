@@ -510,28 +510,142 @@
   letter-spacing: 0.4px;
   margin-top: 4px;
 }
-.bs-editor-bg-types {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+.bs-editor-bg-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.bs-editor-bg-type {
+.bs-editor-bg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.04);
-  color: #d5d7dc;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 8px 6px;
+  color: #e8e9ec;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  text-align: left;
+  font: inherit;
+  transition: background 0.15s, border-color 0.15s;
 }
-.bs-editor-bg-type:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
-.bs-editor-bg-type--active {
-  background: rgba(247, 110, 18, 0.16);
+.bs-editor-bg-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.bs-editor-bg-card--active {
+  background: rgba(247, 110, 18, 0.08);
+  border-color: #f76e12;
+  box-shadow: 0 4px 14px rgba(247, 110, 18, 0.18);
+}
+.bs-editor-bg-card-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #1a1c22;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.bs-editor-bg-card-preview > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.bs-editor-bg-card-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   color: #ffb37a;
-  border-color: rgba(247, 110, 18, 0.45);
+  font-size: 22px !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+.bs-editor-bg-preview-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #2a2d36 0%, #181a20 100%);
+  color: #8d9099;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+.bs-editor-bg-preview-camera {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 50%, rgba(247, 110, 18, 0.18), #181a20 70%);
+  color: #ffb37a;
+}
+.bs-editor-bg-preview-camera .material-symbols-outlined { font-size: 38px; }
+.bs-editor-bg-preview-none {
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(45deg, #2a2d36 25%, transparent 25%),
+    linear-gradient(-45deg, #2a2d36 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #2a2d36 75%),
+    linear-gradient(-45deg, transparent 75%, #2a2d36 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+  background-color: #14161b;
+}
+.bs-editor-bg-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bs-editor-bg-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+}
+.bs-editor-bg-card-title .material-symbols-outlined {
+  font-size: 18px;
+  color: #ffb37a;
+}
+.bs-editor-bg-card-desc {
+  font-size: 11px;
+  color: #8d9099;
+}
+.bs-editor-bg-card-status {
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffb37a;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+
+.bs-editor-bg-device-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.bs-editor-bg-device-label {
+  font-size: 12px;
+  color: #d5d7dc;
+}
+.bs-editor-bg-refresh {
+  background: transparent;
+  color: #b9bcc4;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 2px 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.bs-editor-bg-refresh:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.bs-editor-bg-refresh .material-symbols-outlined { font-size: 16px; }
+
 .bs-editor-bg-select {
   background: rgba(255, 255, 255, 0.05);
   color: #fff;
@@ -544,3 +658,8 @@
 }
 .bs-editor-bg-select:disabled { opacity: 0.45; cursor: not-allowed; }
 .bs-editor-bg-select option { background: #1a1c22; color: #fff; }
+.bs-editor-bg-device-current {
+  font-size: 11px;
+  color: #8d9099;
+  padding: 0 2px;
+}

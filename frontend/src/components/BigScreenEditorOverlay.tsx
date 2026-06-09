@@ -158,6 +158,7 @@ export default function BigScreenEditorOverlay({
             onDeviceChange={onCameraBgDeviceChange}
             bgType={bgTypeOverride}
             onBgTypeChange={onBgTypeOverrideChange}
+            scene={scene}
           />
         )}
       </aside>
@@ -295,78 +296,142 @@ export default function BigScreenEditorOverlay({
 }
 
 function BgSourceTab({
-  deviceId, onDeviceChange, bgType, onBgTypeChange,
+  deviceId, onDeviceChange, bgType, onBgTypeChange, scene,
 }: {
   deviceId: string
   onDeviceChange: (id: string) => void
   bgType: BgTypeOverride
   onBgTypeChange: (v: BgTypeOverride) => void
+  scene: SceneConfig
 }) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
 
+  const refreshDevices = async () => {
+    try {
+      let probe: MediaStream | null = null
+      try {
+        const all = await navigator.mediaDevices.enumerateDevices()
+        if (!all.some(d => d.kind === 'videoinput' && d.label)) {
+          probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        }
+      } catch { /* ignore — labels may stay generic */ }
+      const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
+      if (probe) probe.getTracks().forEach(t => t.stop())
+      setDevices(list)
+    } catch (err) {
+      console.warn('[BgSourceTab] enumerateDevices failed:', err)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
-    const refresh = async () => {
-      try {
-        let probe: MediaStream | null = null
-        try {
-          const all = await navigator.mediaDevices.enumerateDevices()
-          if (!all.some(d => d.kind === 'videoinput' && d.label)) {
-            probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-          }
-        } catch { /* ignore — labels may stay generic */ }
-        const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
-        if (probe) probe.getTracks().forEach(t => t.stop())
-        if (!cancelled) setDevices(list)
-      } catch (err) {
-        console.warn('[BgSourceTab] enumerateDevices failed:', err)
-      }
-    }
-    refresh()
-    navigator.mediaDevices.addEventListener?.('devicechange', refresh)
+    const wrap = async () => { if (!cancelled) await refreshDevices() }
+    wrap()
+    navigator.mediaDevices.addEventListener?.('devicechange', wrap)
     return () => {
       cancelled = true
-      navigator.mediaDevices.removeEventListener?.('devicechange', refresh)
+      navigator.mediaDevices.removeEventListener?.('devicechange', wrap)
     }
   }, [])
 
-  const bgOptions: { value: BgTypeOverride; label: string; hint: string }[] = [
-    { value: 'default', label: '預設', hint: '依場景設定(影片 / 圖片)' },
-    { value: 'none', label: '無', hint: '純黑底,只看角色與物件' },
-    { value: 'camera', label: '相機', hint: '使用攝影機畫面當背景' },
+  const cards: {
+    value: BgTypeOverride
+    title: string
+    desc: string
+    icon: string
+    preview: React.ReactNode
+  }[] = [
+    {
+      value: 'default',
+      title: '預設場景',
+      desc: '使用系統提供的場景',
+      icon: 'image',
+      preview: scene.backgroundType === 'image' && scene.backgroundValue
+        ? <img src={scene.backgroundValue} alt="" />
+        : <div className="bs-editor-bg-preview-fallback">{scene.label ?? '預設'}</div>,
+    },
+    {
+      value: 'camera',
+      title: '相機背景',
+      desc: '使用攝影機即時畫面',
+      icon: 'videocam',
+      preview: (
+        <div className="bs-editor-bg-preview-camera">
+          <span className="material-symbols-outlined">videocam</span>
+        </div>
+      ),
+    },
+    {
+      value: 'none',
+      title: '無背景',
+      desc: '使用純色背景',
+      icon: 'block',
+      preview: <div className="bs-editor-bg-preview-none" />,
+    },
   ]
+
+  const selectedDevice = devices.find(d => d.deviceId === deviceId)
 
   return (
     <div className="bs-editor-bg-pane">
-      <div className="bs-editor-bg-section-label">背景類型</div>
-      <div className="bs-editor-bg-types">
-        {bgOptions.map(opt => (
-          <button
-            key={opt.value}
-            className={`bs-editor-bg-type ${bgType === opt.value ? 'bs-editor-bg-type--active' : ''}`}
-            onClick={() => onBgTypeChange(opt.value)}
-            title={opt.hint}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="bs-editor-bg-section-label">選擇背景類型</div>
+      <div className="bs-editor-bg-cards">
+        {cards.map(c => {
+          const active = bgType === c.value
+          return (
+            <button
+              key={c.value}
+              className={`bs-editor-bg-card ${active ? 'bs-editor-bg-card--active' : ''}`}
+              onClick={() => onBgTypeChange(c.value)}
+            >
+              <div className="bs-editor-bg-card-preview">
+                {c.preview}
+                {active && (
+                  <span className="bs-editor-bg-card-check material-symbols-outlined">check_circle</span>
+                )}
+              </div>
+              <div className="bs-editor-bg-card-meta">
+                <div className="bs-editor-bg-card-title">
+                  <span className="material-symbols-outlined">{c.icon}</span>
+                  {c.title}
+                </div>
+                <div className="bs-editor-bg-card-desc">{c.desc}</div>
+                {active && <div className="bs-editor-bg-card-status">目前使用中</div>}
+              </div>
+            </button>
+          )
+        })}
       </div>
-      <div className="bs-editor-bg-section-label">相機裝置</div>
+
+      <div className="bs-editor-bg-section-label">相機設定</div>
+      <div className="bs-editor-bg-device-row">
+        <label className="bs-editor-bg-device-label">使用裝置</label>
+        <button
+          className="bs-editor-bg-refresh"
+          onClick={refreshDevices}
+          title="重新列舉裝置"
+        >
+          <span className="material-symbols-outlined">refresh</span>
+        </button>
+      </div>
       <select
         className="bs-editor-bg-select"
         value={deviceId}
         onChange={(e) => onDeviceChange(e.target.value)}
         disabled={bgType !== 'camera'}
       >
-        <option value="">預設相機</option>
+        <option value="">— 預設相機 —</option>
         {devices.map((d, i) => (
           <option key={d.deviceId || i} value={d.deviceId}>
             {d.label || `Camera ${i + 1}`}
           </option>
         ))}
       </select>
+      {bgType === 'camera' && selectedDevice && (
+        <div className="bs-editor-bg-device-current">{selectedDevice.label || '預設相機'}</div>
+      )}
       {bgType !== 'camera' && (
-        <div className="bs-editor-hint">切換到「相機」才會啟用裝置選擇</div>
+        <div className="bs-editor-hint">切換到「相機背景」才會啟用裝置選擇</div>
       )}
     </div>
   )
