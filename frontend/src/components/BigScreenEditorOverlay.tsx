@@ -113,220 +113,220 @@ export default function BigScreenEditorOverlay({
 
   return (
     <>
-    {/* ── Left rail:icon 工具列(永遠顯示) ───────────────────────── */}
-    <aside
-      className={`bs-editor-rail ${exiting ? 'bs-editor-rail--exiting' : ''}`}
-      aria-label="編輯工具列"
-      onMouseLeave={scheduleClose}
-    >
-      <button
-        className={`bs-editor-rail-btn ${leftTab === 'bg' ? 'bs-editor-rail-btn--active' : ''}`}
-        onMouseEnter={() => openLeftTab('bg')}
-        onFocus={() => openLeftTab('bg')}
-        title="背景來源"
-      >
-        <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>image</span>
-        <span className="bs-editor-rail-label">背景</span>
-      </button>
-      <button
-        className={`bs-editor-rail-btn ${leftTab === 'library' ? 'bs-editor-rail-btn--active' : ''}`}
-        onMouseEnter={() => openLeftTab('library')}
-        onFocus={() => openLeftTab('library')}
-        title="素材庫"
-      >
-        <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>stacks</span>
-        <span className="bs-editor-rail-label">素材庫</span>
-      </button>
-    </aside>
-
-    {/* ── Left content:hover rail 後展開,移到面板上會持續顯示 ───── */}
-    {leftTab && (
+      {/* ── Left rail:icon 工具列(永遠顯示) ───────────────────────── */}
       <aside
-        className={`bs-editor-library-panel ${exiting ? 'bs-editor-library-panel--exiting' : ''}`}
-        aria-label={leftTab === 'library' ? '素材庫' : '背景來源'}
-        onMouseEnter={cancelClose}
+        className={`bs-editor-rail ${exiting ? 'bs-editor-rail--exiting' : ''}`}
+        aria-label="編輯工具列"
         onMouseLeave={scheduleClose}
       >
+        <button
+          className={`bs-editor-rail-btn ${leftTab === 'bg' ? 'bs-editor-rail-btn--active' : ''}`}
+          onMouseEnter={() => openLeftTab('bg')}
+          onFocus={() => openLeftTab('bg')}
+          title="背景來源"
+        >
+          <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>image</span>
+          <span className="bs-editor-rail-label">背景</span>
+        </button>
+        <button
+          className={`bs-editor-rail-btn ${leftTab === 'library' ? 'bs-editor-rail-btn--active' : ''}`}
+          onMouseEnter={() => openLeftTab('library')}
+          onFocus={() => openLeftTab('library')}
+          title="素材庫"
+        >
+          <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>stacks</span>
+          <span className="bs-editor-rail-label">素材庫</span>
+        </button>
+      </aside>
+
+      {/* ── Left content:hover rail 後展開,移到面板上會持續顯示 ───── */}
+      {leftTab && (
+        <aside
+          className={`bs-editor-library-panel ${exiting ? 'bs-editor-library-panel--exiting' : ''}`}
+          aria-label={leftTab === 'library' ? '素材庫' : '背景來源'}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+        >
+          <div className="bs-editor-header">
+            <span className="bs-editor-title">{leftTab === 'library' ? '素材庫' : '背景來源'}</span>
+            <button className="bs-editor-exit" onClick={() => setLeftTab(null)}>✕</button>
+          </div>
+
+          {leftTab === 'library' && (
+            <>
+              <div className="bs-editor-library-grid">
+                {OCCLUDER_LIBRARY.length === 0 && (
+                  <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
+                )}
+                {OCCLUDER_LIBRARY.map(lib => {
+                  const usedCount = occluders.filter(o => o.libraryId === lib.id).length
+                  return (
+                    <div key={lib.id} className="bs-editor-library-card">
+                      <OccluderPreview glbUrl={lib.glbUrl} size={140} />
+                      <div className="bs-editor-library-card-meta">
+                        <span className="bs-editor-library-card-label">{lib.label}</span>
+                        {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
+                      </div>
+                      <button
+                        className="bs-editor-btn-add bs-editor-library-card-add"
+                        disabled={atOccluderLimit}
+                        onClick={() => editor.addOccluder(lib.id)}
+                        title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入到當前場景'}
+                      >
+                        + 加入
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              {atOccluderLimit && (
+                <div className="bs-editor-hint">已達上限 {MAX_OCCLUDERS_PER_SCENE} 個 — 請先刪除一些再加入</div>
+              )}
+            </>
+          )}
+
+          {leftTab === 'bg' && (
+            <BgSourceTab
+              deviceId={cameraBgDeviceId}
+              onDeviceChange={onCameraBgDeviceChange}
+              bgType={bgTypeOverride}
+              onBgTypeChange={onBgTypeOverrideChange}
+              scene={scene}
+            />
+          )}
+        </aside>
+      )}
+
+      {/* ── Right overlay: 場景物件 + 群組 + 變換 ─────────────────────── */}
+      <div
+        className={`bs-editor-overlay ${exiting ? 'bs-editor-overlay--exiting' : ''}`}
+        aria-label="BigScreen 編輯模式面板"
+      >
+        {/* Header */}
         <div className="bs-editor-header">
-          <span className="bs-editor-title">{leftTab === 'library' ? '素材庫' : '背景來源'}</span>
-          <button className="bs-editor-exit" onClick={() => setLeftTab(null)}>✕</button>
+          <span className="bs-editor-title">編輯模式</span>
+          <button className="bs-editor-exit" onClick={onExit}>✕ 退出</button>
         </div>
 
-        {leftTab === 'library' && (
-          <>
-            <div className="bs-editor-library-grid">
-              {OCCLUDER_LIBRARY.length === 0 && (
-                <div className="bs-editor-hint">尚未登錄任何遮罩物件(見 sceneOccluders.ts)</div>
+        {/* Toolbar */}
+        <div className="bs-editor-toolbar">
+          {editor.state.selection?.kind === 'occluder' && (
+            <>
+              <button
+                className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'translate' ? 'bs-editor-tb-btn--active' : ''}`}
+                onClick={() => editor.setGizmoMode('translate')}
+                title="移動 (Translate)"
+              >↔</button>
+              <button
+                className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'rotate' ? 'bs-editor-tb-btn--active' : ''}`}
+                onClick={() => editor.setGizmoMode('rotate')}
+                title="旋轉 (Rotate)"
+              >↻</button>
+              <span className="bs-editor-tb-sep" />
+            </>
+          )}
+          <button className="bs-editor-tb-btn" disabled={editor.state.past.length === 0} onClick={editor.undo} title="Undo (Ctrl+Z)">↶</button>
+          <button className="bs-editor-tb-btn" disabled={editor.state.future.length === 0} onClick={editor.redo} title="Redo (Ctrl+Shift+Z)">↷</button>
+        </div>
+
+        {/* Tab 切換:場景物件 / 角色群組 — 固定高度,不影響下方變換 bar */}
+        <div className="bs-editor-tabs">
+          <button
+            className={`bs-editor-tab ${tab === 'objects' ? 'bs-editor-tab--active' : ''}`}
+            onClick={() => setTab('objects')}
+          >
+            場景物件 <span className="bs-editor-tab-count">{occluders.length}/{MAX_OCCLUDERS_PER_SCENE}</span>
+          </button>
+          <button
+            className={`bs-editor-tab ${tab === 'groups' ? 'bs-editor-tab--active' : ''}`}
+            onClick={() => setTab('groups')}
+            disabled={groups.length === 0}
+          >
+            角色群組 <span className="bs-editor-tab-count">{groups.length}</span>
+          </button>
+        </div>
+
+        <section className="bs-editor-tabpane">
+          {tab === 'objects' && (
+            <>
+              {occluders.length === 0 && (
+                <div className="bs-editor-hint">尚未加入物件 — 從左側素材庫挑選</div>
               )}
-              {OCCLUDER_LIBRARY.map(lib => {
-                const usedCount = occluders.filter(o => o.libraryId === lib.id).length
-                return (
-                  <div key={lib.id} className="bs-editor-library-card">
-                    <OccluderPreview glbUrl={lib.glbUrl} size={140} />
-                    <div className="bs-editor-library-card-meta">
-                      <span className="bs-editor-library-card-label">{lib.label}</span>
-                      {usedCount > 0 && <span className="bs-editor-library-card-used">已加入 ×{usedCount}</span>}
-                    </div>
-                    <button
-                      className="bs-editor-btn-add bs-editor-library-card-add"
-                      disabled={atOccluderLimit}
-                      onClick={() => editor.addOccluder(lib.id)}
-                      title={atOccluderLimit ? `每場景最多 ${MAX_OCCLUDERS_PER_SCENE} 個` : '加入到當前場景'}
-                    >
-                      + 加入
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-            {atOccluderLimit && (
-              <div className="bs-editor-hint">已達上限 {MAX_OCCLUDERS_PER_SCENE} 個 — 請先刪除一些再加入</div>
-            )}
-          </>
-        )}
-
-        {leftTab === 'bg' && (
-          <BgSourceTab
-            deviceId={cameraBgDeviceId}
-            onDeviceChange={onCameraBgDeviceChange}
-            bgType={bgTypeOverride}
-            onBgTypeChange={onBgTypeOverrideChange}
-            scene={scene}
-          />
-        )}
-      </aside>
-    )}
-
-    {/* ── Right overlay: 場景物件 + 群組 + 變換 ─────────────────────── */}
-    <div
-      className={`bs-editor-overlay ${exiting ? 'bs-editor-overlay--exiting' : ''}`}
-      aria-label="BigScreen 編輯模式面板"
-    >
-      {/* Header */}
-      <div className="bs-editor-header">
-        <span className="bs-editor-title">編輯模式</span>
-        <button className="bs-editor-exit" onClick={onExit}>✕ 退出</button>
-      </div>
-
-      {/* Toolbar */}
-      <div className="bs-editor-toolbar">
-        {editor.state.selection?.kind === 'occluder' && (
-          <>
-            <button
-              className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'translate' ? 'bs-editor-tb-btn--active' : ''}`}
-              onClick={() => editor.setGizmoMode('translate')}
-              title="移動 (Translate)"
-            >↔</button>
-            <button
-              className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'rotate' ? 'bs-editor-tb-btn--active' : ''}`}
-              onClick={() => editor.setGizmoMode('rotate')}
-              title="旋轉 (Rotate)"
-            >↻</button>
-            <span className="bs-editor-tb-sep" />
-          </>
-        )}
-        <button className="bs-editor-tb-btn" disabled={editor.state.past.length === 0} onClick={editor.undo} title="Undo (Ctrl+Z)">↶</button>
-        <button className="bs-editor-tb-btn" disabled={editor.state.future.length === 0} onClick={editor.redo} title="Redo (Ctrl+Shift+Z)">↷</button>
-      </div>
-
-      {/* Tab 切換:場景物件 / 角色群組 — 固定高度,不影響下方變換 bar */}
-      <div className="bs-editor-tabs">
-        <button
-          className={`bs-editor-tab ${tab === 'objects' ? 'bs-editor-tab--active' : ''}`}
-          onClick={() => setTab('objects')}
-        >
-          場景物件 <span className="bs-editor-tab-count">{occluders.length}/{MAX_OCCLUDERS_PER_SCENE}</span>
-        </button>
-        <button
-          className={`bs-editor-tab ${tab === 'groups' ? 'bs-editor-tab--active' : ''}`}
-          onClick={() => setTab('groups')}
-          disabled={groups.length === 0}
-        >
-          角色群組 <span className="bs-editor-tab-count">{groups.length}</span>
-        </button>
-      </div>
-
-      <section className="bs-editor-tabpane">
-        {tab === 'objects' && (
-          <>
-            {occluders.length === 0 && (
-              <div className="bs-editor-hint">尚未加入物件 — 從左側素材庫挑選</div>
-            )}
-            {occluders.map((inst, idx) => {
-              const lib = OCCLUDER_LIBRARY_BY_ID[inst.libraryId]
-              const isSelected = state.selection?.kind === 'occluder' && state.selection.id === inst.instanceId
-              const sameLibBefore = occluders.slice(0, idx).filter(i => i.libraryId === inst.libraryId).length + 1
-              return (
-                <div
-                  key={inst.instanceId}
-                  className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''}`}
-                  onClick={() => editor.select({ kind: 'occluder', id: inst.instanceId })}
-                >
-                  <span>{lib ? `🪴 ${lib.label}` : '⚠ (已失效)'} <span className="bs-editor-item-suffix">#{sameLibBefore}</span></span>
-                  <button
-                    className="bs-editor-item-delete"
-                    onClick={(e) => { e.stopPropagation(); editor.deleteOccluder(inst.instanceId) }}
-                  >×</button>
-                </div>
-              )
-            })}
-          </>
-        )}
-
-        {tab === 'groups' && (
-          <>
-            {groups.length === 0 && (
-              <div className="bs-editor-hint">此場景沒有定義角色群組</div>
-            )}
-            <div className="bs-editor-group-list">
-              {groups.map((g, idx) => {
-                const isSelected = state.selection?.kind === 'group' && state.selection.id === g.id
-                const isHidden = !!state.draft.groupHidden[g.id]
-                const color = GROUP_CHIP_COLORS[idx % GROUP_CHIP_COLORS.length]
-                const memberCount = g.members.length
+              {occluders.map((inst, idx) => {
+                const lib = OCCLUDER_LIBRARY_BY_ID[inst.libraryId]
+                const isSelected = state.selection?.kind === 'occluder' && state.selection.id === inst.instanceId
+                const sameLibBefore = occluders.slice(0, idx).filter(i => i.libraryId === inst.libraryId).length + 1
                 return (
                   <div
-                    key={g.id}
-                    className={`bs-editor-group-card ${isSelected ? 'bs-editor-group-card--selected' : ''} ${isHidden ? 'bs-editor-group-card--hidden' : ''}`}
-                    onClick={() => editor.select({ kind: 'group', id: g.id })}
-                    style={isSelected ? { borderColor: color } : undefined}
+                    key={inst.instanceId}
+                    className={`bs-editor-list-item ${isSelected ? 'bs-editor-list-item--selected' : ''}`}
+                    onClick={() => editor.select({ kind: 'occluder', id: inst.instanceId })}
                   >
-                    <span className="bs-editor-group-chip" style={{ background: color }} aria-hidden />
-                    <div className="bs-editor-group-meta">
-                      <span className="bs-editor-group-label">{g.label}</span>
-                      <span className="bs-editor-group-sub">{memberCount} 個成員</span>
-                    </div>
+                    <span>{lib ? `🪴 ${lib.label}` : '⚠ (已失效)'} <span className="bs-editor-item-suffix">#{sameLibBefore}</span></span>
                     <button
-                      className="bs-editor-group-vis"
-                      title={isHidden ? '顯示此群組' : '隱藏此群組'}
-                      onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
-                    >
-                      {isHidden ? '🙈' : '👁'}
-                    </button>
+                      className="bs-editor-item-delete"
+                      onClick={(e) => { e.stopPropagation(); editor.deleteOccluder(inst.instanceId) }}
+                    >×</button>
                   </div>
                 )
               })}
-            </div>
-          </>
-        )}
-      </section>
+            </>
+          )}
 
-      <OccluderEditor editor={editor} />
-      <GroupEditor editor={editor} scene={scene} groups={groups} />
+          {tab === 'groups' && (
+            <>
+              {groups.length === 0 && (
+                <div className="bs-editor-hint">此場景沒有定義角色群組</div>
+              )}
+              <div className="bs-editor-group-list">
+                {groups.map((g, idx) => {
+                  const isSelected = state.selection?.kind === 'group' && state.selection.id === g.id
+                  const isHidden = !!state.draft.groupHidden[g.id]
+                  const color = GROUP_CHIP_COLORS[idx % GROUP_CHIP_COLORS.length]
+                  const memberCount = g.members.length
+                  return (
+                    <div
+                      key={g.id}
+                      className={`bs-editor-group-card ${isSelected ? 'bs-editor-group-card--selected' : ''} ${isHidden ? 'bs-editor-group-card--hidden' : ''}`}
+                      onClick={() => editor.select({ kind: 'group', id: g.id })}
+                      style={isSelected ? { borderColor: color } : undefined}
+                    >
+                      <span className="bs-editor-group-chip" style={{ background: color }} aria-hidden />
+                      <div className="bs-editor-group-meta">
+                        <span className="bs-editor-group-label">{g.label}</span>
+                        <span className="bs-editor-group-sub">{memberCount} 個成員</span>
+                      </div>
+                      <button
+                        className="bs-editor-group-vis"
+                        title={isHidden ? '顯示此群組' : '隱藏此群組'}
+                        onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
+                      >
+                        {isHidden ? '🙈' : '👁'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </section>
 
-      <section className="bs-editor-footer">
-        {editor.state.dirty && <div className="bs-editor-dirty-hint">⚠ 未保存變動</div>}
-        <button
-          className="bs-editor-btn-primary"
-          disabled={!editor.state.dirty}
-          onClick={editor.commit}
-        >💾 保存</button>
-        <button
-          className="bs-editor-btn-secondary"
-          onClick={() => { if (confirm('將清除此場景所有自訂(物件實例 + 群組變換)。確定?')) editor.resetScene() }}
-        >↺ 場景重置</button>
-      </section>
-    </div>
+        <OccluderEditor editor={editor} />
+        <GroupEditor editor={editor} scene={scene} groups={groups} />
+
+        <section className="bs-editor-footer">
+          {editor.state.dirty && <div className="bs-editor-dirty-hint">⚠ 未保存變動</div>}
+          <button
+            className="bs-editor-btn-primary"
+            disabled={!editor.state.dirty}
+            onClick={editor.commit}
+          >保存</button>
+          <button
+            className="bs-editor-btn-secondary"
+            onClick={() => { if (confirm('將清除此場景所有自訂(物件實例 + 群組變換)。確定?')) editor.resetScene() }}
+          >↺ 場景重置</button>
+        </section>
+      </div>
     </>
   )
 }
@@ -377,34 +377,34 @@ function BgSourceTab({
     icon: string
     preview: React.ReactNode
   }[] = [
-    {
-      value: 'default',
-      title: '預設場景',
-      desc: '使用系統提供的場景',
-      icon: 'image',
-      preview: scene.backgroundType === 'image' && scene.backgroundValue
-        ? <img src={scene.backgroundValue} alt="" />
-        : <div className="bs-editor-bg-preview-fallback">{scene.label ?? '預設'}</div>,
-    },
-    {
-      value: 'camera',
-      title: '相機背景',
-      desc: '使用攝影機即時畫面',
-      icon: 'videocam',
-      preview: (
-        <div className="bs-editor-bg-preview-camera">
-          <span className="material-symbols-outlined">videocam</span>
-        </div>
-      ),
-    },
-    {
-      value: 'none',
-      title: '無背景',
-      desc: '使用純色背景',
-      icon: 'block',
-      preview: <div className="bs-editor-bg-preview-none" />,
-    },
-  ]
+      {
+        value: 'default',
+        title: '預設場景',
+        desc: '使用系統提供的場景',
+        icon: 'image',
+        preview: scene.backgroundType === 'image' && scene.backgroundValue
+          ? <img src={scene.backgroundValue} alt="" />
+          : <div className="bs-editor-bg-preview-fallback">{scene.label ?? '預設'}</div>,
+      },
+      {
+        value: 'camera',
+        title: '相機背景',
+        desc: '使用攝影機即時畫面',
+        icon: 'videocam',
+        preview: (
+          <div className="bs-editor-bg-preview-camera">
+            <span className="material-symbols-outlined">videocam</span>
+          </div>
+        ),
+      },
+      {
+        value: 'none',
+        title: '無背景',
+        desc: '使用純色背景',
+        icon: 'block',
+        preview: <div className="bs-editor-bg-preview-none" />,
+      },
+    ]
 
   const selectedDevice = devices.find(d => d.deviceId === deviceId)
 
@@ -517,21 +517,23 @@ function GroupEditor({ editor, scene, groups }: { editor: BigScreenEditorApi; sc
       <div className="bs-editor-section-header">
         <span>選中變換 — <span style={{ color: accent }}>{g.label}</span></span>
       </div>
+      <div style={{ textAlign: 'left', marginLeft: 8 }}>位置</div>
       <NumberRow label="X" min={-5} max={5} step={0.05} accent={accent}
         value={t.pos[0]} onChange={v => setT({ ...t, pos: [v, t.pos[1], t.pos[2]] })} />
       <NumberRow label="Y" min={-5} max={5} step={0.05} accent={accent}
         value={t.pos[1]} onChange={v => setT({ ...t, pos: [t.pos[0], v, t.pos[2]] })} />
       <NumberRow label="Z" min={-5} max={5} step={0.05} accent={accent}
         value={t.pos[2]} onChange={v => setT({ ...t, pos: [t.pos[0], t.pos[1], v] })} />
-      <NumberRow label="Pitch(°)" min={-180} max={180} step={1} accent={accent}
+      <div style={{ textAlign: 'left', marginLeft: 8 }}>旋轉 (°)</div>
+      <NumberRow label="俯仰角" min={-180} max={180} step={1} accent={accent}
         value={t.rot[0] * RAD2DEG}
         onChange={deg => setT({ ...t, rot: [deg * DEG2RAD, t.rot[1], t.rot[2]] })} />
-      <NumberRow label="Yaw(°)" min={-180} max={180} step={1} accent={accent}
+      {/* <NumberRow label="Yaw(°)" min={-180} max={180} step={1} accent={accent}
         value={t.rot[1] * RAD2DEG}
         onChange={deg => setT({ ...t, rot: [t.rot[0], deg * DEG2RAD, t.rot[2]] })} />
       <NumberRow label="Roll(°)" min={-180} max={180} step={1} accent={accent}
         value={t.rot[2] * RAD2DEG}
-        onChange={deg => setT({ ...t, rot: [t.rot[0], t.rot[1], deg * DEG2RAD] })} />
+        onChange={deg => setT({ ...t, rot: [t.rot[0], t.rot[1], deg * DEG2RAD] })} /> */}
       <div className="bs-editor-actions">
         <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('group', g.id)}>↺ 單一重置</button>
       </div>
