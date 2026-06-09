@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { BigScreenEditorApi } from '../hooks/useBigScreenEditor'
 import type { SceneConfig } from '../types/vrm'
 import type { GizmoHandle } from '../utils/editorGizmo'
@@ -85,17 +85,41 @@ export default function BigScreenEditorOverlay({
     else if (state.selection?.kind === 'group') setTab('groups')
   }, [state.selection])
 
-  // 左側 tab:素材庫 / 背景來源(null = 收起)
-  const [leftTab, setLeftTab] = useState<'library' | 'bg' | null>('library')
-  const toggleLeftTab = (t: 'library' | 'bg') => setLeftTab(prev => (prev === t ? null : t))
+  // 左側 tab:素材庫 / 背景來源(null = 收起)— 改由 hover 觸發
+  const [leftTab, setLeftTab] = useState<'library' | 'bg' | null>(null)
+  // 移開到 rail/panel 外才關;短延遲讓滑鼠跨過 rail→panel 的間隙
+  const closeTimerRef = useRef<number | null>(null)
+  const cancelClose = () => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+  }
+  const scheduleClose = () => {
+    cancelClose()
+    closeTimerRef.current = window.setTimeout(() => {
+      setLeftTab(null)
+      closeTimerRef.current = null
+    }, 200)
+  }
+  const openLeftTab = (t: 'library' | 'bg') => {
+    cancelClose()
+    setLeftTab(t)
+  }
+  useEffect(() => () => cancelClose(), [])
 
   return (
     <>
     {/* ── Left rail:icon 工具列(永遠顯示) ───────────────────────── */}
-    <aside className="bs-editor-rail" aria-label="編輯工具列">
+    <aside
+      className="bs-editor-rail"
+      aria-label="編輯工具列"
+      onMouseLeave={scheduleClose}
+    >
       <button
         className={`bs-editor-rail-btn ${leftTab === 'bg' ? 'bs-editor-rail-btn--active' : ''}`}
-        onClick={() => toggleLeftTab('bg')}
+        onMouseEnter={() => openLeftTab('bg')}
+        onFocus={() => openLeftTab('bg')}
         title="背景來源"
       >
         <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>image</span>
@@ -103,7 +127,8 @@ export default function BigScreenEditorOverlay({
       </button>
       <button
         className={`bs-editor-rail-btn ${leftTab === 'library' ? 'bs-editor-rail-btn--active' : ''}`}
-        onClick={() => toggleLeftTab('library')}
+        onMouseEnter={() => openLeftTab('library')}
+        onFocus={() => openLeftTab('library')}
         title="素材庫"
       >
         <span className="material-symbols-outlined bs-editor-rail-icon" aria-hidden>stacks</span>
@@ -111,9 +136,14 @@ export default function BigScreenEditorOverlay({
       </button>
     </aside>
 
-    {/* ── Left content:rail 點選後展開 ────────────────────────────── */}
+    {/* ── Left content:hover rail 後展開,移到面板上會持續顯示 ───── */}
     {leftTab && (
-      <aside className="bs-editor-library-panel" aria-label={leftTab === 'library' ? '素材庫' : '背景來源'}>
+      <aside
+        className="bs-editor-library-panel"
+        aria-label={leftTab === 'library' ? '素材庫' : '背景來源'}
+        onMouseEnter={cancelClose}
+        onMouseLeave={scheduleClose}
+      >
         <div className="bs-editor-header">
           <span className="bs-editor-title">{leftTab === 'library' ? '素材庫' : '背景來源'}</span>
           <button className="bs-editor-exit" onClick={() => setLeftTab(null)}>✕</button>

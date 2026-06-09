@@ -405,11 +405,11 @@
   letter-spacing: 0.3px;
 }
 
-/* ── Library panel (left, floating;rail 點開時才出現) ──────────────── */
+/* ── Library panel (left, floating;hover rail 後出現) ──────────────── */
 .bs-editor-library-panel {
   position: fixed;
   top: 24px;
-  left: 96px; /* 24(rail x) + 52(rail w) + 12(padding+gap) + buffer */
+  left: 90px; /* 緊貼 rail:24 + 64(rail w incl padding) + 2 ≈ 90 */
   bottom: 24px;
   width: 240px;
   background: rgba(20, 22, 27, 0.88);
@@ -425,6 +425,16 @@
   pointer-events: auto;
   display: flex;
   flex-direction: column;
+}
+/* hover bridge — 從 rail 右緣到 panel 左緣的透明區,接住滑鼠不讓 mouseleave 觸發。 */
+.bs-editor-library-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -16px;
+  width: 16px;
+  height: 100%;
+  pointer-events: auto;
 }
 .bs-editor-count {
   background: rgba(255, 255, 255, 0.06);
