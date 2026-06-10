@@ -27,7 +27,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -64,7 +64,7 @@ export interface BigScreenMsg {
   occluders?: SceneOccluderInstance[];
   /** For 'group-hidden-set': 當前場景隱藏的 group id 集合(覆蓋式) */
   groupHidden?: Record<string, true>;
-  /** For 'edit-mode': 大屏是否處於編輯模式(與「開始互動」互斥) */
+  /** For 'edit-mode'(大屏→教師端狀態回報)與 'edit-mode-set'(教師端→大屏切換指令) */
   editing?: boolean;
 }
 
@@ -640,6 +640,9 @@ export default function BigScreen() {
     editor.discard()
     setEditMode(false)
   }, [editor])
+  // 供 BroadcastChannel handler(deps 為空)呼叫的最新版 tryExitEditMode
+  const tryExitEditModeRef = useRef<() => void>(() => {});
+  useEffect(() => { tryExitEditModeRef.current = tryExitEditMode; }, [tryExitEditMode]);
 
   useEffect(() => {
     if (!editMode) return;
@@ -2247,6 +2250,14 @@ export default function BigScreen() {
         if (editModeRef.current) return;
         const next = (msg as { groupHidden?: Record<string, true> }).groupHidden ?? {};
         setGroupHidden(next);
+      } else if (msg.type === 'edit-mode-set') {
+        // 教師端切換模式指令 — 只有獨立大屏視窗受控,內嵌預覽 iframe 忽略
+        if (window.self !== window.top) return;
+        if (msg.editing) {
+          if (interactionPhaseRef.current === 'idle') setEditMode(true);
+        } else if (editModeRef.current) {
+          tryExitEditModeRef.current(); // dirty 時會跳確認 modal
+        }
       }
     };
 

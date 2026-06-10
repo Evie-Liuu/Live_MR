@@ -1626,6 +1626,14 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
   // ─── Big-screen controls ───────────────────────────────────────────────────
   const openBigScreen = useCallback((mode: 'display' | 'edit' = 'display') => {
+    // 已有大屏視窗 → 廣播切換模式指令,不另開視窗
+    const existing = bigScreenWindowRef.current;
+    if (existing && !existing.closed) {
+      const msg: BigScreenMsg = { type: 'edit-mode-set', editing: mode === 'edit' };
+      channelRef.current?.postMessage(msg);
+      existing.focus();
+      return;
+    }
     try {
       sessionStorage.setItem('bigscreen-roomId', roomId);
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
@@ -1641,7 +1649,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen${mode === 'edit' ? '&mode=edit' : ''}`;
-    const win = window.open(url, mode === 'edit' ? 'live-mr-bigscreen-edit' : 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
+    // 兩種模式共用同一視窗名稱:即使 ref 遺失(教師端重整),也只會重用同一個視窗
+    const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
   }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId, hintEnabled, hintLevel]);
 
