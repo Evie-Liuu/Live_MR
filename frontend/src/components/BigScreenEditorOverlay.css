@@ -172,13 +172,19 @@
 }
 
 .bs-editor-overlay--exiting {
-  animation: bsEditorSlideOutRight 200ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
+  animation: bsEditorSlideOutRight 220ms cubic-bezier(0.55, 0, 0.68, 0.06) both;
 }
 
 /* ── Minimized state ────────────────────────────────────────────── */
 @keyframes bsEditorMinimize {
-  from { bottom: 24px; }
-  to   { bottom: auto; height: auto; }
+  from {
+    bottom: 24px;
+  }
+
+  to {
+    bottom: auto;
+    height: auto;
+  }
 }
 
 .bs-editor-overlay--minimized {
@@ -283,11 +289,23 @@
 }
 
 @keyframes bsDirtyPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.6; transform: scale(0.8); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.6;
+    transform: scale(0.8);
+  }
 }
 
 .bs-editor-tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(255, 255, 255, 0.05);
   color: #d5d7dc;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -656,7 +674,7 @@
   top: 50%;
   left: 24px;
   transform: translateY(-50%);
-  z-index: 1000;
+  z-index: 60;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -724,10 +742,11 @@
 .bs-editor-library-panel {
   position: fixed;
   top: 24px;
-  left: 90px;
+  left: 100px;
+  padding: 0 2px;
   /* 緊貼 rail:24 + 64(rail w incl padding) + 2 ≈ 90 */
   bottom: 24px;
-  width: 240px;
+  width: 260px;
   background: rgba(20, 22, 27, 0.88);
   color: #e8e9ec;
   font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -858,6 +877,11 @@
   font-weight: 600;
   letter-spacing: 0.4px;
   margin-top: 4px;
+}
+
+.bs-editor-bg-section-label.setting {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 10px;
 }
 
 .bs-editor-bg-cards {
@@ -1096,8 +1120,13 @@
 }
 
 @keyframes bsConfirmBackdropIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .bs-confirm-backdrop {

@@ -226,7 +226,7 @@ export default function BigScreenEditorOverlay({
       {showResetConfirm && (
         <ConfirmModal
           title="確認場景重置"
-          message="將清除此場景所有自訂（物件實例＋群組變換），此操作不可復原。"
+          message="將清除此場景所有自訂（場景物件＋角色群組）回復成預設，此操作不可復原。"
           confirmLabel="確定重置"
           onConfirm={() => { setShowResetConfirm(false); editor.resetScene() }}
           onCancel={() => setShowResetConfirm(false)}
@@ -523,7 +523,7 @@ function BgSourceTab({
         })}
       </div>
 
-      <div className="bs-editor-bg-section-label">相機設定</div>
+      <div className="bs-editor-bg-section-label setting">相機設定</div>
       <div className="bs-editor-bg-device-row">
         <label className="bs-editor-bg-device-label">使用裝置</label>
         <button
