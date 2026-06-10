@@ -4667,6 +4667,20 @@ button:disabled {
   color: #FF6600;
 }
 
+.hs-bigscreen-fab-menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hs-bigscreen-fab-menu-item:disabled:hover {
+  background: transparent;
+  color: #334155;
+}
+
+.hs-bigscreen-fab-menu-item:disabled:hover span {
+  color: #64748B;
+}
+
 /* ── BigScreen Embedded Preview ──────────────────────────── */
 
 /* When preview is ON, video area stays column: banner → preview → grid */

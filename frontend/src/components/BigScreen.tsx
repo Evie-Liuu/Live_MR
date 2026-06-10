@@ -27,7 +27,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -64,6 +64,8 @@ export interface BigScreenMsg {
   occluders?: SceneOccluderInstance[];
   /** For 'group-hidden-set': 當前場景隱藏的 group id 集合(覆蓋式) */
   groupHidden?: Record<string, true>;
+  /** For 'edit-mode': 大屏是否處於編輯模式(與「開始互動」互斥) */
+  editing?: boolean;
 }
 
 /** 共用:從 localStorage 讀某場景的遮罩物件清單(失敗則回空陣列)。 */
@@ -327,6 +329,19 @@ export default function BigScreen() {
     }, 220);
     return () => window.clearTimeout(t);
   }, [editMode, overlayMounted]);
+  // 廣播編輯狀態給 HostSession(互斥:編輯中不可開始互動);關窗時補送 false 解鎖
+  useEffect(() => {
+    const ch = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME);
+    ch.postMessage({ type: 'edit-mode', editing: editMode } satisfies BigScreenMsg);
+    const onPageHide = () => {
+      if (editMode) ch.postMessage({ type: 'edit-mode', editing: false } satisfies BigScreenMsg);
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      ch.close();
+    };
+  }, [editMode]);
 
   const [vrmSourceId, setVrmSourceId] = useState<string>(() => {
     return sessionStorage.getItem('bigscreen-vrmSourceId') ?? 'default';
@@ -1875,6 +1890,8 @@ export default function BigScreen() {
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
       if (e.key === 'e' || e.key === 'E') {
+        // 互動進行中不可進入編輯模式(退出不受限)
+        if (!editMode && interactionPhaseRef.current !== 'idle') return;
         if (editMode) tryExitEditMode(); else setEditMode(true);
       } else if (e.ctrlKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
         if (editMode) { e.preventDefault(); editor.undo(); }
@@ -2309,10 +2326,17 @@ export default function BigScreen() {
         {currentPreset && <span className="bigscreen-scene-label">{currentPreset.label}</span>}
         <button
           className="bs-editmode-toggle"
-          title={editMode ? '退出編輯模式 (E)' : '進入編輯模式 (E)'}
+          title={
+            !editMode && interactionPhase !== 'idle'
+              ? '互動進行中，無法進入編輯模式'
+              : editMode ? '退出編輯模式 (E)' : '進入編輯模式 (E)'
+          }
+          disabled={!editMode && interactionPhase !== 'idle'}
           onClick={() => { if (editMode) tryExitEditMode(); else setEditMode(true); }}
           style={{
             background: editMode ? '#f76e12' : 'rgba(255,255,255,0.15)',
+            opacity: !editMode && interactionPhase !== 'idle' ? 0.4 : undefined,
+            cursor: !editMode && interactionPhase !== 'idle' ? 'not-allowed' : undefined,
           }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>

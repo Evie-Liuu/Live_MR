@@ -311,6 +311,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [recordDuration, setRecordDuration] = useState(0);
   // ── 開始互動自動腳本（固定 15 秒）─────────────────────────────
   const [interactionPhase, setInteractionPhase] = useState<InteractionPhase>('idle');
+  // 大屏是否處於編輯模式(由 BroadcastChannel 'edit-mode' 訊息同步,與開始互動互斥)
+  const [bigScreenEditing, setBigScreenEditing] = useState(false);
   const interactionPhaseRef = useRef<InteractionPhase>('idle');
   useEffect(() => { interactionPhaseRef.current = interactionPhase; }, [interactionPhase]);
   // 廣播互動相位給 BigScreen（BroadcastChannel）與學生端（LiveKit publishData）
@@ -1306,6 +1308,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   useEffect(() => {
     const ch = new BroadcastChannel(BIGSCREEN_CHANNEL_NAME);
     channelRef.current = ch;
+    // 接收大屏編輯狀態(互斥:大屏編輯中不可開始互動)
+    ch.onmessage = (ev: MessageEvent<BigScreenMsg>) => {
+      if (ev.data?.type === 'edit-mode') setBigScreenEditing(!!ev.data.editing);
+    };
     return () => {
       ch.close();
       channelRef.current = null;
@@ -2345,7 +2351,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         {interactionPhase === 'idle' && (
                           <button
                             className={`hs-ai-start-btn phase-${interactionPhase}`}
-                            disabled={!sttSupported || !hasConstraint || aiBusy}
+                            disabled={!sttSupported || !hasConstraint || aiBusy || bigScreenEditing}
+                            title={bigScreenEditing ? '大屏編輯模式中，無法開始互動' : undefined}
                             onClick={startInteraction}
                           >
                             <span className="material-symbols-outlined">smart_toy</span>
@@ -2599,6 +2606,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             </button>
             <button
               className="hs-bigscreen-fab-menu-item"
+              disabled={interactionPhase !== 'idle'}
+              title={interactionPhase !== 'idle' ? '互動進行中，無法進入編輯模式' : undefined}
               onClick={() => { openBigScreen('edit'); setBigScreenMenuOpen(false); }}
             >
               <span className="material-symbols-outlined">edit</span> 編輯模式
