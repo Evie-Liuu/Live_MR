@@ -369,7 +369,7 @@ export default function BigScreenEditorOverlay({
                       return (
                         <div
                           key={g.id}
-                          className={`bs-editor-group-card ${isSelected ? 'bs-editor-group-card--selected' : ''} ${isHidden ? 'bs-editor-group-card--hidden' : ''}`}
+                          className={`bs-editor-group-card ${isSelected ? 'bs-editor-group-card--selected' : ''}`}
                           onClick={() => editor.select({ kind: 'group', id: g.id })}
                           style={isSelected ? { borderColor: color } : undefined}
                         >
@@ -383,7 +383,7 @@ export default function BigScreenEditorOverlay({
                             title={isHidden ? '顯示此群組' : '隱藏此群組'}
                             onClick={(e) => { e.stopPropagation(); editor.toggleGroupHidden(g.id) }}
                           >
-                            {isHidden ? '🙈' : '👁'}
+                            {isHidden ? <span className='material-symbols-outlined' style={{ fontSize: 15 }}>visibility_off</span> : <span className='material-symbols-outlined' style={{ fontSize: 15 }}>visibility</span>}
                           </button>
                         </div>
                       )
