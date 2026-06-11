@@ -1861,7 +1861,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             {pending.length > 0 && <span className="hs-badge-btn hs-badge--alert">{pending.length}</span>}
           </button>
 
-          <RecordingPanel isRecording={isRecording} onStart={start} onStop={stop} />
+          <RecordingPanel isRecording={isRecording} bigScreenEditing={bigScreenEditing} onStart={start} onStop={stop} />
 
           <button
             className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}

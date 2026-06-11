@@ -2,11 +2,12 @@ import React from 'react'
 
 interface RecordingPanelProps {
   isRecording: boolean
+  bigScreenEditing?: boolean
   onStart: () => Promise<void>
   onStop: () => Promise<void>
 }
 
-export default function RecordingPanel({ isRecording, onStart, onStop }: RecordingPanelProps) {
+export default function RecordingPanel({ isRecording, bigScreenEditing, onStart, onStop }: RecordingPanelProps) {
   const [loading, setLoading] = React.useState(false)
 
   const handleClick = async () => {
@@ -30,7 +31,8 @@ export default function RecordingPanel({ isRecording, onStart, onStop }: Recordi
       <button
         className={`control-btn ${isRecording ? 'recording-stop' : 'recording-start'}`}
         onClick={handleClick}
-        disabled={loading}
+        disabled={loading || bigScreenEditing}
+        title={bigScreenEditing ? '大屏編輯模式中，無法開始錄製' : undefined}
       >
         {loading ? '...' : isRecording ? '⏹ 停止錄製' : '▶ 開始錄製'}
       </button>
