@@ -246,7 +246,7 @@ export default function BigScreenEditorOverlay({
 
       {showResetConfirm && (
         <ConfirmModal
-          title="確認場景重置"
+          title="確認全部重置"
           message="將清除此場景所有自訂（場景物件＋角色群組）回復成預設，此操作不可復原。"
           confirmLabel="確定重置"
           onConfirm={() => { setShowResetConfirm(false); editor.resetScene() }}
@@ -284,24 +284,24 @@ export default function BigScreenEditorOverlay({
               <button
                 className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'translate' ? 'bs-editor-tb-btn--active' : ''}`}
                 onClick={() => editor.setGizmoMode('translate')}
-                title="移動 (Translate)"
+                title="移動"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>open_with</span>
               </button>
               <button
                 className={`bs-editor-tb-btn ${editor.state.gizmoMode === 'rotate' ? 'bs-editor-tb-btn--active' : ''}`}
                 onClick={() => editor.setGizmoMode('rotate')}
-                title="旋轉 (Rotate)"
+                title="旋轉"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>360</span>
               </button>
               <span className="bs-editor-tb-sep" />
             </>
           )}
-          <button className="bs-editor-tb-btn" disabled={editor.state.past.length === 0} onClick={editor.undo} title="Undo (Ctrl+Z)">
+          <button className="bs-editor-tb-btn" disabled={editor.state.past.length === 0} onClick={editor.undo} title="上一步 (Ctrl+Z)">
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>undo</span>
           </button>
-          <button className="bs-editor-tb-btn" disabled={editor.state.future.length === 0} onClick={editor.redo} title="Redo (Ctrl+Shift+Z)">
+          <button className="bs-editor-tb-btn" disabled={editor.state.future.length === 0} onClick={editor.redo} title="下一步 (Ctrl+Shift+Z)">
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>redo</span>
           </button>
 
@@ -321,7 +321,7 @@ export default function BigScreenEditorOverlay({
               <button
                 className="bs-editor-tb-btn"
                 onClick={() => setShowResetConfirm(true)}
-                title="場景重置"
+                title="全部重置"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>restart_alt</span>
               </button>
@@ -427,7 +427,7 @@ export default function BigScreenEditorOverlay({
               <button
                 className="bs-editor-btn-secondary"
                 onClick={() => setShowResetConfirm(true)}
-              >↺ 場景重置</button>
+              >↺ 全部重置</button>
             </section>
           </>
         )}
@@ -603,7 +603,7 @@ function OccluderEditor({ editor }: { editor: BigScreenEditorApi }) {
       <NumberRow label="Scale" min={0.1} max={5} step={0.05}
         value={inst.scale} onChange={v => update({ scale: v })} />
       <div className="bs-editor-actions">
-        <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('occluder', inst.instanceId)}>↺ 單一重置</button>
+        <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('occluder', inst.instanceId)}>↺ 重置</button>
         <button className="bs-editor-btn-secondary" onClick={() => editor.duplicateOccluder(inst.instanceId)}>⎘ 複製</button>
         <button className="bs-editor-btn-danger" onClick={() => editor.deleteOccluder(inst.instanceId)}>🗑 刪除</button>
       </div>
@@ -643,7 +643,7 @@ function GroupEditor({ editor, scene, groups }: { editor: BigScreenEditorApi; sc
         value={t.rot[2] * RAD2DEG}
         onChange={deg => setT({ ...t, rot: [t.rot[0], t.rot[1], deg * DEG2RAD] })} /> */}
       <div className="bs-editor-actions">
-        <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('group', g.id)}>↺ 單一重置</button>
+        <button className="bs-editor-btn-secondary" onClick={() => editor.resetItem('group', g.id)}>↺ 重置</button>
       </div>
     </section>
   )
