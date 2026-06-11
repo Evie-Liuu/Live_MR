@@ -705,13 +705,18 @@
   border: 1px solid transparent;
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
   padding: 4px 0;
 }
 
 .bs-editor-rail-btn:hover {
   background: rgba(255, 255, 255, 0.06);
   color: #fff;
+  transform: scale(1.06);
+}
+
+.bs-editor-rail-btn:active {
+  transform: scale(0.94);
 }
 
 .bs-editor-rail-btn--active {
@@ -725,6 +730,11 @@
   margin-top: 5px;
   line-height: 1;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  transition: font-variation-settings 0.2s ease, transform 0.2s ease;
+}
+
+.bs-editor-rail-btn:hover .bs-editor-rail-icon.material-symbols-outlined {
+  transform: scale(1.1);
 }
 
 .bs-editor-rail-btn--active .bs-editor-rail-icon.material-symbols-outlined {

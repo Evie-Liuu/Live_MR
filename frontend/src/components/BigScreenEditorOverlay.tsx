@@ -116,6 +116,27 @@ export default function BigScreenEditorOverlay({
 
   // 左側 tab:素材庫 / 背景來源(null = 收起)— 改由 hover 觸發
   const [leftTab, setLeftTab] = useState<'library' | 'bg' | null>(null)
+  // 延後 unmount,讓 panel 播完退場動畫(180ms)再從 DOM 移除。
+  const [panelMounted, setPanelMounted] = useState(false)
+  const [panelExiting, setPanelExiting] = useState(false)
+  // 退場期間 leftTab 已是 null,記住最後顯示的 tab 讓內容不閃空。
+  const displayTabRef = useRef<'library' | 'bg'>('library')
+  if (leftTab) displayTabRef.current = leftTab
+  const displayTab = leftTab ?? displayTabRef.current
+  useEffect(() => {
+    if (leftTab) {
+      setPanelExiting(false)
+      setPanelMounted(true)
+      return
+    }
+    if (!panelMounted) return
+    setPanelExiting(true)
+    const t = window.setTimeout(() => {
+      setPanelMounted(false)
+      setPanelExiting(false)
+    }, 180)
+    return () => window.clearTimeout(t)
+  }, [leftTab, panelMounted])
   // 移開到 rail/panel 外才關;短延遲讓滑鼠跨過 rail→panel 的間隙
   const closeTimerRef = useRef<number | null>(null)
   const cancelClose = () => {
@@ -166,19 +187,19 @@ export default function BigScreenEditorOverlay({
       </aside>
 
       {/* ── Left content:hover rail 後展開,移到面板上會持續顯示 ───── */}
-      {leftTab && (
+      {panelMounted && (
         <aside
-          className={`bs-editor-library-panel ${exiting ? 'bs-editor-library-panel--exiting' : ''}`}
-          aria-label={leftTab === 'library' ? '素材庫' : '背景來源'}
+          className={`bs-editor-library-panel ${panelExiting || exiting ? 'bs-editor-library-panel--exiting' : ''}`}
+          aria-label={displayTab === 'library' ? '素材庫' : '背景來源'}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >
           <div className="bs-editor-header">
-            <span className="bs-editor-title">{leftTab === 'library' ? '素材庫' : '背景來源'}</span>
+            <span className="bs-editor-title">{displayTab === 'library' ? '素材庫' : '背景來源'}</span>
             <button className="bs-editor-exit" onClick={() => setLeftTab(null)}>✕</button>
           </div>
 
-          {leftTab === 'library' && (
+          {displayTab === 'library' && (
             <>
               <div className="bs-editor-library-grid">
                 {OCCLUDER_LIBRARY.length === 0 && (
@@ -211,7 +232,7 @@ export default function BigScreenEditorOverlay({
             </>
           )}
 
-          {leftTab === 'bg' && (
+          {displayTab === 'bg' && (
             <BgSourceTab
               deviceId={cameraBgDeviceId}
               onDeviceChange={onCameraBgDeviceChange}
