@@ -475,6 +475,26 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (snapshotPersistRef.current.timer) clearTimeout(snapshotPersistRef.current.timer);
   }, []);
 
+  // ─── Dev-only: test audio playback ────────────────────────────────────────
+  const testAudioRef = useRef<HTMLAudioElement | null>(null);
+  const handleToggleTestAudio = useCallback(() => {
+    let el = testAudioRef.current;
+    if (!el) {
+      el = new Audio('/voice/Teacher_chat_test.mp3');
+      testAudioRef.current = el;
+    }
+    if (el.paused) {
+      el.currentTime = 0;
+      void el.play();
+    } else {
+      el.pause();
+    }
+  }, []);
+  useEffect(() => () => {
+    try { testAudioRef.current?.pause(); } catch { /* ignore */ }
+    testAudioRef.current = null;
+  }, []);
+
   // ─── Scene / VRM source selection ─────────────────────────────────────────
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
@@ -2407,6 +2427,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                         {interactionPhase !== 'idle' && (
                           <button className="hs-ai-start-cancel" onClick={endInteraction}>
                             結束互動
+                          </button>
+                        )}
+                        {import.meta.env.DEV && (
+                          <button
+                            type="button"
+                            className="hs-ai-test-audio-btn"
+                            onClick={handleToggleTestAudio}
+                            style={{ fontSize: 12 }}
+                          >
+                            ▶ 測試音檔
                           </button>
                         )}
                       </div>
