@@ -305,6 +305,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     cachedRepliesRef.current = null;
     cachedSourceTextRef.current = null;
   }, []);
+  const [_detectedQuestion, setDetectedQuestion] = useState<string>('');  // Task 6 で UI に渡す
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -748,25 +749,32 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const history = chatHistoryRef.current;
       const result = await generateHints(txt, { history, systemInstruction });
       setAiModel(result.model);
+      // 開發驗證：印出 AI 從長獨白抽取的主問句。
+      console.log('[hint] extracted question:', result.question);
+      setDetectedQuestion(result.question || '');
+      // BigScreen 氣泡 / 後續 sourceText 顯示「老師實際問的那句」而非整段長獨白。
+      const sourceText = result.question || txt;
       const cached: CachedReplies = {
         complete: result.complete,
         rearrange: shuffleWords(result.complete),
         extend: result.extend || result.complete,
       };
       cachedRepliesRef.current = cached;
-      cachedSourceTextRef.current = txt;
+      cachedSourceTextRef.current = sourceText;
       // Append ONCE per transcript: the canonical student utterance is `complete`.
       // 對話輪替會無上限累積；只保留最近 MAX_CHAT_TURNS 筆，避免長課堂中 history
       // 無限成長（記憶體耗盡），同時控制每次送往 Gemini 的 token 量。
+      // chat history 的 user turn 記「抽取問句」(question 空則 fallback 原長 txt)，
+      // 讓多輪續寫上下文乾淨、token 更省。
       chatHistoryRef.current = [
         ...history,
-        { role: 'user' as const, text: txt },
+        { role: 'user' as const, text: result.question || txt },
         { role: 'model' as const, text: result.complete },
       ].slice(-MAX_CHAT_TURNS);
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
           : cached.rearrange;
-      const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
+      const payload: AIHintPayload = { mode, content, sourceText, ts: Date.now() };
       setLatestHint(payload);
       broadcastAIHint(payload);
     } catch (e) {
