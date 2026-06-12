@@ -87,6 +87,7 @@ export async function generateHint(
 }
 
 export interface HintsResult {
+  question: string
   complete: string
   extend: string
   model: string
@@ -115,10 +116,11 @@ export async function generateHints(
       const data = await res.json().catch(() => ({})) as { error?: string }
       throw new Error(data.error || `AI HTTP ${res.status}`)
     }
-    const data = await res.json() as { complete?: string; extend?: string; model?: string }
+    const data = await res.json() as { question?: string; complete?: string; extend?: string; model?: string }
     const complete = (data.complete ?? '').trim()
     if (!complete) throw new Error('Empty response')
     return {
+      question: (data.question ?? '').trim(),
       complete,
       extend: (data.extend ?? '').trim(),
       model: data.model ?? 'unknown',
