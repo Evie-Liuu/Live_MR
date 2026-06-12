@@ -98,7 +98,9 @@ Gemini（`/api/ai/hints`）→ 產生學生回應（complete / rearrange / exten
 - `AIHintPayload.sourceText` 改帶 `result.question || txt`，讓 BigScreen 機器人氣泡顯示
   「老師實際問的那句」而非冗長獨白。`cachedSourceTextRef.current` 同步存此值，
   讓 cache-first path 切模式時 sourceText 一致。
-- （可選，dev）hint card 下方顯示一行小字「偵測問句：…」。
+- **教師端 hint card 下方顯示一行 dev 小字「偵測問句：{result.question}」**，
+  讓老師即時看到 AI 從長獨白抽出的那句提問（便於現場驗證抽取是否正確）。
+  `question` 為空時不顯示此行。建議同樣以 `import.meta.env.DEV` 或現有 dev/debug 樣式呈現。
 
 ### 6. `frontend/src/components/HostSession.tsx` — 開發用音檔播放鈕
 
