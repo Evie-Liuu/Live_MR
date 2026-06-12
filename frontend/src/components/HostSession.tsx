@@ -302,12 +302,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const cachedRepliesRef = useRef<CachedReplies | null>(null);
   const cachedSourceTextRef = useRef<string | null>(null);
   const cachedTranscriptRef = useRef<string | null>(null);
+  const [detectedQuestion, setDetectedQuestion] = useState<string>('');  // dev:AI 從長獨白抽取的主問句,顯示於 hint card 下方
   const resetCachedReplies = useCallback(() => {
     cachedRepliesRef.current = null;
     cachedSourceTextRef.current = null;
     cachedTranscriptRef.current = null;
+    setDetectedQuestion('');
   }, []);
-  const [detectedQuestion, setDetectedQuestion] = useState<string>('');  // dev:AI 從長獨白抽取的主問句,顯示於 hint card 下方
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
