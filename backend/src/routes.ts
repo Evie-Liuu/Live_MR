@@ -501,13 +501,13 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       ? history.filter(h => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
       : undefined
     try {
-      const { complete, extend, model } = await generateAIHints(prompt, {
+      const { question, complete, extend, model } = await generateAIHints(prompt, {
         history: safeHistory && safeHistory.length > 0 ? safeHistory : undefined,
         systemInstruction: typeof systemInstruction === 'string' && systemInstruction.trim()
           ? systemInstruction
           : undefined,
       })
-      res.json({ complete, extend, model })
+      res.json({ question, complete, extend, model })
     } catch (err: any) {
       const msg = err?.message ?? String(err)
       console.error('[ai/hints] error:', msg)
