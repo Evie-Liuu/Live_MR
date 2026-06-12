@@ -307,7 +307,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     cachedSourceTextRef.current = null;
     cachedTranscriptRef.current = null;
   }, []);
-  const [_detectedQuestion, setDetectedQuestion] = useState<string>('');  // Task 6 で UI に渡す
+  const [detectedQuestion, setDetectedQuestion] = useState<string>('');  // dev:AI 從長獨白抽取的主問句,顯示於 hint card 下方
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -2539,6 +2539,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           </div>
                           {!sttRecording && sttTranscript && tooShort && (
                             <div className="hs-ai-warn">太短，請再錄一次</div>
+                          )}
+                          {import.meta.env.DEV && detectedQuestion && (
+                            <div className="hs-ai-detected-question" style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
+                              偵測問句：{detectedQuestion}
+                            </div>
                           )}
                         </div>
                       </div>
