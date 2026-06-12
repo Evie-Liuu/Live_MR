@@ -301,9 +301,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, []);
   const cachedRepliesRef = useRef<CachedReplies | null>(null);
   const cachedSourceTextRef = useRef<string | null>(null);
+  const cachedTranscriptRef = useRef<string | null>(null);
   const resetCachedReplies = useCallback(() => {
     cachedRepliesRef.current = null;
     cachedSourceTextRef.current = null;
+    cachedTranscriptRef.current = null;
   }, []);
   const [_detectedQuestion, setDetectedQuestion] = useState<string>('');  // Task 6 で UI に渡す
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -761,6 +763,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       };
       cachedRepliesRef.current = cached;
       cachedSourceTextRef.current = sourceText;
+      cachedTranscriptRef.current = txt;   // 失效比較用：保留原始整段 transcript
       // Append ONCE per transcript: the canonical student utterance is `complete`.
       // 對話輪替會無上限累積；只保留最近 MAX_CHAT_TURNS 筆，避免長課堂中 history
       // 無限成長（記憶體耗盡），同時控制每次送往 Gemini 的 token 量。
@@ -925,9 +928,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // transcript 更新時：空白鍵模式 → 立即送出；按鈕模式 → 3 秒倒數後送出
   useEffect(() => {
     // 新 transcript 進來 → 失效舊 cache（即使 transcript 太短也要清，避免殘留）
-    if (cachedSourceTextRef.current !== null && cachedSourceTextRef.current !== sttTranscript.trim()) {
+    if (cachedTranscriptRef.current !== null && cachedTranscriptRef.current !== sttTranscript.trim()) {
       cachedRepliesRef.current = null;
       cachedSourceTextRef.current = null;
+      cachedTranscriptRef.current = null;
     }
     // 無論何種情況都先消耗 flag，避免殘留到下一次 transcript
     const isSpacebarTrigger = spacebarTriggerRef.current;
