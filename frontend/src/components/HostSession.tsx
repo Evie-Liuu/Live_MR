@@ -301,9 +301,13 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, []);
   const cachedRepliesRef = useRef<CachedReplies | null>(null);
   const cachedSourceTextRef = useRef<string | null>(null);
+  const cachedTranscriptRef = useRef<string | null>(null);
+  const [detectedQuestion, setDetectedQuestion] = useState<string>('');  // dev:AI 從長獨白抽取的主問句,顯示於 hint card 下方
   const resetCachedReplies = useCallback(() => {
     cachedRepliesRef.current = null;
     cachedSourceTextRef.current = null;
+    cachedTranscriptRef.current = null;
+    setDetectedQuestion('');
   }, []);
   const [countdown, setCountdown] = useState<number | null>(null);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -470,6 +474,26 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, []);
   useEffect(() => () => {
     if (snapshotPersistRef.current.timer) clearTimeout(snapshotPersistRef.current.timer);
+  }, []);
+
+  // ─── Dev-only: test audio playback ────────────────────────────────────────
+  const testAudioRef = useRef<HTMLAudioElement | null>(null);
+  const handleToggleTestAudio = useCallback(() => {
+    let el = testAudioRef.current;
+    if (!el) {
+      el = new Audio('/voice/Teacher_chat_test.mp3');
+      testAudioRef.current = el;
+    }
+    if (el.paused) {
+      el.currentTime = 0;
+      void el.play();
+    } else {
+      el.pause();
+    }
+  }, []);
+  useEffect(() => () => {
+    try { testAudioRef.current?.pause(); } catch { /* ignore */ }
+    testAudioRef.current = null;
   }, []);
 
   // ─── Scene / VRM source selection ─────────────────────────────────────────
@@ -748,25 +772,33 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const history = chatHistoryRef.current;
       const result = await generateHints(txt, { history, systemInstruction });
       setAiModel(result.model);
+      // 開發驗證：印出 AI 從長獨白抽取的主問句。
+      console.log('[hint] extracted question:', result.question);
+      setDetectedQuestion(result.question || '');
+      // BigScreen 氣泡 / 後續 sourceText 顯示「老師實際問的那句」而非整段長獨白。
+      const sourceText = result.question || txt;
       const cached: CachedReplies = {
         complete: result.complete,
         rearrange: shuffleWords(result.complete),
         extend: result.extend || result.complete,
       };
       cachedRepliesRef.current = cached;
-      cachedSourceTextRef.current = txt;
+      cachedSourceTextRef.current = sourceText;
+      cachedTranscriptRef.current = txt;   // 失效比較用：保留原始整段 transcript
       // Append ONCE per transcript: the canonical student utterance is `complete`.
       // 對話輪替會無上限累積；只保留最近 MAX_CHAT_TURNS 筆，避免長課堂中 history
       // 無限成長（記憶體耗盡），同時控制每次送往 Gemini 的 token 量。
+      // chat history 的 user turn 記「抽取問句」(question 空則 fallback 原長 txt)，
+      // 讓多輪續寫上下文乾淨、token 更省。
       chatHistoryRef.current = [
         ...history,
-        { role: 'user' as const, text: txt },
+        { role: 'user' as const, text: result.question || txt },
         { role: 'model' as const, text: result.complete },
       ].slice(-MAX_CHAT_TURNS);
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
           : cached.rearrange;
-      const payload: AIHintPayload = { mode, content, sourceText: txt, ts: Date.now() };
+      const payload: AIHintPayload = { mode, content, sourceText, ts: Date.now() };
       setLatestHint(payload);
       broadcastAIHint(payload);
     } catch (e) {
@@ -917,9 +949,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // transcript 更新時：空白鍵模式 → 立即送出；按鈕模式 → 3 秒倒數後送出
   useEffect(() => {
     // 新 transcript 進來 → 失效舊 cache（即使 transcript 太短也要清，避免殘留）
-    if (cachedSourceTextRef.current !== null && cachedSourceTextRef.current !== sttTranscript.trim()) {
+    if (cachedTranscriptRef.current !== null && cachedTranscriptRef.current !== sttTranscript.trim()) {
       cachedRepliesRef.current = null;
       cachedSourceTextRef.current = null;
+      cachedTranscriptRef.current = null;
     }
     // 無論何種情況都先消耗 flag，避免殘留到下一次 transcript
     const isSpacebarTrigger = spacebarTriggerRef.current;
@@ -2397,6 +2430,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                             結束互動
                           </button>
                         )}
+                        {import.meta.env.DEV && (
+                          <button
+                            type="button"
+                            className="hs-ai-test-audio-btn"
+                            onClick={handleToggleTestAudio}
+                            style={{ fontSize: 12 }}
+                          >
+                            ▶ 測試音檔
+                          </button>
+                        )}
                       </div>
 
                       {/* ── 音錄 ─────────────────────────────────────── */}
@@ -2527,6 +2570,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           </div>
                           {!sttRecording && sttTranscript && tooShort && (
                             <div className="hs-ai-warn">太短，請再錄一次</div>
+                          )}
+                          {import.meta.env.DEV && detectedQuestion && (
+                            <div className="hs-ai-detected-question" style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
+                              偵測問句：{detectedQuestion}
+                            </div>
                           )}
                         </div>
                       </div>

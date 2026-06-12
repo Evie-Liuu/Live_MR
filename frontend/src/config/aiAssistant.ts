@@ -134,13 +134,16 @@ export function buildHintsSystemInstruction(
 
 ${sceneConstraint}
 
-The user messages in this conversation will contain things the TEACHER says. For each teacher turn, produce a JSON object describing what the STUDENT could say back. Maintain continuity with earlier turns — if you already invented specific values (price, size, color, brand, stock), reuse them consistently and let the story progress naturally.
+The user messages in this conversation will contain things the TEACHER says. A single user turn may be a LONG teacher monologue mixing greetings, classroom instructions, asides, and several sentences. Before answering, SILENTLY identify the ONE sentence in that turn that is a question DIRECTED AT THE STUDENT and that the student is expected to answer. Base the student's reply on that one question and ignore the rest. If the turn contains no explicit question, pick the single sentence most directed at the student.
+
+Maintain continuity with earlier turns — if you already invented specific values (price, size, color, brand, stock), reuse them consistently and let the story progress naturally.
 
 IMPORTANT — Handling missing information:
 If the teacher refers to details that have NOT been provided, INVENT a reasonable, realistic value and commit to it. Never produce a vague answer like "It is." Always commit to a concrete value (a specific dollar amount, a specific size, etc.).${focusBlock}
 
-Output a JSON object with exactly two string fields:
-  - "complete": ONE grammatically complete English sentence the student can say. Simple present tense, everyday spoken English. No ellipsis, no Chinese, no preamble.
+Output a JSON object with exactly three string fields:
+  - "question": the ONE teacher sentence you identified as the question directed at the student, copied as the teacher actually said it (English). If there was no explicit question, the sentence most directed at the student.
+  - "complete": ONE grammatically complete English sentence the student can say in reply to "question". Everyday spoken English, using the tense the question calls for (past, present, or future). No ellipsis, no Chinese, no preamble.
   - "extend":   ONE additional sentence the student can say RIGHT AFTER "complete" — a polite follow-up question, an extra relevant detail, or a natural conversational expansion. Same tone and vocabulary level as "complete".
 
 Do not output anything outside the JSON object. Do not wrap it in markdown.`

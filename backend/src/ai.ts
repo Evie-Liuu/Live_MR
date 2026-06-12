@@ -46,6 +46,7 @@ export interface GenerateHintOptions {
 }
 
 export interface HintsResult {
+  question: string
   complete: string
   extend: string
   model: string
@@ -79,10 +80,11 @@ export async function generateHints(
           responseSchema: {
             type: 'OBJECT',
             properties: {
+              question: { type: 'STRING' },
               complete: { type: 'STRING' },
               extend: { type: 'STRING' },
             },
-            required: ['complete', 'extend'],
+            required: ['question', 'complete', 'extend'],
           },
         }
         if (opts.systemInstruction) config.systemInstruction = opts.systemInstruction
@@ -95,13 +97,14 @@ export async function generateHints(
         })
         const raw = (res.text ?? '').trim()
         if (!raw) throw new Error('Empty response')
-        let parsed: { complete?: unknown; extend?: unknown }
+        let parsed: { question?: unknown; complete?: unknown; extend?: unknown }
         try { parsed = JSON.parse(raw) }
-        catch { parsed = { complete: raw, extend: '' } } // fallback: treat as plain complete
+        catch { parsed = { question: '', complete: raw, extend: '' } } // fallback: 純文字視為 complete
+        const question = typeof parsed.question === 'string' ? parsed.question.trim() : ''
         const complete = typeof parsed.complete === 'string' ? parsed.complete.trim() : ''
         const extend = typeof parsed.extend === 'string' ? parsed.extend.trim() : ''
         if (!complete) throw new Error('Empty complete field')
-        return { complete, extend, model }
+        return { question, complete, extend, model }
       } catch (err) {
         lastErr = err
         const msg = err instanceof Error ? err.message : String(err)
