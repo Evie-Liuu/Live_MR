@@ -36,5 +36,6 @@ describe('generateHints', () => {
     const result = await generateHints('teacher long monologue ...')
     expect(result.question).toBe('')
     expect(result.complete).toBe('It is 200 dollars.')
+    expect(result.extend).toBe('')
   })
 })
