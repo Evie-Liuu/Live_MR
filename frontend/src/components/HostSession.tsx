@@ -723,12 +723,17 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     setCountdown(null);
   }, []);
 
-  const handleHint = useCallback(async (mode: AIHintMode) => {
+  // `overrideText` 讓呼叫端（如老師講完的收尾 callback）直接帶入最終 transcript，
+  // 不必倚賴 `sttTranscript` 狀態已更新（空結果時它根本不會變）。
+  const handleHint = useCallback(async (mode: AIHintMode, overrideText?: string) => {
     cancelAutoCountdown();
     if (aiBusy) return;
 
-    // ── Cache-first path: if we already generated for this transcript, just switch mode and broadcast.
-    if (cachedRepliesRef.current) {
+    const txt = (overrideText ?? sttTranscript).trim();
+
+    // ── Cache-first path: 同一段 transcript 只換 mode/重播，不重新呼叫 AI。
+    // 以 cachedTranscriptRef 比對確保「新 transcript」一定走冷路徑重新生成。
+    if (cachedRepliesRef.current && cachedTranscriptRef.current === txt) {
       const cached = cachedRepliesRef.current;
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
@@ -737,7 +742,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         const payload: AIHintPayload = {
           mode,
           content,
-          sourceText: cachedSourceTextRef.current || sttTranscript.trim(),
+          sourceText: cachedSourceTextRef.current || txt,
           ts: Date.now()
         };
         setLatestHint(payload);
@@ -746,7 +751,6 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       }
     }
 
-    const txt = sttTranscript.trim();
     if (txt.length < 3) return;
     if (!transcriptGateRef.current.accept(txt, { sceneId: selectedSceneId, source: 'button' })) return;
     const constraint = SCENE_CONSTRAINTS[selectedSceneId];
@@ -870,20 +874,31 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       setAiError('上一輪 AI 仍在生成中，請稍候');
       return;
     }
-    autoScriptTriggerRef.current = true;
-    // TODO Test
-    console.log(sttTranscript);
-    if (!sttTranscript) {
-      const defaultText = 'How are you?';
-      setSimInput(defaultText);
-      simulateTranscript(defaultText);
-    }
-
     setInteractionPhase('generating');
-    if (sttRecording) {
-      try { stopRec(); } catch { /* ignore */ }
+
+    // 老師講完後直接以「最終 transcript」事件驅動生成，不倚賴 sttTranscript 狀態變化：
+    // 收音為空時 setTranscript('') 不會觸發任何 effect，舊版會永遠卡在 'generating'。
+    const finish = (finalText: string) => {
+      const txt = finalText.trim();
+      if (txt.length < 3) {
+        // 沒收到有效語音 → 明確提示並回到老師階段重新收音，而非無聲卡死。
+        setAiError('未偵測到語音，請再試一次');
+        setInteractionPhase('teacher');
+        if (!sttRecordingRef.current) {
+          try { startRec(); } catch { /* ignore */ }
+        }
+        return;
+      }
+      setInteractionPhase('student');
+      void handleHintRef.current('rearrange', txt);
+    };
+
+    if (sttRecordingRef.current) {
+      stopRec(finish);
+    } else {
+      finish(sttTranscript.trim());
     }
-  }, [aiBusy, sttRecording, stopRec, sttTranscript, simulateTranscript]);
+  }, [aiBusy, stopRec, startRec, sttTranscript]);
 
   const handleTeacherTakeover = useCallback(() => {
     if (interactionPhaseRef.current !== 'student') return;
