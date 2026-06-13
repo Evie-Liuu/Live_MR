@@ -772,8 +772,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const history = chatHistoryRef.current;
       const result = await generateHints(txt, { history, systemInstruction });
       setAiModel(result.model);
-      // 開發驗證：印出 AI 從長獨白抽取的主問句。
+      // 開發驗證：對照「STT 輸入長獨白」與「AI 抽取結果」，判斷準確度瓶頸在 STT 還是抽取。
+      console.log('[hint] STT input:', txt);
       console.log('[hint] extracted question:', result.question);
+      console.log('[hint] complete / extend:', result.complete, '/', result.extend);
       setDetectedQuestion(result.question || '');
       // BigScreen 氣泡 / 後續 sourceText 顯示「老師實際問的那句」而非整段長獨白。
       const sourceText = result.question || txt;

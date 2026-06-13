@@ -71,10 +71,15 @@ export async function generateHints(
 
     for (const model of MODELS) {
       try {
+        // 只有 2.5 系列支援 thinking；2.0 系列傳 thinkingBudget 會報錯，給 0。
+        const thinkingBudget = model.includes('2.5') ? 256 : 0
         const config: Record<string, unknown> = {
-          temperature: 0.6,
-          maxOutputTokens: 256,
-          thinkingConfig: { thinkingBudget: 0 },
+          // 抽取主問句屬「抽取」而非創作，低溫降低選錯句子的機率。
+          temperature: 0.3,
+          // 開 thinking 後思考 token 會佔用輸出額度，拉高上限避免 JSON 被截斷。
+          maxOutputTokens: 640,
+          // 從長獨白挑出 1 句問句需「先想再答」，給少量思考預算提升抽取命中率。
+          thinkingConfig: { thinkingBudget },
           abortSignal: controller.signal,
           responseMimeType: 'application/json',
           responseSchema: {
