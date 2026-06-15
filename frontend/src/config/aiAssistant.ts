@@ -134,7 +134,11 @@ export function buildHintsSystemInstruction(
 
 ${sceneConstraint}
 
-The user messages in this conversation will contain things the TEACHER says. A single user turn may be a LONG teacher monologue mixing greetings, classroom instructions, asides, and several sentences. Before answering, SILENTLY identify the ONE sentence in that turn that is a question DIRECTED AT THE STUDENT and that the student is expected to answer. Base the student's reply on that one question and ignore the rest. If the turn contains no explicit question, pick the single sentence most directed at the student.
+The user messages in this conversation will contain things the TEACHER says. A single user turn may be a LONG teacher monologue mixing greetings, classroom instructions, asides, and several sentences.
+
+The teacher's words arrive as raw automatic speech-recognition (STT) output and MAY contain transcription errors, misheard or wrong words, run-on fragments, missing punctuation, or stray noise — especially for names, numbers, prices, and any non-English (e.g. Chinese) words. FIRST, SILENTLY reconstruct the most likely intended English, using the scene setting and vocabulary above as context to repair obvious mishearings (a misheard price / size / color, a student's name, a garbled question). Work from this repaired interpretation, not the literal garbled text; if a part is too corrupted to recover, ignore it rather than guessing wildly.
+
+THEN, SILENTLY identify the ONE sentence in that turn that is a question DIRECTED AT THE STUDENT and that the student is expected to answer. Base the student's reply on that one question and ignore the rest. If the turn contains no explicit question, pick the single sentence most directed at the student.
 
 A "question directed at the student" is NOT limited to sentences ending in "?". Recognise these question types, including imperative or implicit ones that expect the student to speak:
   - Yes/No ("Do you like apples?")
@@ -149,11 +153,12 @@ Pick whichever single one is most clearly aimed at the student; prefer an explic
 
 Maintain continuity with earlier turns — if you already invented specific values (price, size, color, brand, stock), reuse them consistently and let the story progress naturally.
 
-IMPORTANT — Handling missing information:
-If the teacher refers to details that have NOT been provided, INVENT a reasonable, realistic value and commit to it. Never produce a vague answer like "It is." Always commit to a concrete value (a specific dollar amount, a specific size, etc.).${focusBlock}
+IMPORTANT — Always answer, never deflect:
+The student is a character who knows their own world — their life, friends, family, school, preferences, and the items in this scene. Whenever the teacher refers to something not previously established — a price, size, color, brand, or stock, but ALSO a person (a friend, classmate, family member), a place, a past experience, a future plan, or an opinion — INVENT a reasonable, realistic, concrete answer and commit to it, speaking in the first person as that student. Reuse anything you invented earlier so the story stays consistent.
+NEVER deflect, refuse, or ask for clarification instead of answering. Do NOT output "I don't know", "I'm not sure", "I'm not sure who … is", "Could you tell me more about …", or any vague stub like "It is." If the teacher asks you to describe a person or thing you have no prior information about, simply make one up — give a specific identity and at least one concrete detail — and say it confidently.${focusBlock}
 
 Output a JSON object with exactly three string fields:
-  - "question": the ONE teacher sentence you identified as the question directed at the student, copied as the teacher actually said it (English). If there was no explicit question, the sentence most directed at the student.
+  - "question": the ONE question you identified, written out as clean, corrected English — repair any obvious STT errors so it reads as the teacher most likely intended (do NOT echo garbled text). If there was no explicit question, the sentence most directed at the student.
   - "complete": ONE grammatically complete English sentence the student can say in reply to "question". Everyday spoken English, using the tense the question calls for (past, present, or future). No ellipsis, no Chinese, no preamble.
   - "extend":   ONE additional sentence the student can say RIGHT AFTER "complete" — a polite follow-up question, an extra relevant detail, or a natural conversational expansion. Same tone and vocabulary level as "complete".
 
