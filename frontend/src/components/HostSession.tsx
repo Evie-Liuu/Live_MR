@@ -2447,7 +2447,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                             結束互動
                           </button>
                         )}
-                        {import.meta.env.DEV && (
+                        {/* {import.meta.env.DEV && (
                           <button
                             type="button"
                             className="hs-ai-test-audio-btn"
@@ -2456,7 +2456,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           >
                             ▶ 測試音檔
                           </button>
-                        )}
+                        )} */}
                       </div>
 
                       {/* ── 音錄 ─────────────────────────────────────── */}
