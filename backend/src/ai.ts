@@ -72,7 +72,7 @@ export async function generateHints(
     for (const model of MODELS) {
       try {
         // 只有 2.5 系列支援 thinking；2.0 系列傳 thinkingBudget 會報錯，給 0。
-        const thinkingBudget = model.includes('2.5') ? 256 : 0
+        const thinkingBudget = model.includes('2.5') ? 512 : 0
         const config: Record<string, unknown> = {
           // 抽取主問句屬「抽取」而非創作，低溫降低選錯句子的機率。
           temperature: 0.3,
