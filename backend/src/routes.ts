@@ -508,6 +508,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       ? history.filter(h => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
       : undefined
     try {
+      // 注意：當 audio 存在時，generateHints 以音訊為當前輪，prompt 參數被忽略。
       const { transcript, question, complete, extend, model } = await generateAIHints(prompt ?? '', {
         history: safeHistory && safeHistory.length > 0 ? safeHistory : undefined,
         systemInstruction: typeof systemInstruction === 'string' && systemInstruction.trim()
