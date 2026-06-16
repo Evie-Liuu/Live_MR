@@ -26,6 +26,7 @@ import { passThroughGate } from '../config/transcriptGate.ts';
 import type { TranscriptGate } from '../config/transcriptGate.ts';
 import { generateHints, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
+import { useTurnAudioRecorder, type TurnAudio } from '../hooks/useTurnAudioRecorder';
 import { useRecording } from '../hooks/useRecording.ts';
 import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest, removeParticipant } from '../api.ts';
@@ -333,6 +334,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       } catch { /* ignore */ }
     }
   }, [interactionPhase]);
+  // 進入 teacher 階段即開始 per-turn 音訊錄製（涵蓋 startInteraction / takeover / 重試）
+  useEffect(() => {
+    if (interactionPhase === 'teacher') {
+      turnAudioRef.current.start();
+    }
+  }, [interactionPhase]);
   // 標記「此次 stop 由開始互動腳本觸發」→ transcript effect 立即送出（不倒數）
   const autoScriptTriggerRef = useRef(false);
   const {
@@ -477,24 +484,26 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, []);
 
   // ─── Dev-only: test audio playback ────────────────────────────────────────
-  const testAudioRef = useRef<HTMLAudioElement | null>(null);
-  const handleToggleTestAudio = useCallback(() => {
-    let el = testAudioRef.current;
-    if (!el) {
-      el = new Audio('/voice/Teacher_chat_test.mp3');
-      testAudioRef.current = el;
-    }
-    if (el.paused) {
-      el.currentTime = 0;
-      void el.play();
-    } else {
-      el.pause();
-    }
-  }, []);
-  useEffect(() => () => {
-    try { testAudioRef.current?.pause(); } catch { /* ignore */ }
-    testAudioRef.current = null;
-  }, []);
+  // NOTE: 對應的「▶ 測試音檔」按鈕已註解保留（見 JSX）。此功能定義一併註解保留，
+  // 避免 tsc 報未使用錯誤；待測試音檔流程重新啟用時連同按鈕一起解除註解。
+  // const testAudioRef = useRef<HTMLAudioElement | null>(null);
+  // const handleToggleTestAudio = useCallback(() => {
+  //   let el = testAudioRef.current;
+  //   if (!el) {
+  //     el = new Audio('/voice/Teacher_chat_test.mp3');
+  //     testAudioRef.current = el;
+  //   }
+  //   if (el.paused) {
+  //     el.currentTime = 0;
+  //     void el.play();
+  //   } else {
+  //     el.pause();
+  //   }
+  // }, []);
+  // useEffect(() => () => {
+  //   try { testAudioRef.current?.pause(); } catch { /* ignore */ }
+  //   testAudioRef.current = null;
+  // }, []);
 
   // ─── Scene / VRM source selection ─────────────────────────────────────────
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
@@ -723,9 +732,20 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     setCountdown(null);
   }, []);
 
+  // 取老師當前 LiveKit 本地麥克風 track（與既有 camera track 取法同 pattern）
+  const getMicTrack = useCallback((): MediaStreamTrack | null => {
+    const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
+    return pub?.track?.mediaStreamTrack ?? null;
+  }, []);
+  const turnAudio = useTurnAudioRecorder(getMicTrack);
+  const turnAudioRef = useRef(turnAudio);
+  useEffect(() => { turnAudioRef.current = turnAudio; }, [turnAudio]);
+  // dev 顯示 Gemini 轉譯
+  const [heardTranscript, setHeardTranscript] = useState('');
+
   // `overrideText` 讓呼叫端（如老師講完的收尾 callback）直接帶入最終 transcript，
   // 不必倚賴 `sttTranscript` 狀態已更新（空結果時它根本不會變）。
-  const handleHint = useCallback(async (mode: AIHintMode, overrideText?: string) => {
+  const handleHint = useCallback(async (mode: AIHintMode, overrideText?: string, audio?: TurnAudio) => {
     cancelAutoCountdown();
     if (aiBusy) return;
 
@@ -733,7 +753,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
     // ── Cache-first path: 同一段 transcript 只換 mode/重播，不重新呼叫 AI。
     // 以 cachedTranscriptRef 比對確保「新 transcript」一定走冷路徑重新生成。
-    if (cachedRepliesRef.current && cachedTranscriptRef.current === txt) {
+    if (!audio && cachedRepliesRef.current && cachedTranscriptRef.current === txt) {
       const cached = cachedRepliesRef.current;
       const content = mode === 'complete' ? cached.complete
         : mode === 'extend' ? cached.extend
@@ -751,8 +771,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       }
     }
 
-    if (txt.length < 3) return;
-    if (!transcriptGateRef.current.accept(txt, { sceneId: selectedSceneId, source: 'button' })) return;
+    if (!audio && txt.length < 3) return;
+    if (!audio && !transcriptGateRef.current.accept(txt, { sceneId: selectedSceneId, source: 'button' })) return;
     const constraint = SCENE_CONSTRAINTS[selectedSceneId];
     if (!constraint) { setAiError('此場景尚無 AI 助理約束文件'); return; }
 
@@ -772,17 +792,19 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         nextTaskLabel: nextTask?.label,
         nextTargetSentence: nextTask ? TASK_HINTS[nextTask.id]?.completeSentence : undefined,
       };
-      const systemInstruction = buildHintsSystemInstruction(constraint, taskContext);
+      const systemInstruction = buildHintsSystemInstruction(constraint, taskContext, audio ? 'audio' : 'text');
       const history = chatHistoryRef.current;
-      const result = await generateHints(txt, { history, systemInstruction });
+      const result = await generateHints(audio ? '' : txt, { history, systemInstruction, audio });
       setAiModel(result.model);
-      // 開發驗證：對照「STT 輸入長獨白」與「AI 抽取結果」，判斷準確度瓶頸在 STT 還是抽取。
-      console.log('[hint] STT input:', txt);
+      // 音訊模式：以 Gemini 回傳的 transcript 當有效文字；文字模式沿用 txt。
+      const effectiveTxt = audio ? (result.transcript || result.question || txt) : txt;
+      setHeardTranscript(audio ? result.transcript : '');
+      console.log('[hint] input:', audio ? '(audio)' : txt);
+      console.log('[hint] heard transcript:', result.transcript);
       console.log('[hint] extracted question:', result.question);
-      console.log('[hint] complete / extend:', result.complete, '/', result.extend);
       setDetectedQuestion(result.question || '');
       // BigScreen 氣泡 / 後續 sourceText 顯示「老師實際問的那句」而非整段長獨白。
-      const sourceText = result.question || txt;
+      const sourceText = result.question || effectiveTxt;
       const cached: CachedReplies = {
         complete: result.complete,
         rearrange: shuffleWords(result.complete),
@@ -790,7 +812,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       };
       cachedRepliesRef.current = cached;
       cachedSourceTextRef.current = sourceText;
-      cachedTranscriptRef.current = txt;   // 失效比較用：保留原始整段 transcript
+      cachedTranscriptRef.current = effectiveTxt;   // 失效比較用：保留原始整段 transcript
+      if (audio && effectiveTxt) {
+        // 先設 cachedTranscriptRef（上方已設）再 simulate，避免 transcript effect 誤判清掉剛建的 cache。
+        simulateTranscript(effectiveTxt);
+      }
       // Append ONCE per transcript: the canonical student utterance is `complete`.
       // 對話輪替會無上限累積；只保留最近 MAX_CHAT_TURNS 筆，避免長課堂中 history
       // 無限成長（記憶體耗盡），同時控制每次送往 Gemini 的 token 量。
@@ -798,7 +824,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       // 讓多輪續寫上下文乾淨、token 更省。
       chatHistoryRef.current = [
         ...history,
-        { role: 'user' as const, text: result.question || txt },
+        { role: 'user' as const, text: result.question || effectiveTxt },
         { role: 'model' as const, text: result.complete },
       ].slice(-MAX_CHAT_TURNS);
       const content = mode === 'complete' ? cached.complete
@@ -820,7 +846,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     } finally {
       setAiBusy(false);
     }
-  }, [aiBusy, sttTranscript, selectedSceneId, selectedTasks, studentRoles, cancelAutoCountdown, broadcastAIHint, startRec]);
+  }, [aiBusy, sttTranscript, selectedSceneId, selectedTasks, studentRoles, cancelAutoCountdown, broadcastAIHint, startRec, simulateTranscript]);
 
   const handleHintRef = useRef(handleHint);
   useEffect(() => { handleHintRef.current = handleHint; }, [handleHint]);
@@ -878,9 +904,10 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
     // 老師講完後直接以「最終 transcript」事件驅動生成，不倚賴 sttTranscript 狀態變化：
     // 收音為空時 setTranscript('') 不會觸發任何 effect，舊版會永遠卡在 'generating'。
-    const finish = (finalText: string) => {
+    const finish = async (finalText: string) => {
       const txt = finalText.trim();
-      if (txt.length < 3) {
+      const audio = await turnAudioRef.current.stop();  // TurnAudio | null
+      if (!audio && txt.length < 3) {
         // 沒收到有效語音 → 明確提示並回到老師階段重新收音，而非無聲卡死。
         setAiError('未偵測到語音，請再試一次');
         setInteractionPhase('teacher');
@@ -890,7 +917,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         return;
       }
       setInteractionPhase('student');
-      void handleHintRef.current('rearrange', txt);
+      // 音訊優先；無音訊時帶 Web Speech 文字走回退。
+      void handleHintRef.current('rearrange', txt, audio ?? undefined);
     };
 
     if (sttRecordingRef.current) {
@@ -2591,6 +2619,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           {import.meta.env.DEV && detectedQuestion && (
                             <div className="hs-ai-detected-question" style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
                               偵測問句：{detectedQuestion}
+                            </div>
+                          )}
+                          {import.meta.env.DEV && heardTranscript && (
+                            <div className="hs-ai-heard" style={{ fontSize: 12, opacity: 0.7 }}>
+                              🎧 Gemini 聽到：{heardTranscript}
                             </div>
                           )}
                         </div>
