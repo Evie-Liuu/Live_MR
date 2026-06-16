@@ -43,12 +43,15 @@ export interface GenerateHintOptions {
   history?: ChatTurn[]
   systemInstruction?: string
   signal?: AbortSignal
+  /** 當前輪改用音訊輸入（base64）；history 仍為文字。 */
+  audio?: { data: string; mimeType: string }
 }
 
 export interface HintsResult {
   question: string
   complete: string
   extend: string
+  transcript: string
   model: string
 }
 
@@ -61,13 +64,19 @@ export async function generateHints(
   opts.signal?.addEventListener('abort', () => controller.abort())
   try {
     let lastErr: unknown = new Error('No models configured')
-    const useMultiTurn = !!opts.history && opts.history.length > 0
-    const contents: unknown = useMultiTurn
-      ? [
-          ...opts.history!.map(h => ({ role: h.role, parts: [{ text: h.text }] })),
-          { role: 'user', parts: [{ text: prompt }] },
-        ]
-      : prompt
+    const historyTurns = (opts.history ?? []).map(h => ({ role: h.role, parts: [{ text: h.text }] }))
+    let contents: unknown
+    if (opts.audio) {
+      // 當前輪 = 音訊 inlineData；history 仍為文字 turns
+      contents = [
+        ...historyTurns,
+        { role: 'user', parts: [{ inlineData: { mimeType: opts.audio.mimeType, data: opts.audio.data } }] },
+      ]
+    } else if (historyTurns.length > 0) {
+      contents = [...historyTurns, { role: 'user', parts: [{ text: prompt }] }]
+    } else {
+      contents = prompt
+    }
 
     for (const model of MODELS) {
       try {
@@ -85,6 +94,7 @@ export async function generateHints(
           responseSchema: {
             type: 'OBJECT',
             properties: {
+              transcript: { type: 'STRING' },
               question: { type: 'STRING' },
               complete: { type: 'STRING' },
               extend: { type: 'STRING' },
@@ -102,14 +112,15 @@ export async function generateHints(
         })
         const raw = (res.text ?? '').trim()
         if (!raw) throw new Error('Empty response')
-        let parsed: { question?: unknown; complete?: unknown; extend?: unknown }
+        let parsed: { transcript?: unknown; question?: unknown; complete?: unknown; extend?: unknown }
         try { parsed = JSON.parse(raw) }
         catch { parsed = { question: '', complete: raw, extend: '' } } // fallback: 純文字視為 complete
+        const transcript = typeof parsed.transcript === 'string' ? parsed.transcript.trim() : ''
         const question = typeof parsed.question === 'string' ? parsed.question.trim() : ''
         const complete = typeof parsed.complete === 'string' ? parsed.complete.trim() : ''
         const extend = typeof parsed.extend === 'string' ? parsed.extend.trim() : ''
         if (!complete) throw new Error('Empty complete field')
-        return { question, complete, extend, model }
+        return { transcript, question, complete, extend, model }
       } catch (err) {
         lastErr = err
         const msg = err instanceof Error ? err.message : String(err)

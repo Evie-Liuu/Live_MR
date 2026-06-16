@@ -38,4 +38,38 @@ describe('generateHints', () => {
     expect(result.complete).toBe('It is 200 dollars.')
     expect(result.extend).toBe('')
   })
+
+  it('parses the transcript field when present', async () => {
+    generateContentMock.mockResolvedValue({
+      text: JSON.stringify({
+        transcript: 'So Angel, tell us about Wendy.',
+        question: 'Tell us about Wendy.',
+        complete: 'Wendy is my best friend.',
+        extend: 'She likes reading.',
+      }),
+    })
+    const { generateHints } = await import('./ai.js')
+    const result = await generateHints('teacher ...')
+    expect(result.transcript).toBe('So Angel, tell us about Wendy.')
+  })
+
+  it('defaults transcript to empty string when absent', async () => {
+    generateContentMock.mockResolvedValue({
+      text: JSON.stringify({ question: 'q', complete: 'c', extend: 'e' }),
+    })
+    const { generateHints } = await import('./ai.js')
+    const result = await generateHints('teacher ...')
+    expect(result.transcript).toBe('')
+  })
+
+  it('sends audio as an inlineData part when audio option is provided', async () => {
+    generateContentMock.mockResolvedValue({
+      text: JSON.stringify({ transcript: 't', question: 'q', complete: 'c', extend: 'e' }),
+    })
+    const { generateHints } = await import('./ai.js')
+    await generateHints('', { audio: { data: 'QUJD', mimeType: 'audio/ogg' } })
+    const call = generateContentMock.mock.calls[0][0]
+    const parts = call.contents[call.contents.length - 1].parts
+    expect(parts[0].inlineData).toEqual({ mimeType: 'audio/ogg', data: 'QUJD' })
+  })
 })
