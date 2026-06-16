@@ -48,10 +48,10 @@ export interface GenerateHintOptions {
 }
 
 export interface HintsResult {
+  transcript: string
   question: string
   complete: string
   extend: string
-  transcript: string
   model: string
 }
 
@@ -67,6 +67,7 @@ export async function generateHints(
     const historyTurns = (opts.history ?? []).map(h => ({ role: h.role, parts: [{ text: h.text }] }))
     let contents: unknown
     if (opts.audio) {
+      if (!opts.audio.data) throw new Error('audio.data is empty')
       // 當前輪 = 音訊 inlineData；history 仍為文字 turns
       contents = [
         ...historyTurns,

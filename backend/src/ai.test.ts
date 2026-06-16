@@ -70,6 +70,22 @@ describe('generateHints', () => {
     await generateHints('', { audio: { data: 'QUJD', mimeType: 'audio/ogg' } })
     const call = generateContentMock.mock.calls[0][0]
     const parts = call.contents[call.contents.length - 1].parts
+    expect(parts).toHaveLength(1)
     expect(parts[0].inlineData).toEqual({ mimeType: 'audio/ogg', data: 'QUJD' })
+  })
+
+  it('puts text history turns before the audio inlineData turn', async () => {
+    generateContentMock.mockResolvedValue({
+      text: JSON.stringify({ transcript: 't', question: 'q', complete: 'c', extend: 'e' }),
+    })
+    const { generateHints } = await import('./ai.js')
+    await generateHints('', {
+      history: [{ role: 'user', text: 'earlier teacher turn' }],
+      audio: { data: 'QUJD', mimeType: 'audio/ogg' },
+    })
+    const call = generateContentMock.mock.calls[0][0]
+    const contents = call.contents
+    expect(contents[0].parts[0].text).toBe('earlier teacher turn')
+    expect(contents[contents.length - 1].parts[0].inlineData).toEqual({ mimeType: 'audio/ogg', data: 'QUJD' })
   })
 })
