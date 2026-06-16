@@ -48,12 +48,11 @@ export interface HintResult {
 }
 
 export interface GenerateHintOptions {
-  /** Prior chat turns; when provided, the request becomes multi-turn. */
   history?: Array<{ role: 'user' | 'model'; text: string }>
-  /** Gemini systemInstruction applied to the whole conversation. */
   systemInstruction?: string
-  /** Caller-provided cancellation signal. */
   signal?: AbortSignal
+  /** 當前輪改送音訊（base64）；history 仍為文字。 */
+  audio?: { data: string; mimeType: string }
 }
 
 export async function generateHint(
@@ -90,6 +89,7 @@ export interface HintsResult {
   question: string
   complete: string
   extend: string
+  transcript: string
   model: string
 }
 
@@ -106,6 +106,7 @@ export async function generateHints(
     const body: Record<string, unknown> = { prompt }
     if (opts.history && opts.history.length > 0) body.history = opts.history
     if (opts.systemInstruction) body.systemInstruction = opts.systemInstruction
+    if (opts.audio) body.audio = opts.audio
     const res = await fetch(HINTS_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -116,10 +117,11 @@ export async function generateHints(
       const data = await res.json().catch(() => ({})) as { error?: string }
       throw new Error(data.error || `AI HTTP ${res.status}`)
     }
-    const data = await res.json() as { question?: string; complete?: string; extend?: string; model?: string }
+    const data = await res.json() as { transcript?: string; question?: string; complete?: string; extend?: string; model?: string }
     const complete = (data.complete ?? '').trim()
     if (!complete) throw new Error('Empty response')
     return {
+      transcript: (data.transcript ?? '').trim(),
       question: (data.question ?? '').trim(),
       complete,
       extend: (data.extend ?? '').trim(),
