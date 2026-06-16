@@ -18,4 +18,15 @@ describe('buildHintsSystemInstruction', () => {
     expect(out).toContain('"complete"')
     expect(out).toContain('"extend"')
   })
+
+  it('audio mode asks for a transcript field and mentions audio', () => {
+    const out = buildHintsSystemInstruction(constraint, undefined, 'audio')
+    expect(out).toContain('"transcript"')
+    expect(out.toLowerCase()).toContain('audio')
+  })
+
+  it('text mode (default) does not ask for a transcript field', () => {
+    const out = buildHintsSystemInstruction(constraint)
+    expect(out).not.toContain('"transcript"')
+  })
 })
