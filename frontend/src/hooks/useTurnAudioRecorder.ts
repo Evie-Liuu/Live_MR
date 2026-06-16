@@ -42,6 +42,12 @@ export function useTurnAudioRecorder(getMicTrack: () => MediaStreamTrack | null)
 
   const start = useCallback((): boolean => {
     if (typeof MediaRecorder === 'undefined') return false
+    // 防護：若上一輪 recorder 仍在（未經 stop() 就再次 start），先丟棄，避免孤兒 recorder 繼續佔用麥克風。
+    const existing = recorderRef.current
+    if (existing) {
+      recorderRef.current = null
+      try { if (existing.state !== 'inactive') existing.stop() } catch { /* ignore */ }
+    }
     const track = getMicTrack()
     if (!track) return false
     const mime = pickAudioMimeType((t) => MediaRecorder.isTypeSupported(t))
@@ -66,17 +72,21 @@ export function useTurnAudioRecorder(getMicTrack: () => MediaStreamTrack | null)
       const mr = recorderRef.current
       recorderRef.current = null
       if (!mr || mr.state === 'inactive') { resolve(null); return }
+      let settled = false
+      const done = (v: TurnAudio | null) => { if (!settled) { settled = true; resolve(v) } }
+      const timer = setTimeout(() => done(null), 5000)
       mr.onstop = async () => {
+        clearTimeout(timer)
         const blob = new Blob(chunksRef.current, { type: mimeRef.current })
         chunksRef.current = []
-        if (blob.size === 0) { resolve(null); return }
+        if (blob.size === 0) { done(null); return }
         try {
           const data = await blobToBase64(blob)
           // 送 Gemini 的 mimeType 用容器主型別（去掉 ;codecs=opus）
-          resolve({ data, mimeType: mimeRef.current.split(';')[0] })
-        } catch { resolve(null) }
+          done({ data, mimeType: mimeRef.current.split(';')[0] })
+        } catch { done(null) }
       }
-      try { mr.stop() } catch { resolve(null) }
+      try { mr.stop() } catch { clearTimeout(timer); done(null) }
     })
   }, [])
 

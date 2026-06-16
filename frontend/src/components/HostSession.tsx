@@ -337,7 +337,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // 進入 teacher 階段即開始 per-turn 音訊錄製（涵蓋 startInteraction / takeover / 重試）
   useEffect(() => {
     if (interactionPhase === 'teacher') {
-      turnAudioRef.current.start();
+      const armed = turnAudioRef.current.start();
+      if (!armed) console.warn('[host] 本輪音訊未啟動(無麥克風 track / 不支援),將回退 Web Speech 文字流');
     }
   }, [interactionPhase]);
   // 標記「此次 stop 由開始互動腳本觸發」→ transcript effect 立即送出（不倒數）
@@ -813,8 +814,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       cachedRepliesRef.current = cached;
       cachedSourceTextRef.current = sourceText;
       cachedTranscriptRef.current = effectiveTxt;   // 失效比較用：保留原始整段 transcript
-      if (audio && effectiveTxt) {
-        // 先設 cachedTranscriptRef（上方已設）再 simulate，避免 transcript effect 誤判清掉剛建的 cache。
+      // simulate 會把 <3 字/填充詞的輸入清成空字串,那會讓 transcript effect 誤清掉剛建的 cache;
+      // 僅在文字夠長時才反映進 STT 顯示,維持 cachedTranscriptRef === sttTranscript 不變式。
+      if (audio && effectiveTxt.trim().length >= 3) {
         simulateTranscript(effectiveTxt);
       }
       // Append ONCE per transcript: the canonical student utterance is `complete`.
@@ -876,6 +878,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (sttRecordingRef.current) {
       try { stopRec(); } catch { /* ignore */ }
     }
+    // 停止 per-turn 音訊錄製（若仍在錄），避免結束互動後 recorder 仍掛在麥克風 track 上。
+    void turnAudioRef.current.stop();
     setInteractionPhase('idle');
   }, [stopRec]);
 
