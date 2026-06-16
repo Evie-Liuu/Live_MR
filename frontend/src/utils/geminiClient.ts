@@ -48,8 +48,11 @@ export interface HintResult {
 }
 
 export interface GenerateHintOptions {
+  /** Prior chat turns; when provided, the request becomes multi-turn. */
   history?: Array<{ role: 'user' | 'model'; text: string }>
+  /** Gemini systemInstruction applied to the whole conversation. */
   systemInstruction?: string
+  /** Caller-provided cancellation signal. */
   signal?: AbortSignal
   /** 當前輪改送音訊（base64）；history 仍為文字。 */
   audio?: { data: string; mimeType: string }
