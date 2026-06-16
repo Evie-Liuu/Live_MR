@@ -488,12 +488,19 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
 
   // POST /api/ai/hints — Gemini structured JSON (complete + extend) in one call
   router.post('/ai/hints', async (req: Request, res: Response) => {
-    const { prompt, history, systemInstruction } = req.body as {
+    const { prompt, history, systemInstruction, audio } = req.body as {
       prompt?: string
       history?: Array<{ role: 'user' | 'model'; text: string }>
       systemInstruction?: string
+      audio?: { data?: unknown; mimeType?: unknown }
     }
-    if (typeof prompt !== 'string' || !prompt.trim()) {
+    // 驗證音訊 shape；不合法則忽略（退為文字模式），不回 400，利前端無感回退。
+    const safeAudio =
+      audio && typeof audio.data === 'string' && typeof audio.mimeType === 'string'
+        ? { data: audio.data, mimeType: audio.mimeType }
+        : undefined
+    // 文字模式仍要求 prompt；音訊模式可無 prompt。
+    if (!safeAudio && (typeof prompt !== 'string' || !prompt.trim())) {
       res.status(400).json({ error: 'prompt is required' })
       return
     }
@@ -501,13 +508,14 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       ? history.filter(h => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
       : undefined
     try {
-      const { question, complete, extend, model } = await generateAIHints(prompt, {
+      const { transcript, question, complete, extend, model } = await generateAIHints(prompt ?? '', {
         history: safeHistory && safeHistory.length > 0 ? safeHistory : undefined,
         systemInstruction: typeof systemInstruction === 'string' && systemInstruction.trim()
           ? systemInstruction
           : undefined,
+        audio: safeAudio,
       })
-      res.json({ question, complete, extend, model })
+      res.json({ transcript, question, complete, extend, model })
     } catch (err: any) {
       const msg = err?.message ?? String(err)
       console.error('[ai/hints] error:', msg)
