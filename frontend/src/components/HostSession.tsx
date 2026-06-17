@@ -2604,7 +2604,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                                 <span
                                   className="hs-ai-model-badge"
                                   title="目前使用的 Gemini 模型"
-                                  style={{ marginLeft: 6, fontSize: 11, opacity: 0.6, fontWeight: 400 }}
+                                  style={{ marginLeft: 6, fontSize: 8, opacity: 0.6, fontWeight: 400, lineHeight: '9px' }}
                                 >
                                   {aiModel}
                                 </span>
