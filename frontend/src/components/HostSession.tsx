@@ -24,7 +24,7 @@ import { SCENE_CONSTRAINTS, shuffleWords, buildHintsSystemInstruction } from '..
 import type { AIHintMode, AIHintPayload, ChatTurn, CachedReplies, HintTaskContext } from '../config/aiAssistant.ts';
 import { passThroughGate } from '../config/transcriptGate.ts';
 import type { TranscriptGate } from '../config/transcriptGate.ts';
-import { generateHints, toFriendlyError, warmupGemini } from '../utils/geminiClient.ts';
+import { generateHints, toFriendlyError, warmupGemini, type TokenUsage } from '../utils/geminiClient.ts';
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useTurnAudioRecorder, type TurnAudio } from '../hooks/useTurnAudioRecorder';
 import { useRecording } from '../hooks/useRecording.ts';
@@ -294,7 +294,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [latestHint, setLatestHint] = useState<AIHintPayload | null>(null);
-  const [, setAiModel] = useState<string | null>(null);
+  const [aiModel, setAiModel] = useState<string | null>(null);
+  // dev:目前這次 AI 呼叫的 token 用量 + 自頁面載入以來的累計 total（用量檢視）
+  const [aiUsage, setAiUsage] = useState<TokenUsage | null>(null);
+  const [aiCumulativeTokens, setAiCumulativeTokens] = useState(0);
+  const aiCumulativeTokensRef = useRef(0);
   const transcriptGateRef = useRef<TranscriptGate>(passThroughGate);
   const chatHistoryRef = useRef<ChatTurn[]>([]);
   const resetChatHistory = useCallback(() => {
@@ -742,7 +746,8 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const turnAudioRef = useRef(turnAudio);
   useEffect(() => { turnAudioRef.current = turnAudio; }, [turnAudio]);
   // dev 顯示 Gemini 轉譯
-  const [heardTranscript, setHeardTranscript] = useState('');
+  // getter 暫不使用（「🎧 Gemini 聽到」顯示已停用）；保留 setter 以便日後重新啟用。
+  const [, setHeardTranscript] = useState('');
 
   // `overrideText` 讓呼叫端（如老師講完的收尾 callback）直接帶入最終 transcript，
   // 不必倚賴 `sttTranscript` 狀態已更新（空結果時它根本不會變）。
@@ -797,6 +802,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const history = chatHistoryRef.current;
       const result = await generateHints(audio ? '' : txt, { history, systemInstruction, audio });
       setAiModel(result.model);
+      // dev 用量：紀錄本次 token 用量並累加 session 累計（僅冷路徑會真的呼叫 AI）。
+      if (result.usage) {
+        setAiUsage(result.usage);
+        aiCumulativeTokensRef.current += result.usage.total;
+        setAiCumulativeTokens(aiCumulativeTokensRef.current);
+      }
       // 音訊模式：以 Gemini 回傳的 transcript 當有效文字；文字模式沿用 txt。
       const effectiveTxt = audio ? (result.transcript || result.question || txt) : txt;
       setHeardTranscript(audio ? result.transcript : '');
@@ -2589,9 +2600,15 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                           <div className="hs-ai-reply-row">
                             <div className="hs-ai-reply-label">
                               <span>AI 回覆</span>
-                              {/* {import.meta.env.DEV && aiModel && (
-                                <span className="hs-ai-model-badge" title="目前使用的 Gemini 模型">{aiModel}</span>
-                              )} */}
+                              {import.meta.env.DEV && aiModel && (
+                                <span
+                                  className="hs-ai-model-badge"
+                                  title="目前使用的 Gemini 模型"
+                                  style={{ marginLeft: 6, fontSize: 11, opacity: 0.6, fontWeight: 400 }}
+                                >
+                                  {aiModel}
+                                </span>
+                              )}
                             </div>
                             <div className="hs-ai-reply-text">
                               {aiBusy
@@ -2625,11 +2642,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                               偵測問句：{detectedQuestion}
                             </div>
                           )}
-                          {import.meta.env.DEV && heardTranscript && (
+                          {import.meta.env.DEV && aiUsage && (
+                            <div className="hs-ai-usage" style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
+                              用量　本次 in {aiUsage.prompt} / out {aiUsage.output} / 合 {aiUsage.total}　·　累計 {aiCumulativeTokens}
+                            </div>
+                          )}
+                          {/* {import.meta.env.DEV && heardTranscript && (
                             <div className="hs-ai-heard" style={{ fontSize: 12, opacity: 0.7 }}>
                               🎧 Gemini 聽到：{heardTranscript}
                             </div>
-                          )}
+                          )} */}
                         </div>
                       </div>
 

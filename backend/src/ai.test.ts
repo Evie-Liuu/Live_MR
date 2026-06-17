@@ -88,4 +88,23 @@ describe('generateHints', () => {
     expect(contents[0].parts[0].text).toBe('earlier teacher turn')
     expect(contents[contents.length - 1].parts[0].inlineData).toEqual({ mimeType: 'audio/ogg', data: 'QUJD' })
   })
+
+  it('returns token usage from usageMetadata when present', async () => {
+    generateContentMock.mockResolvedValue({
+      text: JSON.stringify({ question: 'q', complete: 'c', extend: 'e' }),
+      usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 },
+    })
+    const { generateHints } = await import('./ai.js')
+    const result = await generateHints('teacher ...')
+    expect(result.usage).toEqual({ prompt: 120, output: 45, total: 165 })
+  })
+
+  it('leaves usage undefined when usageMetadata is absent', async () => {
+    generateContentMock.mockResolvedValue({
+      text: JSON.stringify({ question: 'q', complete: 'c', extend: 'e' }),
+    })
+    const { generateHints } = await import('./ai.js')
+    const result = await generateHints('teacher ...')
+    expect(result.usage).toBeUndefined()
+  })
 })
