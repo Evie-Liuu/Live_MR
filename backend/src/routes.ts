@@ -509,14 +509,14 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       : undefined
     try {
       // 注意：當 audio 存在時，generateHints 以音訊為當前輪，prompt 參數被忽略。
-      const { transcript, question, complete, extend, model } = await generateAIHints(prompt ?? '', {
+      const { transcript, question, complete, extend, model, usage } = await generateAIHints(prompt ?? '', {
         history: safeHistory && safeHistory.length > 0 ? safeHistory : undefined,
         systemInstruction: typeof systemInstruction === 'string' && systemInstruction.trim()
           ? systemInstruction
           : undefined,
         audio: safeAudio,
       })
-      res.json({ transcript, question, complete, extend, model })
+      res.json({ transcript, question, complete, extend, model, usage })
     } catch (err: any) {
       const msg = err?.message ?? String(err)
       console.error('[ai/hints] error:', msg)

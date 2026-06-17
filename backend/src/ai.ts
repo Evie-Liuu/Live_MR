@@ -47,12 +47,20 @@ export interface GenerateHintOptions {
   audio?: { data: string; mimeType: string }
 }
 
+export interface TokenUsage {
+  prompt: number
+  output: number
+  total: number
+}
+
 export interface HintsResult {
   transcript: string
   question: string
   complete: string
   extend: string
   model: string
+  /** Gemini usageMetadata token 統計（dev 用量檢視）；某些回應可能無此欄。 */
+  usage?: TokenUsage
 }
 
 export async function generateHints(
@@ -121,7 +129,16 @@ export async function generateHints(
         const complete = typeof parsed.complete === 'string' ? parsed.complete.trim() : ''
         const extend = typeof parsed.extend === 'string' ? parsed.extend.trim() : ''
         if (!complete) throw new Error('Empty complete field')
-        return { transcript, question, complete, extend, model }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const um = (res as any).usageMetadata
+        const usage: TokenUsage | undefined = um
+          ? {
+              prompt: um.promptTokenCount ?? 0,
+              output: um.candidatesTokenCount ?? 0,
+              total: um.totalTokenCount ?? 0,
+            }
+          : undefined
+        return { transcript, question, complete, extend, model, usage }
       } catch (err) {
         lastErr = err
         const msg = err instanceof Error ? err.message : String(err)

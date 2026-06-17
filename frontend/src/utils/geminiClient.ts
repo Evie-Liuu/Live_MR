@@ -88,12 +88,20 @@ export async function generateHint(
   }
 }
 
+export interface TokenUsage {
+  prompt: number
+  output: number
+  total: number
+}
+
 export interface HintsResult {
   question: string
   complete: string
   extend: string
   transcript: string
   model: string
+  /** Gemini token 用量（dev 用量檢視）；後端無回傳時為 undefined。 */
+  usage?: TokenUsage
 }
 
 const HINTS_ENDPOINT = '/api/ai/hints'
@@ -120,7 +128,10 @@ export async function generateHints(
       const data = await res.json().catch(() => ({})) as { error?: string }
       throw new Error(data.error || `AI HTTP ${res.status}`)
     }
-    const data = await res.json() as { transcript?: string; question?: string; complete?: string; extend?: string; model?: string }
+    const data = await res.json() as {
+      transcript?: string; question?: string; complete?: string; extend?: string; model?: string
+      usage?: { prompt?: number; output?: number; total?: number }
+    }
     const complete = (data.complete ?? '').trim()
     if (!complete) throw new Error('Empty response')
     return {
@@ -129,6 +140,9 @@ export async function generateHints(
       complete,
       extend: (data.extend ?? '').trim(),
       model: data.model ?? 'unknown',
+      usage: data.usage
+        ? { prompt: data.usage.prompt ?? 0, output: data.usage.output ?? 0, total: data.usage.total ?? 0 }
+        : undefined,
     }
   } finally {
     clearTimeout(timer)
