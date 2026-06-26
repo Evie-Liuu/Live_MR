@@ -10,6 +10,11 @@ import { generateHint as generateAIHint, generateHints as generateAIHints } from
 
 const recordingsDir = path.resolve(process.cwd(), '../recordings')
 
+// Allow-list: alphanumeric, hyphen, underscore only — used for participant identities.
+const SAFE_IDENTITY_RE = /^[a-zA-Z0-9_-]{1,128}$/
+// Allow-list: one base-name segment + a known extension — used for downloaded filenames.
+const SAFE_FILENAME_RE = /^[a-zA-Z0-9_-]{1,200}\.(webm|mp4|ogg)$/
+
 /** Verify that resolvedPath is strictly inside recordingsDir. */
 function assertInRecordingsDir(resolvedPath: string): void {
   if (
@@ -406,6 +411,10 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
         res.status(400).json({ error: 'X-Session-Id and X-Participant-Identity headers required' })
         return
       }
+      if (!SAFE_IDENTITY_RE.test(identity)) {
+        res.status(400).json({ error: 'Invalid participant identity' })
+        return
+      }
       const session = recording.recordingStore.getSessionById(sessionId)
       if (!session) { res.status(404).json({ error: 'Session not found' }); return }
       try {
@@ -436,7 +445,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     const { sessionId, filename } = req.params as {
       roomId: string; sessionId: string; filename: string
     }
-    if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+    if (!SAFE_FILENAME_RE.test(filename)) {
       res.status(400).json({ error: 'Invalid filename' })
       return
     }
