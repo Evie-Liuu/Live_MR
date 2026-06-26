@@ -5,6 +5,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   envDir: '..', // read .env from project root
+  build: {
+    sourcemap: false,
+  },
   server: {
     allowedHosts: ['.trycloudflare.com'],
     proxy: {
