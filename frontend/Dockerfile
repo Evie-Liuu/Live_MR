@@ -7,8 +7,7 @@ RUN npm ci
 # win32 binary; we need the linux-x64-musl one for this Alpine image.
 RUN npm install --no-save lightningcss-linux-x64-musl 2>/dev/null || true
 COPY . .
-CMD ["npm", "run", "dev", "--", "--host"]
-# RUN npm run build
+RUN npm run build
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
