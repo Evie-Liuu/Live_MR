@@ -1,3 +1,5 @@
+server_tokens off;
+
 # Port 8080: loopback-only, for Cloudflare Tunnel daemon (no SSL needed)
 server {
     listen 8080;
