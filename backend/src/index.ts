@@ -21,6 +21,7 @@ import { RecordingStore } from './recording.js'
 import { EgressService } from './egress.js'
 
 const app = express()
+app.disable('x-powered-by')
 
 // Derive allowed origins from env.
 // ALLOWED_ORIGINS overrides (comma-separated list, e.g. for Cloudflare Tunnel domains).
