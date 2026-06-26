@@ -21,7 +21,20 @@ import { RecordingStore } from './recording.js'
 import { EgressService } from './egress.js'
 
 const app = express()
-app.use(cors())
+
+// Derive allowed origins from env.
+// ALLOWED_ORIGINS overrides (comma-separated list, e.g. for Cloudflare Tunnel domains).
+// Falls back to https://<SERVER_NAME>[:<NGINX_PORT>] when SERVER_NAME is present.
+const rawOrigins = process.env.ALLOWED_ORIGINS
+  ?? (() => {
+    const host = process.env.SERVER_NAME
+    if (!host) return ''
+    const port = process.env.NGINX_PORT ?? '443'
+    return port === '443' ? `https://${host}` : `https://${host}:${port}`
+  })()
+const allowedOrigins = rawOrigins.split(',').map(o => o.trim()).filter(Boolean)
+
+app.use(cors({ origin: allowedOrigins.length > 0 ? allowedOrigins : false }))
 app.use(express.json({ limit: '25mb' }))
 
 const store = new RoomStore()

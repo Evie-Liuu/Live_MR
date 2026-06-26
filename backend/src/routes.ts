@@ -414,7 +414,9 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
         await fs.promises.mkdir(dir, { recursive: true })
         // Use .webm for client-side recording (usually produced by MediaRecorder in Chrome)
         const filename = `audio_${identity}.webm`
-        await fs.promises.writeFile(path.join(dir, filename), req.body as Buffer)
+        const filePath = path.join(dir, filename)
+        assertInRecordingsDir(filePath)
+        await fs.promises.writeFile(filePath, req.body as Buffer)
 
         // Ensure this participant is tracked in the session so they appear in file list
         if (!session.participantIdentities.includes(identity)) {
