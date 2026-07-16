@@ -4,8 +4,7 @@
 
 本系統採用雙軌錄製架構：
 - **大屏畫面**（bigscreen.webm）：BigScreen 視窗的 Canvas 由瀏覽器端 MediaRecorder 錄製，停止後上傳至 backend
-- **參與者音訊**（audio_*.ogg）：LiveKit Egress server-side 逐人錄製
-- **Host 音訊**（audio_*.webm）：Host 瀏覽器端 MediaRecorder 輔助錄製，停止後上傳
+- **每位參與者音訊**（audio_*.webm）：每位參與者（老師 + 學生）各自的瀏覽器端 MediaRecorder 錄自己的麥克風，停止後上傳至 backend
 
 ---
 
@@ -16,8 +15,7 @@
 ```
 ./recordings/{sceneId}/{participantName}_{YYYYMMdd-HHmmss}/
   bigscreen.webm          ← 大屏 canvas 畫面（BigScreen 視窗上傳）
-  audio_{identity}.ogg    ← 每位參與者音訊（LiveKit Egress，server-side）
-  audio_{identity}.webm   ← 每位參與者音訊（Host 端 MediaRecorder，client-side）
+  audio_{identity}.webm   ← 每位參與者音訊（瀏覽器端 MediaRecorder，client-side）
 ```
 
 - `sceneId`：場景 ID（特殊字元替換為 `_`）
@@ -39,15 +37,16 @@ POST /api/rooms/:roomId/recording/start
 │
 ├─ 產生 sessionId (UUID)
 ├─ 計算 basePath = /recordings/{sceneId}/{participantName}_{timestamp}
-├─ EgressService.startRecording(roomId, basePath)
-│     └─ 對每位有麥克風 track 的參與者：
-│           startTrackCompositeEgress → LiveKit Egress
-│           存檔：{basePath}/audio_{identity}.ogg
 └─ RecordingStore.startSession(...)
       回傳 { sessionId, status: 'recording' }
 │
 ▼ useRecording.start()
 ├─ 啟動 Host 本地 MediaRecorder（audio/webm;codecs=opus）
+├─ 透過 LiveKit publishData(reliable) 廣播 { type: 'recording-signal', sessionId }
+│     │
+│     ▼ 每位學生收到訊號
+│     └─ StudentSession 啟動本機 MediaRecorder 錄自己的麥克風（audio/webm;codecs=opus）
+│
 └─ BroadcastChannel 發送 { type: 'recording-start', sessionId }
       │
       ▼ BigScreen.tsx 接收
@@ -98,33 +97,10 @@ POST /api/rooms/:roomId/recording/stop
 
 ---
 
-## Docker Volume 配置
-
-```yaml
-livekit-egress:
-  volumes:
-    - ./recordings:/recordings   # Egress 存放 .ogg 至此
-
-backend:
-  volumes:
-    - ./recordings:/recordings   # Backend 存放 bigscreen.webm / audio.webm 至此
-```
-
-兩個容器共用 host 上同一個 `./recordings` 目錄，所有檔案統一可見。
-
----
-
 ## FFmpeg 合成流程
 
-錄製停止後，backend 在背景自動執行合成，`bigscreen.webm` 最多等待 30 秒（等 BigScreen 上傳完成）。
+錄製停止後，backend 在背景自動執行合成，`bigscreen.webm` 最多等待 30 秒（等 BigScreen 上傳完成）。所有參與者音訊統一是 `.webm`（瀏覽器端 MediaRecorder 上傳），不再有 server-side Egress 這條路徑。
 
-```
-bigscreen.webm  ──┐
-audio_A.ogg     ──┼─── FFmpeg amix ───→ output.mp4
-audio_B.ogg     ──┘
-```
-
-- 音訊優先：`.ogg`（LiveKit Egress）> `.webm`（client-side），每人取一軌
 - 無音訊時：只做影片格式轉換（`-c:v copy`）
 - 合成進度可透過 `GET /api/rooms/:roomId/recordings/:sessionId/merge` 輪詢
 
@@ -148,12 +124,12 @@ pending → merging → done
 
 | 功能 | 檔案 | 說明 |
 |------|------|------|
-| Egress 管理 | `backend/src/egress.ts` | LiveKit EgressClient，startRecording 接受 basePath |
+| 房間管理 | `backend/src/roomAdmin.ts` | LiveKit RoomServiceClient，踢人/靜音 |
 | Session 管理 | `backend/src/recording.ts` | RecordingStore，含 getSessionById() |
 | FFmpeg 合成 | `backend/src/merge.ts` | mergeRecording()，等待 bigscreen 上傳後合成 |
 | API 路由 | `backend/src/routes.ts:174-` | 所有錄製相關端點 |
 | 大屏錄製 | `frontend/src/components/BigScreen.tsx:326-379` | Canvas MediaRecorder + 上傳 |
-| Host 錄製 hook | `frontend/src/hooks/useRecording.ts` | 音訊錄製 + BroadcastChannel 協調 |
+| 本機音訊錄製 hook | `frontend/src/hooks/useLocalAudioRecorder.ts` | 共用的本機麥克風錄音 hook，Host/Student 皆用 |
 | 前端 API | `frontend/src/api.ts:114-` | startRecording / stopRecording / getRecordings |
 
 ---
@@ -162,10 +138,6 @@ pending → merging → done
 
 ### 大屏視窗必須保持開啟
 bigscreen.webm 由 BigScreen 視窗（獨立 tab）自行錄製並上傳。若視窗在停止錄製前被關閉，錄製中斷。重新開啟視窗會嘗試從 API 恢復 active session（`BigScreen.tsx:137-165`），但已累積的 chunks 會遺失。
-
-### 音訊雙軌
-- `.ogg`：LiveKit Egress server-side，品質穩定，但需要 Egress 服務正常運作
-- `.webm`：瀏覽器端 MediaRecorder，作為備援。兩個檔案 `stopSession()` 的 files 清單均會列出，但不保證都存在
 
 ### 大小限制
 - bigscreen.webm 上傳：nginx `client_max_body_size 300m`，routes.ts 亦設 300mb
