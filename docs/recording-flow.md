@@ -62,7 +62,6 @@ Host 點擊「停止錄製」
 │
 ▼
 POST /api/rooms/:roomId/recording/stop
-├─ EgressService.stopRecording()   → 停止所有 Egress job
 └─ RecordingStore.stopSession()    → 標記 'stopped'，產生預期 files 清單
 │
 ▼ useRecording.stop()

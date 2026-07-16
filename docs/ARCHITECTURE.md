@@ -321,7 +321,7 @@ Theme（主題，如「服飾店」）
 | VRM 骨骼套用 | `frontend/src/utils/kalidokitSolver.ts`、`vrmPoseApplier.ts` |
 | AI prompt 組裝 | `frontend/src/config/aiAssistant.ts` |
 | 後端入口 / 路由 | `backend/src/index.ts`、`routes.ts` |
-| LiveKit token / Egress | `backend/src/livekit.ts`、`egress.ts` |
+| LiveKit token / 房間管理 | `backend/src/livekit.ts`、`roomAdmin.ts` |
 | AI proxy | `backend/src/ai.ts` |
 | 錄製 / 合成 | `backend/src/recording.ts`、`merge.ts` |
 | 教學內容 | `frontend/src/config/scenes.ts` |
