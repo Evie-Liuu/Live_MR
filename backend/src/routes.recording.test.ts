@@ -4,7 +4,7 @@ import express from 'express'
 import { RoomStore } from './rooms.js'
 import { RecordingStore } from './recording.js'
 import { createRouter } from './routes.js'
-import type { EgressService } from './egress.js'
+import type { RoomAdminService } from './roomAdmin.js'
 
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>()
@@ -18,41 +18,37 @@ vi.mock('fs', async (importOriginal) => {
   }
 })
 
-function buildMockEgressService(overrides: Partial<EgressService> = {}): EgressService {
+function buildMockRoomAdmin(overrides: Partial<RoomAdminService> = {}): RoomAdminService {
   return {
-    startRecording: vi.fn().mockResolvedValue({
-      trackEgressIds: { alice: 'egress-track-alice' },
-      participantIdentities: ['alice'],
-    }),
-    stopRecording: vi.fn().mockResolvedValue(undefined),
     muteTrack: vi.fn().mockResolvedValue(undefined),
+    removeParticipant: vi.fn().mockResolvedValue(undefined),
     ...overrides,
-  } as unknown as EgressService
+  } as unknown as RoomAdminService
 }
 
 function createApp(
   store: RoomStore,
   recordingStore: RecordingStore,
-  egressService: EgressService,
+  roomAdmin: RoomAdminService,
 ) {
   const app = express()
   app.use(express.json())
-  app.use('/api', createRouter(store, { recordingStore, egressService }))
+  app.use('/api', createRouter(store, { recordingStore, roomAdmin }))
   return app
 }
 
 describe('Recording Routes', () => {
   let store: RoomStore
   let recordingStore: RecordingStore
-  let egressService: EgressService
+  let roomAdmin: RoomAdminService
   let app: ReturnType<typeof express>
   let roomId: string
 
   beforeEach(async () => {
     store = new RoomStore()
     recordingStore = new RecordingStore()
-    egressService = buildMockEgressService()
-    app = createApp(store, recordingStore, egressService)
+    roomAdmin = buildMockRoomAdmin()
+    app = createApp(store, recordingStore, roomAdmin)
     vi.clearAllMocks()
     const res = await request(app).post('/api/rooms')
     roomId = res.body.roomId
@@ -60,47 +56,34 @@ describe('Recording Routes', () => {
 
   describe('POST /api/rooms/:roomId/recording/start', () => {
     it('returns sessionId and status recording', async () => {
-      const res = await request(app).post(`/api/rooms/${roomId}/recording/start`)
+      const res = await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
       expect(res.status).toBe(200)
       expect(res.body.sessionId).toBeDefined()
       expect(res.body.status).toBe('recording')
     })
 
-    it('calls egressService.startRecording', async () => {
-      await request(app).post(`/api/rooms/${roomId}/recording/start`)
-      expect(egressService.startRecording).toHaveBeenCalledWith(roomId, expect.any(String))
-    })
-
     it('returns 409 if already recording', async () => {
-      await request(app).post(`/api/rooms/${roomId}/recording/start`)
-      const res = await request(app).post(`/api/rooms/${roomId}/recording/start`)
+      await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
+      const res = await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
       expect(res.status).toBe(409)
     })
 
     it('returns 404 for unknown room', async () => {
-      const res = await request(app).post('/api/rooms/nonexistent/recording/start')
+      const res = await request(app).post('/api/rooms/nonexistent/recording/start').send({})
       expect(res.status).toBe(404)
     })
   })
 
   describe('POST /api/rooms/:roomId/recording/stop', () => {
     it('returns sessionId and status stopped', async () => {
-      await request(app).post(`/api/rooms/${roomId}/recording/start`)
-      const res = await request(app).post(`/api/rooms/${roomId}/recording/stop`)
+      await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
+      const res = await request(app).post(`/api/rooms/${roomId}/recording/stop`).send({})
       expect(res.status).toBe(200)
       expect(res.body.status).toBe('stopped')
     })
 
-    it('calls egressService.stopRecording with trackEgressIds', async () => {
-      await request(app).post(`/api/rooms/${roomId}/recording/start`)
-      await request(app).post(`/api/rooms/${roomId}/recording/stop`)
-      expect(egressService.stopRecording).toHaveBeenCalledWith(
-        { alice: 'egress-track-alice' },
-      )
-    })
-
     it('returns 404 if no active recording', async () => {
-      const res = await request(app).post(`/api/rooms/${roomId}/recording/stop`)
+      const res = await request(app).post(`/api/rooms/${roomId}/recording/stop`).send({})
       expect(res.status).toBe(404)
     })
   })
@@ -113,15 +96,15 @@ describe('Recording Routes', () => {
     })
 
     it('returns active session with status recording', async () => {
-      await request(app).post(`/api/rooms/${roomId}/recording/start`)
+      await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
       const res = await request(app).get(`/api/rooms/${roomId}/recordings`)
       expect(res.body.recordings).toHaveLength(1)
       expect(res.body.recordings[0].status).toBe('recording')
     })
 
     it('stopped session has status stopped', async () => {
-      await request(app).post(`/api/rooms/${roomId}/recording/start`)
-      const stopRes = await request(app).post(`/api/rooms/${roomId}/recording/stop`)
+      await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
+      const stopRes = await request(app).post(`/api/rooms/${roomId}/recording/stop`).send({})
       expect(stopRes.body.status).toBe('stopped')
       expect(stopRes.body.sessionId).toBeDefined()
     })
@@ -137,7 +120,7 @@ describe('Recording Routes', () => {
     })
 
     it('returns 200 and ok:true with valid upload', async () => {
-      await request(app).post(`/api/rooms/${roomId}/recording/start`)
+      await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
       const sessionId = (
         await request(app).get(`/api/rooms/${roomId}/recordings`)
       ).body.recordings[0].sessionId
@@ -169,13 +152,13 @@ describe('Recording Routes', () => {
   })
 
   describe('POST /api/rooms/:roomId/participants/:identity/mute', () => {
-    it('calls egressService.muteTrack and returns success', async () => {
+    it('calls roomAdmin.muteTrack and returns success', async () => {
       const res = await request(app)
         .post(`/api/rooms/${roomId}/participants/alice/mute`)
         .send({ trackType: 'audio', muted: true })
       expect(res.status).toBe(200)
       expect(res.body.success).toBe(true)
-      expect(egressService.muteTrack).toHaveBeenCalledWith(roomId, 'alice', 'audio', true)
+      expect(roomAdmin.muteTrack).toHaveBeenCalledWith(roomId, 'alice', 'audio', true)
     })
 
     it('returns 400 if trackType missing', async () => {
@@ -186,7 +169,7 @@ describe('Recording Routes', () => {
     })
 
     it('returns 500 if muteTrack throws', async () => {
-      vi.mocked(egressService.muteTrack).mockRejectedValueOnce(new Error('no track'))
+      vi.mocked(roomAdmin.muteTrack).mockRejectedValueOnce(new Error('no track'))
       const res = await request(app)
         .post(`/api/rooms/${roomId}/participants/alice/mute`)
         .send({ trackType: 'audio', muted: true })

@@ -18,7 +18,7 @@ import cors from 'cors'
 import { RoomStore } from './rooms.js'
 import { createRouter } from './routes.js'
 import { RecordingStore } from './recording.js'
-import { EgressService } from './egress.js'
+import { RoomAdminService } from './roomAdmin.js'
 
 const app = express()
 app.disable('x-powered-by')
@@ -40,13 +40,13 @@ app.use(express.json({ limit: '25mb' }))
 
 const store = new RoomStore()
 const recordingStore = new RecordingStore()
-const egressService = new EgressService()
+const roomAdmin = new RoomAdminService()
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
-app.use('/api', createRouter(store, { recordingStore, egressService }))
+app.use('/api', createRouter(store, { recordingStore, roomAdmin }))
 
 // Cleanup expired rooms every 5 minutes (TTL = 2 hours)
 const CLEANUP_INTERVAL = 5 * 60 * 1000
