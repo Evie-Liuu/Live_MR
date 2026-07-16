@@ -154,6 +154,23 @@ export async function stopRecording(roomId: string): Promise<StopRecordingRespon
   return res.json() as Promise<StopRecordingResponse>;
 }
 
+export async function uploadParticipantAudio(
+  roomId: string,
+  sessionId: string,
+  identity: string,
+  blob: Blob,
+): Promise<void> {
+  await fetch(`/api/rooms/${roomId}/recording/audio`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'audio/webm',
+      'X-Session-Id': sessionId,
+      'X-Participant-Identity': identity,
+    },
+    body: blob,
+  });
+}
+
 export async function getRecordings(roomId: string): Promise<RecordingSession[]> {
   const res = await fetch(`/api/rooms/${roomId}/recordings`);
   if (!res.ok) throw new Error(`getRecordings failed: ${res.status}`);
