@@ -30,11 +30,10 @@
    │        └────────────────► │ livekit  │ ◄────────────────┘                  │
    │                           │ (WebRTC) │                                      │
    │                           └────┬─────┘                                      │
-   │                    ┌───────────┴───────────┐                               │
-   │                    ▼                       ▼                               │
-   │              ┌──────────┐           ┌─────────────┐                        │
-   │              │  redis   │           │ livekit-egress │ ──► /recordings 錄影 │
-   │              └──────────┘           └─────────────┘                        │
+   │                                 │                                          │
+   │              ┌──────────┐        │                                         │
+   │              │  redis   │ ◄──────┘                                         │
+   │              └──────────┘                                                  │
    └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,7 +44,6 @@
 | **backend** | Express API，發行 LiveKit 連線 token、串接 Gemini AI | （由 nginx 代理） |
 | **livekit** | WebRTC 影音伺服器（即時視訊核心） | 40000-40020/UDP |
 | **redis** | livekit 的內部資料庫 | （不對外） |
-| **livekit-egress** | 錄影服務（吃 CPU） | （不對外） |
 
 ### 為什麼用「一台 VM」而不是 Cloud Run？
 
@@ -281,22 +279,6 @@ logging:
 
 > **為什麼？** 原本 `node_ip` 會被換成 `SERVER_NAME`，但我們現在 `SERVER_NAME` 是「網域名稱」而不是 IP，LiveKit 的 `node_ip` 需要 IP。改用 `use_external_ip: true` 由 LiveKit 自動透過 STUN 找出公開 IP，最省事也最可靠。
 
-同樣記得把 `egress.yaml` 裡的 `api_key` / `api_secret` 也改成同一組金鑰：
-
-```bash
-nano egress.yaml
-```
-
-```yaml
-api_key: 剛剛產生的-API-KEY
-api_secret: 剛剛產生的-API-SECRET
-ws_url: ws://livekit:7880
-redis:
-  address: redis:6379
-health_port: 8080
-log_level: info
-```
-
 ### 11-2. 前端要「正式打包」，不要用開發伺服器
 
 原本 `docker-compose.yml` 的 frontend 是跑 `npm run dev`（開發模式，慢又不穩）。正式上線要用打包好的靜態檔。**最乾淨的做法是建立一個正式用的覆寫檔** `docker-compose.prod.yml`：
@@ -404,8 +386,7 @@ docker compose logs -f
 | 網頁打不開、瀏覽器轉圈 | 443 防火牆沒開 / 服務沒啟動 | 檢查防火牆 `allow-https`；`docker compose ps` 看服務狀態 |
 | 出現「不安全」憑證警告 | 憑證沒放對 / 網域不符 | 確認 `certs/cert.pem`、`key.pem` 存在，且 `.env` 的 `SERVER_NAME` 等於網域 |
 | 網頁正常但**看不到影像** | UDP 沒開 / LiveKit 外部 IP 設定錯 | 開 `allow-webrtc-udp`(40000-40020)；`livekit.yaml.template` 設 `use_external_ip: true` |
-| 連 token 失敗 / 一進房就斷 | 三個檔案金鑰不一致 | 確認 `.env`、`livekit.yaml.template`、`egress.yaml` 用**同一組** KEY/SECRET |
-| 錄影沒產生檔案 | egress 權限或磁碟 | 看 `docker compose logs livekit-egress`；確認磁碟還有空間 `df -h` |
+| 連 token 失敗 / 一進房就斷 | 三個檔案金鑰不一致 | 確認 `.env`、`livekit.yaml.template` 用**同一組** KEY/SECRET |
 | AI 助理沒反應 | Gemini 金鑰錯/額度滿 | 看 `docker compose logs backend`；確認 `GEMINI_API_KEY` |
 
 查看單一服務日誌：`docker compose logs -f livekit`（把 livekit 換成服務名）。
@@ -452,7 +433,7 @@ du -sh ~/live-mr/recordings   # 看錄影佔多少
 
 ## 17. 上線前安全檢查清單
 
-- [ ] `.env`、`livekit.yaml.template`、`egress.yaml` 都已**換掉** `devkey` / `devsecret` 範例值，三者一致
+- [ ] `.env`、`livekit.yaml.template` 都已**換掉** `devkey` / `devsecret` 範例值，兩者一致
 - [ ] `.env`、`certs/`、`recordings/` 都**沒有**被 commit 進 Git（檢查 `.gitignore`）
 - [ ] 防火牆只開必要連接埠（443、80、22、UDP 40000-40020），沒有亂開 7880 等內部埠對外
 - [ ] SSH 盡量用金鑰登入，不要開放密碼登入
