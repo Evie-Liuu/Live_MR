@@ -49,9 +49,9 @@
   * **記憶體內單例 Store**: 包含 `RoomStore` 與 `RecordingStore`，用於在記憶體中維護活躍的房間狀態、加入請求、即時事件佇列與錄製會話。
   * **前端 SessionStorage**: 儲存 `live-mr-app-state`，用於還原與持久化前端 App 的 discriminated union 狀態機。
 * **訊息佇列與快取 (Message Queue & Cache)**:
-  * **Redis**: 作為 LiveKit Core 與 LiveKit Egress 的狀態後端，處理多 Worker 的協調與狀態持久化。
+  * **Redis**: 作為 LiveKit Core 的狀態後端，處理多 Worker 的協調與狀態持久化。
 * **本地檔案儲存**:
-  * **檔案系統 (FileSystem)**: `./recordings` 目錄（後端 Express 容器與 LiveKit Egress 容器共掛此目錄，用以儲存及讀取分塊 WebM、音軌 Ogg 以及最終合成的 MP4 檔案）。
+  * **檔案系統 (FileSystem)**: `./recordings` 目錄，用以儲存及讀取分塊 WebM、各參與者音訊 webm 以及最終合成的 MP4 檔案。
 
 ---
 

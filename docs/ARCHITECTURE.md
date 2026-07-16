@@ -120,7 +120,7 @@ select-role
 
 ## 5. 後端架構（`backend/src`）
 
-Express App 組裝於 `index.ts`，所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。三個記憶體 store 為單例：`RoomStore`、`RecordingStore`、`EgressService`。
+Express App 組裝於 `index.ts`，所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。兩個記憶體 store 為單例：`RoomStore`、`RecordingStore`。
 
 | 模組 | 職責 |
 |------|------|

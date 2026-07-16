@@ -129,7 +129,8 @@ pending → merging → done
 | FFmpeg 合成 | `backend/src/merge.ts` | mergeRecording()，等待 bigscreen 上傳後合成 |
 | API 路由 | `backend/src/routes.ts:174-` | 所有錄製相關端點 |
 | 大屏錄製 | `frontend/src/components/BigScreen.tsx:326-379` | Canvas MediaRecorder + 上傳 |
-| 本機音訊錄製 hook | `frontend/src/hooks/useLocalAudioRecorder.ts` | 共用的本機麥克風錄音 hook，Host/Student 皆用 |
+| Host 錄製 hook | `frontend/src/hooks/useRecording.ts` | 老師端音訊錄製 + BroadcastChannel 協調 |
+| 共用錄音 hook | `frontend/src/hooks/useLocalAudioRecorder.ts` | 共用的本機麥克風錄音 hook，Host/Student 皆用 |
 | 前端 API | `frontend/src/api.ts:114-` | startRecording / stopRecording / getRecordings |
 
 ---
