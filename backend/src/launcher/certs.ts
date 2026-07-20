@@ -28,7 +28,8 @@ export async function ensureCert(
   const pems = await selfsigned.generate(
     [{ name: 'commonName', value: ip }],
     {
-      days: 365,
+      // selfsigned v5 removed the `days` option (default validity is already 365
+      // days); keeping it caused a tsc error against SelfsignedOptions.
       keySize: 2048,
       extensions: [
         { name: 'basicConstraints', cA: false },
