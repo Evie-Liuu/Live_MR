@@ -38,12 +38,22 @@ export class LiveKitProcess {
     const configPath = path.join(opts.workDir, 'livekit.generated.yaml')
     fs.writeFileSync(configPath, opts.configYaml)
 
-    this.child = spawn(opts.binPath, ['--config', configPath], {
-      stdio: 'inherit',
-      windowsHide: true,
-    })
+    return new Promise<void>((resolve, reject) => {
+      this.child = spawn(opts.binPath, ['--config', configPath], {
+        stdio: 'inherit',
+        windowsHide: true,
+      })
 
-    await waitForHttp(opts.port ?? 7880, 15_000)
+      // Handle spawn errors (ENOENT, permissions, etc.) to avoid crashing the host process
+      this.child.on('error', (err) => {
+        reject(err)
+      })
+
+      // Wait for the process to be ready via HTTP health check
+      waitForHttp(opts.port ?? 7880, 15_000)
+        .then(() => resolve())
+        .catch((err) => reject(err))
+    })
   }
 
   async stop(): Promise<void> {
@@ -51,10 +61,16 @@ export class LiveKitProcess {
     this.child = null
     if (!child || child.exitCode !== null) return
     await new Promise<void>((resolve) => {
-      child.once('exit', () => resolve())
+      let forceKillTimer: NodeJS.Timeout | null = null
+      child.once('exit', () => {
+        if (forceKillTimer !== null) {
+          clearTimeout(forceKillTimer)
+        }
+        resolve()
+      })
       child.kill()
       // Windows 上 SIGTERM 對某些子行程無效，逾時後強制終止
-      setTimeout(() => {
+      forceKillTimer = setTimeout(() => {
         if (child.exitCode === null) child.kill('SIGKILL')
       }, 3000)
     })
