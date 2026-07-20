@@ -57,14 +57,19 @@
 
 ## 4. 基礎設施與部署層 (Infrastructure & DevOps)
 
-負責伺服器運行、反向代理、憑證管理與安全性。
+負責伺服器運行、反向代理、憑證管理、開發隧道與安全性。
 
 * **容器化技術**: Docker & Docker Compose (編排 Nginx、LiveKit Core、Redis、Backend 與 Frontend 服務，詳見 [docker-compose.yml](file:///C:/Project/Live_MR/docker-compose.yml))。
 * **Web 伺服器 / 反向代理**: Nginx
   * 負責 **SSL/TLS 終端 (HTTPS/WSS)**，為瀏覽器端調用相機 API (`getUserMedia`) 提供必要的安全連線。
   * 負責**流量分流** (將 `/api/` 導向 Express 後端，`/livekit/` 導向 LiveKit，其他靜態資源導向前端 Vite/靜態伺服器)。
-* **憑證與安全性 (Certificates & Security)**:
+* **憑證、外部曝露與版本控制 (Certificates, Tunneling & VCS)**:
   * **mkcert**: 本地/區網開發環境下之 HTTPS 憑證自動化生成與根憑證信任管理（儲存於 `certs/`）。
+  * **OpenSSL**: 用於 [setup.ps1](file:///C:/Project/Live_MR/setup.ps1) 腳本中，為本地開發環境之 IP 位址（包含 Subject Alternative Name）生成自簽 SSL/TLS 憑證。
+  * **Cloudflare Tunnel (cloudflared)**: 用於 [start-tunnel.ps1](file:///C:/Project/Live_MR/start-tunnel.ps1) 腳本中，將本機開發服務透過免費臨時隧道（`trycloudflare.com`）公開至外網，並在每次連線時自動重載 `.env` 變數與重啟前端容器以套用新網域。
+  * **Git**: 專案的版本控制系統，其在 Windows 環境下的安裝目錄亦作為 [setup.ps1](file:///C:/Project/Live_MR/setup.ps1) 與 [start-tunnel.ps1](file:///C:/Project/Live_MR/start-tunnel.ps1) 尋找 `openssl.exe`（位於 Git 安裝路徑之 `usr/bin/`）的備援來源。
+* **安全性與授權 (Security & Auth)**:
   * **JWT / LiveKit AccessToken**: 用於 API 授權與 WebRTC 連線驗證，保護敏感的金鑰（如 `GEMINI_API_KEY`）不外流至前端。
 * **行程管理 (Process Management)**: Docker Compose 自動管理服務重啟與運行狀態。
 * **測試框架**: Vitest (前端與後端皆撰寫 `*.test.ts` 單元/整合測試)。
+
