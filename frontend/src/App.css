@@ -1,6 +1,7 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,1..1000&family=Iansui&family=LXGW+WenKai+TC&family=Noto+Serif+JP:wght@200..900&family=Potta+One&family=UoqMunThenKhung&family=Yuji+Boku&family=Yuji+Syuku&family=Zen+Kurenaido&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+@import "tailwindcss";
 
 /* ===== Brand Primary Colors ===== */
 /* Usage (CSS var): var(--primary-orange) / var(--primary-teal) / var(--primary-green) */
@@ -3779,7 +3780,6 @@ button:disabled {
    HOST SESSION — Cartoon Game UI  (hs-* namespace)
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
 
 .host-session {
   width: 100%;
