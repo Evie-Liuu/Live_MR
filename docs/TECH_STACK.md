@@ -36,7 +36,7 @@
   * **LiveKit Server SDK** (`livekit-server-sdk`): 負責核發 WebRTC AccessToken、管理房間連線狀態，並透過 SDK 進行踢人、靜音等控制。
 * **AI 整合服務**: Google Gemini SDK (`@google/genai`)，提供教學提示與提問句抽取服務，整合於 [backend/src/ai.ts](file:///C:/Project/Live_MR/backend/src/ai.ts)（具備多模型 fallback 與自動重試機制）。
 * **媒體與錄製處理**:
-  * **LiveKit Egress**: 負責伺服器端音軌錄製（輸出 `.ogg` 格式）。
+  * **瀏覽器端 MediaRecorder**: 每位參與者（老師 + 學生）各自錄製自己的麥克風音軌，停止後上傳至後端。
   * **FFmpeg** (`ffmpeg-static`): 用於後端將大屏錄製的 WebM 影片與各使用者的音軌進行混音（amix）合成，產出最終的 MP4 課堂錄影檔。
 
 ---
@@ -49,9 +49,9 @@
   * **記憶體內單例 Store**: 包含 `RoomStore` 與 `RecordingStore`，用於在記憶體中維護活躍的房間狀態、加入請求、即時事件佇列與錄製會話。
   * **前端 SessionStorage**: 儲存 `live-mr-app-state`，用於還原與持久化前端 App 的 discriminated union 狀態機。
 * **訊息佇列與快取 (Message Queue & Cache)**:
-  * **Redis**: 作為 LiveKit Core 與 LiveKit Egress 的狀態後端，處理多 Worker 的協調與狀態持久化。
+  * **Redis**: 作為 LiveKit Core 的狀態後端，處理多 Worker 的協調與狀態持久化。
 * **本地檔案儲存**:
-  * **檔案系統 (FileSystem)**: `./recordings` 目錄（後端 Express 容器與 LiveKit Egress 容器共掛此目錄，用以儲存及讀取分塊 WebM、音軌 Ogg 以及最終合成的 MP4 檔案）。
+  * **檔案系統 (FileSystem)**: `./recordings` 目錄，用以儲存及讀取分塊 WebM、各參與者音訊 webm 以及最終合成的 MP4 檔案。
 
 ---
 
@@ -59,7 +59,7 @@
 
 負責伺服器運行、反向代理、憑證管理與安全性。
 
-* **容器化技術**: Docker & Docker Compose (編排 Nginx、LiveKit Core、LiveKit Egress、Redis、Backend 與 Frontend 服務，詳見 [docker-compose.yml](file:///C:/Project/Live_MR/docker-compose.yml))。
+* **容器化技術**: Docker & Docker Compose (編排 Nginx、LiveKit Core、Redis、Backend 與 Frontend 服務，詳見 [docker-compose.yml](file:///C:/Project/Live_MR/docker-compose.yml))。
 * **Web 伺服器 / 反向代理**: Nginx
   * 負責 **SSL/TLS 終端 (HTTPS/WSS)**，為瀏覽器端調用相機 API (`getUserMedia`) 提供必要的安全連線。
   * 負責**流量分流** (將 `/api/` 導向 Express 後端，`/livekit/` 導向 LiveKit，其他靜態資源導向前端 Vite/靜態伺服器)。

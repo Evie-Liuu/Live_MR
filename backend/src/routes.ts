@@ -4,7 +4,7 @@ import fs from 'fs'
 import { RoomStore } from './rooms.js'
 import { createToken } from './livekit.js'
 import type { RecordingStore } from './recording.js'
-import type { EgressService } from './egress.js'
+import type { RoomAdminService } from './roomAdmin.js'
 import { mergeRecording } from './merge.js'
 import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai.js'
 
@@ -36,7 +36,7 @@ function basepathToDir(basePath: string): string {
 
 interface RecordingDeps {
   recordingStore: RecordingStore
-  egressService: EgressService
+  roomAdmin: RoomAdminService
 }
 
 export function createRouter(store: RoomStore, recording?: RecordingDeps): Router {
@@ -251,24 +251,10 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       const folderName = `${safeParticipantName}_${timestamp}`
 
       const basePath = `/recordings/${safeSceneId}/${folderName}`
-      // Create the directory before starting Egress so it can write audio_*.ogg immediately.
-      // Without this, Egress fails silently — the directory is otherwise only created when
-      // the first bigscreen chunk arrives (PATCH /recording/bigscreen), which is too late.
+      // Create the directory upfront so client-side audio/bigscreen uploads always have somewhere to land.
       const dir = basepathToDir(basePath)
       await fs.promises.mkdir(dir, { recursive: true })
-      // Egress runs as a different UID — make the directory world-writable so it can create audio files.
-      await fs.promises.chmod(dir, 0o777)
-      const { trackEgressIds, participantIdentities } = await recording.egressService.startRecording(
-        roomId,
-        basePath,
-      )
-      const session = recording.recordingStore.startSession(
-        roomId,
-        trackEgressIds,
-        basePath,
-        participantIdentities,
-        sessionId,
-      )
+      const session = recording.recordingStore.startSession(roomId, basePath, sessionId)
       res.json({ sessionId: session.sessionId, status: session.status })
     } catch (err: any) {
       console.error('[recording/start] error:', err?.message ?? err, '| cause:', err?.cause)
@@ -283,7 +269,6 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     if (!session) { res.status(404).json({ error: 'No active recording' }); return }
 
     try {
-      await recording.egressService.stopRecording(session.trackEgressIds)
       const stopped = recording.recordingStore.stopSession(roomId)
       if (!stopped) { res.status(500).json({ error: 'Failed to stop session' }); return }
 
@@ -544,7 +529,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       const roomId = req.params.roomId as string
       const identity = req.params.identity as string
       try {
-        await recording.egressService.removeParticipant(roomId, identity)
+        await recording.roomAdmin.removeParticipant(roomId, identity)
         res.json({ success: true })
       } catch (err: any) {
         console.error('Failed to remove participant:', err)
@@ -567,7 +552,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       }
 
       try {
-        await recording.egressService.muteTrack(roomId, identity, trackType, muted ?? true)
+        await recording.roomAdmin.muteTrack(roomId, identity, trackType, muted ?? true)
         res.json({ success: true })
       } catch (err: any) {
         console.error('Failed to mute track:', err)

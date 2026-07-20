@@ -2,7 +2,6 @@ import { randomUUID } from 'crypto'
 
 export interface RecordingSession {
   sessionId: string
-  trackEgressIds: Record<string, string>   // identity → egressId
   status: 'recording' | 'stopped'
   mergeStatus: 'pending' | 'merging' | 'done' | 'error'
   mergeOutput?: string   // basePath-relative: e.g. /recordings/{scene}/{folder}/output.mp4
@@ -19,20 +18,17 @@ export class RecordingStore {
 
   startSession(
     roomId: string,
-    trackEgressIds: Record<string, string>,
     basePath: string,
-    participantIdentities: string[],
     sessionId?: string,
   ): RecordingSession {
     const session: RecordingSession = {
       sessionId: sessionId ?? randomUUID(),
-      trackEgressIds,
       status: 'recording',
       mergeStatus: 'pending',
       startedAt: Date.now(),
       files: [],
       basePath,
-      participantIdentities,
+      participantIdentities: [],
     }
     const list = this.sessions.get(roomId) ?? []
     list.push(session)
@@ -49,12 +45,10 @@ export class RecordingStore {
     const session = this.getActiveSession(roomId)
     if (!session) return null
     session.status = 'stopped'
-    // Include all possible files that may have been generated (Egress .ogg, client-side .webm)
-    const audioFiles: string[] = []
-    for (const id of session.participantIdentities) {
-      audioFiles.push(`${session.basePath}/audio_${id}.ogg`)
-      audioFiles.push(`${session.basePath}/audio_${id}.webm`)
-    }
+    // 每人音訊一律是瀏覽器端 MediaRecorder 上傳的 .webm（不再有 Egress 的 .ogg）
+    const audioFiles = session.participantIdentities.map(
+      (id) => `${session.basePath}/audio_${id}.webm`,
+    )
     session.files = [
       `${session.basePath}/bigscreen.webm`,
       ...audioFiles,

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client';
 import { DisconnectReason } from '@livekit/protocol';
 import { usePoseDetection } from '../hooks/usePoseDetection';
+import { useLocalAudioRecorder } from '../hooks/useLocalAudioRecorder.ts';
 import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
@@ -48,6 +49,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   // 給老師 N 秒重連回來;期間若有任何 host-* 重新加入就取消倒數。
   const hostGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const HOST_GRACE_PERIOD_MS = 10000;
+  const activeRecordingSessionRef = useRef<string | null>(null);
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
   const [interactionPhase, setInteractionPhase] = useState<
     'idle' | 'teacher' | 'generating' | 'student'
@@ -157,6 +159,17 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     // }
   }, [showSource, extension, extending, extendError, aiHint, isMinimized, interactionPhase]);
 
+  const getMicTrack = useCallback((): MediaStreamTrack | null => {
+    const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
+    return pub?.track?.mediaStreamTrack ?? null;
+  }, []);
+
+  const getIdentity = useCallback((): string | null => {
+    return roomRef.current?.localParticipant.identity ?? null;
+  }, []);
+
+  const localAudio = useLocalAudioRecorder(getMicTrack, getIdentity);
+
   const publishPose = useCallback(
     (data: Uint8Array) => {
       const room = roomRef.current;
@@ -249,6 +262,8 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           type?: string;
           payload?: AIHintPayload;
           phase?: 'idle' | 'teacher' | 'generating' | 'student';
+          action?: 'start' | 'stop';
+          sessionId?: string;
         };
         if (msg.type === 'ai-hint') {
           const p = msg.payload ?? null;
@@ -260,6 +275,17 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           }
         } else if (msg.type === 'interaction-phase' && msg.phase) {
           if (isMounted) setInteractionPhase(msg.phase);
+        } else if (msg.type === 'recording-signal') {
+          if (msg.action === 'start' && msg.sessionId) {
+            activeRecordingSessionRef.current = msg.sessionId;
+            localAudio.start();
+          } else if (msg.action === 'stop') {
+            const activeSessionId = activeRecordingSessionRef.current;
+            activeRecordingSessionRef.current = null;
+            if (activeSessionId) {
+              void localAudio.stopAndUpload(roomId, activeSessionId);
+            }
+          }
         }
       } catch { /* pose / other messages */ }
     });

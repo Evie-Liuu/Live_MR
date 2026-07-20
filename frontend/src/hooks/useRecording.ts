@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Room, RoomEvent, Track } from 'livekit-client'
 import {
   startRecording,
@@ -6,6 +6,7 @@ import {
   getRecordings,
   muteParticipant,
 } from '../api.ts'
+import { useLocalAudioRecorder } from './useLocalAudioRecorder.ts'
 
 export interface MuteState {
   audio: boolean
@@ -21,6 +22,17 @@ export interface UseRecordingResult {
   toggleMute: (identity: string, trackType: 'audio' | 'video') => Promise<void>
 }
 
+/** 把「錄製開始/停止」廣播給所有學生（老師端目前只用 BroadcastChannel 轉給大屏，學生端在不同裝置收不到）。 */
+function broadcastRecordingSignal(room: Room | null, action: 'start' | 'stop', sessionId: string): void {
+  if (!room || room.state !== 'connected') return
+  try {
+    const bytes = new TextEncoder().encode(
+      JSON.stringify({ type: 'recording-signal', action, sessionId }),
+    )
+    room.localParticipant.publishData(bytes, { reliable: true })
+  } catch { /* ignore */ }
+}
+
 export function useRecording(
   roomId: string,
   room: Room | null,
@@ -32,10 +44,18 @@ export function useRecording(
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [muteState, setMuteState] = useState<Record<string, MuteState>>({})
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const recordingChunksRef = useRef<Blob[]>([])
+  const getMicTrack = useCallback((): MediaStreamTrack | null => {
+    const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone)
+    return pub?.track?.mediaStreamTrack ?? null
+  }, [room])
 
-  // Restore recording state on mount
+  const getIdentity = useCallback((): string | null => {
+    return room?.localParticipant.identity ?? null
+  }, [room])
+
+  const localAudio = useLocalAudioRecorder(getMicTrack, getIdentity)
+
+  // Restore recording state on mount (e.g. host refreshed mid-recording)
   useEffect(() => {
     if (!roomId) return
     getRecordings(roomId)
@@ -44,31 +64,11 @@ export function useRecording(
         if (active) {
           setIsRecording(true)
           setSessionId(active.sessionId)
-          // Start local audio recording if active session found on mount
-          if (room?.localParticipant) {
-            const audioTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)
-            if (audioTrack?.track?.mediaStreamTrack && !mediaRecorderRef.current) {
-              try {
-                const stream = new MediaStream([audioTrack.track.mediaStreamTrack])
-                const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                  ? 'audio/webm;codecs=opus'
-                  : 'audio/webm'
-                const mr = new MediaRecorder(stream, { mimeType })
-                recordingChunksRef.current = []
-                mr.ondataavailable = (e) => {
-                  if (e.data.size > 0) recordingChunksRef.current.push(e.data)
-                }
-                mr.start(1000)
-                mediaRecorderRef.current = mr
-              } catch (err) {
-                console.error('[useRecording] Failed to start local audio recording on mount:', err)
-              }
-            }
-          }
+          localAudio.start()
         }
       })
       .catch(() => { /* backend may still be starting */ })
-  }, [roomId, room]) // Added room dependency to allow starting when room is ready
+  }, [roomId, localAudio])
 
   // Sync mute state from LiveKit room
   useEffect(() => {
@@ -109,30 +109,11 @@ export function useRecording(
     setIsRecording(true)
     setSessionId(result.sessionId)
 
-    // Start local audio recording
-    if (room?.localParticipant) {
-      const audioTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)
-      if (audioTrack?.track?.mediaStreamTrack) {
-        try {
-          const stream = new MediaStream([audioTrack.track.mediaStreamTrack])
-          const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-            ? 'audio/webm;codecs=opus'
-            : 'audio/webm'
-          const mr = new MediaRecorder(stream, { mimeType })
-          recordingChunksRef.current = []
-          mr.ondataavailable = (e) => {
-            if (e.data.size > 0) recordingChunksRef.current.push(e.data)
-          }
-          mr.start(1000)
-          mediaRecorderRef.current = mr
-        } catch (err) {
-          console.error('[useRecording] Failed to start local audio recording:', err)
-        }
-      }
-    }
+    localAudio.start()
 
     channelRef?.current?.postMessage({ type: 'recording-start', sessionId: result.sessionId })
-  }, [roomId, room, channelRef, sceneId, participantName])
+    broadcastRecordingSignal(room, 'start', result.sessionId)
+  }, [roomId, room, channelRef, sceneId, participantName, localAudio])
 
   const stop = useCallback(async () => {
     await stopRecording(roomId)
@@ -140,33 +121,13 @@ export function useRecording(
     const activeSessionId = sessionId
     setSessionId(null)
 
-    // Stop and upload local audio recording
-    const mr = mediaRecorderRef.current
-    if (mr && mr.state !== 'inactive') {
-      mr.onstop = async () => {
-        if (!activeSessionId || !room?.localParticipant) return
-        const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' })
-        try {
-          await fetch(`/api/rooms/${roomId}/recording/audio`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'audio/webm',
-              'X-Session-Id': activeSessionId,
-              'X-Participant-Identity': room.localParticipant.identity,
-            },
-            body: blob,
-          })
-        } catch (err) {
-          console.error('[useRecording] Failed to upload audio recording:', err)
-        }
-        mediaRecorderRef.current = null
-        recordingChunksRef.current = []
-      }
-      mr.stop()
+    if (activeSessionId) {
+      await localAudio.stopAndUpload(roomId, activeSessionId)
     }
 
     channelRef?.current?.postMessage({ type: 'recording-stop' })
-  }, [roomId, room, sessionId, channelRef])
+    broadcastRecordingSignal(room, 'stop', activeSessionId ?? '')
+  }, [roomId, room, sessionId, channelRef, localAudio])
 
   const toggleMute = useCallback(
     async (identity: string, trackType: 'audio' | 'video') => {

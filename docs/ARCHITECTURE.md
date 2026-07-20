@@ -34,9 +34,9 @@ Live MR 是一套**即時混合實境（MR）英語會話教學平台**。核心
 | 後端 | Node.js + Express 5（TypeScript，ESM，`tsx` 執行） |
 | 即時房間訊令 | 後端記憶體事件佇列 + HTTP long polling |
 | AI | Google Gemini（`@google/genai`，多模型 fallback） |
-| 錄製 | LiveKit Egress（server-side 音訊）+ 瀏覽器 MediaRecorder（大屏畫面）+ FFmpeg（`ffmpeg-static`，合成） |
+| 錄製 | 瀏覽器 MediaRecorder（參與者音訊 + 大屏畫面）+ FFmpeg（`ffmpeg-static`，合成） |
 | 反向代理 / TLS | Nginx（Docker） |
-| 基礎設施 | Docker Compose（nginx / livekit / livekit-egress / redis / backend / frontend） |
+| 基礎設施 | Docker Compose（nginx / livekit / redis / backend / frontend） |
 | 測試 | Vitest（前後端皆有 `*.test.ts`） |
 
 ---
@@ -62,11 +62,9 @@ Live MR 是一套**即時混合實境（MR）英語會話教學平台**。核心
         │                  │
         │ server SDK       │ WebRTC media（UDP 40000-40020）
         ▼                  ▼
-   ┌────────────────┐ ┌──────────────┐   ┌────────┐
-   │ LiveKit Egress │ │ LiveKit core │──▶│ Redis  │
-   │ （音訊錄製）    │ └──────────────┘   └────────┘
-   └────────────────┘
-        共用 host 的 ./recordings 目錄
+                     ┌──────────────┐   ┌────────┐
+                     │ LiveKit core │──▶│ Redis  │
+                     └──────────────┘   └────────┘
 ```
 
 | 服務 | 執行位置 | 職責 |
@@ -75,8 +73,7 @@ Live MR 是一套**即時混合實境（MR）英語會話教學平台**。核心
 | **Vite dev server / 前端** | host（開發）/ Docker（compose） | 提供 React 應用 |
 | **Backend Express** | host（開發）/ Docker | REST API：房間管理、LiveKit token 核發、錄製協調、AI proxy |
 | **LiveKit** | Docker | WebRTC SFU，處理音訊串流與 data channel |
-| **LiveKit Egress** | Docker | server-side 逐人音訊錄製（輸出 `.ogg`） |
-| **Redis** | Docker | LiveKit / Egress 的狀態後端 |
+| **Redis** | Docker | LiveKit 的狀態後端 |
 
 > 環境變數細節（`LIVEKIT_URL` 內外網差異、`VITE_` 前綴、`envDir: '..'`）見 dev-setup.md §「.env 每個變數」。
 
@@ -123,7 +120,7 @@ select-role
 
 ## 5. 後端架構（`backend/src`）
 
-Express App 組裝於 `index.ts`，所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。三個記憶體 store 為單例：`RoomStore`、`RecordingStore`、`EgressService`。
+Express App 組裝於 `index.ts`，所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。兩個記憶體 store 為單例：`RoomStore`、`RecordingStore`。
 
 | 模組 | 職責 |
 |------|------|
@@ -131,7 +128,7 @@ Express App 組裝於 `index.ts`，所有路由掛在 `/api` 之下（`routes.ts
 | `rooms.ts` | `RoomStore`：房間 / 加入請求的記憶體狀態機（`pending`→`approved`/`rejected`），`hostToken` 驗證 |
 | `routes.ts` | 所有 REST 端點 + **per-room 事件佇列 + long polling**（`/events`） |
 | `livekit.ts` | `createToken()`：核發 LiveKit AccessToken（host 可訂閱、學生僅發佈） |
-| `egress.ts` | `EgressService`：逐人 audio track egress（`.ogg`）、靜音、踢人（透過 LiveKit server SDK） |
+| `roomAdmin.ts` | `RoomAdminService`：靜音、踢人（透過 LiveKit RoomServiceClient） |
 | `recording.ts` | `RecordingStore`：錄製 session 與檔案清單、merge 狀態 |
 | `merge.ts` | `mergeRecording()`：等待 chunk 上傳穩定後，FFmpeg 合成 `bigscreen.webm + audio_*` → `output.mp4` |
 | `ai.ts` | Gemini 封裝：`generateHint`（單句）/ `generateHints`（結構化 JSON：question/complete/extend），多模型 fallback + 逾時 + 重試判斷 |
@@ -263,14 +260,11 @@ HostSession 取得三欄位
 詳見 [`recording-flow.md`](./recording-flow.md)，摘要：
 
 ```
-start ─┬─ Egress 逐人 audio track → audio_{id}.ogg（server-side）
-       ├─ Host MediaRecorder → audio_{id}.webm（client 備援）
+start ─┬─ 每位參與者（老師+學生）瀏覽器端 MediaRecorder → audio_{id}.webm
        └─ BigScreen canvas.captureStream → bigscreen.webm（分塊 PATCH 上傳）
 stop ──┴─ 背景 mergeRecording()：等檔案大小穩定 → FFmpeg amix → output.mp4
 ```
 
-- **雙軌音訊**：`.ogg`（Egress，穩定）優先，`.webm`（瀏覽器備援）為備胎。
-- **檔案共用**：Egress 與 backend 容器共掛 host 的 `./recordings`。
 - **已知限制**：`RecordingStore` 為記憶體，backend 重啟後 session 遺失（檔案仍在磁碟，但查不到 basePath → 下載 404）；大屏視窗需保持開啟直到停止錄製。
 
 ---
@@ -296,7 +290,7 @@ Theme（主題，如「服飾店」）
 
 | 相依 | 用途 | 設定來源 |
 |------|------|---------|
-| LiveKit（core + egress） | WebRTC 媒體 / data channel / 音訊錄製 | `LIVEKIT_API_KEY` / `_SECRET` / `_URL`（內外網不同，見 dev-setup） |
+| LiveKit（core） | WebRTC 媒體 / data channel | `LIVEKIT_API_KEY` / `_SECRET` / `_URL`（內外網不同，見 dev-setup） |
 | Google Gemini | AI 教學提示 | `GEMINI_API_KEY`、`GEMINI_MODEL`（逗號分隔的 fallback 清單） |
 | Web Speech API | 瀏覽器端 STT | 僅 Chrome 等支援；不支援時 `useSpeechRecording` 降級為 no-op |
 | MediaPipe 模型 | 本機動捕（heavy pose / face / hand `.task`） | 前端 `public/mediapipe-models`、WASM `public/mediapipe-wasm` |
@@ -327,7 +321,7 @@ Theme（主題，如「服飾店」）
 | VRM 骨骼套用 | `frontend/src/utils/kalidokitSolver.ts`、`vrmPoseApplier.ts` |
 | AI prompt 組裝 | `frontend/src/config/aiAssistant.ts` |
 | 後端入口 / 路由 | `backend/src/index.ts`、`routes.ts` |
-| LiveKit token / Egress | `backend/src/livekit.ts`、`egress.ts` |
+| LiveKit token / 房間管理 | `backend/src/livekit.ts`、`roomAdmin.ts` |
 | AI proxy | `backend/src/ai.ts` |
 | 錄製 / 合成 | `backend/src/recording.ts`、`merge.ts` |
 | 教學內容 | `frontend/src/config/scenes.ts` |

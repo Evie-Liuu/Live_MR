@@ -1,19 +1,10 @@
 import {
-  EgressClient,
   RoomServiceClient,
-  EncodedFileOutput,
-  EncodedFileType,
   TrackSource,
   TrackType,
 } from 'livekit-server-sdk'
 
-export interface StartRecordingResult {
-  trackEgressIds: Record<string, string>   // identity → egressId
-  participantIdentities: string[]
-}
-
-export class EgressService {
-  private egress: EgressClient
+export class RoomAdminService {
   private roomService: RoomServiceClient
 
   constructor() {
@@ -22,48 +13,7 @@ export class EgressService {
     const _lkUrl = (process.env.LIVEKIT_URL || process.env.LIVEKIT_SERVER_URL || 'ws://localhost:7880').trim()
     const urlHttp = _lkUrl.replace(/^ws:\/\//i, 'http://').replace(/^wss:\/\//i, 'https://')
 
-    this.egress = new EgressClient(urlHttp, key, secret)
     this.roomService = new RoomServiceClient(urlHttp, key, secret)
-  }
-
-  async startRecording(
-    roomId: string,
-    basePath: string,
-  ): Promise<StartRecordingResult> {
-    // Per-participant audio track egress
-    const participants = await this.roomService.listParticipants(roomId)
-    const trackEgressIds: Record<string, string> = {}
-    const participantIdentities: string[] = []
-
-    for (const participant of participants) {
-      const audioTrack = participant.tracks.find(
-        (t) => t.source === TrackSource.MICROPHONE,
-      )
-      if (!audioTrack) continue
-
-      const audioOutput = new EncodedFileOutput({
-        fileType: EncodedFileType.OGG,
-        filepath: `${basePath}/audio_${participant.identity}.ogg`,
-        disableManifest: true,
-      })
-      const trackInfo = await this.egress.startTrackCompositeEgress(
-        roomId,
-        audioOutput,
-        { audioTrackId: audioTrack.sid },
-      )
-      trackEgressIds[participant.identity] = trackInfo.egressId
-      participantIdentities.push(participant.identity)
-    }
-
-    return { trackEgressIds, participantIdentities }
-  }
-
-  async stopRecording(
-    trackEgressIds: Record<string, string>,
-  ): Promise<void> {
-    for (const egressId of Object.values(trackEgressIds)) {
-      await this.egress.stopEgress(egressId)
-    }
   }
 
   async muteTrack(

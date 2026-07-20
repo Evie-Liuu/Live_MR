@@ -48,22 +48,6 @@ services:
       timeout: 5s
       retries: 3
 
-  livekit-egress:
-    image: livekit/egress:latest
-    restart: unless-stopped
-    environment:
-      - EGRESS_CONFIG_FILE=/etc/egress.yaml
-    volumes:
-      - ./egress.yaml:/etc/egress.yaml:ro
-      - ./recordings:/recordings
-    depends_on:
-      livekit:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    cap_add:
-      - SYS_ADMIN
-
   backend:
     build:
       context: ./backend
