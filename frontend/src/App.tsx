@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
 import { createRoom } from './api.ts';
-import RoleSelect from './components/RoleSelect.tsx';
+import LoginScreen from './components/LoginScreen.tsx';
 import BigScreen from './components/BigScreen.tsx';
 import HostSession from './components/HostSession.tsx';
 import './App.css';
@@ -122,7 +122,14 @@ function App() {
   const renderScreen = () => {
     switch (state.screen) {
       case 'select-role':
-        return <RoleSelect onHost={handleHost} onStudent={handleStudent} />;
+        return (
+          <LoginScreen
+            onHost={handleHost}
+            onStudentJoin={(roomId, requestId, name) =>
+              setState({ screen: 'student-waiting', roomId, requestId, name })
+            }
+          />
+        );
 
       case 'host-lobby':
         return (
