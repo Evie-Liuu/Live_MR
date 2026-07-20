@@ -17,6 +17,7 @@
     "express": "^5.1.0",
     "ffmpeg-static": "^5.2.0",
     "livekit-server-sdk": "^2.13.1",
+    "selfsigned": "^5.5.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
