@@ -87,12 +87,7 @@ function App() {
     }
   };
 
-  const handleStudent = () => {
-    const roomId = prompt('請輸入房間 ID');
-    if (roomId) {
-      setState({ screen: 'student-join', roomId });
-    }
-  };
+
 
   // Clear roomId from URL when on select-role
   useEffect(() => {
