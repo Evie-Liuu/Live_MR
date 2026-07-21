@@ -87,7 +87,8 @@ async function main(): Promise<void> {
   })
   app.use('/livekit', livekitProxy)
 
-  app.use(express.static(FRONTEND_DIST))
+  // 比照 frontend/nginx.conf（commit e25895c）：關閉 ETag/Last-Modified，避免洩漏 build 時間戳。
+  app.use(express.static(FRONTEND_DIST, { etag: false, lastModified: false }))
   // Express 5（path-to-regexp v8）不再接受裸的 '*'，SPA fallback 要用具名萬用字元。
   app.get('/{*splat}', (_req, res) => res.sendFile(path.join(FRONTEND_DIST, 'index.html')))
 
