@@ -113,11 +113,15 @@ select-role
 
 ## 5. 後端架構（`backend/src`）
 
-Express App 組裝於 `index.ts`，所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。兩個記憶體 store 為單例：`RoomStore`、`RecordingStore`。
+Express App 組裝於 `standalone.ts`（唯一的 production entrypoint，`LiveMR.bat` 執行的就是這支打包後的檔案），所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。兩個記憶體 store 為單例：`RoomStore`、`RecordingStore`。
 
 | 模組 | 職責 |
 |------|------|
-| `index.ts` | 載入 `.env`、組裝 App、掛載路由、每 5 分鐘清理 TTL（2 小時）過期房間 |
+| `standalone.ts` | 偵測 LAN IP、產生/沿用憑證、啟動 LiveKit 子行程、組裝 App、掛載路由、serve 前端靜態檔、`/livekit` 反向代理、每 5 分鐘清理 TTL（2 小時）過期房間 |
+| `launcher/network.ts` | `detectLanIp()`：偵測區網 IPv4，排除常見虛擬網卡（WSL/Hyper-V/Docker/VirtualBox/VMware/VPN） |
+| `launcher/certs.ts` | `ensureCert()`：用 `selfsigned` 產生/沿用綁定該 IP 的自簽憑證 |
+| `launcher/livekitConfig.ts` / `livekitProcess.ts` | 產生 LiveKit 單機模式（無 Redis）設定、管理 `livekit-server.exe` 子行程生命週期 |
+| `launcher/security.ts` | 安全標頭 middleware（沿用原 nginx 設定的 CSP/HSTS/等） |
 | `rooms.ts` | `RoomStore`：房間 / 加入請求的記憶體狀態機（`pending`→`approved`/`rejected`），`hostToken` 驗證 |
 | `routes.ts` | 所有 REST 端點 + **per-room 事件佇列 + long polling**（`/events`） |
 | `livekit.ts` | `createToken()`：核發 LiveKit AccessToken（host 可訂閱、學生僅發佈） |
@@ -313,7 +317,7 @@ Theme（主題，如「服飾店」）
 | Pose 編解碼 | `frontend/src/utils/poseCodec.ts` |
 | VRM 骨骼套用 | `frontend/src/utils/kalidokitSolver.ts`、`vrmPoseApplier.ts` |
 | AI prompt 組裝 | `frontend/src/config/aiAssistant.ts` |
-| 後端入口 / 路由 | `backend/src/index.ts`、`routes.ts` |
+| 後端入口 / 路由 | `backend/src/standalone.ts`、`routes.ts` |
 | LiveKit token / 房間管理 | `backend/src/livekit.ts`、`roomAdmin.ts` |
 | AI proxy | `backend/src/ai.ts` |
 | 錄製 / 合成 | `backend/src/recording.ts`、`merge.ts` |

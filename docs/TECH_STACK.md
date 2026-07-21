@@ -29,7 +29,7 @@
 
 負責業務邏輯、資料處理、AI 代理與即時房間訊號協調。
 
-* **程式語言 / 執行環境**: Node.js (TypeScript, ESM 模組系統，開發環境使用 `tsx watch` 執行)
+* **程式語言 / 執行環境**: Node.js (TypeScript, ESM 模組系統，透過 `node scripts/build-launcher.mjs` 打包後以 `LiveMR.bat` 執行)
 * **Web 框架**: Express 5 (提供 RESTful API，模組化路由組裝於 [routes.ts](file:///C:/Project/Live_MR/backend/src/routes.ts))
 * **即時通訊與房間訊令**:
   * **HTTP Long Polling + 記憶體事件佇列**: 後端在記憶體中維護輕量級事件佇列，搭配 Long Polling 實現輕量級的房間管理、審核與即時事件通知。
