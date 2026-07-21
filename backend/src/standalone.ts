@@ -3,7 +3,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import https from 'node:https'
 import { fileURLToPath } from 'node:url'
-import { exec } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import express from 'express'
 import cors from 'cors'
 import { createProxyMiddleware } from 'http-proxy-middleware'
@@ -109,7 +109,9 @@ async function main(): Promise<void> {
     if (!process.env.GEMINI_API_KEY) {
       console.warn('提醒：尚未設定 GEMINI_API_KEY，AI 助理功能將無法使用。請編輯 launcher.env 後重新啟動。')
     }
-    exec(`start "" "${url}"`)
+    // spawn（argv 陣列）而非 exec（shell 字串），即使 url 目前只由本機偵測到的
+    // IP/port 組成、並非外部可控輸入，仍避免任何字串經過 shell 解析的注入風險。
+    spawn('cmd.exe', ['/c', 'start', '""', url], { shell: false, windowsHide: true })
   })
 
   const shutdown = async (): Promise<void> => {
