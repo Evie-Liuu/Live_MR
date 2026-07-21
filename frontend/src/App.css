@@ -72,6 +72,7 @@ body {
 /* Strip padding/centering when full-screen host session or role select is active */
 .app:has(.host-session),
 .app:has(.role-select-screen),
+.app:has(.login-screen-container),
 .app:has(.student-join-screen) {
   /* .app:has(.host-lobby-screen) { */
   padding: 0;
