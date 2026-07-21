@@ -54,4 +54,29 @@ describe('detectLanIp', () => {
   it('returns null when no interfaces given', () => {
     expect(detectLanIp({})).toBeNull()
   })
+
+  it('prefers a real adapter over a WSL/Hyper-V virtual adapter, regardless of iteration order', () => {
+    const fake = {
+      'vEthernet (WSL (Hyper-V firewall))': [iface('172.24.224.1', 'IPv4', false)],
+      'Wi-Fi': [iface('192.168.0.145', 'IPv4', false)],
+    }
+    expect(detectLanIp(fake)).toBe('192.168.0.145')
+  })
+
+  it('prefers a real adapter over Docker Desktop / VirtualBox / VMware virtual adapters', () => {
+    const fake = {
+      'Ethernet (Docker Desktop)': [iface('172.17.0.1', 'IPv4', false)],
+      'VirtualBox Host-Only Network': [iface('192.168.56.1', 'IPv4', false)],
+      'VMware Network Adapter VMnet1': [iface('192.168.150.1', 'IPv4', false)],
+      'Ethernet': [iface('10.0.0.5', 'IPv4', false)],
+    }
+    expect(detectLanIp(fake)).toBe('10.0.0.5')
+  })
+
+  it('falls back to a virtual adapter address if that is the only candidate available', () => {
+    const fake = {
+      'vEthernet (WSL (Hyper-V firewall))': [iface('172.24.224.1', 'IPv4', false)],
+    }
+    expect(detectLanIp(fake)).toBe('172.24.224.1')
+  })
 })
