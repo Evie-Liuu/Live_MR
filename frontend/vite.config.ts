@@ -27,7 +27,7 @@ export default defineConfig({
       },
     },
     host: '0.0.0.0',
-    port: 80,
+    port: 5173,
     hmr: {
       clientPort: 443,
     },

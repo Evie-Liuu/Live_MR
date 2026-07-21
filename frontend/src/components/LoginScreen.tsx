@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { joinRequest } from '../api.ts';
 import loginIllustration from '../assets/login_illustration.png';
+import type { AuthUser } from '../hooks/useAuth.ts';
+import { useAuth } from '../hooks/useAuth.ts';
 import './LoginScreen.css';
 
 interface LoginScreenProps {
-  onHost: () => void;
+  onLoginSuccess: (user: AuthUser) => void;
   onStudentJoin: (roomId: string, requestId: string, name: string) => void;
 }
 
-export default function LoginScreen({ onHost, onStudentJoin }: LoginScreenProps) {
+export default function LoginScreen({ onLoginSuccess, onStudentJoin }: LoginScreenProps) {
+  const { loginWithEmailAndPassword } = useAuth();
   const [activeTab, setActiveTab] = useState<'teacher' | 'student'>('teacher');
 
   // Teacher Form state
-  const [email, setEmail] = useState('teacher@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('pitou@sdgsjourney.com');
+  const [password, setPassword] = useState('123456');
   const [rememberMe, setRememberMe] = useState(true);
   const [teacherLoading, setTeacherLoading] = useState(false);
   const [teacherError, setTeacherError] = useState('');
@@ -30,11 +33,24 @@ export default function LoginScreen({ onHost, onStudentJoin }: LoginScreenProps)
     setTeacherLoading(true);
     setTeacherError('');
     try {
-      // In this app, host room creation doesn't require backend login validation,
-      // it directly calls createRoom() and transitions to host-lobby.
-      await onHost();
+      const { success, user, message } = await loginWithEmailAndPassword(email, password);
+
+      if (success) {
+        // 儲存到 localStorage（同 auth.js 邏輯）
+        localStorage.setItem('user_data', JSON.stringify(user));
+
+        console.log(`[Auth] 登入成功，role: ${user?.role}，user:`, user);
+
+        // 通知 App，由 App 根據 role 決定下一步畫面
+        onLoginSuccess(user!);
+      } else {
+        setTeacherError(message || '登入失敗');
+        setTeacherLoading(false);
+      }
     } catch (err) {
-      setTeacherError(String(err));
+      const error = err as { code?: string; message?: string };
+      const msg = firebaseErrorMessage(error.code) || error.message || '登入失敗';
+      setTeacherError(msg);
       setTeacherLoading(false);
     }
   };
@@ -191,4 +207,23 @@ export default function LoginScreen({ onHost, onStudentJoin }: LoginScreenProps)
       </div>
     </div>
   );
+}
+
+// ── Firebase 錯誤中文化 ────────────────────────────────────────────────────
+
+function firebaseErrorMessage(code?: string): string {
+  switch (code) {
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return '電子郵件或密碼錯誤';
+    case 'auth/invalid-email':
+      return '無效的電子郵件格式';
+    case 'auth/user-disabled':
+      return '此帳號已被停用';
+    case 'auth/too-many-requests':
+      return '登入嘗試次數過多，請稍後再試';
+    default:
+      return '';
+  }
 }

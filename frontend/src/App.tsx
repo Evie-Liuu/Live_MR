@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
+import type { AuthUser } from './hooks/useAuth.ts';
 import { createRoom } from './api.ts';
 import LoginScreen from './components/LoginScreen.tsx';
 import BigScreen from './components/BigScreen.tsx';
@@ -22,16 +23,6 @@ function AppSpinner() {
         <h2 className="waiting-text">載入中...</h2>
       </div>
     </div>
-    // <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-    //   <div style={{
-    //     width: 40,
-    //     height: 40,
-    //     border: '4px solid #e0e0e0',
-    //     borderTopColor: '#1976d2',
-    //     borderRadius: '50%',
-    //     animation: 'spin 0.8s linear infinite',
-    //   }} />
-    // </div>
   );
 }
 
@@ -58,7 +49,7 @@ function getInitialState(): AppState {
     const persisted = loadPersistedState();
     // If persisted state matches this room and is a student-side screen, restore it
     if (persisted && 'roomId' in persisted && persisted.roomId === urlRoomId &&
-        (persisted.screen === 'student-waiting' || persisted.screen === 'student-session')) {
+      (persisted.screen === 'student-waiting' || persisted.screen === 'student-session')) {
       return persisted;
     }
     return { screen: 'student-join', roomId: urlRoomId };
@@ -77,11 +68,36 @@ const isShareScreen = screenParam === 'share';
 function App() {
   const [state, setState] = useState<AppState>(getInitialState);
 
+  /**
+   * 登入成功 callback：接收含 role 的 user，依 role 決定下一步畫面
+   *
+   * role 對應邏輯（同 auth.js）：
+   *   - 'admin' / 'institution_admin' → 老師路線（建立 room）
+   *   - 'teacher'                     → 老師路線（建立 room）
+   *   - 'student'                     → 學生路線（student-join）
+   *   - 其他                          → 老師路線（預設 fallback）
+   */
+  const handleLoginSuccess = async (user: AuthUser) => {
+    console.log(`[App] 登入成功，role: ${user.role}`);
+    const role = user.role;
+
+    if (role === 'student') {
+      // 學生登入後回到登入畫面，讓學生切換到「學生登入」tab 輸入房間 ID
+      // （student-join 需要 roomId，由學生自行填入）
+      setState({ screen: 'select-role' });
+      // 可在此顯示提示：請切換到「學生登入」tab 並輸入房間 ID
+    } else {
+      // 老師 / 管理員 → 建立房間，進入 host-lobby
+      await handleHost();
+    }
+  };
+
   // Handle host room creation
   const handleHost = async () => {
     try {
       const { roomId, hostToken, livekitToken } = await createRoom();
-      setState({ screen: 'host-lobby', roomId, hostToken, livekitToken });
+      // setState({ screen: 'host-lobby', roomId, hostToken, livekitToken });
+      setState({ screen: 'host-session', roomId, hostToken, livekitToken });
     } catch (err) {
       setState({ screen: 'error', message: String(err) });
     }
@@ -106,7 +122,7 @@ function App() {
   useEffect(() => {
     try {
       if (state.screen === 'select-role' || state.screen === 'error' ||
-          state.screen === 'student-rejected') {
+        state.screen === 'student-rejected') {
         sessionStorage.removeItem(APP_STATE_STORAGE_KEY);
       } else {
         sessionStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
@@ -119,7 +135,7 @@ function App() {
       case 'select-role':
         return (
           <LoginScreen
-            onHost={handleHost}
+            onLoginSuccess={handleLoginSuccess}
             onStudentJoin={(roomId, requestId, name) =>
               setState({ screen: 'student-waiting', roomId, requestId, name })
             }
@@ -248,4 +264,3 @@ function Root() {
 }
 
 export default Root;
-
