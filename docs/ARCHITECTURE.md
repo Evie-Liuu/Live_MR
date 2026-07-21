@@ -1,7 +1,7 @@
 # Live MR 系統架構文件
 
 > 對象：技術人員（前後端工程師、架構討論、新進開發者 onboarding）
-> 最後更新：2026-06-15
+> 最後更新：2026-07-21
 
 本文件描述 **Live MR** 的整體系統架構、模組職責與核心資料流，作為技術討論與後續開發的依據。
 環境啟動、指令速查、跨裝置憑證設定請見 [`dev-setup.md`](./dev-setup.md)；錄製管線細節見 [`recording-flow.md`](./recording-flow.md)。
@@ -35,47 +35,40 @@ Live MR 是一套**即時混合實境（MR）英語會話教學平台**。核心
 | 即時房間訊令 | 後端記憶體事件佇列 + HTTP long polling |
 | AI | Google Gemini（`@google/genai`，多模型 fallback） |
 | 錄製 | 瀏覽器 MediaRecorder（參與者音訊 + 大屏畫面）+ FFmpeg（`ffmpeg-static`，合成） |
-| 反向代理 / TLS | Nginx（Docker） |
-| 基礎設施 | Docker Compose（nginx / livekit / redis / backend / frontend） |
+| 反向代理 / TLS | Node 內建 `https` 模組 + `http-proxy-middleware`（`standalone.js`） |
+| 基礎設施 | 可攜式原生 Windows 封裝（`bin/node-runtime`、`bin/livekit-server.exe`、`bin/ffmpeg.exe` + 打包後 backend），雙擊 `LiveMR.bat` 啟動 |
 | 測試 | Vitest（前後端皆有 `*.test.ts`） |
 
 ---
 
 ## 3. 部署與執行拓撲
 
-開發環境同時運作多個服務，**所有外部流量皆經 Nginx 入口分流**（相機 `getUserMedia` 需 HTTPS，由 Nginx 終止 TLS）：
+生產環境是**單一可攜式資料夾**，老師端解壓縮後雙擊 `LiveMR.bat` 即可啟動，不需安裝 Docker / Nginx / Redis。所有外部流量皆經 `standalone.js`（Node/Express）入口分流（相機 `getUserMedia` 需 HTTPS，由 `standalone.js` 用內建 `https` 模組終止 TLS）：
 
 ```
                        瀏覽器（老師 / 學生 / 大屏）
                               │  HTTPS / WSS  :443
                               ▼
-                    ┌──────────────────────┐
-                    │   Nginx（Docker）     │  TLS 終止 + 路徑分流
-                    └──────────────────────┘
-            ┌─────────────┬──────────────┬───────────────┐
-            │ /api/*      │ /livekit/*   │ /*            │
-            ▼             ▼              ▼
-   ┌────────────────┐ ┌──────────┐ ┌────────────────┐
-   │ Backend Express│ │ LiveKit  │ │ Vite / 前端靜態 │
-   │  :3001         │ │  :7880   │ │  :5173/:80     │
-   └────────────────┘ └──────────┘ └────────────────┘
-        │                  │
-        │ server SDK       │ WebRTC media（UDP 40000-40020）
-        ▼                  ▼
-                     ┌──────────────┐   ┌────────┐
-                     │ LiveKit core │──▶│ Redis  │
-                     └──────────────┘   └────────┘
+                    ┌──────────────────────────┐
+                    │  standalone.js（Node）     │  TLS 終止 + 路徑分流
+                    │  serve 前端靜態檔           │
+                    └──────────────────────────┘
+            ┌─────────────┬──────────────────────┐
+            │ /api/*      │ /livekit/*            │
+            ▼             ▼                       │
+   ┌────────────────┐ ┌──────────────────────┐   │
+   │ 內建 Express    │ │ livekit-server.exe   │   │
+   │ route（同行程）  │ │ （子行程，127.0.0.1）  │◀──┘
+   └────────────────┘ └──────────────────────┘
 ```
 
 | 服務 | 執行位置 | 職責 |
 |------|---------|------|
-| **Nginx** | Docker | HTTPS 終止、依路徑把請求轉給後端 / LiveKit / 前端 |
-| **Vite dev server / 前端** | host（開發）/ Docker（compose） | 提供 React 應用 |
-| **Backend Express** | host（開發）/ Docker | REST API：房間管理、LiveKit token 核發、錄製協調、AI proxy |
-| **LiveKit** | Docker | WebRTC SFU，處理音訊串流與 data channel |
-| **Redis** | Docker | LiveKit 的狀態後端 |
+| **standalone.js** | Node（`LiveMR.bat` 啟動的主行程） | HTTPS 終止（`selfsigned` 憑證）、serve 前端靜態檔、依路徑把請求轉給內建 Express route 或反代給 LiveKit |
+| **內建 Express route** | 與 `standalone.js` 同行程 | REST API：房間管理、LiveKit token 核發、錄製協調、AI proxy |
+| **livekit-server.exe** | 本機子行程（`backend/src/launcher` 啟動、綁定 127.0.0.1） | WebRTC SFU，處理音訊串流與 data channel；單機模式，無 Redis |
 
-> 環境變數細節（`LIVEKIT_URL` 內外網差異、`VITE_` 前綴、`envDir: '..'`）見 dev-setup.md §「.env 每個變數」。
+> 開發流程（`node scripts/build-launcher.mjs` 打包 + `LiveMR.bat` 啟動）與環境變數細節見 [`dev-setup.md`](./dev-setup.md)。
 
 ---
 
@@ -120,11 +113,15 @@ select-role
 
 ## 5. 後端架構（`backend/src`）
 
-Express App 組裝於 `index.ts`，所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。兩個記憶體 store 為單例：`RoomStore`、`RecordingStore`。
+Express App 組裝於 `standalone.ts`（唯一的 production entrypoint，`LiveMR.bat` 執行的就是這支打包後的檔案），所有路由掛在 `/api` 之下（`routes.ts` 的 `createRouter`）。兩個記憶體 store 為單例：`RoomStore`、`RecordingStore`。
 
 | 模組 | 職責 |
 |------|------|
-| `index.ts` | 載入 `.env`、組裝 App、掛載路由、每 5 分鐘清理 TTL（2 小時）過期房間 |
+| `standalone.ts` | 偵測 LAN IP、產生/沿用憑證、啟動 LiveKit 子行程、組裝 App、掛載路由、serve 前端靜態檔、`/livekit` 反向代理、每 5 分鐘清理 TTL（2 小時）過期房間 |
+| `launcher/network.ts` | `detectLanIp()`：偵測區網 IPv4，排除常見虛擬網卡（WSL/Hyper-V/Docker/VirtualBox/VMware/VPN） |
+| `launcher/certs.ts` | `ensureCert()`：用 `selfsigned` 產生/沿用綁定該 IP 的自簽憑證 |
+| `launcher/livekitConfig.ts` / `livekitProcess.ts` | 產生 LiveKit 單機模式（無 Redis）設定、管理 `livekit-server.exe` 子行程生命週期 |
+| `launcher/security.ts` | 安全標頭 middleware（沿用原 nginx 設定的 CSP/HSTS/等） |
 | `rooms.ts` | `RoomStore`：房間 / 加入請求的記憶體狀態機（`pending`→`approved`/`rejected`），`hostToken` 驗證 |
 | `routes.ts` | 所有 REST 端點 + **per-room 事件佇列 + long polling**（`/events`） |
 | `livekit.ts` | `createToken()`：核發 LiveKit AccessToken（host 可訂閱、學生僅發佈） |
@@ -295,7 +292,7 @@ Theme（主題，如「服飾店」）
 | Web Speech API | 瀏覽器端 STT | 僅 Chrome 等支援；不支援時 `useSpeechRecording` 降級為 no-op |
 | MediaPipe 模型 | 本機動捕（heavy pose / face / hand `.task`） | 前端 `public/mediapipe-models`、WASM `public/mediapipe-wasm` |
 | VRM 模型 | 角色外觀 | `assets/models/role_static/*.vrm` + `config/vrmSources.ts` |
-| mkcert | 本機 HTTPS 憑證 | `certs/`（相機 API 必需） |
+| Node `selfsigned` 套件 | 本機/區網開發環境下之 HTTPS 憑證自動化產生（`backend/src/launcher/certs.ts`），取代 mkcert/openssl | `data/certs/`（相機 API 必需） |
 
 ---
 
@@ -304,7 +301,7 @@ Theme（主題，如「服飾店」）
 - **巨型元件**：`HostSession`（~3100 行）與 `BigScreen`（~2700 行）職責過重，是後續維護重點。
 - **架構重構規劃書**：`docs/superpowers/plans/2026-03-25-architecture-refactor.md`（共 5 個 Task）已規劃：抽取共享常數、抽 Three.js 共用工具、解耦 `usePoseDetection` 與 LiveKit（改 `onPublish` callback，已完成）、拆解 `HostSession`（抽 `LocalVideo`）、修 `any` 型別 / 死碼 / 大屏 canvas 尺寸。
 - **記憶體狀態**：`RoomStore` / `RecordingStore` 皆為單機記憶體，無持久化、不可水平擴展（目前為單機教室場景）。
-- **README**：根目錄 `README.md` 仍是 Vite 樣板預設，未反映實際產品（本文件為實質架構說明）。
+- **封裝細節**：`docs/superpowers/specs/2026-07-17-local-only-packaging-design.md` 與 `docs/superpowers/plans/2026-07-20-native-launcher-packaging.md`。
 
 ---
 
@@ -320,9 +317,9 @@ Theme（主題，如「服飾店」）
 | Pose 編解碼 | `frontend/src/utils/poseCodec.ts` |
 | VRM 骨骼套用 | `frontend/src/utils/kalidokitSolver.ts`、`vrmPoseApplier.ts` |
 | AI prompt 組裝 | `frontend/src/config/aiAssistant.ts` |
-| 後端入口 / 路由 | `backend/src/index.ts`、`routes.ts` |
+| 後端入口 / 路由 | `backend/src/standalone.ts`、`routes.ts` |
 | LiveKit token / 房間管理 | `backend/src/livekit.ts`、`roomAdmin.ts` |
 | AI proxy | `backend/src/ai.ts` |
 | 錄製 / 合成 | `backend/src/recording.ts`、`merge.ts` |
 | 教學內容 | `frontend/src/config/scenes.ts` |
-| 部署 | `docker-compose.yml`、`nginx/`、`livekit.yaml.template` |
+| 部署 | `backend/src/launcher/`、`backend/src/standalone.ts`、`scripts/build-launcher.mjs` |

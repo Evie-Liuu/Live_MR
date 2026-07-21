@@ -29,7 +29,7 @@
 
 負責業務邏輯、資料處理、AI 代理與即時房間訊號協調。
 
-* **程式語言 / 執行環境**: Node.js (TypeScript, ESM 模組系統，開發環境使用 `tsx watch` 執行)
+* **程式語言 / 執行環境**: Node.js (TypeScript, ESM 模組系統，透過 `node scripts/build-launcher.mjs` 打包後以 `LiveMR.bat` 執行)
 * **Web 框架**: Express 5 (提供 RESTful API，模組化路由組裝於 [routes.ts](file:///C:/Project/Live_MR/backend/src/routes.ts))
 * **即時通訊與房間訊令**:
   * **HTTP Long Polling + 記憶體事件佇列**: 後端在記憶體中維護輕量級事件佇列，搭配 Long Polling 實現輕量級的房間管理、審核與即時事件通知。
@@ -48,8 +48,6 @@
 * **狀態管理與暫存 (In-Memory Storage)**:
   * **記憶體內單例 Store**: 包含 `RoomStore` 與 `RecordingStore`，用於在記憶體中維護活躍的房間狀態、加入請求、即時事件佇列與錄製會話。
   * **前端 SessionStorage**: 儲存 `live-mr-app-state`，用於還原與持久化前端 App 的 discriminated union 狀態機。
-* **訊息佇列與快取 (Message Queue & Cache)**:
-  * **Redis**: 作為 LiveKit Core 的狀態後端，處理多 Worker 的協調與狀態持久化。
 * **本地檔案儲存**:
   * **檔案系統 (FileSystem)**: `./recordings` 目錄，用以儲存及讀取分塊 WebM、各參與者音訊 webm 以及最終合成的 MP4 檔案。
 
@@ -57,19 +55,14 @@
 
 ## 4. 基礎設施與部署層 (Infrastructure & DevOps)
 
-負責伺服器運行、反向代理、憑證管理、開發隧道與安全性。
+負責伺服器運行、反向代理、憑證管理與安全性。
 
-* **容器化技術**: Docker & Docker Compose (編排 Nginx、LiveKit Core、Redis、Backend 與 Frontend 服務，詳見 [docker-compose.yml](file:///C:/Project/Live_MR/docker-compose.yml))。
-* **Web 伺服器 / 反向代理**: Nginx
-  * 負責 **SSL/TLS 終端 (HTTPS/WSS)**，為瀏覽器端調用相機 API (`getUserMedia`) 提供必要的安全連線。
-  * 負責**流量分流** (將 `/api/` 導向 Express 後端，`/livekit/` 導向 LiveKit，其他靜態資源導向前端 Vite/靜態伺服器)。
-* **憑證、外部曝露與版本控制 (Certificates, Tunneling & VCS)**:
-  * **mkcert**: 本地/區網開發環境下之 HTTPS 憑證自動化生成與根憑證信任管理（儲存於 `certs/`）。
-  * **OpenSSL**: 用於 [setup.ps1](file:///C:/Project/Live_MR/setup.ps1) 腳本中，為本地開發環境之 IP 位址（包含 Subject Alternative Name）生成自簽 SSL/TLS 憑證。
-  * **Cloudflare Tunnel (cloudflared)**: 用於 [start-tunnel.ps1](file:///C:/Project/Live_MR/start-tunnel.ps1) 腳本中，將本機開發服務透過免費臨時隧道（`trycloudflare.com`）公開至外網，並在每次連線時自動重載 `.env` 變數與重啟前端容器以套用新網域。
-  * **Git**: 專案的版本控制系統，其在 Windows 環境下的安裝目錄亦作為 [setup.ps1](file:///C:/Project/Live_MR/setup.ps1) 與 [start-tunnel.ps1](file:///C:/Project/Live_MR/start-tunnel.ps1) 尋找 `openssl.exe`（位於 Git 安裝路徑之 `usr/bin/`）的備援來源。
+* **執行環境封裝**: 可攜式資料夾（`bin/node-runtime`、`bin/livekit-server.exe`、`bin/ffmpeg.exe` + 打包後的 backend），雙擊 `LiveMR.bat` 啟動，不需安裝 Docker / Git / OpenSSL。
+* **TLS 終止 / 反向代理**: Node 內建 `https` 模組直接終止 TLS，`http-proxy-middleware` 反代 `/livekit/*` 給本機 LiveKit 子行程。
+* **憑證**: `selfsigned`（純 JS 產生自簽憑證，SAN 綁區網 IP）。
+* **LiveKit 執行**: 原生 Windows binary（`livekit-server.exe`），單機模式（無 Redis）。
 * **安全性與授權 (Security & Auth)**:
   * **JWT / LiveKit AccessToken**: 用於 API 授權與 WebRTC 連線驗證，保護敏感的金鑰（如 `GEMINI_API_KEY`）不外流至前端。
-* **行程管理 (Process Management)**: Docker Compose 自動管理服務重啟與運行狀態。
+* **行程管理 (Process Management)**: `backend/src/launcher` 於 `standalone.js` 啟動時以子行程方式拉起 `livekit-server.exe`，並負責健康檢查與行程生命週期管理。
 * **測試框架**: Vitest (前端與後端皆撰寫 `*.test.ts` 單元/整合測試)。
 

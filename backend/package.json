@@ -4,9 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file=../.env src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -16,7 +14,9 @@
     "dotenv": "^17.4.0",
     "express": "^5.1.0",
     "ffmpeg-static": "^5.2.0",
+    "http-proxy-middleware": "^4.2.0",
     "livekit-server-sdk": "^2.13.1",
+    "selfsigned": "^5.5.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

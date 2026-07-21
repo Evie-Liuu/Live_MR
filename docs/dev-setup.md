@@ -9,64 +9,30 @@
 ### 每次開發前（啟動環境）
 
 ```bash
-# 1. 啟動 Docker 服務（nginx + LiveKit）
-cd C:/Project/Live_MR
-docker compose up -d nginx livekit
+# 一次打包整個 launcher：build 前端、esbuild bundle backend、
+# 複製 livekit-server.exe / node.exe / ffmpeg.exe，組裝到 dist-launcher/LiveMR/
+node scripts/build-launcher.mjs
 
-# 2. 啟動後端（另開一個終端機）
-cd backend
-npx tsx watch src/index.ts
-
-# 3. 啟動前端 dev server（另開一個終端機）
-cd frontend
-npm run dev
+# 執行組裝好的 launcher
+cd dist-launcher/LiveMR
+./LiveMR.bat
 ```
 
-完成後開啟 https://192.168.0.145
+終端機會印出偵測到的區網 IP，例如 `https://192.168.0.145`，並自動開啟瀏覽器（第一次連線瀏覽器會跳「不安全連線」警告，屬正常現象，按「進階」→「繼續前往」即可）。
+
+> **不能用 `npx tsx src/standalone.ts` 直接跑。** `backend/src/standalone.ts` 用 `__dirname` 相對路徑去找 `bin/livekit-server.exe`、`bin/ffmpeg.exe`、`app/frontend-dist`，這個目錄結構只有 `scripts/build-launcher.mjs` 組裝出的 `dist-launcher/LiveMR/` 裡才成立。改了 backend 程式碼想測試，就重新跑一次 `node scripts/build-launcher.mjs`（esbuild bundle 很快，通常一兩秒）再重啟 `LiveMR.bat`。
 
 ---
 
 ### 停止
 
-```bash
-# 停止 Docker 服務
-docker compose down
-
-# 後端 / 前端：直接在終端機按 Ctrl+C
-```
+在跑 `standalone.ts` 的終端機按 `Ctrl+C`，會自動一併關閉 LiveKit 子行程與 HTTPS 伺服器。
 
 ---
 
 ### 查看 logs
 
-```bash
-# nginx log（看請求有沒有進來）
-docker compose logs nginx --tail=50
-
-# livekit log
-docker compose logs livekit --tail=50
-
-# 即時追蹤
-docker compose logs -f nginx
-```
-
----
-
-### 重啟 nginx（改了 nginx/default.conf 之後）
-
-```bash
-docker compose restart nginx
-```
-
----
-
-### 確認服務都在跑
-
-```bash
-docker compose ps          # 看 Docker 服務狀態
-netstat -an | grep :5174   # 確認 Vite 在跑
-netstat -an | grep :3001   # 確認後端在跑
-```
+沒有額外容器，後端與 LiveKit 的 log 都直接印在同一個終端機視窗裡。
 
 ---
 
@@ -74,25 +40,27 @@ netstat -an | grep :3001   # 確認後端在跑
 
 | 工具 | 用途 | 下載 |
 |------|------|------|
-| Docker Desktop | 跑 nginx + LiveKit | https://www.docker.com/products/docker-desktop |
-| Node.js 22+ | 跑前後端 | https://nodejs.org |
-| mkcert | 產生本機 HTTPS 憑證 | `winget install mkcert` |
+| Node.js 22+ | 跑前後端、LiveKit 下載腳本 | https://nodejs.org |
+
+不再需要 Docker Desktop 或 mkcert：LiveKit 改用原生 Windows binary（`livekit-server.exe`），HTTPS 憑證改由 `selfsigned` 套件在啟動時自動產生。
 
 ---
 
 ### 初次設定（只做一次）
 
 ```bash
-# 1. 安裝根憑證到系統（讓瀏覽器信任 mkcert 憑證）
-mkcert -install
+# 下載 LiveKit 官方 Windows binary（存到 .build-cache/livekit-server.exe）
+node scripts/fetch-livekit-server.mjs
 
-# 2. 產生憑證（替換成你的區網 IP）
-cd C:/Project/Live_MR
-mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1 192.168.0.145
-
-# 3. 複製並填寫環境變數（.env 在 gitignore，不會上傳）
-# 把 .env 裡的 IP 換成你自己的 (ipconfig 查詢)
+# 下載可攜式 Node.js runtime（存到 .build-cache/node-win-x64/）
+node scripts/fetch-portable-node.mjs
 ```
+
+這兩個只需要跑一次（產物快取在 `.build-cache/`，之後每次 `node scripts/build-launcher.mjs` 都會直接複用，不會重新下載）。
+
+不需要手動安裝根憑證、不需要編輯 `SERVER_NAME` / `NGINX_PORT` 之類的環境變數——`LiveMR.bat` 執行時會自動偵測目前的區網 IP，並在 `dist-launcher/LiveMR/data/certs/` 產生綁定該 IP 的自簽憑證（下次啟動若 IP 沒變會直接複用）。
+
+若要設定 `GEMINI_API_KEY`（AI 助理功能需要）或覆寫 LiveKit 金鑰，編輯 `dist-launcher/LiveMR/launcher.env`（`node scripts/build-launcher.mjs` 每次都會產生這個範本檔），寫法與 `.env` 相同（`KEY=value`）。
 
 ---
 
@@ -100,38 +68,32 @@ mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1 192
 
 ### 這個專案同時跑幾個「程式」？
 
-開發時一共有 **4 個服務**同時運作：
+開發時實際上只有 **一個 Node 行程**（`standalone.ts`），它會自己把 LiveKit 拉起來當子行程：
 
 ```
 瀏覽器
   │
   ▼
-nginx（Docker, port 443）   ← 唯一對外的入口，負責 HTTPS
-  ├─── /api/*   →  後端 Express（host, port 3001）
-  ├─── /livekit →  LiveKit（Docker, port 7880）
-  └─── /*       →  Vite dev server（host, port 5174）
+standalone.ts（Node，port 443）   ← 唯一對外的入口，內建 https 模組終止 TLS
+  ├─── /api/*     →  內建 Express route（同一個行程直接處理）
+  ├─── /livekit/* →  livekit-server.exe（子行程，127.0.0.1:7880）
+  └─── /*         →  frontend/dist 靜態檔（先 npm run build 產生）
 ```
 
 | 服務 | 在哪裡跑 | 負責什麼 |
 |------|---------|---------|
-| **nginx** | Docker 容器 | HTTPS 終止、把請求分發給對的服務 |
-| **Vite dev server** | 你的電腦（host） | 提供前端 React 頁面，支援 HMR 熱更新 |
-| **後端 Express** | 你的電腦（host） | REST API，管理房間、核發 LiveKit token |
-| **LiveKit** | Docker 容器 | WebRTC 伺服器，處理即時視訊串流 |
+| **standalone.ts** | 你的電腦（Node 行程） | HTTPS 終止、serve 前端靜態檔、把 `/api`、`/livekit` 請求分流出去 |
+| **內建 Express route** | 與 standalone.ts 同行程 | REST API，管理房間、核發 LiveKit token |
+| **livekit-server.exe** | 子行程（127.0.0.1，由 standalone.ts 拉起/關閉） | WebRTC 伺服器，處理即時視訊串流 |
 
 ---
 
-### 為什麼要用 Docker？
+### 為什麼不再需要 Docker？
 
-只有兩個服務需要在 Docker 裡跑，原因不同：
+以前 nginx 負責 SSL 終止，LiveKit 用官方 Docker image 最省事，Redis 給 LiveKit 做多 worker 狀態協調。現在：
 
-**nginx**：
-相機（`getUserMedia`）在瀏覽器裡是受限 API，**只有在 HTTPS 下才能用**。本機 HTTPS 需要 SSL 憑證，而 nginx 就是負責 SSL 的那一層。你的程式碼（Vite、Express）本身跑 HTTP 就好，nginx 幫你在外層套 HTTPS。
-
-**LiveKit**：
-LiveKit 是現成的 WebRTC 服務，直接用官方 Docker image 最省事。LiveKit 需要開一段 UDP port（50000-50020）給 WebRTC 傳輸用。
-
-前端和後端為什麼**不**放在 Docker 裡？因為開發時需要即時修改程式碼、看到 HMR 更新，在 host 上跑最方便。Docker 裡跑 dev server 反而麻煩（volume mount、rebuild 問題）。
+- **SSL 終止**：改由 Node 內建 `https` 模組直接做，憑證用 `selfsigned` 套件在程式啟動時自動產生（`backend/src/launcher/certs.ts`），不需要另外安裝憑證工具或維護根憑證。
+- **LiveKit**：改抓官方 Windows release 的 `livekit-server.exe`，`standalone.ts` 啟動時把它當子行程拉起（`backend/src/launcher/livekitProcess.ts`），關閉時一併終止；單機教室場景不需要多 worker，也就不需要 Redis。
 
 ---
 
@@ -143,117 +105,52 @@ LiveKit 是現成的 WebRTC 服務，直接用官方 Docker image 最省事。Li
 1. 其他裝置瀏覽器
       │  HTTPS 連到 192.168.0.145:443
       ▼
-2. nginx（Docker）
+2. standalone.ts（Node）
       │  解密 SSL，看 URL 路徑決定轉去哪
       │
       ├── 路徑是 /api/*
-      │     │  HTTP 轉發到 host 的 port 3001
+      │     │  同行程內直接呼叫 Express route
       │     ▼
-      │   後端 Express → 回傳 JSON
+      │   回傳 JSON
       │
       ├── 路徑是 /livekit/*
-      │     │  WebSocket 轉發到 livekit 容器 port 7880
+      │     │  http-proxy-middleware 轉發到 127.0.0.1:7880
       │     ▼
-      │   LiveKit → WebRTC 信令
+      │   livekit-server.exe → WebRTC 信令
       │
-      └── 其他路徑（/, /src/*, /assets/*...）
-            │  HTTP 轉發到 host 的 port 5174
+      └── 其他路徑（/, /assets/*...）
+            │  讀取 frontend/dist 靜態檔
             ▼
-          Vite dev server → 回傳 HTML / JS / CSS
+          回傳 HTML / JS / CSS
 ```
 
-關鍵點：**所有流量都進 nginx，nginx 再分流**。其他裝置不需要知道後端在哪、Vite 在哪，只需要知道 `192.168.0.145`。
-
----
-
-### `.env` 每個變數是做什麼的？
-
-```env
-# 後端 Express 監聽的 port
-PORT=3001
-
-# LiveKit 的 API 金鑰（對應 livekit.yaml 裡的設定）
-LIVEKIT_API_KEY=devkey
-LIVEKIT_API_SECRET=devsecret1234567890devsecret1234567890
-
-# 後端用的 LiveKit 連線位址
-# 後端跑在 host，但 LiveKit 跑在 Docker，
-# 同一個 docker-compose 裡服務名稱就是 hostname
-LIVEKIT_URL=ws://livekit:7880
-
-# 前端（瀏覽器）用的 LiveKit 連線位址
-# 瀏覽器在外面，不能用 docker 內部的 hostname，
-# 所以要透過 nginx proxy 的路徑連進去
-VITE_LIVEKIT_URL=wss://192.168.0.145/livekit
-
-# 給前端顯示 QR code / 連結用的 domain
-VITE_APP_DOMAIN=192.168.0.145
-```
-
-**重要細節 — VITE_ 前綴**：
-Vite 在編譯時只會把 `VITE_` 開頭的變數嵌入到前端程式碼，其他變數（例如 `LIVEKIT_API_SECRET`）不會傳給瀏覽器，避免洩漏機密。
-
-**重要細節 — envDir**：
-`.env` 放在專案根目錄，但 Vite dev server 從 `frontend/` 啟動。Vite 預設只找自己目錄下的 `.env`，所以 `vite.config.ts` 裡加了 `envDir: '..'` 讓它往上一層找。
+關鍵點：**所有流量都進 `standalone.ts`，它再分流**。其他裝置不需要知道 LiveKit 在哪，只需要知道你電腦的區網 IP。
 
 ---
 
 ### 跨裝置開發（其他手機/平板測試）
 
 要求：
-- **同一個 WiFi**（其他裝置要能路由到 `192.168.0.145`）
-- **信任 mkcert 根憑證**（否則瀏覽器擋 HTTPS）
+- **同一個 WiFi**（其他裝置要能路由到你電腦偵測到的區網 IP）
 
-**取得根憑證**：
-```bash
-# 查詢 mkcert CA 存放位置
-mkcert -CAROOT
-# 會顯示類似 C:\Users\User\AppData\Local\mkcert
-# 裡面的 rootCA.pem 就是要分享的檔案
-```
-
-只需要分享 `rootCA.pem`，`rootCA-key.pem` 是私鑰，**不要分享**。
-
-**各裝置安裝步驟**：
-
-Android（Chrome）
-```
-1. 把 rootCA.pem 傳到手機（Line、AirDrop 等）
-2. 設定 → 安全性 → 安裝憑證 → CA 憑證
-3. 選剛才的檔案安裝
-```
-
-iOS（Safari）
-```
-1. 把 rootCA.pem 傳到 iPhone（AirDrop 或 email）
-2. 設定 → 已下載的描述檔 → 安裝
-3. 設定 → 一般 → 關於本機 → 憑證信任設定
-4. 把 mkcert 的憑證切換為「啟用完全信任」
-```
-
-Windows（其他電腦）
-```
-1. 雙擊 rootCA.pem
-2. 安裝憑證 → 本機電腦 → 受信任的根憑證授權單位
-```
+**信任憑證**：
+`standalone.ts` 用 `selfsigned` 自動產生的憑證沒有加入任何系統信任清單，所以每個裝置第一次連線都會看到「您的連線不是私人連線」之類的警告——這是預期行為，選「進階」→「繼續前往」即可，不需要額外安裝根憑證或跑 `mkcert -install`。
 
 ---
 
 ### 常見問題
 
-**Q: 啟動後連 https://192.168.0.145 出現 502 Bad Gateway**
-nginx 連不到 Vite 或後端。確認 Vite（port 5174）和後端（port 3001）都在跑。
+**Q: 啟動後連 `https://192.168.0.145` 打不開 / 逾時**
+確認 `standalone.ts` 有印出啟動成功的訊息、終端機沒有噴錯；確認其他裝置與這台電腦在同一個 WiFi。
 
 **Q: 其他裝置看到「您的連線不是私人連線」**
-mkcert 根憑證沒裝到那個裝置，照上面步驟安裝。
+這是預期行為（自簽憑證未加入系統信任清單），選「進階」→「繼續前往」即可，不需要安裝任何根憑證。
 
-**Q: 改了 nginx/default.conf 沒有生效**
-```bash
-docker compose restart nginx
-```
+**Q: 改了前端或後端程式碼沒有生效**
+執行的是 `dist-launcher/LiveMR/app/` 裡打包好的版本，不是原始碼。改完程式碼要重新跑 `node scripts/build-launcher.mjs`（它會重新 build 前端、重新 bundle 後端，並複製到 `dist-launcher/LiveMR/`）再重啟 `LiveMR.bat` 才會看到變化。
 
-**Q: `VITE_LIVEKIT_URL` 沒有生效，LiveKit 連不上**
-確認 `frontend/vite.config.ts` 裡有 `envDir: '..'`，而且 `.env` 在專案根目錄（不是在 `frontend/`）。改完需要重啟 Vite。
+**Q: LiveKit 連不上 / `/livekit` 一直失敗**
+確認 `node scripts/fetch-livekit-server.mjs` 有成功跑過（`.build-cache/livekit-server.exe` 存在），且 `node scripts/build-launcher.mjs` 有把它複製到 `dist-launcher/LiveMR/bin/livekit-server.exe`；查看 `LiveMR.bat` 的終端機輸出有沒有 LiveKit 啟動失敗的訊息。
 
 **Q: 查自己的區網 IP**
 ```bash

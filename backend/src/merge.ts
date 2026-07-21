@@ -89,7 +89,7 @@ async function waitForAudioFilesStable(dir: string, timeoutMs: number): Promise<
 /** Run ffmpeg with the given args; resolves on exit code 0, rejects otherwise. */
 function runFFmpeg(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    const ffmpegExecutable = (ffmpegPath as unknown as string) || 'ffmpeg';
+    const ffmpegExecutable = process.env.FFMPEG_PATH || (ffmpegPath as unknown as string) || 'ffmpeg';
     const proc = spawn(ffmpegExecutable, ['-y', ...args])
     proc.stderr.on('data', (chunk: Buffer) => {
       process.stdout.write(`[ffmpeg] ${chunk.toString()}`)

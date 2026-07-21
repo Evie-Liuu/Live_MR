@@ -8,7 +8,14 @@ import type { RoomAdminService } from './roomAdmin.js'
 import { mergeRecording } from './merge.js'
 import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai.js'
 
-const recordingsDir = path.resolve(process.cwd(), '../recordings')
+const recordingsDir = process.env.RECORDINGS_DIR
+  ? path.resolve(process.env.RECORDINGS_DIR)
+  : path.resolve(process.cwd(), '../recordings')
+
+/** 供測試讀取目前解析出的 recordingsDir（模組頂層常數，import 當下就固定）。 */
+export function __TEST_ONLY_recordingsDir(): string {
+  return recordingsDir
+}
 
 // Allow-list: alphanumeric, hyphen, underscore only — used for participant identities.
 const SAFE_IDENTITY_RE = /^[a-zA-Z0-9_-]{1,128}$/
