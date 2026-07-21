@@ -39,8 +39,7 @@ async function main() {
     // 輸出 CJS（而非 ESM）：backend 的依賴混雜 ESM/CJS，esbuild 對「bundle 成 CJS」
     // 的 interop 處理比「bundle 成 ESM 又要手動 shim require()」更成熟可靠。
     // .cjs 副檔名讓 Node 明確以 CommonJS 執行，不受旁邊任何 package.json 的
-    // "type": "module" 影響。esbuild 會自動把原始碼裡的 import.meta.url 轉成
-    // CJS 相容寫法，standalone.ts 不需要為了這件事改寫。
+    // "type": "module" 影響。import.meta.url 的處理見下面的 define/banner 說明。
     format: 'cjs',
     outfile: path.join(OUT_DIR, 'app', 'standalone.bundle.cjs'),
     // esbuild 對「cjs 輸出格式下的 import.meta.url」並不會做任何轉換，只會把整個
