@@ -87,7 +87,7 @@ function App() {
       setState({ screen: 'select-role' });
       // 可在此顯示提示：請切換到「學生登入」tab 並輸入房間 ID
     } else {
-      // 老師 / 管理員 → 建立房間，進入 host-lobby
+      // 老師 / 管理員 → 建立房間，進入 host-session
       await handleHost();
     }
   };

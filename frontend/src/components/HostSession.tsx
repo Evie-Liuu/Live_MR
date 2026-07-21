@@ -35,6 +35,7 @@ import SceneEditor from './SceneEditor.tsx';
 import SceneOccludersPanel from './SceneOccludersPanel.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
+import { useAuth } from '../hooks/useAuth';
 
 // ─── Module-level constants & types ─────────────────────────────────────────
 type InteractionPhase = 'idle' | 'teacher' | 'generating' | 'student';
@@ -269,6 +270,16 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   // 否則畫面已露出但鏡頭其實還在連接、第一張影像尚未進來。
   const [cameraStreaming, setCameraStreaming] = useState(false);
   const roomRef = useRef<Room | null>(null);
+  // Set participant display name from logged-in user
+  const { user } = useAuth();
+  useEffect(() => {
+    if (connectedRoom && user) {
+      // Update LiveKit participant name for UI consistency
+      // Requires canUpdateOwnMetadata permission in the token
+      const name = user.full_name || user.email || (typeof user.id === 'string' ? user.id : user.uid) || "";
+      void connectedRoom.localParticipant.setName(name);
+    }
+  }, [connectedRoom, user]);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
   const [handEnabled, _] = useState(faceEnabled);
@@ -1991,6 +2002,17 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
               {showBigScreenPreview ? 'ON' : 'OFF'}
             </span>
           </button>
+
+          {user && (
+            <div className='hs-action-btn hs-action--on'>
+              <span className="material-symbols-outlined hs-badge-btn hs-badge--on" style={{ fontSize: '20px' }}>
+                account_circle
+              </span>
+              <span className="hs-action-label">{user.full_name || user.email}</span>
+              <span className="material-symbols-outlined" >keyboard_arrow_down</span>
+            </div>
+          )}
+
         </div>
       </div>
 
