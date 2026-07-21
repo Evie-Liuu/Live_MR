@@ -1,5 +1,9 @@
 # Google Cloud Platform 上線部署流程（初學者版）
 
+> **⚠️ 已過時／不適用於目前版本**：本文件描述的是舊版 **Docker Compose**（`docker-compose.yml` / `nginx/` / `livekit.yaml.template`）部署方式，這些檔案已在改用「原生 Windows 封裝啟動器」（雙擊 `LiveMR.bat`，見 [`ARCHITECTURE.md`](./ARCHITECTURE.md) 第 3 節）後移除。目前的封裝設計是**單機、區域網路教室場景**，並未涵蓋本文件描述的「部署到公開雲端 VM、對外網任何人開放」需求；若未來需要對外雲端部署，需針對新架構（無 nginx / Redis、憑證改用 `selfsigned`）重新設計，本文件僅保留作為舊架構的歷史參考。
+>
+> 以下為原始內容（已不可直接照做）：
+
 > 這份文件帶你**從零**把 Live_MR 部署到 Google Cloud Platform（以下簡稱 GCP），讓網路上任何人都能用網域名稱連上。
 > 假設你**沒有雲端經驗**，每一步都會說明「為什麼」和「怎麼做」。照著做就會成功。
 >

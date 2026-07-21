@@ -140,7 +140,7 @@ pending → merging → done
 bigscreen.webm 由 BigScreen 視窗（獨立 tab）自行錄製並上傳。若視窗在停止錄製前被關閉，錄製中斷。重新開啟視窗會嘗試從 API 恢復 active session（`BigScreen.tsx:137-165`），但已累積的 chunks 會遺失。
 
 ### 大小限制
-- bigscreen.webm 上傳：nginx `client_max_body_size 300m`，routes.ts 亦設 300mb
+- bigscreen.webm 上傳：`routes.ts` 設 300mb（不再經 nginx，無額外的 `client_max_body_size` 限制）
 - audio.webm 上傳：100mb
 - 建議單次錄製不超過 10 分鐘
 
