@@ -25,7 +25,11 @@ async function main() {
   const livekitExe = requireCached('livekit-server.exe', 'node scripts/fetch-livekit-server.mjs')
   const nodeDir = requireCached('node-win-x64', 'node scripts/fetch-portable-node.mjs')
 
-  fs.rmSync(OUT_DIR, { recursive: true, force: true })
+  // 只清掉這次要重新產生的 bin/ 與 app/，不動 data/（裡面是使用者的錄影檔跟憑證）
+  // 也不動既有的 launcher.env（使用者可能已經填好 GEMINI_API_KEY）。
+  // 重新跑這支腳本是預期中的「更新 LiveMR」流程，不應該每次都把使用者資料清空。
+  fs.rmSync(path.join(OUT_DIR, 'bin'), { recursive: true, force: true })
+  fs.rmSync(path.join(OUT_DIR, 'app'), { recursive: true, force: true })
   fs.mkdirSync(path.join(OUT_DIR, 'bin'), { recursive: true })
   fs.mkdirSync(path.join(OUT_DIR, 'app'), { recursive: true })
   fs.mkdirSync(path.join(OUT_DIR, 'data'), { recursive: true })
@@ -83,11 +87,15 @@ pause
   // GEMINI_API_KEY 沒有預設值可用（不像 LIVEKIT_API_KEY/SECRET 有 devkey 這種本地
   // 開發用預設值），AI 助理功能沒設就完全無法運作。附一份範本檔 + 說明，
   // 讓老師知道要編輯這個檔案，而不是啟動後才發現 AI 助理悄悄壞掉。
-  const launcherEnv = `# 編輯這個檔案設定 AI 助理需要的金鑰，存檔後重新啟動 LiveMR.bat 生效。
+  // 只在第一次（檔案不存在時）寫入範本——重新打包不應該蓋掉使用者已經填好的金鑰。
+  const launcherEnvPath = path.join(OUT_DIR, 'launcher.env')
+  if (!fs.existsSync(launcherEnvPath)) {
+    const launcherEnv = `# 編輯這個檔案設定 AI 助理需要的金鑰，存檔後重新啟動 LiveMR.bat 生效。
 # 到 https://aistudio.google.com/apikey 免費取得金鑰。
 GEMINI_API_KEY=
 `
-  fs.writeFileSync(path.join(OUT_DIR, 'launcher.env'), launcherEnv)
+    fs.writeFileSync(launcherEnvPath, launcherEnv)
+  }
 
   console.log(`\n完成：${OUT_DIR}\n雙擊 LiveMR.bat 即可啟動。\n若要使用 AI 助理，記得先編輯 LiveMR/launcher.env 填入 GEMINI_API_KEY。`)
 }

@@ -9,16 +9,18 @@
 ### 每次開發前（啟動環境）
 
 ```bash
-# 1. 建置前端（standalone 入口只會 serve 建置後的靜態檔）
-cd frontend
-npm run build
+# 一次打包整個 launcher：build 前端、esbuild bundle backend、
+# 複製 livekit-server.exe / node.exe / ffmpeg.exe，組裝到 dist-launcher/LiveMR/
+node scripts/build-launcher.mjs
 
-# 2. 啟動整個服務（後端 API + LiveKit 子行程 + 前端靜態檔，同一個 Node 行程）
-cd ../backend
-npx tsx src/standalone.ts
+# 執行組裝好的 launcher
+cd dist-launcher/LiveMR
+./LiveMR.bat
 ```
 
 終端機會印出偵測到的區網 IP，例如 `https://192.168.0.145`，並自動開啟瀏覽器（第一次連線瀏覽器會跳「不安全連線」警告，屬正常現象，按「進階」→「繼續前往」即可）。
+
+> **不能用 `npx tsx src/standalone.ts` 直接跑。** `backend/src/standalone.ts` 用 `__dirname` 相對路徑去找 `bin/livekit-server.exe`、`bin/ffmpeg.exe`、`app/frontend-dist`，這個目錄結構只有 `scripts/build-launcher.mjs` 組裝出的 `dist-launcher/LiveMR/` 裡才成立。改了 backend 程式碼想測試，就重新跑一次 `node scripts/build-launcher.mjs`（esbuild bundle 很快，通常一兩秒）再重啟 `LiveMR.bat`。
 
 ---
 
@@ -47,13 +49,18 @@ npx tsx src/standalone.ts
 ### 初次設定（只做一次）
 
 ```bash
-# 下載 LiveKit 官方 Windows binary，解壓縮出 livekit-server.exe（存到 .build-cache/）
+# 下載 LiveKit 官方 Windows binary（存到 .build-cache/livekit-server.exe）
 node scripts/fetch-livekit-server.mjs
+
+# 下載可攜式 Node.js runtime（存到 .build-cache/node-win-x64/）
+node scripts/fetch-portable-node.mjs
 ```
 
-不需要手動安裝根憑證、不需要編輯 `SERVER_NAME` / `NGINX_PORT` 之類的環境變數——執行一次 `standalone.ts`，它會自動偵測目前的區網 IP，並在 `data/certs/` 產生綁定該 IP 的自簽憑證（下次啟動若 IP 沒變會直接複用）。
+這兩個只需要跑一次（產物快取在 `.build-cache/`，之後每次 `node scripts/build-launcher.mjs` 都會直接複用，不會重新下載）。
 
-若要覆寫 LiveKit 金鑰、對外 port 或設定 `GEMINI_API_KEY`，在 repo 根目錄（或 `backend/`，視你執行 `standalone.ts` 的相對路徑而定）建立 `launcher.env`，寫法與 `.env` 相同（`KEY=value`）。
+不需要手動安裝根憑證、不需要編輯 `SERVER_NAME` / `NGINX_PORT` 之類的環境變數——`LiveMR.bat` 執行時會自動偵測目前的區網 IP，並在 `dist-launcher/LiveMR/data/certs/` 產生綁定該 IP 的自簽憑證（下次啟動若 IP 沒變會直接複用）。
+
+若要設定 `GEMINI_API_KEY`（AI 助理功能需要）或覆寫 LiveKit 金鑰，編輯 `dist-launcher/LiveMR/launcher.env`（`node scripts/build-launcher.mjs` 每次都會產生這個範本檔），寫法與 `.env` 相同（`KEY=value`）。
 
 ---
 
