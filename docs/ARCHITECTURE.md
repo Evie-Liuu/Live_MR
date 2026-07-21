@@ -68,7 +68,7 @@ Live MR 是一套**即時混合實境（MR）英語會話教學平台**。核心
 | **內建 Express route** | 與 `standalone.js` 同行程 | REST API：房間管理、LiveKit token 核發、錄製協調、AI proxy |
 | **livekit-server.exe** | 本機子行程（`backend/src/launcher` 啟動、綁定 127.0.0.1） | WebRTC SFU，處理音訊串流與 data channel；單機模式，無 Redis |
 
-> 開發模式（`npx tsx src/standalone.ts`）與環境變數細節見 [`dev-setup.md`](./dev-setup.md)。
+> 開發流程（`node scripts/build-launcher.mjs` 打包 + `LiveMR.bat` 啟動）與環境變數細節見 [`dev-setup.md`](./dev-setup.md)。
 
 ---
 
