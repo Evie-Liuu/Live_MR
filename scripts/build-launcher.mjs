@@ -25,11 +25,32 @@ async function main() {
   const livekitExe = requireCached('livekit-server.exe', 'node scripts/fetch-livekit-server.mjs')
   const nodeDir = requireCached('node-win-x64', 'node scripts/fetch-portable-node.mjs')
 
-  // 只清掉這次要重新產生的 bin/ 與 app/，不動 data/（裡面是使用者的錄影檔跟憑證）
-  // 也不動既有的 launcher.env（使用者可能已經填好 GEMINI_API_KEY）。
-  // 重新跑這支腳本是預期中的「更新 LiveMR」流程，不應該每次都把使用者資料清空。
-  fs.rmSync(path.join(OUT_DIR, 'bin'), { recursive: true, force: true })
-  fs.rmSync(path.join(OUT_DIR, 'app'), { recursive: true, force: true })
+  // 若背景正在執行 LiveMR (livekit-server.exe 或 portable node.exe)，刪除 bin/ 會因檔案鎖定拋出 EPERM。
+  // 在清理與覆寫前先終止源自 dist-launcher 的背景程序。
+  const killLauncherProcesses = () => {
+    if (process.platform === 'win32') {
+      try {
+        execFileSync('powershell', ['-NoProfile', '-Command', "Get-Process | Where-Object { $_.Path -and $_.Path.Contains('dist-launcher') } | Stop-Process -Force"], { stdio: 'ignore' })
+      } catch {}
+      try { execFileSync('taskkill', ['/F', '/IM', 'livekit-server.exe', '/T'], { stdio: 'ignore' }) } catch {}
+    }
+  }
+
+  killLauncherProcesses()
+
+  try {
+    fs.rmSync(path.join(OUT_DIR, 'bin'), { recursive: true, force: true })
+    fs.rmSync(path.join(OUT_DIR, 'app'), { recursive: true, force: true })
+  } catch (err) {
+    if (err && (err.code === 'EPERM' || err.code === 'EBUSY')) {
+      killLauncherProcesses()
+      fs.rmSync(path.join(OUT_DIR, 'bin'), { recursive: true, force: true })
+      fs.rmSync(path.join(OUT_DIR, 'app'), { recursive: true, force: true })
+    } else {
+      throw err
+    }
+  }
+
   fs.mkdirSync(path.join(OUT_DIR, 'bin'), { recursive: true })
   fs.mkdirSync(path.join(OUT_DIR, 'app'), { recursive: true })
   fs.mkdirSync(path.join(OUT_DIR, 'data'), { recursive: true })
