@@ -271,7 +271,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [cameraStreaming, setCameraStreaming] = useState(false);
   const roomRef = useRef<Room | null>(null);
   // Set participant display name from logged-in user
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   useEffect(() => {
     if (connectedRoom && user) {
       // Update LiveKit participant name for UI consistency
@@ -375,6 +375,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   const [pending, setPending] = useState<PendingStudent[]>([]);
   // Settlement modal (shown when allDone)
   const [showSettlement, setShowSettlement] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   // QR Code share modal (now opened in separate window)
   const openShareWindow = useCallback(() => {
     const url = `${window.location.origin}/?screen=share&roomId=${roomId}`;
@@ -2004,12 +2005,54 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           </button>
 
           {user && (
-            <div className='hs-action-btn hs-action--on'>
-              <span className="material-symbols-outlined hs-badge-btn hs-badge--on" style={{ fontSize: '20px' }}>
-                account_circle
-              </span>
-              <span className="hs-action-label">{user.full_name || user.email}</span>
-              <span className="material-symbols-outlined" >keyboard_arrow_down</span>
+            <div className="hs-user-menu-wrap" style={{ position: 'relative' }}>
+              <button
+                className={`hs-action-btn hs-action--on ${showUserMenu ? 'hs-action--menu-open' : ''}`}
+                onClick={() => setShowUserMenu(v => !v)}
+                title="帳號選單"
+              >
+                <span className="material-symbols-outlined hs-badge-btn hs-badge--on" style={{ fontSize: '20px' }}>
+                  account_circle
+                </span>
+                <span className="hs-action-label">{user.full_name || user.email}</span>
+                <span
+                  className="material-symbols-outlined hs-user-arrow"
+                  style={{ transition: 'transform 0.2s', transform: showUserMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                >
+                  keyboard_arrow_down
+                </span>
+              </button>
+
+              {showUserMenu && (
+                <>
+                  {/* 點外部關閉 */}
+                  <div
+                    className="hs-user-menu-backdrop"
+                    onClick={() => setShowUserMenu(false)}
+                  />
+                  <div className="hs-user-dropdown">
+                    {/* 帳號資訊 */}
+                    <div className="hs-user-info">
+                      <span className="material-symbols-outlined hs-user-info-icon">account_circle</span>
+                      <div className="hs-user-info-text">
+                        {user.full_name && (
+                          <span className="hs-user-name">{user.full_name}</span>
+                        )}
+                        <span className="hs-user-email">{user.email}</span>
+                      </div>
+                    </div>
+                    <div className="hs-user-divider" />
+                    {/* 登出 */}
+                    <button
+                      className="hs-user-menu-item hs-user-logout"
+                      onClick={async () => { setShowUserMenu(false); await logout(); }}
+                    >
+                      <span className="material-symbols-outlined">logout</span>
+                      <span>登出</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
