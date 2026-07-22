@@ -165,7 +165,7 @@ export async function uploadParticipantAudio(
     headers: {
       'Content-Type': 'audio/webm',
       'X-Session-Id': sessionId,
-      'X-Participant-Identity': identity,
+      'X-Participant-Identity': encodeURIComponent(identity),
     },
     body: blob,
   });

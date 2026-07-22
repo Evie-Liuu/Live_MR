@@ -17,8 +17,8 @@ export function __TEST_ONLY_recordingsDir(): string {
   return recordingsDir
 }
 
-// Allow-list: alphanumeric, hyphen, underscore only — used for participant identities.
-const SAFE_IDENTITY_RE = /^[a-zA-Z0-9_-]{1,128}$/
+// Allow-list: alphanumeric (including Unicode/Chinese), hyphen, underscore only — used for participant identities.
+const SAFE_IDENTITY_RE = /^[\p{L}\p{N}_-]{1,128}$/u
 // Allow-list: one base-name segment + a known extension — used for downloaded filenames.
 const SAFE_FILENAME_RE = /^[a-zA-Z0-9_-]{1,200}\.(webm|mp4|ogg)$/
 
@@ -253,7 +253,7 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       const formatter = new Intl.DateTimeFormat('sv-SE', tzOptions)
       const timestamp = formatter.format(new Date()).replace(/[-:]/g, '').replace(' ', '-')
 
-      const safeParticipantName = (participantName || 'Unknown').replace(/[^a-z0-9]/gi, '_')
+      const safeParticipantName = (participantName || 'Unknown').trim().replace(/[/\\?%*:|"<>]/g, '_')
       const safeSceneId = (sceneId || 'DefaultScene').replace(/[^a-z0-9]/gi, '_')
       const folderName = `${safeParticipantName}_${timestamp}`
 
@@ -398,7 +398,8 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
       if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
       const roomId = req.params.roomId as string
       const sessionId = req.headers['x-session-id'] as string | undefined
-      const identity = req.headers['x-participant-identity'] as string | undefined
+      const rawIdentity = req.headers['x-participant-identity'] as string | undefined
+      const identity = rawIdentity ? decodeURIComponent(rawIdentity) : undefined
       if (!sessionId || !identity) {
         res.status(400).json({ error: 'X-Session-Id and X-Participant-Identity headers required' })
         return
@@ -414,7 +415,9 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
         assertInRecordingsDir(dir)
         await fs.promises.mkdir(dir, { recursive: true })
         // Use .webm for client-side recording (usually produced by MediaRecorder in Chrome)
-        const filename = `audio_${identity}.webm`
+        // Use participant identity (name) directly for the audio filename
+        const safeFilePart = identity.replace(/[/\\?%*:|"<>]/g, '_')
+        const filename = `audio_${safeFilePart}.webm`
         const filePath = path.join(dir, filename)
         assertInRecordingsDir(filePath)
         await fs.promises.writeFile(filePath, req.body as Buffer)

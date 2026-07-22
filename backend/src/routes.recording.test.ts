@@ -133,6 +133,22 @@ describe('Recording Routes', () => {
       expect(res.status).toBe(200)
       expect(res.body.ok).toBe(true)
     })
+
+    it('accepts Chinese participant identity in audio upload header', async () => {
+      await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
+      const sessionId = (
+        await request(app).get(`/api/rooms/${roomId}/recordings`)
+      ).body.recordings[0].sessionId
+
+      const res = await request(app)
+        .post(`/api/rooms/${roomId}/recording/audio`)
+        .set('Content-Type', 'audio/webm')
+        .set('X-Session-Id', sessionId)
+        .set('X-Participant-Identity', encodeURIComponent('張小明'))
+        .send(Buffer.from('fake-audio-data'))
+      expect(res.status).toBe(200)
+      expect(res.body.ok).toBe(true)
+    })
   })
 
   describe('GET /api/recordings/:roomId/:sessionId/:filename', () => {

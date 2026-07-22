@@ -15,8 +15,8 @@ export default function LoginScreen({ onLoginSuccess, onStudentJoin }: LoginScre
   const [activeTab, setActiveTab] = useState<'teacher' | 'student'>('teacher');
 
   // Teacher Form state
-  const [email, setEmail] = useState('pitou@sdgsjourney.com');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('test@example.com');
+  const [password, setPassword] = useState('test123');
   const [rememberMe, setRememberMe] = useState(true);
   const [teacherLoading, setTeacherLoading] = useState(false);
   const [teacherError, setTeacherError] = useState('');

@@ -202,6 +202,75 @@ describe('API Routes', () => {
     })
   })
 
+  describe('POST /api/rooms/:roomId/recording/audio (Chinese identity)', () => {
+    it('accepts Chinese identity (encodeURIComponent) and saves ASCII-safe filename', async () => {
+      const { vi } = await import('vitest')
+      const os = await import('os')
+      const fs = await import('fs')
+      const path = await import('path')
+
+      const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'live-mr-audio-'))
+
+      // Set env BEFORE resetting modules so freshly loaded routes.js picks it up
+      const origEnv = process.env.RECORDINGS_DIR
+      process.env.RECORDINGS_DIR = tmpDir
+
+      vi.resetModules()
+
+      const { createRouter: freshRouter } = await import('./routes.js')
+      const { RecordingStore } = await import('./recording.js')
+
+      const roomAdmin = { removeParticipant: async () => {}, muteTrack: async () => {} } as any
+      const recStore = new RecordingStore()
+
+      const freshStore = new RoomStore()
+      const localApp = express()
+      localApp.use(express.json())
+      localApp.use('/api', freshRouter(freshStore, { recordingStore: recStore, roomAdmin }))
+
+      // Create a room in the fresh store
+      const createRes = await request(localApp).post('/api/rooms')
+      const { roomId } = createRes.body
+
+      // Pre-create session dir (mirrors what recording/start does)
+      const sessionDir = path.join(tmpDir, 'TestScene', 'Participant_20250101-120000')
+      await fs.promises.mkdir(sessionDir, { recursive: true })
+      const session = recStore.startSession(
+        roomId,
+        '/recordings/TestScene/Participant_20250101-120000',
+        'sess-cn-001',
+      )
+
+      // Simulate frontend: encodeURIComponent("張三") → "%E5%BC%B5%E4%B8%89"
+      const chineseName = '張三'
+      const encodedName = encodeURIComponent(chineseName)
+
+      const res = await request(localApp)
+        .post(`/api/rooms/${roomId}/recording/audio`)
+        .set('Content-Type', 'audio/webm')
+        .set('X-Session-Id', session.sessionId)
+        .set('X-Participant-Identity', encodedName)
+        .send(Buffer.from('fake-audio-data'))
+
+      expect(res.status).toBe(200)
+      expect(res.body.ok).toBe(true)
+
+      // Verify the saved filename contains the Chinese name directly
+      const files = await fs.promises.readdir(sessionDir)
+      const audioFile = files.find((f) => f.startsWith('audio_') && f.endsWith('.webm'))
+      expect(audioFile).toBe('audio_張三.webm')
+
+      // Original decoded Chinese name is preserved in participantIdentities
+      expect(session.participantIdentities).toContain(chineseName)
+
+      // Cleanup
+      process.env.RECORDINGS_DIR = origEnv
+      vi.resetModules()
+      await fs.promises.rm(tmpDir, { recursive: true, force: true })
+    })
+  })
+
+
   describe('POST /api/sdgs/auth/login', () => {
     it('proxies response status from upstream SDGs server', async () => {
       const res = await request(app)
