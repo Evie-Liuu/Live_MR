@@ -15,7 +15,7 @@ describe('securityHeaders', () => {
     expect(res.headers['x-content-type-options']).toBe('nosniff')
     expect(res.headers['x-frame-options']).toBe('SAMEORIGIN')
     expect(res.headers['content-security-policy']).toBe(
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' wss://192.168.1.50 blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests",
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; style-src-elem 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://identitytoolkit.googleapis.com https://api.sdgs-journey.com wss://192.168.1.50 blob:; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests",
     )
   })
 

@@ -568,5 +568,35 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
     },
   )
 
+  // POST /api/sdgs/auth/login — Proxy to SDGs Journey auth API (solves CORS when accessed via LAN IPs)
+  router.post('/sdgs/auth/login', async (req: Request, res: Response) => {
+    const sdgsApiUrl = process.env.SDGS_API_BASE_URL || 'https://api.sdgs-journey.com/api/v1'
+    try {
+      const response = await fetch(`${sdgsApiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body),
+      })
+
+      const contentType = response.headers.get('content-type')
+      const data = contentType && contentType.includes('application/json')
+        ? await response.json()
+        : await response.text()
+
+      if (!response.ok) {
+        res.status(response.status).json(
+          typeof data === 'string' ? { error: data } : data
+        )
+        return
+      }
+
+      res.status(response.status).json(data)
+    } catch (err: any) {
+      console.error('[sdgs/auth/login proxy] error:', err?.message ?? String(err))
+      res.status(502).json({ error: 'Failed to connect to SDGs authentication server' })
+    }
+  })
+
   return router
 }
+

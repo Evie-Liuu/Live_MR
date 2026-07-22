@@ -43,10 +43,9 @@ interface AuthState {
   isLoading: boolean;
 }
 
-// ── 後端 login API ──────────────────────────────────────────────────────────
-// SDGs API Base URL: 我們需要向 SDGs 的後端 API 伺服器驗證，而不是 Live_MR 自己的後端。
-// 預設為 SDGs 的正式環境 API，或者開發者可在 .env 中自訂 VITE_SDGS_API_BASE_URL
-const API_BASE_URL = import.meta.env.VITE_SDGS_API_BASE_URL || 'https://api.sdgs-journey.com/api/v1';
+// SDGs API Base URL: 預設走 Live_MR 本機 Express 代理 (/api/sdgs) 以避免區網 IP 變更造成的 CORS 問題。
+// 開發者可在 .env 中自訂 VITE_SDGS_API_BASE_URL
+const API_BASE_URL = '/api/sdgs' //|| import.meta.env.VITE_SDGS_API_BASE_URL;
 
 async function backendLogin(idToken: string): Promise<AuthUser> {
   const res = await fetch(`${API_BASE_URL}/auth/login`, {

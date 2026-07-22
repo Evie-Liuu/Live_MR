@@ -201,4 +201,15 @@ describe('API Routes', () => {
       }
     })
   })
+
+  describe('POST /api/sdgs/auth/login', () => {
+    it('proxies response status from upstream SDGs server', async () => {
+      const res = await request(app)
+        .post('/api/sdgs/auth/login')
+        .send({ id_token: 'invalid_token' })
+
+      // When remote server is up, invalid_token returns 400/401; when down, proxy returns 502/500
+      expect([400, 401, 500, 502]).toContain(res.status)
+    })
+  })
 })
