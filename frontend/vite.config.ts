@@ -9,16 +9,13 @@ export default defineConfig({
     sourcemap: false,
   },
   server: {
-    allowedHosts: ['.trycloudflare.com'],
     proxy: {
-      // Proxy API requests to backend dev server
+      // Proxy API requests to backend dev server (backend/src/dev.ts)
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
-      // Proxy LiveKit WebSocket — mirrors the Nginx /livekit/ rule.
-      // This lets VITE_LIVEKIT_URL=wss://192.168.0.145/livekit work in
-      // both the local dev server AND the Docker/Nginx production stack.
+      // Proxy LiveKit WebSocket to the dev-only LiveKit process (scripts/dev-livekit.ts).
       '/livekit': {
         target: 'ws://localhost:7880',
         ws: true,
@@ -28,9 +25,6 @@ export default defineConfig({
     },
     host: '0.0.0.0',
     port: 5173,
-    hmr: {
-      clientPort: 443,
-    },
     watch: {
       usePolling: true,
     },

@@ -29,6 +29,7 @@ const ROOM_TTL = 2 * 60 * 60 * 1000
 setInterval(() => store.cleanup(ROOM_TTL), CLEANUP_INTERVAL)
 
 const PORT = 3001
-app.listen(PORT, () => {
+// 只綁 127.0.0.1——這裡帶固定的 devkey/devsecret，不應該讓區網其他裝置連得到。
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`Dev backend listening on http://localhost:${PORT}（配合 frontend 的 Vite dev server 使用，不要直接打開這個網址）`)
 })

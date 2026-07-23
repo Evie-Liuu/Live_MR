@@ -29,7 +29,7 @@ cd dist-launcher/LiveMR
 上面「每次開發前」那條路徑（`build-launcher.mjs` + `LiveMR.bat`）跑的是**打包後**的版本，改一行程式碼就要重新 build，對日常前端/後端開發來說太慢。想要改了就立刻在瀏覽器看到結果（HMR 熱重載、`tsx watch` 自動重啟），改用這套**三個終端機視窗**的 dev 模式：
 
 ```bash
-# 視窗 1：dev 用 LiveKit（僅綁 127.0.0.1，固定用 devkey/devsecret，不會跟正式環境衝突）
+# 視窗 1：dev 用 LiveKit（RTC 只對外廣播 127.0.0.1，其他裝置無法建立媒體連線；固定用 devkey/devsecret，不會跟正式環境衝突）
 npx tsx scripts/dev-livekit.ts
 
 # 視窗 2：後端 API（Express + tsx watch，改檔案自動重啟，port 3001）
@@ -48,7 +48,7 @@ cd frontend && npm run dev
 | 啟動方式 | 三個終端機分別跑 `dev-livekit.ts` / `backend npm run dev` / `frontend npm run dev` | 一個 `LiveMR.bat`（`build-launcher.mjs` 組裝出來） |
 | 改程式碼 | 存檔立即生效（HMR / `tsx watch`），不用重新打包 | 要重新跑 `node scripts/build-launcher.mjs` 才會反映 |
 | 網址 | `http://localhost:5173`（純 HTTP，只給自己這台電腦用） | `https://<你的區網IP>`（HTTPS，其他裝置也能連） |
-| LiveKit / 金鑰 | 固定 `devkey`/`devsecret`，只綁 `127.0.0.1` | 每次啟動隨機/沿用 `launcher.env`，綁區網 IP |
+| LiveKit / 金鑰 | 固定 `devkey`/`devsecret`，RTC 只廣播 `127.0.0.1`（其他裝置連不上媒體） | 每次啟動隨機/沿用 `launcher.env`，綁區網 IP |
 | 用途 | 本機快速開發迭代 | 驗證「其他裝置真的能用」的最終打包結果 |
 
 這套 dev 模式**只是給你自己在這台電腦上快速迭代用**，不會、也不該拿來當作「這個功能真的可以動」的驗收依據——例如要確認跨裝置、HTTPS 憑證警告、正式打包產物有沒有問題，還是得照「每次開發前」那條路徑跑 `build-launcher.mjs` + `LiveMR.bat`。兩條路徑不要混著用，也不需要同時跑。
