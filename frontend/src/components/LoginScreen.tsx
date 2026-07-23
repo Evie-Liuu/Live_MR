@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { joinRequest } from '../api.ts';
-import loginIllustration from '../assets/login_illustration.png';
+import loginIllustration from '../assets/login_page.png';
 import type { AuthUser } from '../hooks/useAuth.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import './LoginScreen.css';
@@ -78,7 +78,7 @@ export default function LoginScreen({ onLoginSuccess, onStudentJoin }: LoginScre
         <div className="login-illustration-wrapper">
           <img src={loginIllustration} alt="Educational Illustration" />
         </div>
-        <h2 className="login-welcome-banner">歡迎回到知識的樂園！</h2>
+        {/* <h2 className="login-welcome-banner">歡迎回到知識的樂園！</h2> */}
       </div>
 
       {/* Right Column: Login Card */}
