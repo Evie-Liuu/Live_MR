@@ -22,6 +22,14 @@ const SAFE_IDENTITY_RE = /^[\p{L}\p{N}_-]{1,128}$/u
 // Allow-list: one base-name segment + a known extension — used for downloaded filenames.
 const SAFE_FILENAME_RE = /^[a-zA-Z0-9_-]{1,200}\.(webm|mp4|ogg)$/
 
+/** Map an upload's Content-Type to the on-disk audio extension (falls back to .webm for Chrome/unknown UAs). */
+function audioExtFromContentType(contentType: string | undefined): string {
+  const type = (contentType ?? '').split(';')[0].trim().toLowerCase()
+  if (type === 'audio/mp4') return '.mp4'
+  if (type === 'audio/ogg') return '.ogg'
+  return '.webm'
+}
+
 /** Verify that resolvedPath is strictly inside recordingsDir. */
 function assertInRecordingsDir(resolvedPath: string): void {
   if (
@@ -414,10 +422,12 @@ export function createRouter(store: RoomStore, recording?: RecordingDeps): Route
         const dir = basepathToDir(session.basePath)
         assertInRecordingsDir(dir)
         await fs.promises.mkdir(dir, { recursive: true })
-        // Use .webm for client-side recording (usually produced by MediaRecorder in Chrome)
+        // Extension follows the browser's actual MediaRecorder output — Chrome/Android
+        // produce webm/opus, iPad/iPhone Safari can only produce mp4/aac.
         // Use participant identity (name) directly for the audio filename
         const safeFilePart = identity.replace(/[/\\?%*:|"<>]/g, '_')
-        const filename = `audio_${safeFilePart}.webm`
+        const ext = audioExtFromContentType(req.headers['content-type'])
+        const filename = `audio_${safeFilePart}${ext}`
         const filePath = path.join(dir, filename)
         assertInRecordingsDir(filePath)
         await fs.promises.writeFile(filePath, req.body as Buffer)

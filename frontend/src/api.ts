@@ -163,7 +163,7 @@ export async function uploadParticipantAudio(
   await fetch(`/api/rooms/${roomId}/recording/audio`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'audio/webm',
+      'Content-Type': blob.type || 'audio/webm',
       'X-Session-Id': sessionId,
       'X-Participant-Identity': encodeURIComponent(identity),
     },

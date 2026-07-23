@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
 import express from 'express'
+import fs from 'fs'
+import path from 'path'
 import { RoomStore } from './rooms.js'
 import { RecordingStore } from './recording.js'
-import { createRouter } from './routes.js'
+import { createRouter, __TEST_ONLY_recordingsDir } from './routes.js'
 import type { RoomAdminService } from './roomAdmin.js'
 
 vi.mock('fs', async (importOriginal) => {
@@ -148,6 +150,34 @@ describe('Recording Routes', () => {
         .send(Buffer.from('fake-audio-data'))
       expect(res.status).toBe(200)
       expect(res.body.ok).toBe(true)
+    })
+
+    it('saves iPad/Safari audio/mp4 upload with .mp4 extension, not .webm', async () => {
+      await request(app).post(`/api/rooms/${roomId}/recording/start`).send({})
+      const sessionId = (
+        await request(app).get(`/api/rooms/${roomId}/recordings`)
+      ).body.recordings[0].sessionId
+
+      const res = await request(app)
+        .post(`/api/rooms/${roomId}/recording/audio`)
+        .set('Content-Type', 'audio/mp4')
+        .set('X-Session-Id', sessionId)
+        .set('X-Participant-Identity', encodeURIComponent('alice'))
+        .send(Buffer.from('fake-mp4-audio-data'))
+
+      expect(res.status).toBe(200)
+      expect(res.body.ok).toBe(true)
+
+      // fs.promises isn't actually mocked for this route in practice (writeFile really
+      // hits disk here), so verify through the real download endpoint instead of the mock.
+      const download = await request(app).get(
+        `/api/recordings/${roomId}/${sessionId}/audio_alice.mp4`,
+      )
+      expect(download.status).toBe(200)
+
+      const session = recordingStore.getSessionById(sessionId)
+      const dir = path.resolve(__TEST_ONLY_recordingsDir(), session!.basePath.replace(/^\/recordings\//, ''))
+      fs.rmSync(dir, { recursive: true, force: true })
     })
   })
 

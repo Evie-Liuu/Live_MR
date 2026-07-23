@@ -34,13 +34,17 @@ async function waitForFileStable(filePath: string, timeoutMs: number): Promise<v
   throw new Error(`Timeout waiting for file to complete: ${filePath}`)
 }
 
+// Client-side MediaRecorder output varies by browser: Chrome/Android produce
+// webm/opus, iPad/iPhone Safari can only produce mp4/aac.
+const AUDIO_FILE_RE = /^audio_.*\.(webm|mp4|ogg)$/
+
 /**
- * Wait for all audio files (audio_*.webm) in the directory to finish
+ * Wait for all audio files (audio_*.{webm,mp4,ogg}) in the directory to finish
  * writing. Polls every second; resolves once every found file has had an identical
  * non-zero size for two consecutive polls, OR when timeoutMs elapses (proceeds
  * with whatever is available rather than throwing).
  *
- * Gives client-side .webm uploads time to land before ffmpeg runs.
+ * Gives client-side uploads time to land before ffmpeg runs.
  */
 async function waitForAudioFilesStable(dir: string, timeoutMs: number): Promise<void> {
   const start = Date.now()
@@ -52,9 +56,7 @@ async function waitForAudioFilesStable(dir: string, timeoutMs: number): Promise<
 
     let entries: string[]
     try {
-      entries = fs.readdirSync(dir).filter(
-        f => f.startsWith('audio_') && f.endsWith('.webm'),
-      )
+      entries = fs.readdirSync(dir).filter(f => AUDIO_FILE_RE.test(f))
     } catch {
       continue
     }
@@ -105,7 +107,7 @@ function runFFmpeg(args: string[]): Promise<void> {
 /**
  * Merge bigscreen.webm + per-participant audio files into output.mp4.
  *
- * Audio discovery: scans the directory for all audio_*.webm files
+ * Audio discovery: scans the directory for all audio_*.{webm,mp4,ogg} files
  * rather than relying solely on the identity list — this captures participants whose
  * client-side upload arrived late.
  *
@@ -137,7 +139,7 @@ export async function mergeRecording(
   const audioInputs: string[] = []
 
   for (const f of dirEntries) {
-    if (f.startsWith('audio_') && f.endsWith('.webm')) {
+    if (AUDIO_FILE_RE.test(f)) {
       audioInputs.push(path.join(dir, f))
     }
   }
