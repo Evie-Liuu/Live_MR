@@ -24,7 +24,40 @@ cd dist-launcher/LiveMR
 
 ---
 
-### 停止
+### 快速迭代開發模式（改代碼即時生效，不用重新打包）
+
+上面「每次開發前」那條路徑（`build-launcher.mjs` + `LiveMR.bat`）跑的是**打包後**的版本，改一行程式碼就要重新 build，對日常前端/後端開發來說太慢。想要改了就立刻在瀏覽器看到結果（HMR 熱重載、`tsx watch` 自動重啟），改用這套**三個終端機視窗**的 dev 模式：
+
+```bash
+# 視窗 1：dev 用 LiveKit（僅綁 127.0.0.1，固定用 devkey/devsecret，不會跟正式環境衝突）
+npx tsx scripts/dev-livekit.ts
+
+# 視窗 2：後端 API（Express + tsx watch，改檔案自動重啟，port 3001）
+cd backend && npm run dev
+
+# 視窗 3：前端（Vite dev server，HMR 熱重載，port 5173）
+cd frontend && npm run dev
+```
+
+三個都要跑起來、且順序不重要（`dev-livekit.ts` 與 `backend/src/dev.ts` 互相不依賴啟動順序，只要兩邊都連到 `127.0.0.1:7880` 即可）。啟動後開 `http://localhost:5173`：Vite 會把 `/api/*` proxy 到 `http://localhost:3001`（視窗 2 的 Express），把 `/livekit/*` proxy 到 `ws://localhost:7880`（視窗 1 的 LiveKit，proxy 規則會先把 `/livekit` 前綴去掉），設定在 `frontend/vite.config.ts` 的 `server.proxy`。
+
+**跟打包測試的差別（不要搞混）：**
+
+| | 快速迭代開發模式（本節） | 打包測試（`LiveMR.bat`，見「每次開發前」） |
+|---|---|---|
+| 啟動方式 | 三個終端機分別跑 `dev-livekit.ts` / `backend npm run dev` / `frontend npm run dev` | 一個 `LiveMR.bat`（`build-launcher.mjs` 組裝出來） |
+| 改程式碼 | 存檔立即生效（HMR / `tsx watch`），不用重新打包 | 要重新跑 `node scripts/build-launcher.mjs` 才會反映 |
+| 網址 | `http://localhost:5173`（純 HTTP，只給自己這台電腦用） | `https://<你的區網IP>`（HTTPS，其他裝置也能連） |
+| LiveKit / 金鑰 | 固定 `devkey`/`devsecret`，只綁 `127.0.0.1` | 每次啟動隨機/沿用 `launcher.env`，綁區網 IP |
+| 用途 | 本機快速開發迭代 | 驗證「其他裝置真的能用」的最終打包結果 |
+
+這套 dev 模式**只是給你自己在這台電腦上快速迭代用**，不會、也不該拿來當作「這個功能真的可以動」的驗收依據——例如要確認跨裝置、HTTPS 憑證警告、正式打包產物有沒有問題，還是得照「每次開發前」那條路徑跑 `build-launcher.mjs` + `LiveMR.bat`。兩條路徑不要混著用，也不需要同時跑。
+
+**停止：** 三個視窗個別按 `Ctrl+C`。`scripts/dev-livekit.ts` 有註冊 `SIGINT`/`SIGTERM`，收到訊號會自己關掉 `livekit-server.exe` 子行程再結束；`backend`/`frontend` 的 `Ctrl+C` 由 `tsx`/`vite` 自己處理。關閉後可以用工作管理員或 `tasklist` 確認沒有殘留的 `livekit-server.exe` / 相關 `node.exe` 行程。
+
+---
+
+### 停止（打包測試模式）
 
 在跑 `standalone.ts` 的終端機按 `Ctrl+C`，會自動一併關閉 LiveKit 子行程與 HTTPS 伺服器。
 
