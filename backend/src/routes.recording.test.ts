@@ -2,20 +2,32 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
 import express from 'express'
 import fs from 'fs'
-import path from 'path'
 import { RoomStore } from './rooms.js'
 import { RecordingStore } from './recording.js'
-import { createRouter, __TEST_ONLY_recordingsDir } from './routes.js'
+import { createRouter } from './routes.js'
 import type { RoomAdminService } from './roomAdmin.js'
 
 vi.mock('fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('fs')>()
+  const promises = {
+    ...actual.promises,
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+  }
+  // Node's real 'fs' module also exposes a `default` export equal to the whole
+  // module object (CJS/ESM interop; not represented in @types/node's namespace
+  // type, hence the cast) — `import fs from 'fs'` resolves through THIS, not the
+  // named `promises` export below. Without patching it too, the override is dead
+  // code: routes.ts's `import fs from 'fs'` (and this test file's own) would
+  // silently fall through to the real, unmocked fs.promises and write actual
+  // files to disk on every test run.
+  const actualDefault = (actual as unknown as { default?: typeof actual }).default
   return {
     ...actual,
-    promises: {
-      ...actual.promises,
-      mkdir: vi.fn().mockResolvedValue(undefined),
-      writeFile: vi.fn().mockResolvedValue(undefined),
+    promises,
+    default: {
+      ...actualDefault,
+      promises,
     },
   }
 })
@@ -168,16 +180,9 @@ describe('Recording Routes', () => {
       expect(res.status).toBe(200)
       expect(res.body.ok).toBe(true)
 
-      // fs.promises isn't actually mocked for this route in practice (writeFile really
-      // hits disk here), so verify through the real download endpoint instead of the mock.
-      const download = await request(app).get(
-        `/api/recordings/${roomId}/${sessionId}/audio_alice.mp4`,
-      )
-      expect(download.status).toBe(200)
-
-      const session = recordingStore.getSessionById(sessionId)
-      const dir = path.resolve(__TEST_ONLY_recordingsDir(), session!.basePath.replace(/^\/recordings\//, ''))
-      fs.rmSync(dir, { recursive: true, force: true })
+      const writeFileMock = vi.mocked(fs.promises.writeFile)
+      const savedPath = writeFileMock.mock.calls[0]![0] as string
+      expect(savedPath).toMatch(/audio_alice\.mp4$/)
     })
   })
 
