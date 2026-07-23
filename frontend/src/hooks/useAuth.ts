@@ -150,6 +150,8 @@ export function useAuth() {
   /** 登出（同 auth.js 的 logout） */
   const logout = useCallback(async () => {
     try {
+      window.location.href = '/';
+      sessionStorage.clear();
       await signOut(auth);
     } catch (err) {
       console.error('登出失敗:', err);

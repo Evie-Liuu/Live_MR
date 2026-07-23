@@ -4010,7 +4010,7 @@ button:disabled {
   right: 0;
   z-index: 1000;
   min-width: 220px;
-  background: var(--surface, #1e2535);
+  background: var(--surface, var(--secondary-light));
   border: 1.5px solid var(--border, rgba(255,255,255,0.12));
   border-radius: 14px;
   padding: 6px;
@@ -4054,7 +4054,8 @@ button:disabled {
 
 .hs-user-email {
   font-size: 12px;
-  color: var(--text-muted, rgba(255,255,255,0.5));
+  color: var(--text-muted, rgba(110, 106, 106, 1));
+  margin-top: -10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

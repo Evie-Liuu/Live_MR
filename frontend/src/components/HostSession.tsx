@@ -2011,7 +2011,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                 onClick={() => setShowUserMenu(v => !v)}
                 title="帳號選單"
               >
-                <span className="material-symbols-outlined hs-badge-btn hs-badge--on" style={{ fontSize: '20px' }}>
+                <span className="material-symbols-outlined hs-badge-btn" style={{ fontSize: '20px' }}>
                   account_circle
                 </span>
                 <span className="hs-action-label">{user.full_name || user.email}</span>
