@@ -85,34 +85,6 @@
   color: #008080;
 }
 
-/* Tabs */
-.login-tabs {
-  display: flex;
-  background-color: #F0F2F5;
-  border-radius: 30px;
-  padding: 6px;
-  margin-bottom: 28px;
-}
-
-.login-tab {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 10px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #6B7280;
-  border-radius: 24px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.login-tab.active {
-  background-color: #FFFFFF;
-  color: #0C7B83;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
 /* Forms */
 .login-form {
   display: flex;
