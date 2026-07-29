@@ -16,10 +16,14 @@ export default function StudentHome({ fullName, onSubmitted, onLogout }: Student
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // loading (state) 生效前有一段延遲，QR 掃描器可能在同一個 tick 內重複觸發
+  // onDecode，因此另外用 ref 做同步鎖，避免送出兩次 joinRequest。
+  const isSubmittingRef = useRef(false);
 
   const submitRoomId = async (id: string) => {
     const trimmed = id.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setLoading(true);
     setError('');
     try {
@@ -28,6 +32,7 @@ export default function StudentHome({ fullName, onSubmitted, onLogout }: Student
     } catch (err) {
       setError(String(err));
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
