@@ -14,7 +14,11 @@ const app = express()
 app.disable('x-powered-by')
 // Vite dev server（:5173）用 proxy 轉發 /api，瀏覽器本身視角是同源請求；
 // 這裡的 CORS 設定只在有人直接對 :3001 發請求（例如用 curl/Postman 除錯）時才用得到。
-app.use(cors({ origin: 'http://localhost:5173' }))
+// 弱點掃描修正：明確限制允許的 HTTP 方法，移除預設包含的 PUT、DELETE。
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+}))
 app.use(express.json({ limit: '25mb' }))
 
 const store = new RoomStore()

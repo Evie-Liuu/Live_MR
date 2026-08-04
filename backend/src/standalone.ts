@@ -68,7 +68,12 @@ async function main(): Promise<void> {
 
   const app = express()
   app.disable('x-powered-by')
-  app.use(cors({ origin: [`https://${ip}`] }))
+  // 弱點掃描修正：明確限制允許的 HTTP 方法，僅開放 API 實際需要的項目，
+  // 移除預設包含的 PUT、DELETE，避免 Access-Control-Allow-Methods 暴露不必要的高風險方法。
+  app.use(cors({
+    origin: [`https://${ip}`],
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+  }))
   app.use(securityHeaders(ip))
   app.use(express.json({ limit: '25mb' }))
 
