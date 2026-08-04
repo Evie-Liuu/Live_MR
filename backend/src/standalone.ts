@@ -96,9 +96,24 @@ async function main(): Promise<void> {
   const ROOM_TTL = 2 * 60 * 60 * 1000
   setInterval(() => store.cleanup(ROOM_TTL), CLEANUP_INTERVAL)
 
-  const credentials = {
+  const credentials: https.ServerOptions = {
     cert: fs.readFileSync(certPath),
     key: fs.readFileSync(keyPath),
+    // 弱點掃描修正：僅允許具前向保密的 AEAD 加密套件（ECDHE + GCM/ChaCha20-Poly1305），
+    // 停用靜態 RSA 金鑰交換、AES-CBC 與 HMAC-SHA1 等已不建議使用的舊式套件。
+    minVersion: 'TLSv1.2',
+    honorCipherOrder: true,
+    ciphers: [
+      'TLS_AES_256_GCM_SHA384',
+      'TLS_CHACHA20_POLY1305_SHA256',
+      'TLS_AES_128_GCM_SHA256',
+      'ECDHE-ECDSA-AES128-GCM-SHA256',
+      'ECDHE-RSA-AES128-GCM-SHA256',
+      'ECDHE-ECDSA-AES256-GCM-SHA384',
+      'ECDHE-RSA-AES256-GCM-SHA384',
+      'ECDHE-ECDSA-CHACHA20-POLY1305',
+      'ECDHE-RSA-CHACHA20-POLY1305',
+    ].join(':'),
   }
   const server = https.createServer(credentials, app)
   // http-proxy-middleware 的 WebSocket 代理需要手動接上 http server 的 upgrade 事件

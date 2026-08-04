@@ -46,4 +46,17 @@ describe('ensureCert', () => {
     const cert = new X509Certificate(fs.readFileSync(second.certPath))
     expect(cert.subjectAltName).toContain('IP Address:10.0.0.5')
   })
+
+  it('regenerates a pre-existing cert that predates the format-version marker (e.g. old sha1 cert)', async () => {
+    const first = await ensureCert(dir, '192.168.1.50')
+    const firstContent = fs.readFileSync(first.certPath, 'utf8')
+
+    // 模擬弱點掃描修正前產生的憑證：ip.txt 只有 IP，沒有版本號那一行。
+    fs.writeFileSync(path.join(dir, 'ip.txt'), '192.168.1.50')
+
+    const second = await ensureCert(dir, '192.168.1.50')
+    const secondContent = fs.readFileSync(second.certPath, 'utf8')
+
+    expect(secondContent).not.toBe(firstContent)
+  })
 })
