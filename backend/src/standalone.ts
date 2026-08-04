@@ -93,9 +93,35 @@ async function main(): Promise<void> {
   app.use('/livekit', livekitProxy)
 
   // 比照 frontend/nginx.conf（commit e25895c）：關閉 ETag/Last-Modified，避免洩漏 build 時間戳。
-  app.use(express.static(FRONTEND_DIST, { etag: false, lastModified: false }))
+  // 弱點掃描修正 — 靜態資源快取分層策略：
+  //   /assets/*：Vite 在 hash 化的檔名中已確保內容唯一，可長期快取（immutable）。
+  //   其餘（含 index.html）：no-cache，強制瀏覽器每次向伺服器驗證，但允許重複使用已驗證的快取。
+  // 兩者皆覆蓋 securityHeaders 設定的全域 Cache-Control: no-store，
+  // 因為靜態資源不含敏感資料，允許較寬鬆的快取以提升效能。
+  app.use(
+    '/assets',
+    express.static(path.join(FRONTEND_DIST, 'assets'), {
+      etag: false,
+      lastModified: false,
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      },
+    }),
+  )
+  app.use(
+    express.static(FRONTEND_DIST, {
+      etag: false,
+      lastModified: false,
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'no-cache')
+      },
+    }),
+  )
   // Express 5（path-to-regexp v8）不再接受裸的 '*'，SPA fallback 要用具名萬用字元。
-  app.get('/{*splat}', (_req, res) => res.sendFile(path.join(FRONTEND_DIST, 'index.html')))
+  app.get('/{*splat}', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
+    res.sendFile(path.join(FRONTEND_DIST, 'index.html'))
+  })
 
   const CLEANUP_INTERVAL = 5 * 60 * 1000
   const ROOM_TTL = 2 * 60 * 60 * 1000
