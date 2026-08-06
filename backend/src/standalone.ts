@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const { certPath, keyPath } = await ensureCert(path.join(DATA_DIR, 'certs'), ip)
+  const { certPath, keyPath, caCertPath } = await ensureCert(path.join(DATA_DIR, 'certs'), ip)
 
   const livekitConfig = buildLivekitConfig({
     nodeIp: ip,
@@ -128,7 +128,9 @@ async function main(): Promise<void> {
   setInterval(() => store.cleanup(ROOM_TTL), CLEANUP_INTERVAL)
 
   const credentials: https.ServerOptions = {
-    cert: fs.readFileSync(certPath),
+    // leaf 憑證後面附上簽發它的 CA 憑證，讓交握時鏈是完整的（驗證端仍需自行信任
+    // 這張 CA 才能真正驗證通過，但至少不會因為鏈不完整而多出「憑證鏈不完整」的弱掃項目）。
+    cert: `${fs.readFileSync(certPath, 'utf8')}\n${fs.readFileSync(caCertPath, 'utf8')}`,
     key: fs.readFileSync(keyPath),
     // 弱點掃描修正：僅允許具前向保密的 AEAD 加密套件（ECDHE + GCM/ChaCha20-Poly1305），
     // 停用靜態 RSA 金鑰交換、AES-CBC 與 HMAC-SHA1 等已不建議使用的舊式套件。

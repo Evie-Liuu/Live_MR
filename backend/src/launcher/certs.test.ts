@@ -25,6 +25,33 @@ describe('ensureCert', () => {
     expect(cert.subjectAltName).toContain('IP Address:192.168.1.50')
   })
 
+  it('signs the leaf certificate with a local CA instead of self-signing', async () => {
+    const { certPath } = await ensureCert(dir, '192.168.1.50')
+    const cert = new X509Certificate(fs.readFileSync(certPath))
+
+    expect(cert.issuer).not.toBe(cert.subject)
+
+    const caCertPath = path.join(dir, 'ca-cert.pem')
+    expect(fs.existsSync(caCertPath)).toBe(true)
+    const ca = new X509Certificate(fs.readFileSync(caCertPath))
+    expect(cert.checkIssued(ca)).toBe(true)
+    expect(cert.verify(ca.publicKey)).toBe(true)
+  })
+
+  it('reuses the same CA across IP changes instead of regenerating it', async () => {
+    const first = await ensureCert(dir, '192.168.1.50')
+    const caContentBefore = fs.readFileSync(path.join(dir, 'ca-cert.pem'), 'utf8')
+
+    const second = await ensureCert(dir, '10.0.0.5')
+    const caContentAfter = fs.readFileSync(path.join(dir, 'ca-cert.pem'), 'utf8')
+
+    expect(caContentAfter).toBe(caContentBefore)
+
+    const firstCert = new X509Certificate(fs.readFileSync(first.certPath))
+    const secondCert = new X509Certificate(fs.readFileSync(second.certPath))
+    expect(firstCert.issuer).toBe(secondCert.issuer)
+  })
+
   it('reuses the existing cert when called again with the same IP', async () => {
     const first = await ensureCert(dir, '192.168.1.50')
     const firstContent = fs.readFileSync(first.certPath, 'utf8')
