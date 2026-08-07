@@ -13,6 +13,7 @@ import { RecordingStore } from './recording.js'
 import { RoomAdminService } from './roomAdmin.js'
 import { detectLanIp } from './launcher/network.js'
 import { ensureCert } from './launcher/certs.js'
+import { trustCaLocally } from './launcher/trustStore.js'
 import { buildLivekitConfig } from './launcher/livekitConfig.js'
 import { LiveKitProcess } from './launcher/livekitProcess.js'
 import { securityHeaders } from './launcher/security.js'
@@ -47,6 +48,7 @@ async function main(): Promise<void> {
   }
 
   const { certPath, keyPath, caCertPath } = await ensureCert(path.join(DATA_DIR, 'certs'), ip)
+  trustCaLocally(caCertPath)
 
   const livekitConfig = buildLivekitConfig({
     nodeIp: ip,
