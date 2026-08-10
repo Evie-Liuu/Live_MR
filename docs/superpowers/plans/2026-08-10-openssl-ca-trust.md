@@ -205,4 +205,47 @@ git commit -m "fix(security): 弱點掃描修正之 OpenSSL 未信任內部 CA�
 1. `data/certs/system-ca-bundle.pem` 有產生，內容同時包含 `-----BEGIN CERTIFICATE-----` 區塊的多張憑證（公網根憑證 + 內部 CA）。
 2. 開一個新的終端機視窗（讓 `setx` 生效），執行 `echo %SSL_CERT_FILE%`（cmd）或 `$env:SSL_CERT_FILE`（PowerShell）應該指向上述路徑。
 3. 在該新終端機用 `openssl s_client -connect <這台機器的LAN IP>:443 -CAfile "%SSL_CERT_FILE%"` 或直接不帶 `-CAfile`（讓 openssl 走環境變數預設）連線 LiveMR，鏈應驗證成功（`Verify return code: 0 (ok)`）。
-4. 同一個終端機用 `openssl s_client -connect www.google.com:443` 確認公網憑證依然驗證成功，證明沒有把公網信任洗掉。
+4. 同一個終端機分別用 `openssl s_client -connect www.google.com:443` 和 `openssl s_client -connect aws.amazon.com:443` 確認公網憑證依然驗證成功，證明沒有把公網信任洗掉（不要只測一個網站——見下方 Addendum 的 Important #3）。
+
+---
+
+## Addendum（2026-08-11）：Task 1 fix wave — 方案 A → 方案 B
+
+Task 1 的第一版實作完成並通過 task-level review 後，final whole-branch review 抓到一個設計層級的問題，並經 controller 在這台機器上獨立驗證為真：
+
+**Important #3（已驗證為真）：Windows Root store 不是公開信任根憑證的完整清單。** 實測這台機器：`Cert:\LocalMachine\Root` 48 張、`Cert:\CurrentUser\Root` 50 張（含 12 張已過期），聯集裡**沒有** Google 的 `GTS Root R1`、也沒有 Amazon 的 `Amazon Root CA 1`。Windows 對很多根憑證是「按需下載」而非預先存好，所以拿這個 store 匯出當「公網信任來源」寫進靜態的 `SSL_CERT_FILE` bundle，實質上是**縮窄**了原本 OpenSSL 工具能驗證的公網憑證範圍，沒有達成 spec 的「同時信任內部 CA 與公網憑證（如 Google、AWS）」目標。
+
+決定（人類拍板）：**改用方案 B**——不要再用 PowerShell 匯出 Windows Root store，改成在 repo 內建一份靜態的公開信任 CA bundle，啟動時與內部 CA 合併。
+
+### 修訂後的需求（取代原本 Task 1 的 PowerShell 匯出邏輯）
+
+**新增檔案：** `backend/src/launcher/public-ca-bundle.pem`
+- Mozilla 維護、curl.se 發布的標準 CA bundle（`https://curl.se/ca/cacert.pem`），已下載並確認內含 `GTS Root R1`、`Amazon Root CA 1`（119 張憑證，SHA256 見檔案內的 `## SHA256:` 註解列）。
+- 這是 repo 資產，跟著程式碼版控，日後要更新只需重新下載覆蓋這個檔案（不需要改程式邏輯）。
+
+**修改 `trustStore.ts` 的 `trustCaForOpenSsl()`：**
+
+1. **不再呼叫 PowerShell 匯出 Windows store。** 改成讀 `backend/src/launcher/public-ca-bundle.pem`（用 `import.meta.url` + `path` 定位到原始碼旁邊的這個檔案，跟打包後的路徑要一致——確認 `scripts/build-launcher.mjs` 有沒有把這個 `.pem` 一起複製進打包目錄，若沒有要一併加進去；先讀 `scripts/build-launcher.mjs` 確認現有的資產複製方式，仿照既有作法）。
+2. **Critical #1 修正——驗證合併結果，不合理就別覆寫/別 setx：** 讀完 `public-ca-bundle.pem` 內容後，數一下 `-----BEGIN CERTIFICATE-----` 出現次數，低於一個合理下限（例如 50——這份 bundle 目前有 119 張，正常不會腰斬）就視為讀取異常，`console.warn` 後直接 return，不寫 bundle 檔、不設定任何環境變數、不呼叫 `setx`。這個檔案是 repo 內建資產，理論上讀取不該失敗，但這一步是防禦性檢查，避免萬一（例如打包腳本漏複製這個檔案）時靜默寫出一份空的信任清單。
+3. **Important #4 修正——不要無條件覆蓋既有的 `SSL_CERT_FILE`：** `setx` 之前，用 `process.env.SSL_CERT_FILE` 檢查目前是否已經有值、且不是我們自己上次設定的那個路徑（可以用一個標記，例如檢查該路徑檔名是不是我們自己寫的 `system-ca-bundle.pem` 且內容開頭有沒有我們的識別註解）。如果偵測到是別的工具/使用者設定的既有值，`console.warn` 提醒有偵測到既有的 `SSL_CERT_FILE`、LiveMR 選擇不覆蓋，然後直接 return（不寫自己的 bundle，也不動環境變數）。如果目前的值就是我們自己上次寫的路徑（同一個 `certsDir` 下的 `system-ca-bundle.pem`），視為正常重跑，照常覆寫。
+4. **Important #2 部分修正——避免每次啟動都重寫登錄檔：** `setx` 前先檢查 `process.env.SSL_CERT_FILE` 是否已經等於這次要設定的 `bundlePath`；相等就跳過 `setx`（只有內容真的變動或第一次設定時才寫登錄檔）。這無法完全解決「資料夾搬移後殘留一個指向不存在檔案的環境變數」的問題，但可以在文件裡加一段：`docs/dev-setup.md` 或這個函式的 JSDoc 補一句「解除設定方式：`setx SSL_CERT_FILE ""` 或刪除 `HKCU\Environment` 底下的 `SSL_CERT_FILE`」。
+5. **Minor #7（非原子寫入）順手修正：** 合併結果先寫到 `<certsDir>/system-ca-bundle.pem.tmp`，再用 `fs.renameSync` 換成最終檔名，避免其他行程讀到寫到一半的檔案。
+6. **Minor #8（JSDoc 用詞修正）：** 移除或修正「這次啟動流程內、及其 spawn 出的子行程立即可用」這句——Node 本身不吃 `SSL_CERT_FILE`（除非用 `--use-openssl-ca` 啟動），`livekit-server.exe`（Go）在 Windows 上也不吃這個環境變數，`process.env.SSL_CERT_FILE = bundlePath` 這行主要是為了維持既有慣例／未來可能的用途，不是「讓目前這個 process tree 立刻生效」。
+7. **Minor #9（stderr 靜音）：** `execFileSync` 呼叫（如果還有殘留任何子行程呼叫）不要讓 stderr 直接噴到 launcher console；若這次改寫後已經完全不需要呼叫任何子行程（不再需要 PowerShell、`setx` 仍是唯一的子行程呼叫），只需注意 `setx` 那次呼叫本身的 `stdio` 設定維持 `{ stdio: 'ignore' }`（既有寫法已經是這樣，確認不要在修改過程中弄丟）。
+8. 因為不再從 Windows store 匯出，Minor #5、#6（憑證重複收錄、prior review 行號對不上）不再適用，不用處理。
+
+**測試（Task 1 rev2，`trustStore.test.ts`）：**
+- 更新既有兩個 `trustCaForOpenSsl` 測試案例：不再需要 mock `execFileSync` 回傳 PowerShell 輸出（因為不再呼叫 PowerShell），改成驗證讀到的是 `public-ca-bundle.pem`（測試裡可以指向一個暫時建立的假 bundle 檔，或直接用真的 `public-ca-bundle.pem` 驗證合併結果同時包含其中已知內容與內部 CA 內容）。
+- **Critical #1 的新測試：** bundle 檔內容被竄改成只有 1 張憑證時（模擬讀取異常），function 不應該寫出 `system-ca-bundle.pem`、不應該設定 `process.env.SSL_CERT_FILE`、不應該呼叫 `setx`。
+- **Important #4 的新測試：** 呼叫前先手動設定一個「不是我們自己寫的」`process.env.SSL_CERT_FILE`（例如指向一個跟 `certsDir` 無關的路徑），呼叫後這個值應該維持不變（不被覆蓋），且不應該寫出 `system-ca-bundle.pem`（或依你實作選擇的行為——重點是不能靜默覆蓋別人的設定；若選擇「仍寫出 bundle 檔但不動環境變數」也可以，測試對應調整，但一定要驗證原本的 `SSL_CERT_FILE` 值沒被蓋掉）。
+- **setx 冪等的新測試：** 連續呼叫兩次（`process.env.SSL_CERT_FILE` 在第一次呼叫後已經等於 `bundlePath`），第二次呼叫不應該再呼叫 `setx`（用 `execFileSync` mock 驗證呼叫次數）。
+- 補上 argv 斷言：驗證 `setx` 呼叫時的完整參數陣列（沿用第一版已有的斷言方式即可，不需要新增測試，只要確認沒有在修改過程中弄丟）。
+- Minor #10 提到的「setx 拋錯」路徑也要補一個測試案例：驗證 `setx` 拋錯時 function 不會 throw（沿用第一版「does not throw」測試的精神，改成觸發 `setx` 失敗而非 PowerShell 失敗）。
+
+**`standalone.ts` 串接：** 不需要變動（呼叫方式不變，只有 `trustCaForOpenSsl` 內部實作改變）。
+
+**建置腳本：** 檢查 `scripts/build-launcher.mjs`，確認 `backend/src/launcher/public-ca-bundle.pem` 會被複製進最終打包目錄（跟 `.ts` 編譯產物同一個相對位置，讓執行期用相對路徑找得到）。如果目前的複製清單是用副檔名或目錄樣式（例如只複製 `frontend-dist/`、`bin/`），要另外把這個 `.pem` 加進去；如果找不到現成的「複製額外資產」機制，在報告裡說明現況、不要自己發明一套新的打包機制。
+
+修完後：
+- 執行完整 backend 測試套件 + `npx tsc --noEmit`
+- Commit（訊息例如：`fix(security): num=19 fix wave — 改用內建公網 CA bundle，修正驗證與覆蓋既有設定的問題`）
