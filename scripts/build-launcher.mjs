@@ -84,6 +84,15 @@ async function main() {
   execFileSync('npm', ['run', 'build'], { cwd: path.join(ROOT, 'frontend'), stdio: 'inherit', shell: true })
   fs.cpSync(path.join(ROOT, 'frontend', 'dist'), path.join(OUT_DIR, 'app', 'frontend-dist'), { recursive: true })
 
+  // trustStore.ts 的 trustCaForOpenSsl() 用 import.meta.url 定位這個檔案：esbuild 把
+  // standalone.ts 打包成單一 app/standalone.bundle.cjs 後，import.meta.url 的 shim
+  // （見上面的 banner 說明）會指向這支 bundle 檔本身，所以 path.dirname(...) 算出來
+  // 就是 app/ 目錄——這個 .pem 必須跟著複製到同一個位置，執行期才找得到。
+  fs.copyFileSync(
+    path.join(ROOT, 'backend', 'src', 'launcher', 'public-ca-bundle.pem'),
+    path.join(OUT_DIR, 'app', 'public-ca-bundle.pem'),
+  )
+
   console.log('複製 binary...')
   fs.copyFileSync(livekitExe, path.join(OUT_DIR, 'bin', 'livekit-server.exe'))
   fs.cpSync(nodeDir, path.join(OUT_DIR, 'bin', 'node-runtime'), { recursive: true })
