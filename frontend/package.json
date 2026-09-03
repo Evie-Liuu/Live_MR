@@ -22,6 +22,7 @@
     "livekit-client": "^2.17.3",
     "material-icons": "^1.13.14",
     "material-symbols": "^0.45.4",
+    "qr-scanner": "^1.4.2",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

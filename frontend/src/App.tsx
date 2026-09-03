@@ -1,17 +1,17 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
+import { resolveAuthRoute } from './state.ts';
 import type { AuthUser } from './hooks/useAuth.ts';
-import { createRoom } from './api.ts';
+import { useAuth } from './hooks/useAuth.ts';
+import { createRoom, joinRequest } from './api.ts';
 import LoginScreen from './components/LoginScreen.tsx';
 import BigScreen from './components/BigScreen.tsx';
 import HostSession from './components/HostSession.tsx';
 import './App.css';
 
-// const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
 const ShareScreen = lazy(() => import('./components/ShareScreen.tsx'));
 const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
-// const HostSession = lazy(() => import('./components/HostSession.tsx'));
-const StudentJoin = lazy(() => import('./components/StudentJoin.tsx'));
+const StudentHome = lazy(() => import('./components/StudentHome.tsx'));
 const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
 const StudentSession = lazy(() => import('./components/StudentSession.tsx'));
 
@@ -43,21 +43,21 @@ function loadPersistedState(): AppState | null {
 function getInitialState(): AppState {
   const params = new URLSearchParams(window.location.search);
   const urlRoomId = params.get('roomId');
+  const persisted = loadPersistedState();
 
-  // URL ?roomId= always wins — supports student deep-link / QR scans
-  if (urlRoomId) {
-    const persisted = loadPersistedState();
-    // If persisted state matches this room and is a student-side screen, restore it
-    if (persisted && 'roomId' in persisted && persisted.roomId === urlRoomId &&
-      (persisted.screen === 'student-waiting' || persisted.screen === 'student-session')) {
-      return persisted;
-    }
-    return { screen: 'student-join', roomId: urlRoomId };
+  // 若 refresh 時 URL 仍帶著同一個房號、且已有進行中的 student-waiting/student-session，直接恢復
+  if (urlRoomId && persisted && 'roomId' in persisted && persisted.roomId === urlRoomId &&
+    (persisted.screen === 'student-waiting' || persisted.screen === 'student-session')) {
+    return persisted;
   }
 
-  const persisted = loadPersistedState();
   if (persisted) return persisted;
   return { screen: 'select-role' };
+}
+
+/** 顯示用名稱：優先用帳號的 full_name，其餘依序退回 email / id / uid。 */
+function displayNameOf(user: AuthUser): string {
+  return user.full_name || user.email || (typeof user.id === 'string' ? user.id : user.uid) || '學生';
 }
 
 // Detect specific screen modes before mounting any hook-bearing components
@@ -67,43 +67,68 @@ const isShareScreen = screenParam === 'share';
 
 function App() {
   const [state, setState] = useState<AppState>(getInitialState);
-
-  /**
-   * 登入成功 callback：接收含 role 的 user，依 role 決定下一步畫面
-   *
-   * role 對應邏輯（同 auth.js）：
-   *   - 'admin' / 'institution_admin' → 老師路線（建立 room）
-   *   - 'teacher'                     → 老師路線（建立 room）
-   *   - 'student'                     → 學生路線（student-join）
-   *   - 其他                          → 老師路線（預設 fallback）
-   */
-  const handleLoginSuccess = async (user: AuthUser) => {
-    console.log(`[App] 登入成功，role: ${user.role}`);
-    const role = user.role;
-
-    if (role === 'student') {
-      // 學生登入後回到登入畫面，讓學生切換到「學生登入」tab 輸入房間 ID
-      // （student-join 需要 roomId，由學生自行填入）
-      setState({ screen: 'select-role' });
-      // 可在此顯示提示：請切換到「學生登入」tab 並輸入房間 ID
-    } else {
-      // 老師 / 管理員 → 建立房間，進入 host-session
-      await handleHost();
-    }
-  };
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  // 外部 QR/連結帶進站的房號只在開機當下讀一次；登入成功後才會用到（見 routeUser）
+  const [pendingRoomId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('roomId'),
+  );
+  const hasAutoRoutedRef = useRef(false);
 
   // Handle host room creation
   const handleHost = async () => {
     try {
       const { roomId, hostToken, livekitToken } = await createRoom();
-      // setState({ screen: 'host-lobby', roomId, hostToken, livekitToken });
       setState({ screen: 'host-session', roomId, hostToken, livekitToken });
     } catch (err) {
       setState({ screen: 'error', message: String(err) });
     }
   };
 
+  // 外部深連結（roomId 已知）登入成功後自動送出加入請求；student-home 手動輸入/
+  // 掃 QR 走 StudentHome 自己內部呼叫 joinRequest，不經過這個函式。
+  const autoJoinRoom = async (roomId: string, name: string) => {
+    setState({ screen: 'student-joining', roomId });
+    try {
+      const { requestId } = await joinRequest(roomId, name);
+      setState({ screen: 'student-waiting', roomId, requestId, name });
+    } catch (err) {
+      setState({ screen: 'error', message: String(err) });
+    }
+  };
 
+  /**
+   * 登入成功（或開機時偵測到既有 session）後的統一分流入口，規則見 resolveAuthRoute：
+   *   - teacher / admin / institution_admin → 建房間，進 host-session（忽略 pendingRoomId）
+   *   - student / visitor + 有 pendingRoomId → 自動送出加入請求
+   *   - student / visitor + 無 pendingRoomId → student-home（手動輸入房號或掃 QR）
+   */
+  const routeUser = (loggedInUser: AuthUser) => {
+    const route = resolveAuthRoute(loggedInUser.role, pendingRoomId);
+    if (route.action === 'host') {
+      void handleHost();
+    } else if (route.action === 'auto-join') {
+      void autoJoinRoom(route.roomId, displayNameOf(loggedInUser));
+    } else {
+      setState({ screen: 'student-home' });
+    }
+  };
+
+  const handleLoginSuccess = (loggedInUser: AuthUser) => {
+    routeUser(loggedInUser);
+  };
+
+  // 開機時若已有有效 session（Firebase 持久化），自動依 role 導向，不必重新登入。
+  // 只在「當前畫面還是登入表單」時才導向——避免蓋掉 refresh 後恢復的進行中 session
+  // （host-session/student-waiting 等）。這段刻意不寫依賴陣列、每次 render 都跑，
+  // 靠 hasAutoRoutedRef 保證只在開機當下真正執行一次：之後使用者從房間畫面按
+  // 「離開」回到 select-role 不會被立刻導回去（否則老師離開房間會馬上被彈進新房間）。
+  useEffect(() => {
+    if (isLoading || hasAutoRoutedRef.current) return;
+    hasAutoRoutedRef.current = true;
+    if (isAuthenticated && user && state.screen === 'select-role') {
+      routeUser(user);
+    }
+  });
 
   // Clear roomId from URL when on select-role
   useEffect(() => {
@@ -119,10 +144,13 @@ function App() {
   // Persist AppState to sessionStorage so a page refresh restores the user back
   // to the same screen (and auto-rejoins their LiveKit room when applicable).
   // sessionStorage scope = current tab only, so closing the tab still resets.
+  // select-role/error/student-rejected/student-home/student-joining 都不持久化——
+  // 這些畫面在 refresh 後可以靠開機時的 routeUser 自行正確地重新導向。
   useEffect(() => {
     try {
       if (state.screen === 'select-role' || state.screen === 'error' ||
-        state.screen === 'student-rejected') {
+        state.screen === 'student-rejected' || state.screen === 'student-home' ||
+        state.screen === 'student-joining') {
         sessionStorage.removeItem(APP_STATE_STORAGE_KEY);
       } else {
         sessionStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
@@ -133,14 +161,7 @@ function App() {
   const renderScreen = () => {
     switch (state.screen) {
       case 'select-role':
-        return (
-          <LoginScreen
-            onLoginSuccess={handleLoginSuccess}
-            onStudentJoin={(roomId, requestId, name) =>
-              setState({ screen: 'student-waiting', roomId, requestId, name })
-            }
-          />
-        );
+        return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
 
       case 'host-lobby':
         return (
@@ -164,15 +185,30 @@ function App() {
           />
         );
 
-      case 'student-join':
+      case 'student-home':
         return (
-          <StudentJoin
-            roomId={state.roomId}
-            onSubmitted={(requestId, name) =>
-              setState({ screen: 'student-waiting', roomId: state.roomId, requestId, name })
+          <StudentHome
+            fullName={user ? displayNameOf(user) : '學生'}
+            onSubmitted={(requestId, roomId) =>
+              setState({
+                screen: 'student-waiting',
+                roomId,
+                requestId,
+                name: user ? displayNameOf(user) : '學生',
+              })
             }
-            onExit={() => setState({ screen: 'select-role' })}
+            onLogout={() => { void logout(); }}
           />
+        );
+
+      case 'student-joining':
+        return (
+          <div className='loading-container'>
+            <div className='waiting-inner'>
+              <div className="gradient-spinner" />
+              <h2 className="waiting-text">正在加入房間...</h2>
+            </div>
+          </div>
         );
 
       case 'student-waiting':
