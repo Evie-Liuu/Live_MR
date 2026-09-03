@@ -72,7 +72,7 @@ Live MR 的 AI 助理目前只有一條流程：老師說話 → STT 或原生�
 | `ai/hints.ts` | 現有 `generateHint` / `generateHints` 搬入並改用 client。對外介面與既有測試不變 | `ai/client.ts` |
 | `ai/lessonPlan.ts` | 教案 workflow：組 prompt、呼叫 client、驗證、合併。純函式，不碰資料庫 | `ai/client.ts`、場景設定 |
 | `db/connection.ts` | 開啟 `data/livemr.sqlite`，跑 migration | `node:sqlite` |
-| `db/migrations/` | 版本化 SQL 檔，以 `schema_version` 表記錄已套用版本 | |
+| `db/migrations.ts` | 版本化 SQL 字串陣列（不用獨立 .sql 檔，因 esbuild 打包成單一 bundle），以 `schema_version` 表記錄已套用版本 | |
 | `db/lessonPlanRepo.ts` | 教案與任務的增刪改查 | `db/connection.ts` |
 | `routes.ts` | 新增教案端點（見 4.3） | repo、`ai/lessonPlan.ts` |
 
@@ -87,8 +87,8 @@ Live MR 的 AI 助理目前只有一條流程：老師說話 → STT 或原生�
 | `components/TeacherHome.tsx` | 「備課」與「開始上課」；開始上課時可選一份已存教案 |
 | `components/LessonPrep/` | 清單、新建表單、生成中、結果卡片、編輯與儲存、複製 Markdown、列印 |
 | `utils/lessonPlanClient.ts` | 教案端點的 fetch 封裝 |
-| `config/content.ts`（新增） | `resolveThemes(plan?)` 與 `resolveTaskHint(taskId, plan?)`、`resolveSceneConstraint(sceneId, plan?)`：先查教案，再查靜態設定 |
-| `HostSession.tsx` | 用 `content.ts` 取代直接讀 `THEMES` / `TASK_HINTS` / `SCENE_CONSTRAINTS`；教案包成虛擬 Theme 插在選單最前面 |
+| `config/content.ts`（新增） | `resolveModules(staticModules, plan?, sceneId)`、`resolveTaskHint(taskId, plan?)`、`resolveSceneConstraint(sceneId, plan?)`：先查教案，再查靜態設定 |
+| `HostSession.tsx` | 用 `content.ts` 取代直接讀 `TASK_HINTS` / `SCENE_CONSTRAINTS`；任務庫改讀 `resolveModules`；有 `planId` 時載入教案並切換場景 |
 | `BigScreen.tsx` | `task-change` 的 TaskItem 多帶可選 `hint`；查提示改為 `task.hint ?? TASK_HINTS[task.id]` |
 | `types/vrm.ts` | `TaskItem` 加可選 `hint?: TaskHint` |
 
@@ -100,7 +100,7 @@ Live MR 的 AI 助理目前只有一條流程：老師說話 → STT 或原生�
 | `GET /api/lesson-plans?teacherUid=` | 該老師的教案清單（不含 plan_json 全文） |
 | `GET /api/lesson-plans/:id` | 單筆完整教案 |
 | `PATCH /api/lesson-plans/:id` | 更新標題與任務包（刪題、改文字） |
-| `DELETE /api/lesson-plans/:id` | 刪除 |
+| `POST /api/lesson-plans/:id/delete` | 刪除。用 POST 而非 DELETE，因為 CORS 與安全標頭的方法白名單只開 GET / POST / PATCH |
 
 身分沿用專案既有原則：後端信任前端傳來的 `teacherUid`，不驗 Firebase token。與登入整合規格一致，SDGs 同步階段再補。
 
@@ -173,7 +173,7 @@ interface LessonPlan {
 
 **驗證**
 
-- 每題的 `unscramble` 單字多重集合必須與 `completeSentence` 拆字結果一致；不一致則該模組重試一次，仍失敗即整體失敗。
+- 每題的 `unscramble` 單字多重集合必須與 `completeSentence` 拆字結果一致；不一致則該模組重試一次，仍不一致就以 `completeSentence` 拆字洗牌取代並記錄警告（資料仍正確，不因此整體失敗）。
 - 每段腳本字數落在「分鐘數 × 100 到 150 字」範圍內，超出只記警告不擋。
 - CEFR 符合度不做程式驗證，靠 prompt 約束。
 
@@ -193,7 +193,7 @@ interface LessonPlan {
 ```
 
 - `host-session` 狀態帶可選 `planId`。HostSession 啟動時若有 `planId`，向後端取教案並存於 state；重新整理沿 sessionStorage 還原 `planId` 後重取。
-- `resolveThemes(plan)` 回傳靜態 THEMES 前插一個虛擬 Theme：id `plan_{planId}`，label「我的教案：標題」，唯一 Scene 為教案的 `sceneId`（沿用該場景的 slots 與 allowedVrmIds），modules 為教案任務包。
+- HostSession 載入教案後自動切換到教案的 `sceneId`。任務庫用 `resolveModules(staticModules, plan, sceneId)`：當所選場景與教案相符時，教案模組插在靜態模組之前並冠上「我的教案」字樣；切到其他場景則只顯示該場景的靜態模組。不另建虛擬 Theme，場景選單維持不變。
 - `resolveSceneConstraint` 在教案存在且 sceneId 相符時回傳教案的 `sceneConstraint`，否則回 `SCENE_CONSTRAINTS[sceneId]`。
 - `HintTaskContext` 的 `currentTargetSentence` / `nextTargetSentence` 改由 `resolveTaskHint` 取得。
 - `task-change` 廣播時，教案任務的 TaskItem 帶 `hint`；BigScreen 優先用它。
@@ -219,7 +219,7 @@ interface LessonPlan {
 - `ai/lessonPlan.ts`：mock client，測兩步合併、時段分鐘總和驗證、重組單字驗證與重試、子步驟失敗整體失敗。
 - `db/`：用 `:memory:` SQLite 測 migration 冪等與 repository 增刪改查、CASCADE 刪除。
 - 路由：教案端點的輸入驗證、404、資料庫停用時的 503。
-- 前端：`TeacherHome` 分流、`LessonPrep` 表單送出與結果編輯（Vitest + Testing Library）；`content.ts` 三個 resolve 函式做純函式測試，涵蓋「有教案 / 無教案 / sceneId 不符」。
+- 前端：沿用專案慣例只測純函式，不引入 Testing Library。`resolveAuthRoute` 分流、`content.ts` 三個 resolve 函式（涵蓋「有教案 / 無教案 / sceneId 不符」）、`buildSceneContext`、`lessonPlanToMarkdown`、`LessonPlanView` 的任務編輯 reducer。畫面元件以手動驗證。
 - 品質：一支手動 spike 腳本（`backend/scripts/lesson-plan-spike.mts`）對三個等級各生成一份教案，人工檢視，不進自動測試。
 
 ## 11. 相依與執行順序
