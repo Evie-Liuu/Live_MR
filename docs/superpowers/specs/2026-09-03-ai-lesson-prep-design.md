@@ -85,7 +85,7 @@ Live MR 的 AI 助理目前只有一條流程：老師說話 → STT 或原生�
 | `state.ts` | 新增 `teacher-home`、`lesson-prep`；`host-lobby` 與 `host-session` 多帶可選 `planId` |
 | `App.tsx` | `routeAfterAuth` 老師分流改為進 `teacher-home`，不再自動建房 |
 | `components/TeacherHome.tsx` | 「備課」與「開始上課」；開始上課時可選一份已存教案 |
-| `components/LessonPrep/` | 清單、新建表單、生成中、結果卡片、編輯與儲存、複製 Markdown、列印 |
+| `components/LessonPrep.tsx`、`components/LessonPlanView.tsx` | 清單、新建表單、生成中；結果卡片、編輯與儲存、複製 Markdown、列印 |
 | `utils/lessonPlanClient.ts` | 教案端點的 fetch 封裝 |
 | `config/content.ts`（新增） | `resolveModules(staticModules, plan?, sceneId)`、`resolveTaskHint(taskId, plan?)`、`resolveSceneConstraint(sceneId, plan?)`：先查教案，再查靜態設定 |
 | `HostSession.tsx` | 用 `content.ts` 取代直接讀 `TASK_HINTS` / `SCENE_CONSTRAINTS`；任務庫改讀 `resolveModules`；有 `planId` 時載入教案並切換場景 |
