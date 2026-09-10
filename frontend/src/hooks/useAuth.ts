@@ -147,16 +147,14 @@ export function useAuth() {
     [],
   );
 
-  /** 登出（同 auth.js 的 logout） */
+  /** 登出（同 auth.js 的 logout）：流程見 performLogout */
   const logout = useCallback(async () => {
-    try {
-      window.location.href = '/';
-      sessionStorage.clear();
-      await signOut(auth);
-    } catch (err) {
-      console.error('登出失敗:', err);
-    }
-    localStorage.removeItem('user_data');
+    await performLogout({
+      signOut: () => signOut(auth),
+      clearLocal: () => localStorage.removeItem('user_data'),
+      clearSession: () => sessionStorage.clear(),
+      navigate: () => { window.location.href = '/'; },
+    });
     setAuthState({ isAuthenticated: false, user: null, isLoading: false });
   }, []);
 
@@ -172,6 +170,33 @@ export function useAuth() {
 }
 
 // ── 工具函式 ─────────────────────────────────────────────────────────────────
+
+export interface LogoutDeps {
+  signOut: () => Promise<void>;
+  clearLocal: () => void;
+  clearSession: () => void;
+  navigate: () => void;
+}
+
+/**
+ * 登出的實際順序，抽成純函式以便測試：
+ *   1. 先 await Firebase signOut（清除 IndexedDB 持久化 session）
+ *   2. 清 localStorage 的 user_data 與 sessionStorage 的畫面狀態
+ *   3. 最後才導航回 '/'
+ * 導航若放在前面，頁面卸載會中斷 signOut 的非同步清除，重新載入後 Firebase session
+ * 仍在，App 開機分流會把老師直接送回新房間而不是登入畫面（commit 4c48b97 的回歸）。
+ * signOut 失敗也照樣清 storage 並導航，避免卡在課堂畫面。
+ */
+export async function performLogout(deps: LogoutDeps): Promise<void> {
+  try {
+    await deps.signOut();
+  } catch (err) {
+    console.error('登出失敗:', err);
+  }
+  try { deps.clearLocal(); } catch { /* storage 不可用時忽略 */ }
+  try { deps.clearSession(); } catch { /* storage 不可用時忽略 */ }
+  deps.navigate();
+}
 
 function firebaseErrorMessage(code?: string): string {
   switch (code) {
