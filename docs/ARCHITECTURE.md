@@ -89,7 +89,7 @@ Live MR 是一套**即時混合實境（MR）英語會話教學平台**。核心
 
 ```
 select-role
-   ├── (Host) ──▶ host-lobby ──▶ host-session
+   ├── (Host) ──▶ teacher-home ──▶ lesson-prep / host-session
    └── (Student) ─▶ student-join ─▶ student-waiting ──▶ student-session
                                           ├──▶ student-rejected
                                           └──▶ error
@@ -128,7 +128,12 @@ Express App 組裝於 `standalone.ts`（唯一的 production entrypoint，`LiveM
 | `roomAdmin.ts` | `RoomAdminService`：靜音、踢人（透過 LiveKit RoomServiceClient） |
 | `recording.ts` | `RecordingStore`：錄製 session 與檔案清單、merge 狀態 |
 | `merge.ts` | `mergeRecording()`：等待 chunk 上傳穩定後，FFmpeg 合成 `bigscreen.webm + audio_*` → `output.mp4` |
-| `ai.ts` | Gemini 封裝：`generateHint`（單句）/ `generateHints`（結構化 JSON：question/complete/extend），多模型 fallback + 逾時 + 重試判斷 |
+| `ai/client.ts` | 唯一碰 `@google/genai` 的檔案：`callGemini()` 多模型 fallback + 逾時 + 可重試判斷 + responseSchema + usage log + `parse` hook |
+| `ai/hints.ts` | `generateHint` / `generateHints`（課中提示，介面同舊 `ai.ts`） |
+| `ai/lessonPlan.ts` | 教案兩步結構化 workflow（大綱 → 腳本 ∥ 五階層提示 → 語法/注意點），驗證與重組修復 |
+| `db/connection.ts` / `db/migrations.ts` | `node:sqlite` 連線、版本化 migration（`data/livemr.sqlite`） |
+| `db/lessonPlanRepo.ts` | 教案與任務的增刪改查 |
+| `lessonPlanRoutes.ts` | `/api/lesson-plans/*` 端點；DB 不可用時整組回 503 |
 
 ### 5.1 主要 REST 端點
 
@@ -144,6 +149,7 @@ Express App 組裝於 `standalone.ts`（唯一的 production entrypoint，`LiveM
 | 錄製 | `POST .../recording/audio` | host 端音訊備援上傳 |
 | 錄製 | `GET .../recordings`、`.../merge`、`GET /recordings/.../:file` | 列表 / 合成進度 / 下載 |
 | AI | `POST /ai/hint`、`POST /ai/hints` | Gemini proxy（金鑰只在後端） |
+| 教案 | `POST /lesson-plans/generate`、`GET /lesson-plans?teacherUid=`、`GET /lesson-plans/:id`、`PATCH /lesson-plans/:id`、`POST /lesson-plans/:id/delete` | 教案生成與增刪改查；DB 不可用時整組回 503 |
 | 管理 | `POST .../participants/:id/remove`、`.../mute` | 老師踢人 / 靜音 |
 
 ### 5.2 即時訊令：事件佇列 + Long Polling
@@ -236,7 +242,7 @@ HostSession 組 prompt + systemInstruction（aiAssistant.ts）
    │  注入場景限制（SCENE_CONSTRAINTS）+ 當前任務脈絡（HintTaskContext）
    ▼
 POST /api/ai/hints（多輪 history）
-   ▼  backend ai.ts → Gemini（gemini-2.5-flash → flash-lite → 2.0 fallback）
+   ▼  backend ai/hints.ts → Gemini（gemini-2.5-flash → flash-lite → 2.0 fallback）
    │  responseSchema 強制 JSON：{ question, complete, extend }
    ▼
 HostSession 取得三欄位
@@ -263,6 +269,27 @@ stop ──┴─ 背景 mergeRecording()：等檔案大小穩定 → FFmpeg ami
 ```
 
 - **已知限制**：`RecordingStore` 為記憶體，backend 重啟後 session 遺失（檔案仍在磁碟，但查不到 basePath → 下載 404）；大屏視窗需保持開啟直到停止錄製。
+
+---
+
+### 7.5 備課教案流
+
+```
+老師登入 → teacher-home → lesson-prep：選場景 + 主題 + CEFR 等級
+   ▼  前端 buildSceneContext()（THEMES / TASK_HINTS → 角色、既有模組、範例提示）
+POST /api/lesson-plans/generate
+   ▼  backend ai/lessonPlan.ts
+   大綱（responseSchema，分鐘總和必須 15，失敗重試一次）
+   → 並行：逐時段逐字腳本 ∥ 逐模組五階層提示（重組單字驗證、重試一次、仍錯則洗牌修復）
+   → 語法說明與教學注意點
+   ▼  LessonPlanRepo.create()（lesson_plans + lesson_tasks）
+結果頁：分段卡片、任務包可改文字/刪題、複製 Markdown、列印
+開始上課帶 planId → HostSession 載入教案並切到教案場景
+   → config/content.ts：任務庫 / 提示 / 場景約束「先查教案，再查靜態設定」
+   → task-change 廣播的 TaskEntry 自帶 hint，BigScreen 優先使用
+```
+
+設計重點：不是 Agent 迴圈，是固定步驟的結構化 workflow；`ai/client.ts`、`db/`、repository 查詢函式是之後課中適性與課後資產化的共用地基（見 `docs/superpowers/specs/2026-09-03-ai-lesson-prep-design.md`）。
 
 ---
 
@@ -300,7 +327,7 @@ Theme（主題，如「服飾店」）
 
 - **巨型元件**：`HostSession`（~3100 行）與 `BigScreen`（~2700 行）職責過重，是後續維護重點。
 - **架構重構規劃書**：`docs/superpowers/plans/2026-03-25-architecture-refactor.md`（共 5 個 Task）已規劃：抽取共享常數、抽 Three.js 共用工具、解耦 `usePoseDetection` 與 LiveKit（改 `onPublish` callback，已完成）、拆解 `HostSession`（抽 `LocalVideo`）、修 `any` 型別 / 死碼 / 大屏 canvas 尺寸。
-- **記憶體狀態**：`RoomStore` / `RecordingStore` 皆為單機記憶體，無持久化、不可水平擴展（目前為單機教室場景）。
+- **記憶體狀態**：`RoomStore` / `RecordingStore` 皆為單機記憶體，無持久化、不可水平擴展（目前為單機教室場景）。教案已改存 SQLite（`data/livemr.sqlite`），房間與錄製仍為記憶體。
 - **封裝細節**：`docs/superpowers/specs/2026-07-17-local-only-packaging-design.md` 與 `docs/superpowers/plans/2026-07-20-native-launcher-packaging.md`。
 
 ---
@@ -319,7 +346,10 @@ Theme（主題，如「服飾店」）
 | AI prompt 組裝 | `frontend/src/config/aiAssistant.ts` |
 | 後端入口 / 路由 | `backend/src/standalone.ts`、`routes.ts` |
 | LiveKit token / 房間管理 | `backend/src/livekit.ts`、`roomAdmin.ts` |
-| AI proxy | `backend/src/ai.ts` |
+| AI proxy | `backend/src/ai/` |
 | 錄製 / 合成 | `backend/src/recording.ts`、`merge.ts` |
 | 教學內容 | `frontend/src/config/scenes.ts` |
+| 教案生成 | `backend/src/ai/lessonPlan.ts`、`frontend/src/components/LessonPrep.tsx` |
+| 教案資料層 | `backend/src/db/` |
+| 內容解析 | `frontend/src/config/content.ts` |
 | 部署 | `backend/src/launcher/`、`backend/src/standalone.ts`、`scripts/build-launcher.mjs` |
