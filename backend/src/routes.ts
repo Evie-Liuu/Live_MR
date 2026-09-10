@@ -6,7 +6,7 @@ import { createToken } from './livekit.js'
 import type { RecordingStore } from './recording.js'
 import type { RoomAdminService } from './roomAdmin.js'
 import { mergeRecording } from './merge.js'
-import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai.js'
+import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai/hints.js'
 
 const recordingsDir = process.env.RECORDINGS_DIR
   ? path.resolve(process.env.RECORDINGS_DIR)
