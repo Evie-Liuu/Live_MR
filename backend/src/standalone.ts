@@ -11,6 +11,8 @@ import { RoomStore } from './rooms.js'
 import { createRouter } from './routes.js'
 import { RecordingStore } from './recording.js'
 import { RoomAdminService } from './roomAdmin.js'
+import { openDatabase } from './db/connection.js'
+import { LessonPlanRepo } from './db/lessonPlanRepo.js'
 import { detectLanIp } from './launcher/network.js'
 import { ensureCert } from './launcher/certs.js'
 import { trustCaLocally, trustCaForOpenSsl } from './launcher/trustStore.js'
@@ -84,8 +86,17 @@ async function main(): Promise<void> {
   const recordingStore = new RecordingStore()
   const roomAdmin = new RoomAdminService()
 
+  // 教案資料庫：開啟失敗只停用教案端點（503），其他功能照常
+  let lessonPlanRepo: LessonPlanRepo | null = null
+  try {
+    lessonPlanRepo = new LessonPlanRepo(openDatabase(path.join(DATA_DIR, 'livemr.sqlite')))
+    console.log(`[db] lesson plans at ${path.join(DATA_DIR, 'livemr.sqlite')}`)
+  } catch (err) {
+    console.error('[db] failed to open lesson plan database, lesson plan endpoints disabled:', err instanceof Error ? err.message : String(err))
+  }
+
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
-  app.use('/api', createRouter(store, { recordingStore, roomAdmin }))
+  app.use('/api', createRouter(store, { recordingStore, roomAdmin }, { repo: lessonPlanRepo }))
 
   const livekitProxy = createProxyMiddleware({
     target: `http://127.0.0.1:${LIVEKIT_PORT}`,

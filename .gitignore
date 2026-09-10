@@ -48,3 +48,6 @@ frontend/src/assets/models
 
 # Recordings
 recordings/
+
+# Lesson plan SQLite database
+/data/
