@@ -10,7 +10,7 @@ import PerformanceMonitor from './PerformanceMonitor.tsx';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
 import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
-import type { HintLevel } from '../config/taskHints.ts';
+import type { HintLevel, TaskHint } from '../config/taskHints.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 
@@ -18,6 +18,7 @@ export interface TaskEntry {
   id: string;
   label: string;
   completed: boolean;
+  hint?: TaskHint;
 }
 
 /** Message shape broadcast over BroadcastChannel */
@@ -897,7 +898,7 @@ export default function BigScreen() {
       // ── 2b. Hint bar (bs-hint-bar) — attached below the task box ───────────
       if (hintActive) {
         const hintLevel = hintLevelRef.current!;
-        const hint = TASK_HINTS[currentTask.id];
+        const hint = currentTask.hint ?? TASK_HINTS[currentTask.id];
         const meta = hintLevelMeta(hintLevel);
 
         const barX = boxX;
