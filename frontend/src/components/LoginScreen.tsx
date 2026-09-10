@@ -41,12 +41,15 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     };
   }, []);
 
-  // 當使用者在登入畫面主動取消勾選「記住我」，立即非同步清理安全儲存區
-  useEffect(() => {
-    if (!rememberMe) {
+  // 只有使用者「主動取消勾選」才清除安全儲存區。
+  // 不能寫成 useEffect 依賴 rememberMe：初始值 false 會在每次掛載時就把存好的帳密清掉
+  //（StrictMode 雙掛載下第二次載入讀到的已是空的，登出後輸入框因此空白）。
+  const handleRememberMeChange = (checked: boolean) => {
+    setRememberMe(checked);
+    if (!checked) {
       void secureStorageManager.clearCredentials();
     }
-  }, [rememberMe]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +140,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <input
                   type="checkbox"
                   checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  onChange={(e) => handleRememberMeChange(e.target.checked)}
                   disabled={loading}
                   className="custom-checkbox"
                 />
