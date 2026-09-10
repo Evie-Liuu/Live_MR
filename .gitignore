@@ -51,3 +51,6 @@ recordings/
 
 # Lesson plan SQLite database
 /data/
+
+# Spike script outputs
+backend/scripts/out/
