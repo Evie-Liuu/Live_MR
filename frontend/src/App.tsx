@@ -14,6 +14,8 @@ const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
 const StudentHome = lazy(() => import('./components/StudentHome.tsx'));
 const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
 const StudentSession = lazy(() => import('./components/StudentSession.tsx'));
+const TeacherHome = lazy(() => import('./components/TeacherHome.tsx'));
+const LessonPrep = lazy(() => import('./components/LessonPrep.tsx'));
 
 function AppSpinner() {
   return (
@@ -60,6 +62,11 @@ function displayNameOf(user: AuthUser): string {
   return user.full_name || user.email || (typeof user.id === 'string' ? user.id : user.uid) || '學生';
 }
 
+/** SDGs 帳號的穩定識別；後端只用它分組教案。 */
+function teacherUidOf(user: AuthUser): string {
+  return (typeof user.uid === 'string' && user.uid) || (typeof user.id === 'string' && user.id) || user.email || 'unknown';
+}
+
 // Detect specific screen modes before mounting any hook-bearing components
 const screenParam = new URLSearchParams(window.location.search).get('screen');
 const isBigScreen = screenParam === 'bigscreen';
@@ -75,10 +82,10 @@ function App() {
   const hasAutoRoutedRef = useRef(false);
 
   // Handle host room creation
-  const handleHost = async () => {
+  const handleHost = async (planId?: string) => {
     try {
       const { roomId, hostToken, livekitToken } = await createRoom();
-      setState({ screen: 'host-session', roomId, hostToken, livekitToken });
+      setState({ screen: 'host-session', roomId, hostToken, livekitToken, ...(planId ? { planId } : {}) });
     } catch (err) {
       setState({ screen: 'error', message: String(err) });
     }
@@ -98,14 +105,14 @@ function App() {
 
   /**
    * 登入成功（或開機時偵測到既有 session）後的統一分流入口，規則見 resolveAuthRoute：
-   *   - teacher / admin / institution_admin → 建房間，進 host-session（忽略 pendingRoomId）
+   *   - teacher / admin / institution_admin → teacher-home（備課 / 開始上課）
    *   - student / visitor + 有 pendingRoomId → 自動送出加入請求
    *   - student / visitor + 無 pendingRoomId → student-home（手動輸入房號或掃 QR）
    */
   const routeUser = (loggedInUser: AuthUser) => {
     const route = resolveAuthRoute(loggedInUser.role, pendingRoomId);
-    if (route.action === 'host') {
-      void handleHost();
+    if (route.action === 'teacher-home') {
+      setState({ screen: 'teacher-home' });
     } else if (route.action === 'auto-join') {
       void autoJoinRoom(route.roomId, displayNameOf(loggedInUser));
     } else {
@@ -144,13 +151,14 @@ function App() {
   // Persist AppState to sessionStorage so a page refresh restores the user back
   // to the same screen (and auto-rejoins their LiveKit room when applicable).
   // sessionStorage scope = current tab only, so closing the tab still resets.
-  // select-role/error/student-rejected/student-home/student-joining 都不持久化——
-  // 這些畫面在 refresh 後可以靠開機時的 routeUser 自行正確地重新導向。
+  // select-role/error/student-rejected/student-home/student-joining/teacher-home/lesson-prep
+  // 都不持久化——這些畫面在 refresh 後可以靠開機時的 routeUser 自行正確地重新導向。
   useEffect(() => {
     try {
       if (state.screen === 'select-role' || state.screen === 'error' ||
         state.screen === 'student-rejected' || state.screen === 'student-home' ||
-        state.screen === 'student-joining') {
+        state.screen === 'student-joining' || state.screen === 'teacher-home' ||
+        state.screen === 'lesson-prep') {
         sessionStorage.removeItem(APP_STATE_STORAGE_KEY);
       } else {
         sessionStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
@@ -163,6 +171,26 @@ function App() {
       case 'select-role':
         return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
 
+      case 'teacher-home':
+        return (
+          <TeacherHome
+            teacherName={user ? displayNameOf(user) : '老師'}
+            teacherUid={user ? teacherUidOf(user) : 'unknown'}
+            onPrep={() => setState({ screen: 'lesson-prep' })}
+            onStart={(planId) => { void handleHost(planId); }}
+            onLogout={() => { void logout(); setState({ screen: 'select-role' }); }}
+          />
+        );
+
+      case 'lesson-prep':
+        return (
+          <LessonPrep
+            teacherUid={user ? teacherUidOf(user) : 'unknown'}
+            institutionId={user?.institution_id != null ? String(user.institution_id) : undefined}
+            onBack={() => setState({ screen: 'teacher-home' })}
+          />
+        );
+
       case 'host-lobby':
         return (
           <HostLobby
@@ -170,7 +198,13 @@ function App() {
             hostToken={state.hostToken}
             livekitToken={state.livekitToken}
             onStart={(livekitToken) =>
-              setState({ screen: 'host-session', roomId: state.roomId, hostToken: state.hostToken, livekitToken })
+              setState({
+                screen: 'host-session',
+                roomId: state.roomId,
+                hostToken: state.hostToken,
+                livekitToken,
+                planId: state.planId,
+              })
             }
             onExit={() => setState({ screen: 'select-role' })}
           />
@@ -182,6 +216,7 @@ function App() {
             roomId={state.roomId}
             livekitToken={state.livekitToken}
             hostToken={state.hostToken}
+            planId={state.planId}
           />
         );
 

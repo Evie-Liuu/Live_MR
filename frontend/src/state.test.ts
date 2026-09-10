@@ -2,14 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { resolveAuthRoute } from './state'
 
 describe('resolveAuthRoute', () => {
-  it('routes teacher to host regardless of pendingRoomId', () => {
-    expect(resolveAuthRoute('teacher', 'room-123')).toEqual({ action: 'host' })
-    expect(resolveAuthRoute('teacher', null)).toEqual({ action: 'host' })
+  it('routes teacher to teacher-home regardless of pendingRoomId', () => {
+    expect(resolveAuthRoute('teacher', 'room-123')).toEqual({ action: 'teacher-home' })
+    expect(resolveAuthRoute('teacher', null)).toEqual({ action: 'teacher-home' })
   })
 
   it('routes admin and institution_admin to host', () => {
-    expect(resolveAuthRoute('admin', null)).toEqual({ action: 'host' })
-    expect(resolveAuthRoute('institution_admin', null)).toEqual({ action: 'host' })
+    expect(resolveAuthRoute('admin', null)).toEqual({ action: 'teacher-home' })
+    expect(resolveAuthRoute('institution_admin', null)).toEqual({ action: 'teacher-home' })
   })
 
   it('routes student with a pending roomId to auto-join', () => {
