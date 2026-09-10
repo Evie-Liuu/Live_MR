@@ -158,11 +158,12 @@ function SceneBackgroundControls({
 
     const refresh = async () => {
       try {
+        if (!navigator?.mediaDevices?.enumerateDevices) return;
         let probeStream: MediaStream | null = null;
         try {
           const all = await navigator.mediaDevices.enumerateDevices();
           const hasLabels = all.some((d) => d.kind === 'videoinput' && d.label);
-          if (!hasLabels) {
+          if (!hasLabels && navigator.mediaDevices.getUserMedia) {
             probeStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
           }
         } catch {/* ignore — fall through with empty labels */ }
@@ -178,10 +179,10 @@ function SceneBackgroundControls({
     };
 
     refresh();
-    navigator.mediaDevices.addEventListener?.('devicechange', refresh);
+    navigator?.mediaDevices?.addEventListener?.('devicechange', refresh);
     return () => {
       cancelled = true;
-      navigator.mediaDevices.removeEventListener?.('devicechange', refresh);
+      navigator?.mediaDevices?.removeEventListener?.('devicechange', refresh);
     };
   }, []);
 
@@ -1673,7 +1674,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
           if (typeof rvfc === 'function') {
             rvfc.call(video, markStreaming);
           } else {
-            video.addEventListener('playing', markStreaming, { once: true });
+            video?.addEventListener?.('playing', markStreaming, { once: true });
           }
         } else if (isMounted) {
           // 沒有 camera track(權限被擋等)就不再等影像,以免 overlay 卡死
