@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import loginIllustration from '../assets/login_page.png';
 import type { AuthUser } from '../hooks/useAuth.ts';
 import { useAuth } from '../hooks/useAuth.ts';
+import { secureStorageManager } from '../utils/secureStorageManager.ts';
 import './LoginScreen.css';
 
 interface LoginScreenProps {
@@ -13,9 +14,39 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // 初始化：從系統安全儲存區非同步載入儲存的憑證
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const creds = await secureStorageManager.getCredentials();
+        if (active && creds?.email) {
+          setEmail(creds.email);
+          if (creds.password) {
+            setPassword(creds.password);
+          }
+          setRememberMe(true);
+        }
+      } catch (err) {
+        console.warn('[LoginScreen] Error loading credentials from secureStorageManager:', err);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 當使用者在登入畫面主動取消勾選「記住我」，立即非同步清理安全儲存區
+  useEffect(() => {
+    if (!rememberMe) {
+      void secureStorageManager.clearCredentials();
+    }
+  }, [rememberMe]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +57,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
       const { success, user, message } = await loginWithEmailAndPassword(email, password);
 
       if (success) {
+        if (rememberMe) {
+          await secureStorageManager.saveCredentials(email, password);
+        } else {
+          await secureStorageManager.clearCredentials();
+        }
         localStorage.setItem('user_data', JSON.stringify(user));
         console.log(`[Auth] 登入成功，role: ${user?.role}，user:`, user);
         onLoginSuccess(user!);
@@ -76,13 +112,24 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <span className="material-symbols-outlined input-icon">lock</span>
               </div>
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="密碼"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
                 required
               />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={-1}
+                aria-label={showPassword ? '隱藏密碼' : '顯示密碼'}
+              >
+                <span className="material-symbols-outlined">
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
             </div>
 
             <div className="form-options">
