@@ -23,7 +23,7 @@ describe('generateHints', () => {
         extend: 'Would you like to try it on?',
       }),
     })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     const result = await generateHints('teacher long monologue ...')
     expect(result.question).toBe('How much is this blue shirt?')
     expect(result.complete).toBe('It is 200 dollars.')
@@ -32,7 +32,7 @@ describe('generateHints', () => {
 
   it('defaults question to empty string when model returns non-JSON', async () => {
     generateContentMock.mockResolvedValue({ text: 'It is 200 dollars.' })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     const result = await generateHints('teacher long monologue ...')
     expect(result.question).toBe('')
     expect(result.complete).toBe('It is 200 dollars.')
@@ -48,7 +48,7 @@ describe('generateHints', () => {
         extend: 'She likes reading.',
       }),
     })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     const result = await generateHints('teacher ...')
     expect(result.transcript).toBe('So Angel, tell us about Wendy.')
   })
@@ -57,7 +57,7 @@ describe('generateHints', () => {
     generateContentMock.mockResolvedValue({
       text: JSON.stringify({ question: 'q', complete: 'c', extend: 'e' }),
     })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     const result = await generateHints('teacher ...')
     expect(result.transcript).toBe('')
   })
@@ -66,7 +66,7 @@ describe('generateHints', () => {
     generateContentMock.mockResolvedValue({
       text: JSON.stringify({ transcript: 't', question: 'q', complete: 'c', extend: 'e' }),
     })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     await generateHints('', { audio: { data: 'QUJD', mimeType: 'audio/ogg' } })
     const call = generateContentMock.mock.calls[0][0]
     const parts = call.contents[call.contents.length - 1].parts
@@ -78,7 +78,7 @@ describe('generateHints', () => {
     generateContentMock.mockResolvedValue({
       text: JSON.stringify({ transcript: 't', question: 'q', complete: 'c', extend: 'e' }),
     })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     await generateHints('', {
       history: [{ role: 'user', text: 'earlier teacher turn' }],
       audio: { data: 'QUJD', mimeType: 'audio/ogg' },
@@ -94,7 +94,7 @@ describe('generateHints', () => {
       text: JSON.stringify({ question: 'q', complete: 'c', extend: 'e' }),
       usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 },
     })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     const result = await generateHints('teacher ...')
     expect(result.usage).toEqual({ prompt: 120, output: 45, total: 165 })
   })
@@ -103,7 +103,7 @@ describe('generateHints', () => {
     generateContentMock.mockResolvedValue({
       text: JSON.stringify({ question: 'q', complete: 'c', extend: 'e' }),
     })
-    const { generateHints } = await import('./ai.js')
+    const { generateHints } = await import('./hints.js')
     const result = await generateHints('teacher ...')
     expect(result.usage).toBeUndefined()
   })

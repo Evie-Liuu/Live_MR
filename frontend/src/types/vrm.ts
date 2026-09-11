@@ -1,5 +1,7 @@
 // ─── Shared VRM / Pose Types ─────────────────────────────────────────────────
 
+import type { TaskHint } from '../config/taskHints';
+
 export interface PoseLandmark {
   x: number;
   y: number;
@@ -102,6 +104,8 @@ export interface SceneConfig {
 export interface TaskItem {
   id: string;
   label: string; // e.g. "Ask for the price of a blue T-shirt."
+  /** AI 教案任務自帶五階層提示；靜態任務留空、改查 TASK_HINTS */
+  hint?: TaskHint;
 }
 
 /** A grouping of related tasks (教學功能層) */

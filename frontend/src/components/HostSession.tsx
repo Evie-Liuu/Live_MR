@@ -18,10 +18,13 @@ import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
 import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
-import { TASK_HINTS, HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
-import type { HintLevel } from '../config/taskHints.ts';
-import { SCENE_CONSTRAINTS, shuffleWords, buildHintsSystemInstruction } from '../config/aiAssistant.ts';
+import { HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
+import type { HintLevel, TaskHint } from '../config/taskHints.ts';
+import { shuffleWords, buildHintsSystemInstruction } from '../config/aiAssistant.ts';
 import type { AIHintMode, AIHintPayload, ChatTurn, CachedReplies, HintTaskContext } from '../config/aiAssistant.ts';
+import { resolveModules, resolveTaskHint, resolveSceneConstraint } from '../config/content.ts';
+import { getLessonPlan } from '../utils/lessonPlanClient.ts';
+import type { LessonPlanRecord } from '../types/lessonPlan.ts';
 import { passThroughGate } from '../config/transcriptGate.ts';
 import type { TranscriptGate } from '../config/transcriptGate.ts';
 import { generateHints, toFriendlyError, warmupGemini, type TokenUsage } from '../utils/geminiClient.ts';
@@ -58,6 +61,7 @@ interface HostSessionProps {
   roomId: string;
   livekitToken: string;
   hostToken: string;
+  planId?: string;
 }
 
 interface ParticipantInfo {
@@ -261,7 +265,7 @@ function SceneBackgroundControls({
 }
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function HostSession({ roomId, livekitToken, hostToken }: HostSessionProps) {
+export default function HostSession({ roomId, livekitToken, hostToken, planId }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   // true once the local camera track has been attached (LiveKit setCameraEnabled resolved)
@@ -528,6 +532,37 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
   );
 
+  // ─── 備課教案（可選）────────────────────────────────────────────────────
+  const [lessonPlan, setLessonPlan] = useState<LessonPlanRecord | null>(null);
+  const [lessonPlanNotice, setLessonPlanNotice] = useState<string | null>(null);
+  // handleSceneChange 定義在檔案後段（以 useCallback），此處先用 ref 保存最新版本，
+  // 避免教案載入 effect 必須等到 handleSceneChange 宣告之後才能撰寫。
+  const handleSceneChangeRef = useRef<(sceneId: string) => void>(() => {});
+  useEffect(() => {
+    if (!planId) return;
+    let cancelled = false;
+    getLessonPlan(planId)
+      .then(rec => {
+        if (cancelled) return;
+        setLessonPlan(rec);
+        if (rec.plan.sceneId !== selectedSceneId) {
+          if (SCENE_PRESETS[rec.plan.sceneId]) handleSceneChangeRef.current(rec.plan.sceneId);
+          else setLessonPlanNotice('此教案的場景已移除，僅能使用靜態任務');
+        }
+      })
+      .catch(err => {
+        if (cancelled) return;
+        setLessonPlanNotice(err instanceof Error && err.message === 'not-found' ? '教案已被刪除，改用無教案模式' : '教案載入失敗，改用無教案模式');
+      });
+    return () => { cancelled = true; };
+    // 只在掛載時載入一次；handleSceneChange 透過 ref 讀取最新版本，不需列入依賴
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planId]);
+  const sceneConstraint = useMemo(
+    () => resolveSceneConstraint(selectedSceneId, lessonPlan?.plan),
+    [selectedSceneId, lessonPlan],
+  );
+
   // ─── 場景遮罩物件(occluders) — per-scene 編輯狀態 ──────────────────────
   const OCCLUDERS_STORAGE_KEY = 'bigscreen-scene-occluders';
   const readOccludersForScene = useCallback((sceneId: string): SceneOccluderInstance[] => {
@@ -792,7 +827,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
     if (!audio && txt.length < 3) return;
     if (!audio && !transcriptGateRef.current.accept(txt, { sceneId: selectedSceneId, source: 'button' })) return;
-    const constraint = SCENE_CONSTRAINTS[selectedSceneId];
+    const constraint = sceneConstraint;
     if (!constraint) { setAiError('此場景尚無 AI 助理約束文件'); return; }
 
     // ── Cold path: one AI call → cache {complete, rearrange, extend} → broadcast the requested mode.
@@ -807,9 +842,9 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       const taskContext: HintTaskContext = {
         studentRole: vrmRoleToPersona(speakerId ? studentRoles[speakerId] : undefined),
         currentTaskLabel: currentTask?.label,
-        currentTargetSentence: currentTask ? TASK_HINTS[currentTask.id]?.completeSentence : undefined,
+        currentTargetSentence: currentTask ? resolveTaskHint(currentTask.id, lessonPlan?.plan)?.completeSentence : undefined,
         nextTaskLabel: nextTask?.label,
-        nextTargetSentence: nextTask ? TASK_HINTS[nextTask.id]?.completeSentence : undefined,
+        nextTargetSentence: nextTask ? resolveTaskHint(nextTask.id, lessonPlan?.plan)?.completeSentence : undefined,
       };
       const systemInstruction = buildHintsSystemInstruction(constraint, taskContext, audio ? 'audio' : 'text');
       const history = chatHistoryRef.current;
@@ -872,7 +907,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     } finally {
       setAiBusy(false);
     }
-  }, [aiBusy, sttTranscript, selectedSceneId, selectedTasks, studentRoles, cancelAutoCountdown, broadcastAIHint, startRec, simulateTranscript]);
+  }, [aiBusy, sttTranscript, selectedSceneId, selectedTasks, studentRoles, cancelAutoCountdown, broadcastAIHint, startRec, simulateTranscript, sceneConstraint, lessonPlan]);
 
   const handleHintRef = useRef(handleHint);
   useEffect(() => { handleHintRef.current = handleHint; }, [handleHint]);
@@ -908,7 +943,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   }, [stopRec]);
 
   const startInteraction = useCallback(() => {
-    if (!sttSupported || !SCENE_CONSTRAINTS[selectedSceneId]) return;
+    if (!sttSupported || !sceneConstraint) return;
     if (aiBusy || interactionPhaseRef.current !== 'idle') return;
 
     cancelAutoCountdown();
@@ -920,7 +955,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     if (!sttRecording) {
       startRec();
     }
-  }, [sttSupported, selectedSceneId, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, resetCachedReplies, clearTranscript, startRec]);
+  }, [sttSupported, sceneConstraint, sttRecording, aiBusy, cancelAutoCountdown, resetChatHistory, resetCachedReplies, clearTranscript, startRec]);
 
   const handleTeacherDone = useCallback(() => {
     if (interactionPhaseRef.current !== 'teacher') return;
@@ -982,7 +1017,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         target.isContentEditable
       ) return;
       // 場景尚無 AI 約束 或 不支援 STT 時不動作
-      if (!sttSupported || !SCENE_CONSTRAINTS[spacebarSceneIdRef.current]) return;
+      if (!sttSupported || !resolveSceneConstraint(spacebarSceneIdRef.current, lessonPlan?.plan)) return;
       // 已在錄音中（可能是按鈕觸發），不重複啟動
       if (sttRecordingRef.current) return;
       if (interactionPhaseRef.current !== 'idle') return; // 自動腳本進行中，空白鍵不介入
@@ -1017,7 +1052,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       document.removeEventListener('keyup', onKeyUp);
     };
     // cancelAutoCountdown / clearTranscript / startRec / stopRec 均為穩定 useCallback，不需列入依賴
-  }, [sttSupported, cancelAutoCountdown, clearTranscript, startRec, stopRec]);
+  }, [sttSupported, cancelAutoCountdown, clearTranscript, startRec, stopRec, lessonPlan]);
 
   // transcript 更新時：空白鍵模式 → 立即送出；按鈕模式 → 3 秒倒數後送出
   useEffect(() => {
@@ -1037,7 +1072,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       if (isAutoScript) { setAiError('未偵測到語音，請再試一次'); setInteractionPhase('idle'); }
       return;
     }
-    if (!SCENE_CONSTRAINTS[selectedSceneId]) return;
+    if (!sceneConstraint) return;
 
     if (isSpacebarTrigger || isAutoScript) {
       // 空白鍵放開 / 開始互動腳本：跳過倒數，直接呼叫 AI 並推播提示
@@ -1067,8 +1102,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
       if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null; }
       if (tickTimerRef.current) { clearInterval(tickTimerRef.current); tickTimerRef.current = null; }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sttTranscript]);
+  }, [sttTranscript, sceneConstraint]);
 
   // unmount 清理倒數
   useEffect(() => () => cancelAutoCountdown(), [cancelAutoCountdown]);
@@ -1212,6 +1246,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
     [broadcastSceneChange, broadcastTeacherVrmChange, broadcastVrmChange, cancelAutoCountdown, endInteraction, clearTranscript, resetChatHistory, resetCachedReplies, broadcastAIHint, readOccludersForScene],
   );
 
+  // handleSceneChange 定義在教案載入 effect 之後才出現（此 effect 需要在 selectedSceneId
+  // 之後、但在 handleSceneChange 定義之前宣告，才能讓下方多處 sceneConstraint 的用法編譯通過），
+  // 因此改用 ref 讓教案載入 effect 能呼叫到目前最新的 handleSceneChange。
+  useEffect(() => { handleSceneChangeRef.current = handleSceneChange; }, [handleSceneChange]);
+
   // const handleVrmChange = useCallback(
   //   (vrmSourceId: string) => {
   //     setSelectedVrmSourceId(vrmSourceId);
@@ -1317,7 +1356,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   );
 
   const toggleTaskSelection = useCallback(
-    (taskId: string, label: string) => {
+    (taskId: string, label: string, hint?: TaskHint) => {
       setSelectedTasks((prev) => {
         const index = prev.findIndex((t) => t.id === taskId);
         let next: TaskEntry[];
@@ -1327,7 +1366,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
         } else {
           // Add if under limit
           if (prev.length >= 7) return prev;
-          next = [...prev, { id: taskId, label, completed: false }];
+          next = [...prev, { id: taskId, label, completed: false, ...(hint ? { hint } : {}) }];
         }
         broadcastTaskChange(next);
         return next;
@@ -1895,7 +1934,11 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
   ], [teacherIdentity, teacherName, studentList]);
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
-  const hasModules = currentScenePreset.modules && currentScenePreset.modules.length > 0;
+  const taskBankModules = useMemo(
+    () => resolveModules(currentScenePreset.modules ?? [], lessonPlan?.plan, selectedSceneId),
+    [currentScenePreset, lessonPlan, selectedSceneId],
+  );
+  const hasModules = taskBankModules.length > 0;
   const SLOT_COLORS = ['#44aaff', '#ff8844', '#aa88ff', '#44ff88'];
   // SceneConfig has no icon — look it up from THEMES SceneVariant
   const currentSceneVariant = THEMES.flatMap(t => t.scenes).find(s => s.id === selectedSceneId);
@@ -2399,7 +2442,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
 
             {(() => {
               const currentTask = selectedTasks.find(t => !t.completed);
-              const hint = currentTask ? TASK_HINTS[currentTask.id] : undefined;
+              const hint = currentTask ? resolveTaskHint(currentTask.id, lessonPlan?.plan) : undefined;
               const renderLevelContent = (lv: HintLevel) => {
                 if (!hint) return null;
                 if (lv === 'unscramble')
@@ -2412,7 +2455,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                       : hint.partialSentence;
                 return <div className="hs-hint-line">{text}</div>;
               };
-              const hasConstraint = !!SCENE_CONSTRAINTS[selectedSceneId];
+              const hasConstraint = !!sceneConstraint;
               const tooShort = !sttTranscript || sttTranscript.trim().length < 3;
               const canTrigger = sttSupported && !sttRecording && !tooShort && hasConstraint;
               return (
@@ -2768,6 +2811,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                       </div>
 
                       {aiError && <div className="hs-ai-error">{aiError}</div>}
+                      {lessonPlanNotice && <div className="hs-ai-error">{lessonPlanNotice}</div>}
 
                       {/* ── 重組提示 chips（僅 rearrange 模式顯示）─────── */}
                       {latestHint && latestHint.content && latestHint.mode === 'rearrange' && (
@@ -3117,9 +3161,12 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
             <div className="task-bank">
               <div className="task-bank-header">
                 <span>任務庫</span>
+                {lessonPlan && lessonPlan.plan.sceneId === selectedSceneId && (
+                  <span className="task-bank-plan-tag">{lessonPlan.plan.title}</span>
+                )}
               </div>
               <div className="task-bank-tree">
-                {currentScenePreset.modules!.map((mod) => (
+                {taskBankModules.map((mod) => (
                   <div key={mod.id} className="module-group">
                     <div
                       className={`module-header ${expandedModuleIds.has(mod.id) ? 'expanded' : ''}`}
@@ -3139,7 +3186,7 @@ export default function HostSession({ roomId, livekitToken, hostToken }: HostSes
                             <button
                               key={task.id}
                               className={`task-select-btn ${isSelected ? 'selected' : ''}`}
-                              onClick={() => toggleTaskSelection(task.id, task.label)}
+                              onClick={() => toggleTaskSelection(task.id, task.label, task.hint)}
                               disabled={!isSelected && selectedTasks.length >= 7}
                             >
                               <div className="btn-check">

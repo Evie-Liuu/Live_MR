@@ -1,9 +1,12 @@
 import express from 'express'
 import cors from 'cors'
+import path from 'path'
 import { RoomStore } from './rooms.js'
 import { createRouter } from './routes.js'
 import { RecordingStore } from './recording.js'
 import { RoomAdminService } from './roomAdmin.js'
+import { openDatabase } from './db/connection.js'
+import { LessonPlanRepo } from './db/lessonPlanRepo.js'
 
 // 對應 scripts/dev-livekit.ts 起的 dev 用 LiveKit（僅 localhost，devkey/devsecret 為固定值）。
 process.env.LIVEKIT_URL = 'ws://127.0.0.1:7880'
@@ -25,8 +28,13 @@ const store = new RoomStore()
 const recordingStore = new RecordingStore()
 const roomAdmin = new RoomAdminService()
 
+const dbPath = process.env.LIVEMR_DB_PATH || path.resolve(process.cwd(), '../data/livemr.sqlite')
+let lessonPlanRepo: LessonPlanRepo | null = null
+try { lessonPlanRepo = new LessonPlanRepo(openDatabase(dbPath)) }
+catch (err) { console.error('[db] failed to open', dbPath, err) }
+
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
-app.use('/api', createRouter(store, { recordingStore, roomAdmin }))
+app.use('/api', createRouter(store, { recordingStore, roomAdmin }, { repo: lessonPlanRepo }))
 
 const CLEANUP_INTERVAL = 5 * 60 * 1000
 const ROOM_TTL = 2 * 60 * 60 * 1000
