@@ -7702,3 +7702,25 @@ button:disabled {
   color: #8a5230;
   letter-spacing: 0.02em;
 }
+
+.hs-loading-skip-btn {
+  margin-top: -6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a5230;
+  background: rgba(247, 110, 18, 0.12);
+  border: 1px solid rgba(247, 110, 18, 0.25);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.hs-loading-skip-btn:hover {
+  background: rgba(247, 110, 18, 0.22);
+  transform: translateY(-1px);
+}
+
+.hs-loading-skip-btn:active {
+  transform: translateY(0);
+}

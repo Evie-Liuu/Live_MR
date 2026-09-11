@@ -1698,26 +1698,40 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
           if (isMounted) console.error('Failed to enable camera/microphone:', err);
         }
 
+        let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+        const markStreaming = () => {
+          if (fallbackTimer) {
+            clearTimeout(fallbackTimer);
+            fallbackTimer = null;
+          }
+          if (isMounted) setCameraStreaming(true);
+        };
+
         // Attach teacher camera to hidden video for pose detection
         const camPub = room.localParticipant.getTrackPublication(Track.Source.Camera);
         const video = teacherVideoRef.current;
         if (camPub?.track && video) {
           video.srcObject = new MediaStream([camPub.track.mediaStreamTrack]);
           video.play().catch(() => {/* autoplay */ });
-          // 等到第一張影像真的解出來再讓 loading overlay 消失。
-          // 優先用 requestVideoFrameCallback(瀏覽器確認影格已可繪製),
-          // 不支援時退回 'playing' 事件(影音管線已開始輸出)。
-          const markStreaming = () => { if (isMounted) setCameraStreaming(true); };
+
+          // 等到第一張影像解出來再讓 loading overlay 消失。
+          // 支援 rVFC 時使用 rVFC，同時監聽 loadeddata / playing / timeupdate
           type VFC = (cb: () => void) => number;
           const rvfc = (video as unknown as { requestVideoFrameCallback?: VFC }).requestVideoFrameCallback;
           if (typeof rvfc === 'function') {
             rvfc.call(video, markStreaming);
-          } else {
-            video?.addEventListener?.('playing', markStreaming, { once: true });
           }
+          video.addEventListener('playing', markStreaming, { once: true });
+          video.addEventListener('loadeddata', markStreaming, { once: true });
+          video.addEventListener('timeupdate', markStreaming, { once: true });
+
+          // 若瀏覽器延遲渲染或鏡頭啟動過久，4 秒後強制解除 overlay，避免卡死
+          fallbackTimer = setTimeout(() => {
+            markStreaming();
+          }, 4000);
         } else if (isMounted) {
-          // 沒有 camera track(權限被擋等)就不再等影像,以免 overlay 卡死
-          setCameraStreaming(true);
+          // 沒有 camera track(權限被擋等)就不再等影像，以免 overlay 卡死
+          markStreaming();
         }
         // Signal that camera publication finished — overlay text 切到「正在連接影像…」
         if (isMounted) setCameraReady(true);
@@ -1735,6 +1749,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       .catch((err) => {
         if (!isMounted) return;
         console.error('Failed to connect to room:', err);
+        setCameraStreaming(true);
         // Likely an expired token persisted from a previous session — wipe
         // sessionStorage so the next reload returns to role selection.
         try { sessionStorage.removeItem('live-mr-app-state'); } catch { /* ignore */ }
@@ -1977,6 +1992,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
             <div className="hs-loading-text">
               {!connectedRoom ? '正在連線…' : !cameraReady ? '正在啟動鏡頭…' : '正在連接影像…'}
             </div>
+            {cameraReady && (
+              <button
+                type="button"
+                className="hs-loading-skip-btn"
+                onClick={() => setCameraStreaming(true)}
+              >
+                直接進入教室
+              </button>
+            )}
           </div>
         </div>
       )}
