@@ -274,6 +274,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // the camera truly "live"。loading overlay 必須等到此旗標為 true 才能消失,
   // 否則畫面已露出但鏡頭其實還在連接、第一張影像尚未進來。
   const [cameraStreaming, setCameraStreaming] = useState(false);
+  // LiveKit 連線失敗訊息（例如重整時伺服器暫時連不上）；非 null 時 overlay 改顯示重試 / 結束課程
+  const [connectError, setConnectError] = useState<string | null>(null);
   const roomRef = useRef<Room | null>(null);
   // Set participant display name from logged-in user
   const { user, logout } = useAuth();
@@ -1749,10 +1751,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       .catch((err) => {
         if (!isMounted) return;
         console.error('Failed to connect to room:', err);
-        setCameraStreaming(true);
-        // Likely an expired token persisted from a previous session — wipe
-        // sessionStorage so the next reload returns to role selection.
-        try { sessionStorage.removeItem('live-mr-app-state'); } catch { /* ignore */ }
+        // 不清掉 live-mr-app-state：暫時性的連線失敗不該讓老師重整後被踢出教室，
+        // 改由 overlay 讓老師選擇重試或結束課程。
+        setConnectError(err instanceof Error ? err.message : String(err));
       });
 
     return () => {
@@ -1986,13 +1987,35 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
             <div className="hs-loading-logo">
               <img src="/logo.webp" alt="Logo" />
             </div>
-            <div className="hs-loading-spinner" aria-hidden="true">
-              <span /><span /><span /><span />
-            </div>
-            <div className="hs-loading-text">
-              {!connectedRoom ? '正在連線…' : !cameraReady ? '正在啟動鏡頭…' : '正在連接影像…'}
-            </div>
-            {cameraReady && (
+            {connectError ? (
+              <>
+                <div className="hs-loading-text">連線失敗：{connectError}</div>
+                <button
+                  type="button"
+                  className="hs-loading-skip-btn"
+                  onClick={() => window.location.reload()}
+                >
+                  重試
+                </button>
+                <button
+                  type="button"
+                  className="hs-loading-skip-btn"
+                  onClick={() => { sessionStorage.clear(); window.location.href = '/'; }}
+                >
+                  結束課程
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="hs-loading-spinner" aria-hidden="true">
+                  <span /><span /><span /><span />
+                </div>
+                <div className="hs-loading-text">
+                  {!connectedRoom ? '正在連線…' : !cameraReady ? '正在啟動鏡頭…' : '正在連接影像…'}
+                </div>
+              </>
+            )}
+            {cameraReady && !connectError && (
               <button
                 type="button"
                 className="hs-loading-skip-btn"
