@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildLivekitConfig } from '../backend/src/launcher/livekitConfig.js'
 import { LiveKitProcess } from '../backend/src/launcher/livekitProcess.js'
+import { detectLanIp } from '../backend/src/launcher/network.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -14,8 +15,12 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
+  // node_ip 不能用 127.0.0.1：Chrome 不收集 loopback ICE candidate，只會從區網介面
+  // 連 LiveKit 公告的 127.0.0.1，ICE 一直卡在 checking → could not establish pc connection。
+  // 與 standalone.ts 相同改用區網 IP；偵測不到（離線）才退回 127.0.0.1。
+  const nodeIp = detectLanIp() ?? '127.0.0.1'
   const configYaml = buildLivekitConfig({
-    nodeIp: '127.0.0.1',
+    nodeIp,
     apiKey: 'devkey',
     apiSecret: 'devsecret1234567890devsecret1234567890',
   })
