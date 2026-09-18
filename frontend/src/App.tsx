@@ -151,14 +151,14 @@ function App() {
   // Persist AppState to sessionStorage so a page refresh restores the user back
   // to the same screen (and auto-rejoins their LiveKit room when applicable).
   // sessionStorage scope = current tab only, so closing the tab still resets.
-  // select-role/error/student-rejected/student-home/student-joining/teacher-home/lesson-prep
+  // select-role/error/student-rejected/student-home/student-joining
   // 都不持久化——這些畫面在 refresh 後可以靠開機時的 routeUser 自行正確地重新導向。
+  // teacher-home/lesson-prep 要持久化，否則備課中重整會被 routeUser 一律丟回 teacher-home。
   useEffect(() => {
     try {
       if (state.screen === 'select-role' || state.screen === 'error' ||
         state.screen === 'student-rejected' || state.screen === 'student-home' ||
-        state.screen === 'student-joining' || state.screen === 'teacher-home' ||
-        state.screen === 'lesson-prep') {
+        state.screen === 'student-joining') {
         sessionStorage.removeItem(APP_STATE_STORAGE_KEY);
       } else {
         sessionStorage.setItem(APP_STATE_STORAGE_KEY, JSON.stringify(state));
@@ -167,6 +167,15 @@ function App() {
   }, [state]);
 
   const renderScreen = () => {
+    const isTeacherScreen = state.screen === 'teacher-home' || state.screen === 'lesson-prep';
+    // auth 還在確認時不畫登入表單（避免重整時先閃登入頁），老師畫面也要等 user 才有 teacherUid
+    if (isLoading && (state.screen === 'select-role' || isTeacherScreen)) {
+      return <AppSpinner />;
+    }
+    // 從 sessionStorage 還原了老師畫面，但 auth 載完發現已沒有有效 session（過期 / 被登出）→ 顯示登入頁
+    if (!isAuthenticated && isTeacherScreen) {
+      return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    }
     switch (state.screen) {
       case 'select-role':
         return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
