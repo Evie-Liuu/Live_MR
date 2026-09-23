@@ -1,11 +1,33 @@
 import { GoogleGenAI } from '@google/genai'
 
-const DEFAULT_MODELS = 'gemini-2.5-flash,gemini-2.5-flash-lite,gemini-2.0-flash-lite'
+const DEFAULT_MODELS = 'gemini-2.5-flash,gemini-2.5-flash-lite,gemini-flash-lite-latest'
 export const MODELS = (process.env.GEMINI_MODEL || DEFAULT_MODELS)
   .split(',')
   .map(m => m.trim())
   .filter(Boolean)
 const DEFAULT_TIMEOUT_MS = 60_000
+/** 2.5 Flash-Lite 的 thinkingBudget 只接受 0（關閉）或 512–24576，小於 512 會回 400 INVALID_ARGUMENT */
+const FLASH_LITE_MIN_THINKING_BUDGET = 512
+/** 2.5 Pro 不能關閉推理，thinkingBudget 下限 128 */
+const PRO_MIN_THINKING_BUDGET = 128
+
+/**
+ * 依模型調整 thinkingBudget；回傳 undefined 表示不送 thinkingConfig（用模型預設）。
+ *   - 1.x / 2.0：不支援推理，不送
+ *   - 2.5 Flash：照原值
+ *   - 2.5 Flash-Lite：0 或 ≥512
+ *   - 2.5 Pro：不能關閉，≥128
+ *   - 其他（3.x、gemini-*-latest 別名）：不能關閉推理，送 0 會 400；要求 0 時改用模型預設
+ */
+export function thinkingBudgetFor(model: string, requested: number): number | undefined {
+  if (/gemini-(1\.|2\.0)/.test(model)) return undefined
+  if (model.includes('2.5')) {
+    if (model.includes('pro')) return Math.max(requested, PRO_MIN_THINKING_BUDGET)
+    if (model.includes('lite') && requested > 0) return Math.max(requested, FLASH_LITE_MIN_THINKING_BUDGET)
+    return requested
+  }
+  return requested > 0 ? requested : undefined
+}
 
 let client: GoogleGenAI | null = null
 
@@ -25,7 +47,11 @@ export function isRetryable(err: unknown): boolean {
     msg.includes('unavailable') ||
     msg.includes('overloaded') ||
     msg.includes('resource_exhausted') ||
-    msg.includes('quota')
+    msg.includes('quota') ||
+    // 模型已下架 / 名稱不存在：換下一個模型
+    msg.includes('404') ||
+    msg.includes('not_found') ||
+    msg.includes('no longer available')
   )
 }
 
@@ -51,7 +77,7 @@ export interface GeminiCallOptions<T> {
   systemInstruction?: string
   temperature: number
   maxOutputTokens: number
-  /** 只對 2.5 系列生效；2.0 系列傳 thinkingBudget 會報錯，一律送 0 */
+  /** 期望的推理預算；實際送出的值依模型調整，見 thinkingBudgetFor */
   thinkingBudget: number
   /** 有給就強制 JSON 輸出 */
   responseSchema?: Record<string, unknown>
@@ -75,13 +101,13 @@ export async function callGemini<T>(opts: GeminiCallOptions<T>): Promise<GeminiC
     let lastErr: unknown = new Error('No models configured')
     for (const model of MODELS) {
       try {
-        const thinkingBudget = model.includes('2.5') ? opts.thinkingBudget : 0
+        const thinkingBudget = thinkingBudgetFor(model, opts.thinkingBudget)
         const config: Record<string, unknown> = {
           temperature: opts.temperature,
           maxOutputTokens: opts.maxOutputTokens,
-          thinkingConfig: { thinkingBudget },
           abortSignal: controller.signal,
         }
+        if (thinkingBudget !== undefined) config.thinkingConfig = { thinkingBudget }
         if (opts.responseSchema) {
           config.responseMimeType = 'application/json'
           config.responseSchema = opts.responseSchema
