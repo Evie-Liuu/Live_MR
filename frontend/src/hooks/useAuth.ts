@@ -9,7 +9,7 @@
  *   4. 將 user 存入 localStorage('user_data') 供全域存取
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -62,44 +62,70 @@ async function backendLogin(idToken: string): Promise<AuthUser> {
   return data.user;
 }
 
+// ── 共用狀態 ────────────────────────────────────────────────────────────────
+// 所有 useAuth() 共用同一份狀態：LoginScreen 登入成功後，App 那邊的 isAuthenticated / user
+// 也要立刻跟著更新，否則 App 切到 teacher-home 時仍判定未登入，又畫回登入頁（卡在「登入中」）。
+
+function readInitialAuthState(): AuthState {
+  // 嘗試從 localStorage 還原已登入狀態（同 auth.js 的 onAuthStateChanged handler）
+  try {
+    const raw = localStorage.getItem('user_data');
+    if (raw) {
+      const user = JSON.parse(raw) as AuthUser;
+      return { isAuthenticated: true, user, isLoading: true };
+    }
+  } catch { /* ignore */ }
+  return { isAuthenticated: false, user: null, isLoading: true };
+}
+
+let sharedAuthState: AuthState | null = null;
+const authListeners = new Set<() => void>();
+let unsubscribeFirebase: (() => void) | null = null;
+
+function getAuthState(): AuthState {
+  if (!sharedAuthState) sharedAuthState = readInitialAuthState();
+  return sharedAuthState;
+}
+
+function setAuthState(next: AuthState | ((prev: AuthState) => AuthState)) {
+  sharedAuthState = typeof next === 'function' ? next(getAuthState()) : next;
+  authListeners.forEach((l) => l());
+}
+
+// 監聽 Firebase auth 狀態（對應 auth.js 的 onAuthStateChanged 全域設定），全域只掛一次
+function ensureFirebaseListener() {
+  if (unsubscribeFirebase) return;
+  unsubscribeFirebase = onAuthStateChanged(auth, (firebaseUser) => {
+    if (firebaseUser) {
+      // Firebase 有 session，嘗試從 localStorage 取 user_data
+      const raw = localStorage.getItem('user_data');
+      if (raw) {
+        try {
+          const user = JSON.parse(raw) as AuthUser;
+          setAuthState({ isAuthenticated: true, user, isLoading: false });
+          return;
+        } catch { /* ignore */ }
+      }
+      // 有 Firebase session 但無本地資料 → 待 loginWithEmailAndPassword 完成後再更新
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
+    } else {
+      // 無 Firebase session → 清除狀態
+      localStorage.removeItem('user_data');
+      setAuthState({ isAuthenticated: false, user: null, isLoading: false });
+    }
+  });
+}
+
+function subscribeAuth(listener: () => void) {
+  ensureFirebaseListener();
+  authListeners.add(listener);
+  return () => { authListeners.delete(listener); };
+}
+
 // ── Hook ────────────────────────────────────────────────────────────────────
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>(() => {
-    // 嘗試從 localStorage 還原已登入狀態（同 auth.js 的 onAuthStateChanged handler）
-    const raw = localStorage.getItem('user_data');
-    if (raw) {
-      try {
-        const user = JSON.parse(raw) as AuthUser;
-        return { isAuthenticated: true, user, isLoading: true };
-      } catch { /* ignore */ }
-    }
-    return { isAuthenticated: false, user: null, isLoading: true };
-  });
-
-  // 監聽 Firebase auth 狀態（對應 auth.js 的 onAuthStateChanged 全域設定）
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        // Firebase 有 session，嘗試從 localStorage 取 user_data
-        const raw = localStorage.getItem('user_data');
-        if (raw) {
-          try {
-            const user = JSON.parse(raw) as AuthUser;
-            setAuthState({ isAuthenticated: true, user, isLoading: false });
-            return;
-          } catch { /* ignore */ }
-        }
-        // 有 Firebase session 但無本地資料 → 待 loginWithEmailAndPassword 完成後再更新
-        setAuthState((prev) => ({ ...prev, isLoading: false }));
-      } else {
-        // 無 Firebase session → 清除狀態
-        localStorage.removeItem('user_data');
-        setAuthState({ isAuthenticated: false, user: null, isLoading: false });
-      }
-    });
-    return unsubscribe;
-  }, []);
+  const authState = useSyncExternalStore(subscribeAuth, getAuthState);
 
   /**
    * loginWithEmailAndPassword
