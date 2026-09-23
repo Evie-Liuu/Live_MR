@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
 import { CEFR_LEVELS, type CefrLevel, type LessonPlanRecord, type LessonPlanSummary } from '../types/lessonPlan.ts';
 import { buildSceneContext } from '../utils/sceneContext.ts';
@@ -20,6 +20,22 @@ type View =
 
 const GENERATING_STEPS = ['規劃大綱與學習目標', '撰寫逐字腳本', '產生任務五階層提示', '整理語法說明與注意點'];
 
+interface NewPlanOption {
+  key: 'manual' | 'ai' | 'template';
+  icon: string;
+  title: string;
+  desc: string;
+  isNew?: boolean;
+  /** 尚未實作的選項先顯示但不可點 */
+  comingSoon?: boolean;
+}
+
+const NEW_PLAN_OPTIONS: NewPlanOption[] = [
+  { key: 'manual', icon: 'add', title: '自己新增任務', desc: '從零開始建立任務對話流程', comingSoon: true },
+  { key: 'ai', icon: 'auto_awesome', title: 'AI 生成任務', desc: '輸入需求，AI 幫你生成任務劇本', isNew: true },
+  { key: 'template', icon: 'inventory_2', title: '從任務庫中選擇模板', desc: '套用現有模板快速建立任務', comingSoon: true },
+];
+
 const SCENE_OPTIONS = THEMES.flatMap(t => t.scenes.map(s => ({ id: s.id, label: `${t.label}／${s.label}` })));
 
 export default function LessonPrep({ teacherUid, institutionId, onBack }: LessonPrepProps) {
@@ -30,6 +46,8 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
   const [topic, setTopic] = useState('');
   const [level, setLevel] = useState<CefrLevel>('A1');
   const [stepIdx, setStepIdx] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const refresh = () =>
     listLessonPlans(teacherUid).then(setPlans).catch(e => setError(lessonPlanErrorText(e)));
@@ -42,6 +60,26 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     const t = setInterval(() => setStepIdx(i => Math.min(i + 1, GENERATING_STEPS.length - 1)), 8000);
     return () => clearInterval(t);
   }, [view.kind]);
+
+  // 新建選單：點選單外或按 Esc 關閉
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const handleNewOption = (key: NewPlanOption['key']) => {
+    setMenuOpen(false);
+    if (key === 'ai') setView({ kind: 'form' });
+  };
 
   const handleGenerate = async () => {
     const trimmed = topic.trim();
@@ -125,7 +163,35 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
 
       {view.kind === 'list' && (
         <>
-          <button className="lp-btn-primary lp-new-btn" onClick={() => setView({ kind: 'form' })}>＋ 新建教案</button>
+          <div className="lp-new-wrap" ref={menuRef}>
+            <button
+              className="lp-btn-primary lp-new-btn"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(o => !o)}
+            >＋ 新建教案</button>
+            {menuOpen && (
+              <div className="lp-new-menu" role="menu">
+                {NEW_PLAN_OPTIONS.map(o => (
+                  <button
+                    key={o.key}
+                    role="menuitem"
+                    className={`lp-new-option lp-new-option--${o.key}`}
+                    disabled={o.comingSoon}
+                    onClick={() => handleNewOption(o.key)}
+                  >
+                    <span className="lp-new-option-icon material-symbols-outlined" aria-hidden="true">{o.icon}</span>
+                    <span className="lp-new-option-text">
+                      <span className="lp-new-option-title">{o.title}</span>
+                      <span className="lp-new-option-desc">{o.comingSoon ? '即將推出' : o.desc}</span>
+                    </span>
+                    {o.isNew && <span className="lp-new-badge">NEW</span>}
+                    <span className="lp-new-option-chevron material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {plans.length === 0 ? (
             <p className="lp-hint-text">還沒有教案，按「新建教案」開始。</p>
           ) : (
