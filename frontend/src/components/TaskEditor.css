@@ -185,6 +185,8 @@
   height: 38px;
   display: grid;
   place-items: center;
+  justify-content: center;
+  align-content: center;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -382,6 +384,8 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
+  justify-content: center;
+  align-content: center;
   background: var(--step-color);
   color: #fff;
   font-size: 13px;
@@ -421,6 +425,8 @@
   box-sizing: border-box;
   display: grid;
   place-items: center;
+  justify-content: center;
+  align-content: center;
   font-size: 11px;
   font-weight: 700;
   color: var(--step-color);
@@ -547,6 +553,7 @@
   padding: 0 20px;
   border-bottom: 1px solid var(--te-line);
   overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .te-tab {
@@ -742,6 +749,8 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
+  justify-content: center;
+  align-content: center;
   border: none;
   background: #fff;
   color: #3F3F46;
