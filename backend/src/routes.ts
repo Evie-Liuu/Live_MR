@@ -8,6 +8,7 @@ import type { RoomAdminService } from './roomAdmin.js'
 import { mergeRecording } from './merge.js'
 import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai/hints.js'
 import { createLessonPlanRouter, type LessonPlanRouteDeps } from './lessonPlanRoutes.js'
+import { createDialogueTaskRouter, type DialogueTaskRouteDeps } from './dialogueTaskRoutes.js'
 
 const recordingsDir = process.env.RECORDINGS_DIR
   ? path.resolve(process.env.RECORDINGS_DIR)
@@ -55,9 +56,12 @@ interface RecordingDeps {
   roomAdmin: RoomAdminService
 }
 
-export function createRouter(store: RoomStore, recording?: RecordingDeps, lessonPlans?: LessonPlanRouteDeps): Router {
+export function createRouter(
+  store: RoomStore, recording?: RecordingDeps, lessonPlans?: LessonPlanRouteDeps, dialogueTasks?: DialogueTaskRouteDeps,
+): Router {
   const router = Router()
   router.use('/lesson-plans', createLessonPlanRouter(lessonPlans ?? { repo: null }))
+  router.use('/dialogue-tasks', createDialogueTaskRouter(dialogueTasks ?? { repo: null }))
 
   // Per-room event log + waiters for long polling
   interface QueuedEvent { id: number; type: string; [key: string]: unknown }

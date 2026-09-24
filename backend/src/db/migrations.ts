@@ -28,4 +28,17 @@ export const MIGRATIONS: ReadonlyArray<string> = [
   );
   CREATE INDEX idx_lesson_tasks_plan ON lesson_tasks (plan_id, sort_order);
   `,
+  `
+  CREATE TABLE dialogue_tasks (
+    id             TEXT PRIMARY KEY,
+    teacher_uid    TEXT NOT NULL,
+    institution_id TEXT,
+    scene_id       TEXT NOT NULL,
+    title          TEXT NOT NULL,
+    task_json      TEXT NOT NULL,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL
+  );
+  CREATE INDEX idx_dialogue_tasks_teacher ON dialogue_tasks (teacher_uid, updated_at DESC);
+  `,
 ]

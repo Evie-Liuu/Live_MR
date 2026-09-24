@@ -14,6 +14,7 @@
 .lp-error { background: #FEE2E2; color: #B91C1C; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
 .lp-hint-text { color: #6B7280; font-size: 13px; font-weight: 400; }
 .lp-new-btn { margin-bottom: 16px; }
+.lp-section-title { margin: 20px 0 10px; font-size: 16px; color: #374151; }
 .lp-new-wrap { position: relative; display: inline-block; }
 .lp-new-menu {
   position: absolute; top: calc(100% - 8px); left: 0; z-index: 20;
