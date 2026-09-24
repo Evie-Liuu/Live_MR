@@ -1,11 +1,11 @@
-import type { LessonPlan } from '../types/lessonPlan.ts'
+import { levelLabel, type LessonPlan } from '../types/lessonPlan.ts'
 
 /** 老師「複製為 Markdown」用；sceneConstraint 是給 AI 的內部文字，不輸出。 */
 export function lessonPlanToMarkdown(plan: LessonPlan): string {
   const lines: string[] = []
   lines.push(`# ${plan.title}`)
   lines.push('')
-  lines.push(`主題：${plan.topic}｜程度：${plan.level}｜時長：${plan.durationMin} 分鐘`)
+  lines.push(`主題：${plan.topic}｜程度：${levelLabel(plan.level)}｜時長：${plan.durationMin} 分鐘`)
   lines.push('')
   lines.push('## 學習目標')
   for (const o of plan.objectives) lines.push(`- ${o}`)

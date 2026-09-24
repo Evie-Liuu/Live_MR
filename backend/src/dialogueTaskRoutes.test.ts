@@ -78,6 +78,15 @@ describe('dialogue task routes', () => {
     expect(bad.status).toBe(400)
   })
 
+  it('converts legacy levels (A2 / B1) to the new level bands', async () => {
+    const a2 = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: { ...sampleTask(), level: 'A2' } })
+    expect(a2.body.task.level).toBe('A1-A2')
+    const b1 = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: { ...sampleTask(), level: 'B1' } })
+    expect(b1.body.task.level).toBe('A2-B1')
+    const pre = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: { ...sampleTask(), level: 'preA1-A1' } })
+    expect(pre.body.task.level).toBe('preA1-A1')
+  })
+
   it('rejects malformed input', async () => {
     const post = (body: unknown) => request(app).post('/api/dialogue-tasks').send(body as object)
     expect((await post({ task: sampleTask() })).status).toBe(400)

@@ -9,7 +9,7 @@ export const clothingStoreReturn: TaskTemplate = {
   task: {
     title: '退換貨',
     sceneId: 'clothingStore_cashier',
-    level: 'A2',
+    level: 'A1-A2',
     steps: [
       {
         id: 'reason',

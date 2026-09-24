@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listLessonPlans } from '../utils/lessonPlanClient.ts';
-import type { LessonPlanSummary } from '../types/lessonPlan.ts';
+import { levelLabel, type LessonPlanSummary } from '../types/lessonPlan.ts';
 import './TeacherHome.css';
 
 interface TeacherHomeProps {
@@ -60,7 +60,7 @@ export default function TeacherHome({ teacherName, teacherUid, onPrep, onStart, 
             >
               <option value="">不使用教案</option>
               {plans.map(p => (
-                <option key={p.id} value={p.id}>{p.title}（{p.level}）</option>
+                <option key={p.id} value={p.id}>{p.title}（{levelLabel(p.level, true)}）</option>
               ))}
             </select>
             {loadError && <span className="teacher-home-error">{loadError}</span>}

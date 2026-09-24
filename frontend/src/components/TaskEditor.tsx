@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
-import { CEFR_LEVELS, type CefrLevel } from '../types/lessonPlan.ts';
+import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
   blankTask, cloneStep, formatClock, newLine, newStep, stepTimings,
   type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
@@ -56,7 +56,8 @@ function canSpeak() {
 
 export default function TaskEditor({ teacherUid, institutionId, initial, initialTask, onSaved, onClose }: TaskEditorProps) {
   const [task, setTask] = useState<DialogueTask>(() => {
-    if (initial) return initial.task;
+    // 舊資料可能是舊版程度值（A2 / B1），載入時轉成新版
+    if (initial) return { ...initial.task, level: normalizeLevel(initial.task.level) };
     if (initialTask) return initialTask;
     const scene = SCENES[0];
     return blankTask(scene?.id ?? '', scene?.slots.map(s => s.id) ?? []);
@@ -308,7 +309,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
               <label className="te-field te-field-level">
                 <span>程度</span>
                 <select value={task.level} onChange={e => { const level = e.target.value as CefrLevel; edit(t => ({ ...t, level })); }}>
-                  {CEFR_LEVELS.map(l => <option key={l.value} value={l.value} title={l.label}>{l.value}</option>)}
+                  {CEFR_LEVELS.map(l => <option key={l.value} value={l.value} title={l.label}>{l.short}</option>)}
                 </select>
               </label>
             </div>

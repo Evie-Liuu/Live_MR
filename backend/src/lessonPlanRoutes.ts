@@ -13,6 +13,7 @@ export interface LessonPlanRouteDeps {
 
 const DEFAULT_TIMEOUT_MS = 90_000
 const MAX_TOPIC_LEN = 200
+const MAX_TEACHING_GOAL_LEN = 300
 
 function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every(x => typeof x === 'string')
@@ -53,13 +54,18 @@ export function createLessonPlanRouter(deps: LessonPlanRouteDeps): Router {
   router.post('/generate', async (req: Request, res: Response) => {
     const body = req.body as {
       teacherUid?: unknown; institutionId?: unknown; sceneId?: unknown; sceneContext?: unknown; topic?: unknown; level?: unknown
+      teachingGoal?: unknown
     }
     if (typeof body.teacherUid !== 'string' || !body.teacherUid.trim()) { res.status(400).json({ error: 'teacherUid is required' }); return }
     if (typeof body.sceneId !== 'string' || !body.sceneId.trim()) { res.status(400).json({ error: 'sceneId is required' }); return }
     if (typeof body.topic !== 'string' || !body.topic.trim() || body.topic.length > MAX_TOPIC_LEN) {
       res.status(400).json({ error: `topic is required (max ${MAX_TOPIC_LEN} chars)` }); return
     }
-    if (!CEFR_LEVELS.includes(body.level as CefrLevel)) { res.status(400).json({ error: 'level must be A1, A2 or B1' }); return }
+    if (!CEFR_LEVELS.includes(body.level as CefrLevel)) { res.status(400).json({ error: `level must be one of ${CEFR_LEVELS.join(', ')}` }); return }
+    if (body.teachingGoal !== undefined && (typeof body.teachingGoal !== 'string' || body.teachingGoal.length > MAX_TEACHING_GOAL_LEN)) {
+      res.status(400).json({ error: `teachingGoal must be a string (max ${MAX_TEACHING_GOAL_LEN} chars)` }); return
+    }
+    const teachingGoal = typeof body.teachingGoal === 'string' && body.teachingGoal.trim() ? body.teachingGoal.trim() : undefined
     if (!isSceneContext(body.sceneContext)) { res.status(400).json({ error: 'sceneContext is malformed' }); return }
     const institutionId = typeof body.institutionId === 'string' && body.institutionId.trim() ? body.institutionId : null
 
@@ -68,7 +74,7 @@ export function createLessonPlanRouter(deps: LessonPlanRouteDeps): Router {
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
       const plan = await generate(
-        { sceneId: body.sceneId, topic: body.topic.trim(), level: body.level as CefrLevel, sceneContext: body.sceneContext },
+        { sceneId: body.sceneId, topic: body.topic.trim(), level: body.level as CefrLevel, sceneContext: body.sceneContext, teachingGoal },
         planId,
         { signal: controller.signal },
       )

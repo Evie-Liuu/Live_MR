@@ -1,5 +1,5 @@
 import { useReducer, useState } from 'react';
-import type { LessonPlanRecord } from '../types/lessonPlan.ts';
+import { levelLabel, type LessonPlanRecord } from '../types/lessonPlan.ts';
 import { editReducer, initEditState } from '../utils/lessonPlanEdit.ts';
 import { updateLessonPlan, lessonPlanErrorText } from '../utils/lessonPlanClient.ts';
 import { lessonPlanToMarkdown } from '../utils/lessonPlanMarkdown.ts';
@@ -61,7 +61,7 @@ export default function LessonPlanView({ record, onSaved, onBack }: LessonPlanVi
         onChange={e => dispatch({ type: 'set-title', title: e.target.value })}
         aria-label="教案標題"
       />
-      <p className="lp-meta">主題：{plan.topic}｜程度：{plan.level}｜{plan.durationMin} 分鐘｜場景：{plan.sceneId}</p>
+      <p className="lp-meta">主題：{plan.topic}｜程度：{levelLabel(plan.level)}｜{plan.durationMin} 分鐘｜場景：{plan.sceneId}</p>
 
       <section className="lp-card">
         <h2>學習目標</h2>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
 import { TASK_TEMPLATES, type TaskTemplate } from '../config/taskTemplates/index.ts';
-import { CEFR_LEVELS } from '../types/lessonPlan.ts';
+import { CEFR_LEVELS, levelLabel } from '../types/lessonPlan.ts';
 import { formatClock, stepTimings } from '../types/dialogueTask.ts';
 import './TemplateLibrary.css';
 
@@ -126,7 +126,7 @@ export default function TemplateLibrary({ onApply, onClose }: TemplateLibraryPro
                   <span className="tl-card-name">{t.name}</span>
                   <span className="tl-card-desc">{t.description}</span>
                   <span className="tl-card-meta">
-                    <span className="tl-level">{t.task.level}</span>
+                    <span className="tl-level">{levelLabel(t.task.level, true)}</span>
                     {t.task.steps.length} 個步驟・約 {formatClock(totalSeconds(t))}
                   </span>
                   <span className="tl-tags">{t.tags.map(tag => <span key={tag}>#{tag}</span>)}</span>

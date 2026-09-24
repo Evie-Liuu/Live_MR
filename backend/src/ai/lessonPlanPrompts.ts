@@ -1,9 +1,10 @@
 import type { CefrLevel, SceneContext, TaskHint } from '../lessonPlanTypes.js'
 
 export const LEVEL_GUIDE: Record<CefrLevel, string> = {
-  A1: 'CEFR A1 (beginner, roughly Taiwan grades 3-4). Present simple only, very high-frequency words, sentences of 4-7 words, one idea per sentence. Avoid clauses, phrasal verbs and idioms.',
-  A2: 'CEFR A2 (elementary, roughly Taiwan grades 5-6). Present, past and "be going to"; everyday vocabulary; sentences up to ~10 words; simple "because" / "but" clauses are fine.',
-  B1: 'CEFR B1 (intermediate, roughly Taiwan junior high). Common tenses including present perfect, modals for politeness, sentences up to ~14 words, simple relative clauses allowed.',
+  'preA1-A1': 'CEFR pre-A1 to A1 (young beginners, Taiwan elementary grades 1-4). Present simple only, very concrete high-frequency words, formulaic chunks, sentences of 3-6 words, one idea per sentence. Avoid clauses, phrasal verbs and idioms.',
+  A1: 'CEFR A1 (beginner, Taiwan elementary grades 5-6). Present simple and present continuous, can / can\'t, everyday vocabulary, sentences of 4-8 words. Avoid clauses and idioms.',
+  'A1-A2': 'CEFR A1 to A2 (elementary, Taiwan junior high). Present, past and "be going to"; everyday vocabulary; sentences up to ~10 words; simple "because" / "but" clauses are fine.',
+  'A2-B1': 'CEFR A2 to B1 (pre-intermediate, Taiwan senior high). Common tenses including present perfect, modals for politeness, sentences up to ~14 words, simple relative clauses allowed.',
 }
 
 const STR = { type: 'STRING' }
@@ -80,7 +81,9 @@ function describeExamples(examples: SceneContext['exampleTasks']): string {
     .join('\n')
 }
 
-export function buildOutlinePrompt(topic: string, level: CefrLevel, ctx: SceneContext): { systemInstruction: string; prompt: string } {
+export function buildOutlinePrompt(
+  topic: string, level: CefrLevel, ctx: SceneContext, teachingGoal?: string,
+): { systemInstruction: string; prompt: string } {
   return {
     systemInstruction: `You are an experienced English conversation teacher designing a 15-minute micro-lesson for a mixed-reality classroom where students speak as avatars in a 3D scene.
 Student level: ${LEVEL_GUIDE[level]}
@@ -94,7 +97,11 @@ Rules:
 - "icon" is a single emoji for the module.
 - "sceneConstraint" is a 5-line English block with the headings Setting:, Language:, Grammar:, Vocabulary:, Response style: describing the scene for this topic, used later to steer an AI that writes sample student replies. Keep it concrete.
 - Do not include the teacher script or hints here; another step writes them.`,
-    prompt: `Lesson topic from the teacher: "${topic}". Design the outline now.`,
+    prompt: teachingGoal
+      ? `Lesson topic from the teacher: "${topic}".
+Teaching goal from the teacher (base the objectives and task modules on it): "${teachingGoal}".
+Design the outline now.`
+      : `Lesson topic from the teacher: "${topic}". Design the outline now.`,
   }
 }
 

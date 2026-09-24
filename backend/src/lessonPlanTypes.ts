@@ -1,5 +1,16 @@
-export type CefrLevel = 'A1' | 'A2' | 'B1'
-export const CEFR_LEVELS: readonly CefrLevel[] = ['A1', 'A2', 'B1']
+/** 學生程度：依台灣學制分段，值為對應的 CEFR 區間（與前端 types/lessonPlan.ts 一致） */
+export type CefrLevel = 'preA1-A1' | 'A1' | 'A1-A2' | 'A2-B1'
+export const CEFR_LEVELS: readonly CefrLevel[] = ['preA1-A1', 'A1', 'A1-A2', 'A2-B1']
+
+/** 舊版程度值 → 新版（舊版 A2 = 國小高年級、B1 = 國中，依學制對應到新區間） */
+const LEGACY_LEVELS: Readonly<Record<string, CefrLevel>> = { A2: 'A1-A2', B1: 'A2-B1' }
+
+/** 接受新版或舊版程度值，回傳新版；不認得回 null */
+export function normalizeLevel(v: unknown): CefrLevel | null {
+  if (typeof v !== 'string') return null
+  if ((CEFR_LEVELS as readonly string[]).includes(v)) return v as CefrLevel
+  return LEGACY_LEVELS[v] ?? null
+}
 
 /** 與前端 frontend/src/config/taskHints.ts 的 TaskHint 形狀一致 */
 export interface TaskHint {

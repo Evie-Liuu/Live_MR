@@ -10,7 +10,7 @@ function hint(sentence: string) {
 
 function samplePlan(planId: string): LessonPlan {
   return {
-    title: '退換貨', sceneId: 'clothingStore_cashier', topic: 'returns', level: 'A2', durationMin: 15,
+    title: '退換貨', sceneId: 'clothingStore_cashier', topic: 'returns', level: 'A1-A2', durationMin: 15,
     objectives: ['能提出退貨要求'],
     timeline: [
       { phase: '暖身', minutes: 5, activity: '問候', teacherScript: 'Hello everyone.' },

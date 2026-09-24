@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { THEMES } from '../config/scenes.ts';
-import { CEFR_LEVELS, type CefrLevel, type LessonPlanRecord, type LessonPlanSummary } from '../types/lessonPlan.ts';
-import { buildSceneContext } from '../utils/sceneContext.ts';
-import { generateLessonPlan, listLessonPlans, getLessonPlan, deleteLessonPlan, lessonPlanErrorText } from '../utils/lessonPlanClient.ts';
+import { levelLabel, type LessonPlanRecord, type LessonPlanSummary } from '../types/lessonPlan.ts';
+import { listLessonPlans, getLessonPlan, deleteLessonPlan, lessonPlanErrorText } from '../utils/lessonPlanClient.ts';
 import type { DialogueTask, DialogueTaskRecord, DialogueTaskSummary } from '../types/dialogueTask.ts';
 import { listDialogueTasks, getDialogueTask, deleteDialogueTask, dialogueTaskErrorText } from '../utils/dialogueTaskClient.ts';
 import LessonPlanView from './LessonPlanView.tsx';
 import TaskEditor from './TaskEditor.tsx';
 import TemplateLibrary from './TemplateLibrary.tsx';
+import AiGenerateModal from './AiGenerateModal.tsx';
 import { applyTemplate, type TaskTemplate } from '../config/taskTemplates/index.ts';
 import './LessonPrep.css';
 
@@ -19,13 +18,9 @@ interface LessonPrepProps {
 
 type View =
   | { kind: 'list' }
-  | { kind: 'form' }
-  | { kind: 'generating' }
   | { kind: 'view'; record: LessonPlanRecord }
   /** record 為 null 表示新建空白任務 */
   | { kind: 'task-editor'; record: DialogueTaskRecord | null; draft?: DialogueTask };
-
-const GENERATING_STEPS = ['規劃大綱與學習目標', '撰寫逐字腳本', '產生任務五階層提示', '整理語法說明與注意點'];
 
 interface NewPlanOption {
   key: 'manual' | 'ai' | 'template';
@@ -41,19 +36,14 @@ const NEW_PLAN_OPTIONS: NewPlanOption[] = [
   { key: 'template', icon: 'inventory_2', title: '從任務庫中選擇模板', desc: '套用現有模板快速建立任務' },
 ];
 
-const SCENE_OPTIONS = THEMES.flatMap(t => t.scenes.map(s => ({ id: s.id, label: `${t.label}／${s.label}` })));
-
 export default function LessonPrep({ teacherUid, institutionId, onBack }: LessonPrepProps) {
   const [view, setView] = useState<View>({ kind: 'list' });
   const [plans, setPlans] = useState<LessonPlanSummary[]>([]);
   const [tasks, setTasks] = useState<DialogueTaskSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [sceneId, setSceneId] = useState<string>(SCENE_OPTIONS[0]?.id ?? '');
-  const [topic, setTopic] = useState('');
-  const [level, setLevel] = useState<CefrLevel>('A1');
-  const [stepIdx, setStepIdx] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const refresh = () =>
@@ -62,13 +52,6 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     listDialogueTasks(teacherUid).then(setTasks).catch(e => setError(dialogueTaskErrorText(e)));
 
   useEffect(() => { void refresh(); void refreshTasks(); }, [teacherUid]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 生成中：固定文案輪播，不是真實進度
-  useEffect(() => {
-    if (view.kind !== 'generating') return;
-    const t = setInterval(() => setStepIdx(i => Math.min(i + 1, GENERATING_STEPS.length - 1)), 8000);
-    return () => clearInterval(t);
-  }, [view.kind]);
 
   // 新建選單：點選單外或按 Esc 關閉
   useEffect(() => {
@@ -87,7 +70,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
 
   const handleNewOption = (key: NewPlanOption['key']) => {
     setMenuOpen(false);
-    if (key === 'ai') setView({ kind: 'form' });
+    if (key === 'ai') setAiOpen(true);
     else if (key === 'manual') setView({ kind: 'task-editor', record: null });
     else setLibraryOpen(true);
   };
@@ -109,22 +92,10 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     catch (e) { setError(dialogueTaskErrorText(e)); }
   };
 
-  const handleGenerate = async () => {
-    const trimmed = topic.trim();
-    if (!trimmed) { setError('請輸入主題'); return; }
-    const sceneContext = buildSceneContext(sceneId);
-    if (!sceneContext) { setError('找不到所選場景'); return; }
-    setError(null);
-    setStepIdx(0);
-    setView({ kind: 'generating' });
-    try {
-      const record = await generateLessonPlan({ teacherUid, institutionId, sceneId, sceneContext, topic: trimmed, level });
-      setView({ kind: 'view', record });
-      void refresh();
-    } catch (e) {
-      setError(lessonPlanErrorText(e));
-      setView({ kind: 'form' }); // 表單內容保留
-    }
+  const handleGenerated = (record: LessonPlanRecord) => {
+    setAiOpen(false);
+    setView({ kind: 'view', record });
+    void refresh();
   };
 
   const handleOpen = async (id: string) => {
@@ -172,36 +143,6 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
       </div>
       {error && <div className="lp-error">{error}</div>}
 
-      {view.kind === 'generating' && (
-        <div className="lp-generating">
-          <div className="gradient-spinner" />
-          <p>{GENERATING_STEPS[stepIdx]}…</p>
-          <p className="lp-hint-text">通常需要 20 到 60 秒</p>
-        </div>
-      )}
-
-      {view.kind === 'form' && (
-        <div className="lp-card lp-form">
-          <label>場景
-            <select value={sceneId} onChange={e => setSceneId(e.target.value)}>
-              {SCENE_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-            </select>
-          </label>
-          <label>主題
-            <input value={topic} maxLength={200} placeholder="例：退換貨與退款" onChange={e => setTopic(e.target.value)} />
-          </label>
-          <label>學生程度
-            <select value={level} onChange={e => setLevel(e.target.value as CefrLevel)}>
-              {CEFR_LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-            </select>
-          </label>
-          <div className="lp-form-actions">
-            <button className="lp-btn-ghost" onClick={() => setView({ kind: 'list' })}>取消</button>
-            <button className="lp-btn-primary" onClick={handleGenerate}>生成教案</button>
-          </div>
-        </div>
-      )}
-
       {view.kind === 'list' && (
         <>
           <div className="lp-new-wrap" ref={menuRef}>
@@ -240,7 +181,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
                   <li key={t.id} className="lp-list-item">
                     <button className="lp-list-main" onClick={() => { void handleOpenTask(t.id); }}>
                       <span className="lp-list-title">{t.title}</span>
-                      <span className="lp-list-meta">{t.level}｜{t.stepCount} 個步驟｜{new Date(t.updatedAt).toLocaleDateString()}</span>
+                      <span className="lp-list-meta">{levelLabel(t.level, true)}｜{t.stepCount} 個步驟｜{new Date(t.updatedAt).toLocaleDateString()}</span>
                     </button>
                     <button className="lp-btn-danger" onClick={() => { void handleDeleteTask(t.id); }}>刪除</button>
                   </li>
@@ -257,7 +198,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
                 <li key={p.id} className="lp-list-item">
                   <button className="lp-list-main" onClick={() => { void handleOpen(p.id); }}>
                     <span className="lp-list-title">{p.title}</span>
-                    <span className="lp-list-meta">{p.level}｜{p.topic}｜{new Date(p.updatedAt).toLocaleDateString()}</span>
+                    <span className="lp-list-meta">{levelLabel(p.level, true)}｜{p.topic}｜{new Date(p.updatedAt).toLocaleDateString()}</span>
                   </button>
                   <button className="lp-btn-danger" onClick={() => { void handleDelete(p.id); }}>刪除</button>
                 </li>
@@ -267,6 +208,14 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
         </>
       )}
       {libraryOpen && <TemplateLibrary onApply={handleApplyTemplate} onClose={() => setLibraryOpen(false)} />}
+      {aiOpen && (
+        <AiGenerateModal
+          teacherUid={teacherUid}
+          institutionId={institutionId}
+          onGenerated={handleGenerated}
+          onClose={() => setAiOpen(false)}
+        />
+      )}
     </div>
   );
 }

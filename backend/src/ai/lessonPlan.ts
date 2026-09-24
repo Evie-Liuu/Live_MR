@@ -10,6 +10,8 @@ export interface LessonPlanRequest {
   topic: string
   level: CefrLevel
   sceneContext: SceneContext
+  /** 老師選填的教學目標，只影響大綱（objectives / modules） */
+  teachingGoal?: string
 }
 
 export interface OutlineDraft {
@@ -87,7 +89,7 @@ export function assignIds(planId: string, modules: DraftModule[]): LessonPlanMod
 // ── 各步驟 ────────────────────────────────────────────────────────────────────
 
 async function stepOutline(req: LessonPlanRequest, call: GeminiCaller, signal?: AbortSignal): Promise<OutlineDraft> {
-  const { systemInstruction, prompt } = buildOutlinePrompt(req.topic, req.level, req.sceneContext)
+  const { systemInstruction, prompt } = buildOutlinePrompt(req.topic, req.level, req.sceneContext, req.teachingGoal)
   const run = () => call<OutlineDraft>({
     tag: '[ai/lesson/outline]', contents: prompt, systemInstruction,
     temperature: 0.5, maxOutputTokens: 2048, thinkingBudget: 1024,

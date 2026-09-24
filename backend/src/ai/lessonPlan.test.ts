@@ -52,7 +52,7 @@ function fakeCaller(overrides: Partial<Record<string, (opts: GeminiCallOptions<u
   return { call: call as unknown as GeminiCaller, calls }
 }
 
-const req = { sceneId: 'clothingStore_cashier', topic: '退換貨', level: 'A2' as const, sceneContext: ctx }
+const req = { sceneId: 'clothingStore_cashier', topic: '退換貨', level: 'A1-A2' as const, sceneContext: ctx }
 
 describe('generateLessonPlan', () => {
   it('assembles a full plan with prefixed ids', async () => {
@@ -60,7 +60,7 @@ describe('generateLessonPlan', () => {
     const { call, calls } = fakeCaller()
     const plan = await generateLessonPlan(req, 'p1', { call })
     expect(plan.title).toBe('退換貨')
-    expect(plan.level).toBe('A2')
+    expect(plan.level).toBe('A1-A2')
     expect(plan.durationMin).toBe(15)
     expect(plan.sceneId).toBe('clothingStore_cashier')
     expect(plan.timeline).toHaveLength(2)

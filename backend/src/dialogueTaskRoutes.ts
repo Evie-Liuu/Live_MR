@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import type { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
-import { CEFR_LEVELS, type CefrLevel } from './lessonPlanTypes.js'
+import { normalizeLevel } from './lessonPlanTypes.js'
 import type { DialogueLine, DialogueStep, DialogueTask, TemplateSource } from './dialogueTaskTypes.js'
 
 export interface DialogueTaskRouteDeps {
@@ -50,13 +50,15 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
   const t = v as Partial<DialogueTask> | null
   if (!t || typeof t.title !== 'string' || !t.title.trim() || t.title.length > MAX_TITLE_LEN) return null
   if (!isId(t.sceneId)) return null
-  if (!CEFR_LEVELS.includes(t.level as CefrLevel)) return null
+  // 舊版程度值（A2 / B1）一律轉成新版，舊任務重新儲存時不會被拒
+  const level = normalizeLevel(t.level)
+  if (!level) return null
   if (!Array.isArray(t.steps) || t.steps.length > MAX_STEPS || !t.steps.every(isStep)) return null
   if (t.sourceTemplate !== undefined && !isTemplateSource(t.sourceTemplate)) return null
   return {
     title: t.title.trim(),
     sceneId: t.sceneId,
-    level: t.level as CefrLevel,
+    level,
     steps: t.steps.map(s => ({
       id: s.id, title: s.title, purpose: s.purpose,
       lines: s.lines.map(l => ({ id: l.id, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh })),

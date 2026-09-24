@@ -51,6 +51,9 @@ describe('lesson plan routes', () => {
   it('generate validates the body', async () => {
     expect((await request(app).post('/api/lesson-plans/generate').send({ ...validBody, teacherUid: '' })).status).toBe(400)
     expect((await request(app).post('/api/lesson-plans/generate').send({ ...validBody, level: 'C2' })).status).toBe(400)
+    expect((await request(app).post('/api/lesson-plans/generate').send({ ...validBody, level: 'B1' })).status).toBe(400)
+    expect((await request(app).post('/api/lesson-plans/generate').send({ ...validBody, teachingGoal: 'x'.repeat(301) })).status).toBe(400)
+    expect((await request(app).post('/api/lesson-plans/generate').send({ ...validBody, teachingGoal: 42 })).status).toBe(400)
     expect((await request(app).post('/api/lesson-plans/generate').send({ ...validBody, topic: 'x'.repeat(201) })).status).toBe(400)
     expect((await request(app).post('/api/lesson-plans/generate').send({ ...validBody, sceneContext: null })).status).toBe(400)
     expect(generate).not.toHaveBeenCalled()
@@ -67,6 +70,13 @@ describe('lesson plan routes', () => {
     const [reqArg, planIdArg] = generate.mock.calls[0]
     expect(reqArg).toMatchObject({ sceneId: 'clothingStore_cashier', topic: 'returns', level: 'A1' })
     expect(planIdArg).toBe(res.body.id)
+  })
+
+  it('generate passes a trimmed teachingGoal, and omits a blank one', async () => {
+    await request(app).post('/api/lesson-plans/generate').send({ ...validBody, teachingGoal: '  能禮貌地詢問價格  ' })
+    expect(generate.mock.calls[0][0]).toMatchObject({ teachingGoal: '能禮貌地詢問價格' })
+    await request(app).post('/api/lesson-plans/generate').send({ ...validBody, teachingGoal: '   ' })
+    expect(generate.mock.calls[1][0].teachingGoal).toBeUndefined()
   })
 
   it('generate returns 502 with the error when generation fails, and stores nothing', async () => {
