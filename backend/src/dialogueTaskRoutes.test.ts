@@ -68,6 +68,16 @@ describe('dialogue task routes', () => {
     expect(res.body.task.steps[0]).not.toHaveProperty('hacked')
   })
 
+  it('keeps a valid sourceTemplate and rejects a malformed one', async () => {
+    const ok = await request(app).post('/api/dialogue-tasks')
+      .send({ teacherUid: 't1', task: { ...sampleTask(), sourceTemplate: { id: 'clothingStore_shopping', version: 1, extra: 1 } } })
+    expect(ok.status).toBe(201)
+    expect(ok.body.task.sourceTemplate).toEqual({ id: 'clothingStore_shopping', version: 1 })
+    const bad = await request(app).post('/api/dialogue-tasks')
+      .send({ teacherUid: 't1', task: { ...sampleTask(), sourceTemplate: { id: 'x', version: 0 } } })
+    expect(bad.status).toBe(400)
+  })
+
   it('rejects malformed input', async () => {
     const post = (body: unknown) => request(app).post('/api/dialogue-tasks').send(body as object)
     expect((await post({ task: sampleTask() })).status).toBe(400)

@@ -6,13 +6,16 @@ import {
   type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
 } from '../types/dialogueTask.ts';
 import { createDialogueTask, dialogueTaskErrorText, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
+import { TASK_TEMPLATES, toTemplateSource } from '../config/taskTemplates/index.ts';
 import './TaskEditor.css';
 
 interface TaskEditorProps {
   teacherUid: string;
   institutionId?: string;
-  /** null = 新建空白任務（第一次儲存才寫入資料庫） */
+  /** null = 新建任務（第一次儲存才寫入資料庫） */
   initial: DialogueTaskRecord | null;
+  /** 新建時的起始內容（例如套用模板）；未提供則為空白任務 */
+  initialTask?: DialogueTask;
   onSaved: (record: DialogueTaskRecord) => void;
   onClose: () => void;
 }
@@ -51,16 +54,19 @@ function canSpeak() {
   return typeof window !== 'undefined' && 'speechSynthesis' in window;
 }
 
-export default function TaskEditor({ teacherUid, institutionId, initial, onSaved, onClose }: TaskEditorProps) {
+export default function TaskEditor({ teacherUid, institutionId, initial, initialTask, onSaved, onClose }: TaskEditorProps) {
   const [task, setTask] = useState<DialogueTask>(() => {
     if (initial) return initial.task;
+    if (initialTask) return initialTask;
     const scene = SCENES[0];
     return blankTask(scene?.id ?? '', scene?.slots.map(s => s.id) ?? []);
   });
   const [recordId, setRecordId] = useState<string | null>(initial?.id ?? null);
   const [activeStepId, setActiveStepId] = useState<string>(() => task.steps[0]?.id ?? '');
   const [tab, setTab] = useState<Tab>('dialogue');
-  const [dirty, setDirty] = useState(false);
+  // 套用模板產生的草稿尚未存檔，一開始就算有未儲存變更
+  const [dirty, setDirty] = useState(!initial && !!initialTask);
+  const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +83,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, onSaved
     setTask(fn);
     setDirty(true);
     setSavedFlash(false);
+    setNotice(null);
   }, []);
 
   const editStep = useCallback((id: string, fn: (s: DialogueStep) => DialogueStep) => {
@@ -195,6 +202,26 @@ export default function TaskEditor({ teacherUid, institutionId, initial, onSaved
     return () => window.removeEventListener('keydown', onKey);
   }, [save]);
 
+  // 開發工具：把目前任務轉成模板檔原始碼並複製到剪貼簿（流程見 config/taskTemplates/README.md）
+  const exportAsTemplate = async () => {
+    const suggested = task.sourceTemplate?.id ?? `${task.sceneId}_new`;
+    const templateId = window.prompt('模板 id（英數與底線，上線後不可更改）', suggested)?.trim();
+    if (!templateId) return;
+    if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(templateId)) { setNotice('模板 id 只能用英數與底線，且以字母開頭'); return; }
+    const source = toTemplateSource(task, templateId);
+    try {
+      await navigator.clipboard.writeText(source);
+      setNotice(`已複製 ${templateId}.ts 的內容到剪貼簿`);
+    } catch {
+      console.log(source);
+      setNotice('無法寫入剪貼簿，模板原始碼已輸出到 console');
+    }
+  };
+
+  const sourceTemplateName = task.sourceTemplate
+    ? TASK_TEMPLATES.find(t => t.id === task.sourceTemplate!.id)?.name ?? task.sourceTemplate.id
+    : null;
+
   const requestClose = () => {
     if (dirty) setConfirmClose(true);
     else onClose();
@@ -229,8 +256,13 @@ export default function TaskEditor({ teacherUid, institutionId, initial, onSaved
         </div>
         <div className="te-top-actions">
           <span className={`te-save-state${dirty ? ' is-dirty' : ''}`} aria-live="polite">
-            {saving ? '儲存中…' : dirty ? '尚未儲存' : savedFlash ? '已儲存' : ''}
+            {saving ? '儲存中…' : notice ?? (dirty ? '尚未儲存' : savedFlash ? '已儲存' : '')}
           </span>
+          {import.meta.env.DEV && (
+            <button className="te-btn-outline" onClick={() => { void exportAsTemplate(); }} title="開發模式限定：匯出成內建模板原始碼">
+              <span className="material-symbols-outlined" aria-hidden="true">code</span>匯出為模板
+            </button>
+          )}
           <button className="te-btn-outline" disabled title="即將推出">
             <span className="material-symbols-outlined te-play" aria-hidden="true">play_circle</span>預覽（學生端）
           </button>
@@ -280,6 +312,9 @@ export default function TaskEditor({ teacherUid, institutionId, initial, onSaved
                 </select>
               </label>
             </div>
+            {sourceTemplateName && (
+              <span className="te-field">來自模板：{sourceTemplateName}（v{task.sourceTemplate!.version}）</span>
+            )}
           </section>
 
           <section className="te-panel te-flow">

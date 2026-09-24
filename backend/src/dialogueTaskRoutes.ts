@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import type { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
 import { CEFR_LEVELS, type CefrLevel } from './lessonPlanTypes.js'
-import type { DialogueLine, DialogueStep, DialogueTask } from './dialogueTaskTypes.js'
+import type { DialogueLine, DialogueStep, DialogueTask, TemplateSource } from './dialogueTaskTypes.js'
 
 export interface DialogueTaskRouteDeps {
   /** null 表示資料庫開啟失敗，所有端點回 503 */
@@ -40,6 +40,11 @@ function isStep(v: unknown): v is DialogueStep {
     isTextList(s.grammarPoints) && isText(s.grammarNote) && isTextList(s.teachingNotes)
 }
 
+function isTemplateSource(v: unknown): v is TemplateSource {
+  const s = v as Partial<TemplateSource> | null
+  return !!s && isId(s.id) && Number.isInteger(s.version) && (s.version as number) >= 1
+}
+
 /** 驗證並回傳只含已知欄位的任務；格式不符回 null */
 export function parseDialogueTask(v: unknown): DialogueTask | null {
   const t = v as Partial<DialogueTask> | null
@@ -47,6 +52,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
   if (!isId(t.sceneId)) return null
   if (!CEFR_LEVELS.includes(t.level as CefrLevel)) return null
   if (!Array.isArray(t.steps) || t.steps.length > MAX_STEPS || !t.steps.every(isStep)) return null
+  if (t.sourceTemplate !== undefined && !isTemplateSource(t.sourceTemplate)) return null
   return {
     title: t.title.trim(),
     sceneId: t.sceneId,
@@ -56,6 +62,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
       lines: s.lines.map(l => ({ id: l.id, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh })),
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
     })),
+    ...(t.sourceTemplate ? { sourceTemplate: { id: t.sourceTemplate.id, version: t.sourceTemplate.version } } : {}),
   }
 }
 

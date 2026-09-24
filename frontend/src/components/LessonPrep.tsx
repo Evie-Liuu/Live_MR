@@ -3,10 +3,12 @@ import { THEMES } from '../config/scenes.ts';
 import { CEFR_LEVELS, type CefrLevel, type LessonPlanRecord, type LessonPlanSummary } from '../types/lessonPlan.ts';
 import { buildSceneContext } from '../utils/sceneContext.ts';
 import { generateLessonPlan, listLessonPlans, getLessonPlan, deleteLessonPlan, lessonPlanErrorText } from '../utils/lessonPlanClient.ts';
-import type { DialogueTaskRecord, DialogueTaskSummary } from '../types/dialogueTask.ts';
+import type { DialogueTask, DialogueTaskRecord, DialogueTaskSummary } from '../types/dialogueTask.ts';
 import { listDialogueTasks, getDialogueTask, deleteDialogueTask, dialogueTaskErrorText } from '../utils/dialogueTaskClient.ts';
 import LessonPlanView from './LessonPlanView.tsx';
 import TaskEditor from './TaskEditor.tsx';
+import TemplateLibrary from './TemplateLibrary.tsx';
+import { applyTemplate, type TaskTemplate } from '../config/taskTemplates/index.ts';
 import './LessonPrep.css';
 
 interface LessonPrepProps {
@@ -21,7 +23,7 @@ type View =
   | { kind: 'generating' }
   | { kind: 'view'; record: LessonPlanRecord }
   /** record 為 null 表示新建空白任務 */
-  | { kind: 'task-editor'; record: DialogueTaskRecord | null };
+  | { kind: 'task-editor'; record: DialogueTaskRecord | null; draft?: DialogueTask };
 
 const GENERATING_STEPS = ['規劃大綱與學習目標', '撰寫逐字腳本', '產生任務五階層提示', '整理語法說明與注意點'];
 
@@ -31,14 +33,12 @@ interface NewPlanOption {
   title: string;
   desc: string;
   isNew?: boolean;
-  /** 尚未實作的選項先顯示但不可點 */
-  comingSoon?: boolean;
 }
 
 const NEW_PLAN_OPTIONS: NewPlanOption[] = [
   { key: 'manual', icon: 'add', title: '自己新增任務', desc: '從零開始建立任務對話流程' },
   { key: 'ai', icon: 'auto_awesome', title: 'AI 生成任務', desc: '輸入需求，AI 幫你生成任務劇本', isNew: true },
-  { key: 'template', icon: 'inventory_2', title: '從任務庫中選擇模板', desc: '套用現有模板快速建立任務', comingSoon: true },
+  { key: 'template', icon: 'inventory_2', title: '從任務庫中選擇模板', desc: '套用現有模板快速建立任務' },
 ];
 
 const SCENE_OPTIONS = THEMES.flatMap(t => t.scenes.map(s => ({ id: s.id, label: `${t.label}／${s.label}` })));
@@ -53,6 +53,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
   const [level, setLevel] = useState<CefrLevel>('A1');
   const [stepIdx, setStepIdx] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const refresh = () =>
@@ -88,6 +89,12 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     setMenuOpen(false);
     if (key === 'ai') setView({ kind: 'form' });
     else if (key === 'manual') setView({ kind: 'task-editor', record: null });
+    else setLibraryOpen(true);
+  };
+
+  const handleApplyTemplate = (template: TaskTemplate) => {
+    setLibraryOpen(false);
+    setView({ kind: 'task-editor', record: null, draft: applyTemplate(template) });
   };
 
   const handleOpenTask = async (id: string) => {
@@ -138,6 +145,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
         teacherUid={teacherUid}
         institutionId={institutionId}
         initial={view.record}
+        initialTask={view.draft}
         onSaved={() => { void refreshTasks(); }}
         onClose={() => setView({ kind: 'list' })}
       />
@@ -210,13 +218,12 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
                     key={o.key}
                     role="menuitem"
                     className={`lp-new-option lp-new-option--${o.key}`}
-                    disabled={o.comingSoon}
                     onClick={() => handleNewOption(o.key)}
                   >
                     <span className="lp-new-option-icon material-symbols-outlined" aria-hidden="true">{o.icon}</span>
                     <span className="lp-new-option-text">
                       <span className="lp-new-option-title">{o.title}</span>
-                      <span className="lp-new-option-desc">{o.comingSoon ? '即將推出' : o.desc}</span>
+                      <span className="lp-new-option-desc">{o.desc}</span>
                     </span>
                     {o.isNew && <span className="lp-new-badge">NEW</span>}
                     <span className="lp-new-option-chevron material-symbols-outlined" aria-hidden="true">chevron_right</span>
@@ -259,6 +266,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
           )}
         </>
       )}
+      {libraryOpen && <TemplateLibrary onApply={handleApplyTemplate} onClose={() => setLibraryOpen(false)} />}
     </div>
   );
 }

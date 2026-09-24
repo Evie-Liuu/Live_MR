@@ -25,11 +25,18 @@ export interface DialogueStep {
   teachingNotes: string[]
 }
 
+/** 由內建模板套用而來時記錄來源 */
+export interface TemplateSource {
+  id: string
+  version: number
+}
+
 export interface DialogueTask {
   title: string
   sceneId: string
   level: CefrLevel
   steps: DialogueStep[]
+  sourceTemplate?: TemplateSource
 }
 
 export interface DialogueTaskRecord {
