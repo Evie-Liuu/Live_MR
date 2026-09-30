@@ -68,7 +68,7 @@ export const NOTES_SCHEMA = {
   required: ['grammarNotes', 'teachingNotes'],
 }
 
-function describeScene(ctx: SceneContext): string {
+export function describeScene(ctx: SceneContext): string {
   const slots = ctx.slots.map(s => `${s.label} (${s.id})`).join(', ')
   return `Theme: ${ctx.themeLabel}. Scene: ${ctx.sceneLabel} / ${ctx.sceneLabelEn} (id: ${ctx.sceneId}).
 Roles on stage: ${slots}. One student plays each role; the teacher may also step into a role.

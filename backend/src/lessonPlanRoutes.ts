@@ -32,7 +32,7 @@ function isModules(v: unknown): v is LessonPlanModule[] {
       t && typeof t.id === 'string' && typeof t.label === 'string' && isTaskHint(t.hint)))
 }
 
-function isSceneContext(v: unknown): v is SceneContext {
+export function isSceneContext(v: unknown): v is SceneContext {
   const c = v as Partial<SceneContext> | null
   return !!c && typeof c.sceneId === 'string' && typeof c.themeLabel === 'string' && typeof c.sceneLabel === 'string' &&
     typeof c.sceneLabelEn === 'string' && Array.isArray(c.slots) && isStringArray(c.existingModuleLabels) &&

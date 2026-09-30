@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
 import express from 'express'
 import { openDatabase } from './db/connection.js'
@@ -100,5 +100,47 @@ describe('dialogue task routes', () => {
     expect((await request(app).get('/api/dialogue-tasks/zzz')).status).toBe(404)
     expect((await request(app).patch('/api/dialogue-tasks/zzz').send({ task: sampleTask() })).status).toBe(404)
     expect((await request(app).post('/api/dialogue-tasks/zzz/delete')).status).toBe(404)
+  })
+})
+
+describe('POST /api/dialogue-tasks/generate', () => {
+  const sceneContext = {
+    sceneId: 'clothingStore_cashier', themeLabel: '服飾店', sceneLabel: '收銀台', sceneLabelEn: 'Cashier',
+    slots: [{ id: 'cashier', label: '收銀員' }, { id: 'customer', label: '顧客' }], existingModuleLabels: [], exampleTasks: [],
+  }
+  const body = { sceneContext, topic: '購物', level: 'A1', teachingGoal: '  能詢問價格 ' }
+
+  it('returns the generated draft without saving it, and works without a database', async () => {
+    const generate = vi.fn(async (_req: unknown, _opts: unknown) => sampleTask())
+    const app = createApp({ repo: null, generate })
+    const res = await request(app).post('/api/dialogue-tasks/generate').send(body)
+    expect(res.status).toBe(200)
+    expect(res.body.task.title).toBe('服飾店購物')
+    expect(res.body).not.toHaveProperty('id')
+    expect(generate.mock.calls[0][0]).toMatchObject({ topic: '購物', level: 'A1', teachingGoal: '能詢問價格' })
+  })
+
+  it('validates input', async () => {
+    const app = createApp({ repo: null, generate: vi.fn() })
+    const post = (b: object) => request(app).post('/api/dialogue-tasks/generate').send(b)
+    expect((await post({ ...body, topic: ' ' })).status).toBe(400)
+    expect((await post({ ...body, level: 'B1' })).status).toBe(400)
+    expect((await post({ ...body, teachingGoal: 'x'.repeat(301) })).status).toBe(400)
+    expect((await post({ ...body, sceneContext: { ...sceneContext, slots: [] } })).status).toBe(400)
+  })
+
+  it('returns 502 when generation fails or produces an unsavable task', async () => {
+    const failing = createApp({ repo: null, generate: vi.fn(async () => { throw new Error('[ai/dialogue-task] boom') }) })
+    expect((await request(failing).post('/api/dialogue-tasks/generate').send(body)).status).toBe(502)
+    const unsavable = createApp({ repo: null, generate: vi.fn(async () => ({ ...sampleTask(), title: '' })) })
+    expect((await request(unsavable).post('/api/dialogue-tasks/generate').send(body)).status).toBe(502)
+  })
+
+  it('returns 504 on timeout', async () => {
+    const slow = vi.fn((_req: unknown, opts: { signal?: AbortSignal }) => new Promise<never>((_, reject) => {
+      opts.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+    }))
+    const app = createApp({ repo: null, generate: slow as never, timeoutMs: 20 })
+    expect((await request(app).post('/api/dialogue-tasks/generate').send(body)).status).toBe(504)
   })
 })

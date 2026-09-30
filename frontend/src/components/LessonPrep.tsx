@@ -92,10 +92,10 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     catch (e) { setError(dialogueTaskErrorText(e)); }
   };
 
-  const handleGenerated = (record: LessonPlanRecord) => {
+  // AI 草稿與套用模板相同：開啟編輯器，老師確認後按儲存才寫入「我的任務」
+  const handleGenerated = (task: DialogueTask) => {
     setAiOpen(false);
-    setView({ kind: 'view', record });
-    void refresh();
+    setView({ kind: 'task-editor', record: null, draft: task });
   };
 
   const handleOpen = async (id: string) => {
@@ -210,8 +210,6 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
       {libraryOpen && <TemplateLibrary onApply={handleApplyTemplate} onClose={() => setLibraryOpen(false)} />}
       {aiOpen && (
         <AiGenerateModal
-          teacherUid={teacherUid}
-          institutionId={institutionId}
           onGenerated={handleGenerated}
           onClose={() => setAiOpen(false)}
         />

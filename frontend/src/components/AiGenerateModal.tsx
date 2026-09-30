@@ -1,25 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
-import { CEFR_LEVELS, type CefrLevel, type LessonPlanRecord } from '../types/lessonPlan.ts';
+import { CEFR_LEVELS, type CefrLevel } from '../types/lessonPlan.ts';
+import type { DialogueTask } from '../types/dialogueTask.ts';
 import { buildSceneContext } from '../utils/sceneContext.ts';
-import { generateLessonPlan, lessonPlanErrorText } from '../utils/lessonPlanClient.ts';
+import { dialogueTaskErrorText, generateDialogueTask } from '../utils/dialogueTaskClient.ts';
 import './AiGenerateModal.css';
 
 interface AiGenerateModalProps {
-  teacherUid: string;
-  institutionId?: string;
-  onGenerated: (record: LessonPlanRecord) => void;
+  /** 生成的草稿尚未存檔 */
+  onGenerated: (task: DialogueTask) => void;
   onClose: () => void;
 }
 
-const GENERATING_STEPS = ['規劃大綱與學習目標', '撰寫逐字腳本', '產生任務五階層提示', '整理語法說明與注意點'];
-const STEP_INTERVAL_MS = 8000;
+const GENERATING_STEPS = ['分析主題與教學目標', '設計對話流程', '撰寫中英台詞', '整理語法說明與教學注意點'];
+const STEP_INTERVAL_MS = 4000;
+/** AI 生成的任務固定為 5 分鐘（與 backend/src/ai/dialogueTaskPrompts.ts 一致），老師不可更改 */
+const DURATION_MIN = 5;
 const MAX_TOPIC_LEN = 200;
 const MAX_GOAL_LEN = 300;
 
 const SCENE_OPTIONS = THEMES.flatMap(t => t.scenes.map(s => ({ id: s.id, label: `${t.label}／${s.label}` })));
 
-export default function AiGenerateModal({ teacherUid, institutionId, onGenerated, onClose }: AiGenerateModalProps) {
+export default function AiGenerateModal({ onGenerated, onClose }: AiGenerateModalProps) {
   const [sceneId, setSceneId] = useState<string>(SCENE_OPTIONS[0]?.id ?? '');
   const [topic, setTopic] = useState('');
   const [teachingGoal, setTeachingGoal] = useState('');
@@ -45,7 +47,7 @@ export default function AiGenerateModal({ teacherUid, institutionId, onGenerated
     return () => clearInterval(t);
   }, [generating]);
 
-  const handleGenerate = async (e: React.FormEvent) => {
+  const handleGenerate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const trimmed = topic.trim();
     if (!trimmed) { setError('請輸入主題'); topicRef.current?.focus(); return; }
@@ -55,13 +57,13 @@ export default function AiGenerateModal({ teacherUid, institutionId, onGenerated
     setStepIdx(0);
     setGenerating(true);
     try {
-      const record = await generateLessonPlan({
-        teacherUid, institutionId, sceneId, sceneContext, topic: trimmed, level,
+      const task = await generateDialogueTask({
+        sceneContext, topic: trimmed, level,
         ...(teachingGoal.trim() ? { teachingGoal: teachingGoal.trim() } : {}),
       });
-      onGenerated(record);
+      onGenerated(task);
     } catch (err) {
-      setError(lessonPlanErrorText(err)); // 表單內容保留，可直接重試
+      setError(dialogueTaskErrorText(err)); // 表單內容保留，可直接重試
       setGenerating(false);
     }
   };
@@ -91,7 +93,7 @@ export default function AiGenerateModal({ teacherUid, institutionId, onGenerated
                 </li>
               ))}
             </ol>
-            <p className="ag-hint">通常需要 20 到 60 秒，請勿關閉頁面</p>
+            <p className="ag-hint">通常需要 5 到 20 秒，請勿關閉頁面</p>
           </div>
         ) : (
           <form className="ag-form" onSubmit={handleGenerate}>
@@ -127,6 +129,17 @@ export default function AiGenerateModal({ teacherUid, institutionId, onGenerated
               <span className="ag-counter">{teachingGoal.length} / {MAX_GOAL_LEN}</span>
             </label>
 
+            <div className="ag-field">
+              <span className="ag-label">教案長度</span>
+              <div className="ag-fixed" title="AI 生成的任務固定為 5 分鐘">
+                <span className="material-symbols-outlined" aria-hidden="true">schedule</span>
+                <strong>{DURATION_MIN} 分鐘</strong>
+                <span className="ag-fixed-note">
+                  <span className="material-symbols-outlined" aria-hidden="true">lock</span>固定長度
+                </span>
+              </div>
+            </div>
+
             <fieldset className="ag-field ag-levels">
               <legend className="ag-label">學生程度</legend>
               <div className="ag-level-grid">
@@ -149,7 +162,7 @@ export default function AiGenerateModal({ teacherUid, institutionId, onGenerated
             <footer className="ag-foot">
               <button type="button" className="ag-btn-ghost" onClick={onClose}>取消</button>
               <button type="submit" className="ag-btn-primary">
-                <span className="material-symbols-outlined" aria-hidden="true">auto_awesome</span>生成教案
+                <span className="material-symbols-outlined" aria-hidden="true">auto_awesome</span>生成任務
               </button>
             </footer>
           </form>
