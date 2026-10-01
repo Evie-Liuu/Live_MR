@@ -7,6 +7,7 @@ import {
 } from '../types/dialogueTask.ts';
 import { createDialogueTask, dialogueTaskErrorText, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
 import { TASK_TEMPLATES, toTemplateSource } from '../config/taskTemplates/index.ts';
+import ScriptSimulator from './ScriptSimulator.tsx';
 import './TaskEditor.css';
 
 interface TaskEditorProps {
@@ -68,6 +69,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
   // 套用模板產生的草稿尚未存檔，一開始就算有未儲存變更
   const [dirty, setDirty] = useState(!initial && !!initialTask);
   const [notice, setNotice] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -264,6 +266,9 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
               <span className="material-symbols-outlined" aria-hidden="true">code</span>匯出為模板
             </button>
           )}
+          <button className="te-btn-outline" onClick={() => setSimulating(true)} title="用 3D 角色與語音播放目前的劇本（不必先儲存）">
+            <span className="material-symbols-outlined te-play" aria-hidden="true">theaters</span>模擬播放
+          </button>
           <button className="te-btn-outline" disabled title="即將推出">
             <span className="material-symbols-outlined te-play" aria-hidden="true">play_circle</span>預覽（學生端）
           </button>
@@ -579,6 +584,9 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
           </aside>
         )}
       </div>
+      {simulating && (
+        <ScriptSimulator task={task} startStepIndex={activeIndex} onClose={() => setSimulating(false)} />
+      )}
     </div>
   );
 }

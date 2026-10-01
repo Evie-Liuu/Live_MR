@@ -1,0 +1,388 @@
+/* ── 劇本模擬器 ─────────────────────────────────────────────────────────── */
+.ss-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: #1C1917;
+  color: #F5F5F4;
+}
+
+.ss-screen .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.ss-screen button,
+.ss-screen select {
+  font: inherit;
+}
+
+.ss-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #292524;
+  border-bottom: 1px solid #3F3A36;
+}
+
+.ss-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ss-title-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #FF9A3D, #F76E12);
+  color: #fff;
+}
+
+.ss-title-main {
+  font-size: 18px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ss-title-task {
+  color: #A8A29E;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ss-icon-btn {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #D6D3D1;
+  cursor: pointer;
+}
+
+.ss-icon-btn:hover {
+  background: #3F3A36;
+}
+
+.ss-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+/* 舞台（固定 16:9，與大螢幕構圖一致） */
+.ss-stage-wrap {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+}
+
+.ss-stage {
+  position: relative;
+  width: 100%;
+  max-height: calc(100vh - 170px);
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0C0A09;
+}
+
+.ss-bg,
+.ss-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ss-bg {
+  object-fit: cover;
+}
+
+.ss-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(12, 10, 9, .72);
+  font-size: 15px;
+}
+
+.ss-overlay p {
+  margin: 0;
+}
+
+.ss-overlay-soft {
+  background: rgba(12, 10, 9, .45);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.ss-overlay-error {
+  color: #FCA5A5;
+}
+
+/* 字幕 */
+.ss-subtitle {
+  position: absolute;
+  left: 50%;
+  bottom: 3%;
+  transform: translateX(-50%);
+  max-width: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 18px 10px;
+  border-radius: 12px;
+  background: rgba(12, 10, 9, .62);
+  border-top: 3px solid var(--speaker);
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.ss-sub-speaker {
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--speaker);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ss-sub-en {
+  font-size: clamp(15px, 1.8vw, 22px);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ss-sub-zh {
+  font-size: clamp(12px, 1.3vw, 16px);
+  color: #D6D3D1;
+}
+
+/* 控制列 */
+.ss-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ss-ctrl {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #44403C;
+  border-radius: 50%;
+  background: #292524;
+  color: #F5F5F4;
+  cursor: pointer;
+}
+
+.ss-ctrl:hover:not(:disabled) {
+  background: #3F3A36;
+}
+
+.ss-ctrl:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+.ss-ctrl-main {
+  width: 52px;
+  height: 52px;
+  border-color: #F76E12;
+  background: #F76E12;
+}
+
+.ss-ctrl-main:hover:not(:disabled) {
+  background: #E5600A;
+}
+
+.ss-ctrl-main .material-symbols-outlined {
+  font-size: 30px;
+}
+
+.ss-counter {
+  margin-left: 6px;
+  color: #A8A29E;
+  font-variant-numeric: tabular-nums;
+}
+
+.ss-ctrl-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #D6D3D1;
+  font-size: 14px;
+}
+
+.ss-toggle,
+.ss-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.ss-speed select {
+  padding: 4px 8px;
+  border: 1px solid #44403C;
+  border-radius: 8px;
+  background: #292524;
+  color: #F5F5F4;
+}
+
+.ss-note {
+  margin: 0;
+  font-size: 13px;
+  color: #FCD34D;
+}
+
+/* 劇本清單 */
+.ss-script {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 14px;
+  background: #292524;
+}
+
+.ss-empty {
+  color: #A8A29E;
+  text-align: center;
+}
+
+.ss-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ss-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ss-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #F76E12;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ss-step-title {
+  font-weight: 800;
+}
+
+.ss-step-purpose {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #3F3A36;
+  color: #F9A8D4;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ss-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ss-line-empty {
+  padding: 4px 10px;
+  color: #78716C;
+  font-size: 13px;
+}
+
+.ss-line {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-left: 3px solid var(--speaker);
+  border-radius: 8px;
+  background: transparent;
+  color: #E7E5E4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ss-line:hover {
+  background: #3F3A36;
+}
+
+.ss-line.is-active {
+  background: #44403C;
+  border-color: #57534E;
+  border-left-color: var(--speaker);
+}
+
+.ss-line.is-playing .ss-line-speaker::after {
+  content: ' ▶';
+  color: #F76E12;
+}
+
+.ss-line-speaker {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--speaker);
+}
+
+.ss-line-en {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .ss-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(160px, 1fr);
+    overflow-y: auto;
+  }
+
+  .ss-ctrl-right {
+    margin-left: 0;
+    width: 100%;
+  }
+}
