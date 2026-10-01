@@ -54,3 +54,6 @@ recordings/
 
 # Spike script outputs
 backend/scripts/out/
+
+# Playwright MCP logs / snapshots
+.playwright-mcp/
