@@ -202,23 +202,106 @@
   font-size: 26px;
 }
 
-.te-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin: 12px 24px 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: #FFFBEB;
-  border: 1px solid #FDE68A;
+/* 未儲存變更確認視窗 */
+.te-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(31, 42, 55, .45);
 }
 
-.te-banner>span {
-  flex: 1;
-  min-width: 200px;
-  font-weight: 600;
-  color: #92400E;
+.te-modal {
+  position: relative;
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 24px 20px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(17, 24, 39, .25);
+  text-align: center;
+}
+
+.te-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--te-muted);
+  display: grid;
+  place-items: center;
+  justify-content: center;
+  align-content: center;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.te-modal-close:hover:not(:disabled) {
+  background: #F3F4F6;
+  color: var(--te-ink);
+}
+
+.te-modal-close:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.te-modal-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #FEF3C7;
+  color: #D97706;
+  font-size: 28px !important;
+}
+
+.te-modal-title {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--te-ink);
+}
+
+.te-modal-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--te-muted);
+}
+
+.te-modal-error {
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #FEE2E2;
+  color: #B91C1C;
+  font-size: 13px;
+  text-align: left;
+}
+
+.te-modal-actions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.te-modal-actions button:disabled {
+  opacity: .6;
 }
 
 .te-error {
@@ -1092,7 +1175,6 @@ button.te-side-card:hover {
     opacity: 1;
   }
 
-  .te-banner,
   .te-error {
     margin-left: 16px;
     margin-right: 16px;

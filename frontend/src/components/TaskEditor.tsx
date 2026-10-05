@@ -283,12 +283,13 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
       </header>
 
       {confirmClose && (
-        <div className="te-banner" role="alertdialog" aria-label="尚未儲存的變更">
-          <span>有尚未儲存的變更，確定要離開嗎？</span>
-          <button className="te-btn-ghost" onClick={() => setConfirmClose(false)}>繼續編輯</button>
-          <button className="te-btn-danger" onClick={onClose}>放棄變更並離開</button>
-          <button className="te-btn-save" onClick={async () => { if (await save()) onClose(); }}>儲存並離開</button>
-        </div>
+        <ConfirmLeaveModal
+          saving={saving}
+          error={error}
+          onCancel={() => setConfirmClose(false)}
+          onDiscard={onClose}
+          onSaveAndLeave={async () => { if (await save()) onClose(); }}
+        />
       )}
       {error && <div className="te-error" role="alert">{error}</div>}
 
@@ -598,6 +599,58 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
       {simulating && (
         <ScriptSimulator task={task} startStepIndex={activeIndex} onClose={() => setSimulating(false)} />
       )}
+    </div>
+  );
+}
+
+interface ConfirmLeaveModalProps {
+  saving: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onDiscard: () => void;
+  onSaveAndLeave: () => void;
+}
+
+/** 有未儲存變更時關閉編輯器的確認視窗；Esc / 點背景 = 繼續編輯 */
+function ConfirmLeaveModal({ saving, error, onCancel, onDiscard, onSaveAndLeave }: ConfirmLeaveModalProps) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [saving, onCancel]);
+
+  return (
+    <div className="te-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !saving) onCancel(); }}>
+      <div
+        className="te-modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="te-leave-title"
+        aria-describedby="te-leave-desc"
+      >
+        <button
+          type="button"
+          className="te-modal-close"
+          onClick={onCancel}
+          disabled={saving}
+          aria-label="關閉"
+          title="關閉"
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+        <span className="te-modal-icon material-symbols-outlined" aria-hidden="true">warning</span>
+        <h2 id="te-leave-title" className="te-modal-title">有尚未儲存的變更</h2>
+
+        <p id="te-leave-desc" className="te-modal-desc">確定要離開嗎？離開前可以先儲存，否則這次的修改會遺失。</p>
+        {error && <p className="te-modal-error" role="alert">{error}</p>}
+        <div className="te-modal-actions">
+          <button className="te-btn-ghost" onClick={onCancel} disabled={saving} autoFocus>繼續編輯</button>
+          <button className="te-btn-danger" onClick={onDiscard} disabled={saving}>放棄變更並離開</button>
+          <button className="te-btn-save" onClick={onSaveAndLeave} disabled={saving}>
+            <span className="material-symbols-outlined" aria-hidden="true">save</span>{saving ? '儲存中…' : '儲存並離開'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
