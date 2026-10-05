@@ -41,10 +41,8 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
   const [plans, setPlans] = useState<LessonPlanSummary[]>([]);
   const [tasks, setTasks] = useState<DialogueTaskSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const refresh = () =>
     listLessonPlans(teacherUid).then(setPlans).catch(e => setError(lessonPlanErrorText(e)));
@@ -53,23 +51,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
 
   useEffect(() => { void refresh(); void refreshTasks(); }, [teacherUid]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 新建選單：點選單外或按 Esc 關閉
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [menuOpen]);
-
   const handleNewOption = (key: NewPlanOption['key']) => {
-    setMenuOpen(false);
     if (key === 'ai') setAiOpen(true);
     else if (key === 'manual') setView({ kind: 'task-editor', record: null });
     else setLibraryOpen(true);
@@ -135,78 +117,104 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     );
   }
 
-  return (
-    <div className="lp-screen">
-      <div className="lp-header">
-        <button className="lp-btn-ghost" onClick={onBack}>← 回主畫面</button>
-        <h1>備課</h1>
-      </div>
-      {error && <div className="lp-error">{error}</div>}
+  const hasAnything = tasks.length > 0 || plans.length > 0;
 
-      {view.kind === 'list' && (
-        <>
-          <div className="lp-new-wrap" ref={menuRef}>
-            <button
-              className="lp-btn-primary lp-new-btn"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen(o => !o)}
-            >＋ 新建教案</button>
-            {menuOpen && (
-              <div className="lp-new-menu" role="menu">
-                {NEW_PLAN_OPTIONS.map(o => (
-                  <button
-                    key={o.key}
-                    role="menuitem"
-                    className={`lp-new-option lp-new-option--${o.key}`}
-                    onClick={() => handleNewOption(o.key)}
-                  >
-                    <span className="lp-new-option-icon material-symbols-outlined" aria-hidden="true">{o.icon}</span>
-                    <span className="lp-new-option-text">
-                      <span className="lp-new-option-title">{o.title}</span>
-                      <span className="lp-new-option-desc">{o.desc}</span>
-                    </span>
-                    {o.isNew && <span className="lp-new-badge">NEW</span>}
-                    <span className="lp-new-option-chevron material-symbols-outlined" aria-hidden="true">chevron_right</span>
-                  </button>
-                ))}
-              </div>
-            )}
+  return (
+    <div className="lpl-page">
+      <div className="lpl-deco-top" aria-hidden="true" />
+
+      <header className="lpl-top">
+        {/* <button className="lpl-back" onClick={onBack}>
+          <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>回主畫面
+        </button> */}
+        <div className="lpl-heading">
+          {/* <span className="lpl-heading-icon material-symbols-outlined" aria-hidden="true">inventory_2</span> */}
+          <div className="hs-brand-logo-wrapper">
+            <img src="/logo.webp" alt="Logo" />
           </div>
+          <h1><span className="orange">備課</span><span className="teal">中心</span></h1>
+          <p>豐富的任務資源，讓教學更輕鬆</p>
+        </div>
+        <NewPlanMenuButton align="right" onSelect={handleNewOption} />
+      </header>
+
+      {error && <div className="lpl-error" role="alert">{error}</div>}
+
+      <main className="lpl-panel">
+        <div className="lpl-panel-deco" aria-hidden="true">
+          <span className="lpl-blob-orange" />
+          <span className="lpl-blob-teal" />
+          <span className="lpl-dot-teal" />
+          <span className="lpl-dots" />
+        </div>
+
+        <div className="lpl-panel-body">
           {tasks.length > 0 && (
-            <>
-              <h2 className="lp-section-title">我的任務</h2>
-              <ul className="lp-list">
+            <section aria-label="我的任務">
+              <ul className="lpl-list">
                 {tasks.map(t => (
-                  <li key={t.id} className="lp-list-item">
-                    <button className="lp-list-main" onClick={() => { void handleOpenTask(t.id); }}>
-                      <span className="lp-list-title">{t.title}</span>
-                      <span className="lp-list-meta">{levelLabel(t.level, true)}｜{t.stepCount} 個步驟｜{new Date(t.updatedAt).toLocaleDateString()}</span>
+                  <li key={t.id} className="lpl-item">
+                    <button className="lpl-item-main" onClick={() => { void handleOpenTask(t.id); }}>
+                      <TaskTileIcon />
+                      <span className="lpl-item-text">
+                        <span className="lpl-item-title">{t.title}</span>
+                        <span className="lpl-item-meta">
+                          <span className="material-symbols-outlined" aria-hidden="true">person</span>
+                          {levelLabel(t.level, true)}
+                          <span className="lpl-sep" aria-hidden="true">|</span>
+                          {t.stepCount} 個步驟
+                          <span className="lpl-sep" aria-hidden="true">|</span>
+                          {new Date(t.updatedAt).toLocaleDateString()}
+                        </span>
+                      </span>
                     </button>
-                    <button className="lp-btn-danger" onClick={() => { void handleDeleteTask(t.id); }}>刪除</button>
+                    <button className="lpl-delete" onClick={() => { void handleDeleteTask(t.id); }} aria-label={`刪除「${t.title}」`}>
+                      <span className="material-symbols-outlined" aria-hidden="true">delete</span><span className="lpl-delete-text">刪除</span>
+                    </button>
                   </li>
                 ))}
               </ul>
-              <h2 className="lp-section-title">AI 教案</h2>
-            </>
+            </section>
           )}
-          {plans.length === 0 ? (
-            <p className="lp-hint-text">還沒有教案，按「新建教案」開始。</p>
+
+          {plans.length > 0 ? (
+            <section aria-label="AI 教案">
+              <h2 className="lpl-section-title">AI 教案</h2>
+              <ul className="lpl-list">
+                {plans.map(p => (
+                  <li key={p.id} className="lpl-item">
+                    <button className="lpl-item-main" onClick={() => { void handleOpen(p.id); }}>
+                      <span className="lpl-tile lpl-tile-ai material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+                      <span className="lpl-item-text">
+                        <span className="lpl-item-title">{p.title}</span>
+                        <span className="lpl-item-meta">
+                          <span className="material-symbols-outlined" aria-hidden="true">person</span>
+                          {levelLabel(p.level, true)}
+                          <span className="lpl-sep" aria-hidden="true">|</span>
+                          {p.topic}
+                          <span className="lpl-sep" aria-hidden="true">|</span>
+                          {new Date(p.updatedAt).toLocaleDateString()}
+                        </span>
+                      </span>
+                    </button>
+                    <button className="lpl-delete" onClick={() => { void handleDelete(p.id); }} aria-label={`刪除「${p.title}」`}>
+                      <span className="material-symbols-outlined" aria-hidden="true">delete</span><span className="lpl-delete-text">刪除</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : (
-            <ul className="lp-list">
-              {plans.map(p => (
-                <li key={p.id} className="lp-list-item">
-                  <button className="lp-list-main" onClick={() => { void handleOpen(p.id); }}>
-                    <span className="lp-list-title">{p.title}</span>
-                    <span className="lp-list-meta">{levelLabel(p.level, true)}｜{p.topic}｜{new Date(p.updatedAt).toLocaleDateString()}</span>
-                  </button>
-                  <button className="lp-btn-danger" onClick={() => { void handleDelete(p.id); }}>刪除</button>
-                </li>
-              ))}
-            </ul>
+            <section className="lpl-empty">
+              <EmptyIllustration />
+              <h2>{hasAnything ? 'AI 教案' : '開始建立第一份教案'}</h2>
+              <p>還沒有教案，按「新建教案」開始。</p>
+              <NewPlanMenuButton align="center" size="large" onSelect={handleNewOption} />
+            </section>
           )}
-        </>
-      )}
+        </div>
+      </main>
+
       {libraryOpen && <TemplateLibrary onApply={handleApplyTemplate} onClose={() => setLibraryOpen(false)} />}
       {aiOpen && (
         <AiGenerateModal
@@ -215,5 +223,120 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
         />
       )}
     </div>
+  );
+}
+
+interface NewPlanMenuButtonProps {
+  onSelect: (key: NewPlanOption['key']) => void;
+  /** 選單對齊：右上角按鈕靠右、空狀態按鈕置中 */
+  align: 'right' | 'center';
+  size?: 'normal' | 'large';
+}
+
+/** 「＋ 新建教案」按鈕與三選項選單；點選單外或按 Esc 關閉 */
+function NewPlanMenuButton({ onSelect, align, size = 'normal' }: NewPlanMenuButtonProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div className={`lp-new-wrap lp-new-wrap--${align}`} ref={ref}>
+      <button
+        className={`lpl-btn-new${size === 'large' ? ' lpl-btn-new--large' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">add</span>新建教案
+      </button>
+      {open && (
+        <div className="lp-new-menu" role="menu">
+          {NEW_PLAN_OPTIONS.map(o => (
+            <button
+              key={o.key}
+              role="menuitem"
+              className={`lp-new-option lp-new-option--${o.key}`}
+              onClick={() => { setOpen(false); onSelect(o.key); }}
+            >
+              <span className="lp-new-option-icon material-symbols-outlined" aria-hidden="true">{o.icon}</span>
+              <span className="lp-new-option-text">
+                <span className="lp-new-option-title">{o.title}</span>
+                <span className="lp-new-option-desc">{o.desc}</span>
+              </span>
+              {o.isNew && <span className="lp-new-badge">NEW</span>}
+              <span className="lp-new-option-chevron material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 任務卡片左側的圖示：兩張疊起的卡片＋笑臉 */
+function TaskTileIcon() {
+  return (
+    <span className="lpl-tile" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="34" height="34">
+        <rect x="14" y="7" width="24" height="30" rx="5" fill="#FFB27A" stroke="#E2661A" strokeWidth="2" />
+        <rect x="9" y="12" width="24" height="30" rx="5" fill="#FFF4E8" stroke="#E2661A" strokeWidth="2" />
+        <circle cx="21" cy="27" r="6.5" fill="#FFB547" />
+        <circle cx="19" cy="25.8" r="0.9" fill="#7A3A0E" />
+        <circle cx="23" cy="25.8" r="0.9" fill="#7A3A0E" />
+        <path d="M18.6 28.4 q2.4 2.2 4.8 0" fill="none" stroke="#7A3A0E" strokeWidth="1.2" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
+/** 空狀態插圖：資料夾裡有一張笑臉任務卡，旁邊點綴星星 */
+function EmptyIllustration() {
+  return (
+    <svg className="lpl-empty-art" viewBox="0 0 240 190" width="220" height="174" aria-hidden="true">
+      <defs>
+        <radialGradient id="lplGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#FFE3CC" />
+          <stop offset="100%" stopColor="#FFF4EA" stopOpacity="0.2" />
+        </radialGradient>
+        <linearGradient id="lplFolder" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FF9A4D" />
+          <stop offset="100%" stopColor="#F2701C" />
+        </linearGradient>
+        <linearGradient id="lplFolderFront" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFC08F" />
+          <stop offset="100%" stopColor="#FFAA6B" />
+        </linearGradient>
+      </defs>
+      <circle cx="120" cy="96" r="80" fill="url(#lplGlow)" />
+      <ellipse cx="120" cy="168" rx="58" ry="7" fill="#F6D9C2" opacity="0.7" />
+      <rect x="86" y="30" width="62" height="40" rx="6" fill="#FFD8B8" transform="rotate(-8 117 50)" />
+      <rect x="78" y="58" width="92" height="74" rx="10" fill="url(#lplFolder)" transform="rotate(-6 124 95)" />
+      <rect x="92" y="62" width="60" height="62" rx="8" fill="#FFF8F1" transform="rotate(-6 122 93)" />
+      <rect x="100" y="76" width="22" height="4" rx="2" fill="#F5C9A6" transform="rotate(-6 111 78)" />
+      <rect x="100" y="86" width="16" height="4" rx="2" fill="#F5C9A6" transform="rotate(-6 108 88)" />
+      <circle cx="132" cy="96" r="12" fill="#FFB547" />
+      <circle cx="128" cy="94" r="1.6" fill="#7A3A0E" />
+      <circle cx="136" cy="93" r="1.6" fill="#7A3A0E" />
+      <path d="M127 99 q5 4 10 -1" fill="none" stroke="#7A3A0E" strokeWidth="2" strokeLinecap="round" />
+      <path d="M72 110 h104 l-8 46 a8 8 0 0 1 -8 7 h-72 a8 8 0 0 1 -8 -7 z" fill="url(#lplFolderFront)" />
+      <path d="M190 20 l3 8 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3 z" fill="#F7913D" />
+      <path d="M186 140 l2.4 6 6 2.4 -6 2.4 -2.4 6 -2.4 -6 -6 -2.4 6 -2.4 z" fill="#F7913D" />
+      <path d="M50 116 l2.6 6.4 6.4 2.6 -6.4 2.6 -2.6 6.4 -2.6 -6.4 -6.4 -2.6 6.4 -2.6 z" fill="#5CC9BC" />
+      <rect x="198" y="72" width="9" height="9" rx="2" fill="#D9D5E8" transform="rotate(45 202 76)" />
+      <circle cx="68" cy="146" r="3" fill="#F6CDB0" />
+    </svg>
   );
 }
