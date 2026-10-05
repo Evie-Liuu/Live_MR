@@ -220,20 +220,21 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 24px 24px 20px;
-  border-radius: 18px;
+  padding: 26px 24px 22px;
+  border-radius: 22px;
   background: #fff;
   box-shadow: 0 24px 64px rgba(17, 24, 39, .25);
   text-align: center;
+  color: var(--te-ink);
 }
 
 .te-modal-close {
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   border: none;
   background: transparent;
   color: var(--te-muted);
@@ -256,26 +257,28 @@
 }
 
 .te-modal-icon {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: #FEF3C7;
   color: #D97706;
   font-size: 28px !important;
+  font-variation-settings: 'FILL' 1;
 }
 
 .te-modal-title {
-  margin: 4px 0 0;
-  font-size: 18px;
+  margin: 6px 0 0;
+  font-size: 19px;
   font-weight: 800;
+  line-height: 1.3;
   color: var(--te-ink);
 }
 
 .te-modal-desc {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--te-muted);
 }
@@ -295,13 +298,67 @@
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: 14px;
+}
+
+/* 與刪除確認視窗相同的膠囊按鈕 */
+.te-modal-btn {
+  flex: 1;
+  min-width: 140px;
+  max-width: 170px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+}
+
+.te-modal-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.te-modal-cancel {
+  border: 1px solid #E5DED5;
+  background: #fff;
+  color: #374151;
+}
+
+.te-modal-cancel:hover:not(:disabled) {
+  background: #FAF7F3;
+}
+
+.te-modal-discard {
+  border: none;
+  background: #FDECEC;
+  color: #D63A3F;
+}
+
+.te-modal-discard:hover:not(:disabled) {
+  background: #FBD5D5;
+}
+
+.te-modal-save {
+  border: none;
+  background: var(--te-teal);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 169, 157, .3);
+}
+
+.te-modal-save:hover:not(:disabled) {
+  background: #00978C;
 }
 
 .te-modal-actions button:disabled {
   opacity: .6;
+  cursor: not-allowed;
 }
 
 .te-error {

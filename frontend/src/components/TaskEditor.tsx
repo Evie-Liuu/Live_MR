@@ -644,9 +644,9 @@ function ConfirmLeaveModal({ saving, error, onCancel, onDiscard, onSaveAndLeave 
         <p id="te-leave-desc" className="te-modal-desc">確定要離開嗎？離開前可以先儲存，否則這次的修改會遺失。</p>
         {error && <p className="te-modal-error" role="alert">{error}</p>}
         <div className="te-modal-actions">
-          <button className="te-btn-ghost" onClick={onCancel} disabled={saving} autoFocus>繼續編輯</button>
-          <button className="te-btn-danger" onClick={onDiscard} disabled={saving}>放棄變更並離開</button>
-          <button className="te-btn-save" onClick={onSaveAndLeave} disabled={saving}>
+          <button className="te-modal-btn te-modal-cancel" onClick={onCancel} disabled={saving} autoFocus>繼續編輯</button>
+          <button className="te-modal-btn te-modal-discard" onClick={onDiscard} disabled={saving}>放棄變更並離開</button>
+          <button className="te-modal-btn te-modal-save" onClick={onSaveAndLeave} disabled={saving}>
             <span className="material-symbols-outlined" aria-hidden="true">save</span>{saving ? '儲存中…' : '儲存並離開'}
           </button>
         </div>
