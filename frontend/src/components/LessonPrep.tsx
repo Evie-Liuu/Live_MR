@@ -135,7 +135,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
         </button> */}
         <div className="lpl-heading">
           {/* <span className="lpl-heading-icon material-symbols-outlined" aria-hidden="true">inventory_2</span> */}
-          <div className="hs-brand-logo-wrapper">
+          <div className="hs-brand hs-brand-logo-wrapper" onClick={onBack}>
             <img src="/logo.webp" alt="Logo" />
           </div>
           <h1><span className="orange">備課</span><span className="teal">中心</span></h1>
