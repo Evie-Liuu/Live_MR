@@ -4,7 +4,7 @@ import type { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from './lessonPlanTypes.js'
 import { isSceneContext } from './lessonPlanRoutes.js'
 import { generateDialogueTask } from './ai/dialogueTask.js'
-import type { DialogueLine, DialogueStep, DialogueTask, TemplateSource } from './dialogueTaskTypes.js'
+import { isGestureId, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource } from './dialogueTaskTypes.js'
 
 export interface DialogueTaskRouteDeps {
   /** null 表示資料庫開啟失敗，所有端點回 503 */
@@ -69,7 +69,11 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
     level,
     steps: t.steps.map(s => ({
       id: s.id, title: s.title, purpose: s.purpose,
-      lines: s.lines.map(l => ({ id: l.id, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh })),
+      // 不認得的動作直接略過（不拒絕整份任務），讓動作庫增減時舊資料仍可儲存
+      lines: s.lines.map(l => ({
+        id: l.id, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh,
+        ...(isGestureId(l.gesture) ? { gesture: l.gesture } : {}),
+      })),
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
     })),
     ...(t.sourceTemplate ? { sourceTemplate: { id: t.sourceTemplate.id, version: t.sourceTemplate.version } } : {}),

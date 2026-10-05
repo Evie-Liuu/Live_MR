@@ -16,11 +16,16 @@ import { applyLights } from '../utils/threeScene.ts';
 import { loadVrm } from '../utils/vrmLoader.ts';
 import { loadStaticProps, disposeStaticProps } from '../utils/propLoader.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMAnimationLoaderPlugin, VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
+import { GESTURES, type GestureId } from '../config/gestures.ts';
 
 interface StageAvatar {
   slotId: string;
   vrm: VRM;
   animator: AvatarAnimator;
+  /** 每個角色各自轉換的動作 clip（VRM0 / VRM1 轉換結果不同，不能共用） */
+  clips: Map<GestureId, THREE.AnimationClip>;
 }
 
 export interface ScriptStage {
@@ -31,6 +36,30 @@ export interface ScriptStage {
   error: string | null;
   /** 設定目前說話的角色（null = 沒人說話） */
   setSpeaker: (slotId: string | null) => void;
+  /** 讓角色做一次動作；動作檔還沒載入或載入失敗時略過 */
+  playGesture: (slotId: string, gesture: GestureId) => void;
+}
+
+/** 動作檔與場景無關，整個 app 共用一份 */
+let gestureLibrary: Promise<Map<GestureId, VRMAnimation>> | null = null;
+
+function loadGestureLibrary(): Promise<Map<GestureId, VRMAnimation>> {
+  gestureLibrary ??= (async () => {
+    const loader = new GLTFLoader();
+    loader.register(parser => new VRMAnimationLoaderPlugin(parser));
+    const lib = new Map<GestureId, VRMAnimation>();
+    await Promise.all(GESTURES.map(async g => {
+      try {
+        const gltf = await loader.loadAsync(g.url);
+        const anim = (gltf.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0];
+        if (anim) lib.set(g.id, anim);
+      } catch (err) {
+        console.warn(`[ScriptStage] gesture ${g.id} load failed:`, err);
+      }
+    }));
+    return lib;
+  })();
+  return gestureLibrary;
 }
 
 /** 與大螢幕編輯模式相同：沒有姿勢驅動時把腳貼地 */
@@ -42,6 +71,19 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   const [error, setError] = useState<string | null>(null);
   const speakerRef = useRef<string | null>(null);
   const setSpeaker = useCallback((slotId: string | null) => { speakerRef.current = slotId; }, []);
+  const avatarsRef = useRef<StageAvatar[]>([]);
+  const libraryRef = useRef<Map<GestureId, VRMAnimation> | null>(null);
+  const playGesture = useCallback((slotId: string, gestureId: GestureId) => {
+    const avatar = avatarsRef.current.find(a => a.slotId === slotId);
+    const anim = libraryRef.current?.get(gestureId);
+    if (!avatar || !anim) return;
+    let clip = avatar.clips.get(gestureId);
+    if (!clip) {
+      clip = createVRMAnimationClip(anim, avatar.vrm);
+      avatar.clips.set(gestureId, clip);
+    }
+    avatar.animator.playGesture(clip);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -90,6 +132,8 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     // 角色：每個 slot 載入預設模型
     const slots = preset.slots ?? [];
     const avatars: StageAvatar[] = [];
+    avatarsRef.current = avatars;
+    void loadGestureLibrary().then(lib => { if (!disposed) libraryRef.current = lib; });
     const slotProgress = new Array(slots.length).fill(0);
     const reportProgress = () => setProgress(slots.length ? slotProgress.reduce((a, b) => a + b, 0) / slots.length : 1);
     Promise.all(slots.map(async (slot, i) => {
@@ -108,7 +152,13 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       if (disposed) { scene.remove(vrm.scene); VRMUtils.deepDispose(vrm.scene); return; }
       slotProgress[i] = 1;
       reportProgress();
-      avatars.push({ slotId: slot.id, vrm, animator: createAvatarAnimator(vrm, i * 2.3 + 0.7) });
+      // createVRMAnimationClip 需要視線代理物件，先建好避免它每次自動建立並印警告
+      if (vrm.lookAt) {
+        const proxy = new VRMLookAtQuaternionProxy(vrm.lookAt);
+        proxy.name = 'VRMLookAtQuaternionProxy';
+        vrm.scene.add(proxy);
+      }
+      avatars.push({ slotId: slot.id, vrm, animator: createAvatarAnimator(vrm, i * 2.3 + 0.7), clips: new Map() });
     }))
       .then(() => { if (!disposed) setReady(true); })
       .catch(err => {
@@ -124,7 +174,10 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     const animate = (timestamp: number) => {
       raf = requestAnimationFrame(animate);
       timer.update(timestamp);
-      const delta = Math.min(timer.getDelta(), 0.1);
+      // 動作 / 嘴型用實際經過時間，低幀率時才不會變成慢動作而跟語音對不上；
+      // 彈簧骨（頭髮）物理在大 delta 下會爆衝，維持 0.1 秒上限
+      const rawDelta = Math.min(timer.getDelta(), 1);
+      const physicsDelta = Math.min(rawDelta, 0.1);
       const elapsed = timer.getElapsed();
       const speaker = avatars.find(a => a.slotId === speakerRef.current) ?? null;
       const speakerHead = speaker ? speaker.animator.headWorldPosition(new THREE.Vector3()) : null;
@@ -142,8 +195,8 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
         } else if (speakerHead) {
           lookTarget = speakerHead;
         }
-        a.animator.update(delta, elapsed, { speaking, lookTarget });
-        a.vrm.update(delta);
+        a.animator.update(rawDelta, elapsed, { speaking, lookTarget });
+        a.vrm.update(physicsDelta);
       }
       renderer.render(scene, camera);
     };
@@ -151,6 +204,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
 
     return () => {
       disposed = true;
+      avatarsRef.current = [];
       cancelAnimationFrame(raf);
       observer.disconnect();
       for (const a of avatars) { scene.remove(a.vrm.scene); VRMUtils.deepDispose(a.vrm.scene); }
@@ -162,5 +216,5 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   }, [canvasRef, sceneId]);
 
   // 模擬器開著時場景不會變（編輯器被蓋住），所以不處理 sceneId 中途變更時的狀態重設
-  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker };
+  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker, playGesture };
 }

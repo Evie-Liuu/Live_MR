@@ -369,6 +369,15 @@
   color: var(--speaker);
 }
 
+.ss-line-gesture {
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #3F3A36;
+  color: #E7E5E4;
+  font-weight: 600;
+}
+
 .ss-line-en {
   font-size: 14px;
   line-height: 1.45;

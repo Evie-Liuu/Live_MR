@@ -3,6 +3,7 @@ import { THEMES } from '../config/scenes.ts';
 import { TASK_TEMPLATES, type TaskTemplate } from '../config/taskTemplates/index.ts';
 import { CEFR_LEVELS, levelLabel } from '../types/lessonPlan.ts';
 import { formatClock, stepTimings } from '../types/dialogueTask.ts';
+import { gestureById } from '../config/gestures.ts';
 import './TemplateLibrary.css';
 
 interface TemplateLibraryProps {
@@ -157,11 +158,15 @@ export default function TemplateLibrary({ onApply, onClose }: TemplateLibraryPro
                   const slot = slots?.get(l.speakerSlotId);
                   const color = SPEAKER_COLORS[(slot?.index ?? 0) % SPEAKER_COLORS.length];
                   const lineKey = `${selected.id}:${l.id}`;
+                  const g = gestureById(l.gesture);
                   return (
                     <li key={l.id} className="tl-line" style={{ ['--speaker' as string]: color }}>
                       <span className="tl-avatar" aria-hidden="true">{slot?.icon ?? '🙂'}</span>
                       <div className="tl-bubble">
-                        <span className="tl-speaker">{slot?.label ?? l.speakerSlotId}</span>
+                        <span className="tl-speaker">
+                          {slot?.label ?? l.speakerSlotId}
+                          {g && <span className="tl-gesture">{g.icon} {g.label}</span>}
+                        </span>
                         <span className="tl-en">{l.en}</span>
                         <span className="tl-zh">{l.zh}</span>
                       </div>

@@ -78,6 +78,18 @@ describe('dialogue task routes', () => {
     expect(bad.status).toBe(400)
   })
 
+  it('keeps known gestures and drops unknown ones', async () => {
+    const task = sampleTask()
+    task.steps[0].lines = [
+      { ...task.steps[0].lines[0], gesture: 'wave' },
+      { ...task.steps[0].lines[1], gesture: 'moonwalk' as never },
+    ]
+    const res = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task })
+    expect(res.status).toBe(201)
+    expect(res.body.task.steps[0].lines[0].gesture).toBe('wave')
+    expect(res.body.task.steps[0].lines[1]).not.toHaveProperty('gesture')
+  })
+
   it('converts legacy levels (A2 / B1) to the new level bands', async () => {
     const a2 = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: { ...sampleTask(), level: 'A2' } })
     expect(a2.body.task.level).toBe('A1-A2')

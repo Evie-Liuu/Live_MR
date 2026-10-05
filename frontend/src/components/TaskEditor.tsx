@@ -8,6 +8,7 @@ import {
 import { createDialogueTask, dialogueTaskErrorText, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
 import { TASK_TEMPLATES, toTemplateSource } from '../config/taskTemplates/index.ts';
 import ScriptSimulator from './ScriptSimulator.tsx';
+import { GESTURES, isGestureId } from '../config/gestures.ts';
 import './TaskEditor.css';
 
 interface TaskEditorProps {
@@ -430,6 +431,16 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                                 {slots.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                               </select>
                               <span className="te-chip-soft">台詞</span>
+                              <select
+                                className={`te-gesture${line.gesture ? ' has-gesture' : ''}`}
+                                value={line.gesture ?? ''}
+                                aria-label="動作"
+                                title="說這句時角色做的動作（模擬播放時看得到）"
+                                onChange={e => editLine(line.id, { gesture: isGestureId(e.target.value) ? e.target.value : undefined })}
+                              >
+                                <option value="">無動作</option>
+                                {GESTURES.map(g => <option key={g.id} value={g.id}>{g.icon} {g.label}</option>)}
+                              </select>
                               <span className="te-line-tools">
                                 <button className="te-mini-btn" onClick={() => moveLine(i, -1)} disabled={i === 0} aria-label="上移台詞">
                                   <span className="material-symbols-outlined">arrow_upward</span>

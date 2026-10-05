@@ -6,6 +6,7 @@
  *   - 自動眨眼（隨機間隔）
  *   - 轉頭看向目標（說話者看聽者、聽者看說話者）
  *   - 說話：嘴巴開合（假的音節節奏，瀏覽器 TTS 拿不到音訊無法真正對嘴）＋輕微點頭
+ *   - 動作（VRMA）：playGesture 播放一次性動作，淡入淡出與待機姿勢混合，轉頭疊加在最上層
  *
  * 只寫 normalized bone 與 expression，呼叫端每幀要再呼叫 vrm.update(delta)。
  */
@@ -21,6 +22,8 @@ export interface AnimatorInput {
 
 export interface AvatarAnimator {
   update(delta: number, elapsed: number, input: AnimatorInput): void;
+  /** 播放一次性動作（由 createVRMAnimationClip 建立）；會中斷正在播的動作 */
+  playGesture(clip: THREE.AnimationClip): void;
   /** 目前頭部的世界座標（給其他角色當 lookTarget） */
   headWorldPosition(out: THREE.Vector3): THREE.Vector3;
 }
@@ -32,6 +35,17 @@ const MAX_HEAD_PITCH = 20 * DEG;
 /** 頭部轉向的追隨速度（越大越快） */
 const LOOK_SPEED = 4;
 const MOUTH_SPEED = 18;
+/** 動作開始 / 結束時與待機姿勢混合的秒數 */
+const GESTURE_FADE_IN = 0.25;
+const GESTURE_FADE_OUT = 0.35;
+
+/** 動作的混合權重：開頭淡入、結尾淡出（0~1） */
+export function gestureWeight(time: number, duration: number): number {
+  const smooth = (u: number) => u * u * (3 - 2 * u);
+  const fadeIn = smooth(THREE.MathUtils.clamp(time / GESTURE_FADE_IN, 0, 1));
+  const fadeOut = smooth(THREE.MathUtils.clamp((duration - time) / GESTURE_FADE_OUT, 0, 1));
+  return Math.min(fadeIn, fadeOut);
+}
 const UP = new THREE.Vector3(0, 1, 0);
 
 /**
@@ -59,6 +73,10 @@ export function mouthOpenness(elapsed: number, seed: number): number {
   const a = Math.abs(Math.sin(elapsed * 11 + seed));
   const b = 0.5 + 0.5 * Math.sin(elapsed * 3.7 + seed * 2);
   return THREE.MathUtils.clamp(0.15 + 0.75 * a * b, 0, 1);
+}
+
+function interp(i: THREE.Interpolant, t: number): number {
+  return (i.evaluate(t) as unknown as number[])[0];
 }
 
 function approach(current: number, target: number, speed: number, delta: number): number {
@@ -106,11 +124,29 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
     head.updateMatrixWorld(true);
   }
 
-  // 站姿：手臂放下、手肘微彎（與大螢幕編輯模式 placeholder 相同角度）
-  leftUpperArm?.rotation.set(0, 0, -ARM_DOWN);
-  rightUpperArm?.rotation.set(0, 0, ARM_DOWN);
-
   const em = vrm.expressionManager;
+
+  // ── 動作（VRMA） ─────────────────────────────────────────────────────────
+  // 不用 AnimationMixer：它在數值與上一幀相同時不會寫入，會被每幀重設的待機姿勢蓋掉（停留段的骨頭因此不動）。
+  // 改成每幀自己對 clip 的軌道取樣。
+  /** 待機姿勢每幀都會設定的骨頭；其餘被動作碰過的骨頭（手指、手腕等）在動作外歸零 */
+  const managed = new Set([head, neck, chest, spine, leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm].filter(Boolean));
+  const touched = new Set<THREE.Object3D>();
+  let gesture: {
+    time: number;
+    duration: number;
+    bones: { bone: THREE.Object3D; interp: THREE.Interpolant }[];
+    expressions: { target: { weight: number }; interp: THREE.Interpolant }[];
+  } | null = null;
+  const gestureQuat = new THREE.Quaternion();
+  const lookQuat = new THREE.Quaternion();
+  const lookEuler = new THREE.Euler();
+
+  const stopGesture = () => {
+    if (!gesture) return;
+    for (const e of gesture.expressions) e.target.weight = 0;
+    gesture = null;
+  };
   let yaw = 0;
   let up = 0;
   let mouth = 0;
@@ -121,11 +157,14 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
 
   return {
     update(delta, elapsed, { speaking, lookTarget }) {
-      // 呼吸與重心擺動
-      if (chest) chest.rotation.x = Math.sin(elapsed * 1.6 + seed) * 0.02;
-      if (spine && spine !== chest) spine.rotation.z = Math.sin(elapsed * 0.5 + seed) * 0.015;
+      // ① 待機姿勢：手臂放下（與大螢幕編輯模式 placeholder 相同角度）、呼吸與重心擺動
+      leftUpperArm?.rotation.set(0, 0, -ARM_DOWN);
+      rightUpperArm?.rotation.set(0, 0, ARM_DOWN);
+      if (chest) chest.rotation.set(Math.sin(elapsed * 1.6 + seed) * 0.02, 0, 0);
+      if (spine && spine !== chest) spine.rotation.set(0, 0, Math.sin(elapsed * 0.5 + seed) * 0.015);
       leftLowerArm?.rotation.set(0, 0, -Math.sin(elapsed * 1.6 + seed) * 0.01);
       rightLowerArm?.rotation.set(0, 0, Math.sin(elapsed * 1.6 + seed) * 0.01);
+      for (const b of touched) if (!managed.has(b)) b.quaternion.identity();
 
       // 看向目標，頭與脖子分攤轉角
       let targetYaw = 0;
@@ -137,11 +176,29 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
       }
       yaw = approach(yaw, targetYaw, LOOK_SPEED, delta);
       up = approach(up, targetUp, LOOK_SPEED, delta);
-      // 說話時輕微點頭
-      const nod = speaking ? Math.sin(elapsed * 5 + seed) * 0.035 : 0;
-      const pitchRot = (-up * pitchSign);
-      if (neck) neck.rotation.set(pitchRot * 0.4, yaw * yawSign * 0.4, 0);
-      if (head) head.rotation.set(pitchRot * 0.6 + nod * pitchSign, yaw * yawSign * 0.6, Math.sin(elapsed * 0.7 + seed) * 0.02);
+      // 說話時輕微點頭（播動作時由動作接手頭部）
+      const nod = speaking && !gesture ? Math.sin(elapsed * 5 + seed) * 0.035 : 0;
+      neck?.rotation.set(0, 0, 0);
+      head?.rotation.set(nod * pitchSign, 0, Math.sin(elapsed * 0.7 + seed) * 0.02);
+
+      // ② 動作：依淡入淡出權重，從待機姿勢 slerp 到動作姿勢
+      if (gesture) {
+        gesture.time = Math.min(gesture.time + delta, gesture.duration);
+        const t = gesture.time;
+        const w = gestureWeight(t, gesture.duration);
+        for (const { bone: b, interp } of gesture.bones) {
+          gestureQuat.fromArray(interp.evaluate(t) as unknown as number[]);
+          b.quaternion.slerp(gestureQuat, w);
+        }
+        // 表情的淡入淡出已寫在動作檔的關鍵影格裡
+        for (const e of gesture.expressions) e.target.weight = interp(e.interp, t);
+        if (t >= gesture.duration) stopGesture();
+      }
+
+      // ③ 轉頭看人疊在最上層：頭與脖子分攤轉角
+      const pitchRot = -up * pitchSign;
+      if (neck) neck.quaternion.multiply(lookQuat.setFromEuler(lookEuler.set(pitchRot * 0.4, yaw * yawSign * 0.4, 0)));
+      if (head) head.quaternion.multiply(lookQuat.setFromEuler(lookEuler.set(pitchRot * 0.6, yaw * yawSign * 0.6, 0)));
 
       if (!em) return;
 
@@ -160,6 +217,23 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
           nextBlinkAt = elapsed + 2 + Math.random() * 4;
         }
       }
+    },
+    playGesture(clip) {
+      stopGesture();
+      const bones: { bone: THREE.Object3D; interp: THREE.Interpolant }[] = [];
+      const expressions: { target: { weight: number }; interp: THREE.Interpolant }[] = [];
+      for (const track of clip.tracks) {
+        const { nodeName, propertyName } = THREE.PropertyBinding.parseTrackName(track.name);
+        const obj = vrm.scene.getObjectByName(nodeName);
+        if (!obj) continue;
+        if (propertyName === 'quaternion') {
+          bones.push({ bone: obj, interp: track.createInterpolant() });
+          touched.add(obj);
+        } else if (propertyName === 'weight') {
+          expressions.push({ target: obj as unknown as { weight: number }, interp: track.createInterpolant() });
+        }
+      }
+      gesture = { time: 0, duration: clip.duration, bones, expressions };
     },
     headWorldPosition(out) {
       if (head) return head.getWorldPosition(out);

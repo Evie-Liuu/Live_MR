@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices } from './scriptPlayback.ts';
-import { lookAngles, mouthOpenness } from './scriptedAvatar.ts';
+import { gestureWeight, lookAngles, mouthOpenness } from './scriptedAvatar.ts';
 import type { DialogueTask } from '../types/dialogueTask.ts';
 
 const task: DialogueTask = {
@@ -71,6 +71,15 @@ describe('scriptedAvatar math', () => {
     expect(lookAngles(forward, left, new THREE.Vector3(-1, 0, 1)).yaw).toBeCloseTo(-Math.PI / 4);
     expect(lookAngles(forward, left, new THREE.Vector3(0, 0.2, 1)).up).toBeGreaterThan(0);
     expect(lookAngles(forward, left, new THREE.Vector3(5, 0, -1)).yaw).toBeCloseTo((55 * Math.PI) / 180);
+  });
+
+  it('gestureWeight fades in, holds at 1 and fades out', () => {
+    expect(gestureWeight(0, 2)).toBe(0);
+    expect(gestureWeight(0.1, 2)).toBeGreaterThan(0);
+    expect(gestureWeight(0.1, 2)).toBeLessThan(1);
+    expect(gestureWeight(1, 2)).toBe(1);
+    expect(gestureWeight(1.9, 2)).toBeLessThan(1);
+    expect(gestureWeight(2, 2)).toBe(0);
   });
 
   it('mouthOpenness stays within 0..1', () => {

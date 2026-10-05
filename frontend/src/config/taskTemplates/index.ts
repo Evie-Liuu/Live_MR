@@ -49,7 +49,10 @@ export function toTemplateSource(task: DialogueTask, templateId: string): string
       id: `step${i + 1}`,
       title: s.title,
       purpose: s.purpose,
-      lines: s.lines.map((l, j) => ({ id: `step${i + 1}_${j + 1}`, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh })),
+      lines: s.lines.map((l, j) => ({
+        id: `step${i + 1}_${j + 1}`, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh,
+        ...(l.gesture ? { gesture: l.gesture } : {}),
+      })),
       grammarPoints: s.grammarPoints,
       grammarNote: s.grammarNote,
       teachingNotes: s.teachingNotes,

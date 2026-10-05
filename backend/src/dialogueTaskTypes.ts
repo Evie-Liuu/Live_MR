@@ -10,6 +10,16 @@ export interface DialogueLine {
   speakerSlotId: string
   en: string
   zh: string
+  /** 說這句時角色做的動作（選填） */
+  gesture?: GestureId
+}
+
+/** 動作庫 id，與前端 frontend/src/config/gestures.ts 一致 */
+export const GESTURE_IDS = ['wave', 'nod', 'bow', 'point', 'handOver', 'thumbsUp', 'happy'] as const
+export type GestureId = typeof GESTURE_IDS[number]
+
+export function isGestureId(v: unknown): v is GestureId {
+  return typeof v === 'string' && (GESTURE_IDS as readonly string[]).includes(v)
 }
 
 export interface DialogueStep {

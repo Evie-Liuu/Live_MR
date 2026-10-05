@@ -325,6 +325,12 @@
   color: color-mix(in srgb, var(--speaker) 75%, #000);
 }
 
+.tl-gesture {
+  margin-left: 6px;
+  font-weight: 600;
+  color: #57534E;
+}
+
 .tl-en {
   font-weight: 600;
 }

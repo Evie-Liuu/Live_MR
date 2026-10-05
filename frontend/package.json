@@ -9,12 +9,14 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "generate:vrma": "node scripts/generate-vrma.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.20",
     "@mediapipe/tasks-vision": "^0.10.34",
     "@pixiv/three-vrm": "^3.5.1",
+    "@pixiv/three-vrm-animation": "^3.5.1",
     "@tailwindcss/vite": "^4.2.2",
     "@types/three": "^0.183.1",
     "firebase": "^12.16.0",

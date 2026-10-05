@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { THEMES } from '../scenes.ts';
 import { CEFR_LEVELS } from '../../types/lessonPlan.ts';
+import { isGestureId } from '../gestures.ts';
 import { TASK_TEMPLATES, applyTemplate, toTemplateSource } from './index.ts';
 
 // 與 backend/src/dialogueTaskRoutes.ts 的上限一致；超過的模板老師套用後會存不進去
@@ -51,6 +52,12 @@ describe('內建任務模板', () => {
           expect(line.en.trim(), `${line.id} 缺英文`).not.toBe('');
           expect(line.zh.trim(), `${line.id} 缺中文`).not.toBe('');
         }
+      }
+    });
+
+    it('動作都在動作庫裡', () => {
+      for (const line of tpl.task.steps.flatMap(s => s.lines)) {
+        if (line.gesture !== undefined) expect(isGestureId(line.gesture), `${line.id} 的動作 ${line.gesture} 不在動作庫`).toBe(true);
       }
     });
 

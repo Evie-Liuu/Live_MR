@@ -3,6 +3,7 @@
  * 目前獨立存放，尚未接入上課時的任務庫。
  */
 import type { CefrLevel } from './lessonPlan.ts'
+import type { GestureId } from '../config/gestures.ts'
 
 export interface DialogueLine {
   id: string
@@ -10,6 +11,8 @@ export interface DialogueLine {
   speakerSlotId: string
   en: string
   zh: string
+  /** 說這句時角色做的動作（選填，見 config/gestures.ts） */
+  gesture?: GestureId
 }
 
 export interface DialogueStep {

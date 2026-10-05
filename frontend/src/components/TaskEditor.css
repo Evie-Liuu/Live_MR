@@ -1098,3 +1098,27 @@ button.te-side-card:hover {
     margin-right: 16px;
   }
 }
+
+/* 台詞動作選單 */
+.te-gesture {
+  font: inherit;
+  font-size: 12px;
+  color: var(--te-muted);
+  padding: 2px 6px;
+  border: 1px dashed #D6D3D1;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.te-gesture.has-gesture {
+  color: #5B3FD6;
+  border-style: solid;
+  border-color: #DDD6FE;
+  background: #F5F3FF;
+  font-weight: 600;
+}
+
+.te-gesture:focus {
+  outline: 2px solid #C4B5FD;
+}

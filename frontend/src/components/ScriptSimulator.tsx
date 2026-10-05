@@ -3,6 +3,7 @@ import { SCENE_PRESETS, THEMES } from '../config/scenes.ts';
 import { estimateLineSeconds, type DialogueTask } from '../types/dialogueTask.ts';
 import { useScriptStage } from '../hooks/useScriptStage.ts';
 import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices, type RoleVoice } from '../utils/scriptPlayback.ts';
+import { gestureById } from '../config/gestures.ts';
 import './ScriptSimulator.css';
 
 interface ScriptSimulatorProps {
@@ -27,7 +28,7 @@ function canSpeak() {
 export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: ScriptSimulatorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stage = useScriptStage(canvasRef, task.sceneId);
-  const { setSpeaker } = stage;
+  const { setSpeaker, playGesture } = stage;
   const cues = useMemo(() => flattenCues(task), [task]);
   const preset = SCENE_PRESETS[task.sceneId];
   const slots = useMemo(
@@ -98,6 +99,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     };
 
     setSpeaker(cue.line.speakerSlotId);
+    if (cue.line.gesture) playGesture(cue.line.speakerSlotId, cue.line.gesture);
     const text = cue.line.en.trim();
     const estimateMs = (estimateLineSeconds(text) * 1000) / speed;
 
@@ -117,7 +119,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     window.speechSynthesis.speak(u);
     // 保險：部分瀏覽器偶爾不觸發 onend，超過估計時間兩倍就視為播完
     timersRef.current.push(window.setTimeout(finish, estimateMs * 2 + 3000));
-  }, [cues, roleVoices, speed, setSpeaker, stopAudio]);
+  }, [cues, roleVoices, speed, setSpeaker, playGesture, stopAudio]);
   useEffect(() => { playCueRef.current = playCue; }, [playCue]);
 
   const pause = () => { stopAudio(); setStatus('paused'); };
@@ -250,6 +252,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
                     {stepCues.map(c => {
                       const { slot, color } = slotOf(c.line.speakerSlotId);
                       const active = c.index === index;
+                      const g = gestureById(c.line.gesture);
                       return (
                         <li key={c.line.id}>
                           <button
@@ -258,7 +261,10 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
                             aria-current={active ? 'true' : undefined}
                             onClick={() => jump(c.index)}
                           >
-                            <span className="ss-line-speaker">{slot?.icon ?? '🙂'} {slot?.label ?? c.line.speakerSlotId}</span>
+                            <span className="ss-line-speaker">
+                              {slot?.icon ?? '🙂'} {slot?.label ?? c.line.speakerSlotId}
+                              {g && <span className="ss-line-gesture" title={`動作：${g.label}`}>{g.icon} {g.label}</span>}
+                            </span>
                             <span className="ss-line-en">{c.line.en || '（尚未填寫）'}</span>
                           </button>
                         </li>

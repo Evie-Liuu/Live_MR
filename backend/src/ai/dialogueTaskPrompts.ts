@@ -1,5 +1,9 @@
 import type { CefrLevel, SceneContext } from '../lessonPlanTypes.js'
 import { LEVEL_GUIDE, describeScene } from './lessonPlanPrompts.js'
+import { GESTURE_IDS } from '../dialogueTaskTypes.js'
+
+/** AI 不需要動作時填 none，後端轉成沒有 gesture */
+export const NO_GESTURE = 'none'
 
 /** AI 生成的任務固定為 5 分鐘微教案（前端 modal 顯示同一數值，不可更改） */
 export const DIALOGUE_TASK_DURATION_MIN = 5
@@ -28,8 +32,13 @@ export function buildDialogueTaskSchema(slotIds: string[]): Record<string, unkno
               type: 'ARRAY',
               items: {
                 type: 'OBJECT',
-                properties: { speaker: { type: 'STRING', enum: slotIds }, en: STR, zh: STR },
-                required: ['speaker', 'en', 'zh'],
+                properties: {
+                  speaker: { type: 'STRING', enum: slotIds },
+                  en: STR,
+                  zh: STR,
+                  gesture: { type: 'STRING', enum: [...GESTURE_IDS, NO_GESTURE] },
+                },
+                required: ['speaker', 'en', 'zh', 'gesture'],
               },
             },
             grammarPoints: STR_ARRAY,
@@ -60,6 +69,12 @@ Rules:
 - "speaker" must be one of these role ids: ${roles}. Roles should take turns naturally; do not invent other speakers.
 - "en": one short English line for that speaker, matching the student level. Keep vocabulary and grammar strictly within the level.
 - "zh": a natural Traditional Chinese (Taiwan) translation of "en".
+- "gesture": the body movement the speaker's 3D avatar makes while saying the line. One of:
+  wave (greeting someone or saying goodbye), nod (agreeing, confirming, understanding),
+  bow (polite thanks, apology or farewell), point (pointing at an item, place or direction),
+  handOver (giving or receiving an item, receipt, money or card), thumbsUp (approval, "great", "good choice"),
+  happy (pleased or excited), or none.
+  Use a gesture only where it is natural — roughly one third to one half of the lines — and use none for the rest.
 - "title" (task) and step "title": short Traditional Chinese names, e.g. 服飾店購物 / 招呼 / 報價.
 - "purpose": a 2-6 character Traditional Chinese tag describing the communicative goal of the step, e.g. 問候引導, 價格查詢, 確認購買.
 - "grammarPoints": 1 to 3 key sentence patterns used in the step, written in English with placeholders in Chinese where helpful, e.g. "How much is + 單數物品?".

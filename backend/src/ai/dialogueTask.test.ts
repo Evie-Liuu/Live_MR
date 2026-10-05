@@ -45,6 +45,24 @@ describe('generateDialogueTask', () => {
     expect(task.steps[0].grammarNote).toBe('開場用語。')
   })
 
+  it('keeps valid gestures and drops none / unknown ones', async () => {
+    const draft = {
+      ...goodDraft,
+      steps: [
+        { ...step('招呼'), lines: [
+          { speaker: 'cashier', en: 'Hi.', zh: '嗨。', gesture: 'wave' },
+          { speaker: 'customer', en: 'Hello.', zh: '哈囉。', gesture: 'none' },
+          { speaker: 'cashier', en: 'Welcome.', zh: '歡迎。', gesture: 'dance' },
+        ] },
+        step('報價'), step('結帳'),
+      ],
+    }
+    const { call } = fakeCaller([draft])
+    const task = await generateDialogueTask(req, { call })
+    expect(task.steps[0].lines.map(l => l.gesture)).toEqual(['wave', undefined, undefined])
+    expect(task.steps[0].lines[1]).not.toHaveProperty('gesture')
+  })
+
   it('retries once when the draft is invalid, then succeeds', async () => {
     const { call, calls } = fakeCaller([{ title: 'x', steps: [step('only one')] }, goodDraft])
     const task = await generateDialogueTask(req, { call })
@@ -100,5 +118,9 @@ describe('buildDialogueTaskPrompt', () => {
     const schema = buildDialogueTaskSchema(SLOTS) as { required: string[]; properties: { steps: { items: { required: string[] } } } }
     expect(schema.required).toEqual(['title', 'steps'])
     expect(schema.properties.steps.items.required).toEqual(['title', 'purpose', 'lines', 'grammarPoints', 'grammarNote', 'teachingNotes'])
+    const line = (schema as unknown as { properties: { steps: { items: { properties: { lines: { items: { required: string[]; properties: { gesture: { enum: string[] } } } } } } } } })
+      .properties.steps.items.properties.lines.items
+    expect(line.required).toContain('gesture')
+    expect(line.properties.gesture.enum).toEqual(['wave', 'nod', 'bow', 'point', 'handOver', 'thumbsUp', 'happy', 'none'])
   })
 })

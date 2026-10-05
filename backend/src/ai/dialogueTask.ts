@@ -4,7 +4,7 @@ import {
   LINES_PER_STEP_RANGE, STEP_RANGE, buildDialogueTaskPrompt, buildDialogueTaskSchema,
 } from './dialogueTaskPrompts.js'
 import type { CefrLevel, SceneContext } from '../lessonPlanTypes.js'
-import type { DialogueTask } from '../dialogueTaskTypes.js'
+import { isGestureId, type DialogueTask, type GestureId } from '../dialogueTaskTypes.js'
 
 export interface DialogueTaskRequest {
   topic: string
@@ -13,7 +13,7 @@ export interface DialogueTaskRequest {
   teachingGoal?: string
 }
 
-interface RawLine { speaker: string; en: string; zh: string }
+interface RawLine { speaker: string; en: string; zh: string; gesture?: GestureId }
 interface RawStep {
   title: string
   purpose: string
@@ -53,7 +53,8 @@ export function validateDialogueDraft(raw: unknown, slotIds: string[]): RawTask 
     const lines = s.lines.map((l, j) => {
       if (!l || !slotIds.includes(l.speaker)) throw new Error(`dialogue: step ${i + 1} line ${j + 1} has unknown speaker ${l?.speaker}`)
       if (!isText(l.en) || !isText(l.zh)) throw new Error(`dialogue: step ${i + 1} line ${j + 1} text missing`)
-      return { speaker: l.speaker, en: l.en.trim(), zh: l.zh.trim() }
+      // gesture 是加分項：不認得或 'none' 就當作沒有動作，不讓整份重試
+      return { speaker: l.speaker, en: l.en.trim(), zh: l.zh.trim(), ...(isGestureId(l.gesture) ? { gesture: l.gesture } : {}) }
     })
     return {
       title: s.title.trim(),
@@ -77,7 +78,10 @@ export function toDialogueTask(draft: RawTask, req: DialogueTaskRequest): Dialog
       id: `ai_s${i + 1}`,
       title: s.title,
       purpose: s.purpose,
-      lines: s.lines.map((l, j) => ({ id: `ai_s${i + 1}_l${j + 1}`, speakerSlotId: l.speaker, en: l.en, zh: l.zh })),
+      lines: s.lines.map((l, j) => ({
+        id: `ai_s${i + 1}_l${j + 1}`, speakerSlotId: l.speaker, en: l.en, zh: l.zh,
+        ...(l.gesture ? { gesture: l.gesture } : {}),
+      })),
       grammarPoints: s.grammarPoints,
       grammarNote: s.grammarNote,
       teachingNotes: s.teachingNotes,
