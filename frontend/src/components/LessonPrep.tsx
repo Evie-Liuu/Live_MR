@@ -43,6 +43,8 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
   const [error, setError] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  /** 等待確認的刪除對象 */
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
 
   const refresh = () =>
     listLessonPlans(teacherUid).then(setPlans).catch(e => setError(lessonPlanErrorText(e)));
@@ -68,11 +70,6 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     catch (e) { setError(dialogueTaskErrorText(e)); }
   };
 
-  const handleDeleteTask = async (id: string) => {
-    setError(null);
-    try { await deleteDialogueTask(id); await refreshTasks(); }
-    catch (e) { setError(dialogueTaskErrorText(e)); }
-  };
 
   // AI 草稿與套用模板相同：開啟編輯器，老師確認後按儲存才寫入「我的任務」
   const handleGenerated = (task: DialogueTask) => {
@@ -86,10 +83,19 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     catch (e) { setError(lessonPlanErrorText(e)); }
   };
 
-  const handleDelete = async (id: string) => {
+  /** 確認視窗按下「刪除」後執行；失敗時拋出錯誤文字，讓視窗留著顯示 */
+  const confirmDelete = async (target: PendingDelete) => {
     setError(null);
-    try { await deleteLessonPlan(id); await refresh(); }
-    catch (e) { setError(lessonPlanErrorText(e)); }
+    if (target.kind === 'task') {
+      try { await deleteDialogueTask(target.id); }
+      catch (e) { throw new Error(dialogueTaskErrorText(e)); }
+      await refreshTasks();
+    } else {
+      try { await deleteLessonPlan(target.id); }
+      catch (e) { throw new Error(lessonPlanErrorText(e)); }
+      await refresh();
+    }
+    setPendingDelete(null);
   };
 
   if (view.kind === 'task-editor') {
@@ -168,7 +174,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
                         </span>
                       </span>
                     </button>
-                    <button className="lpl-delete" onClick={() => { void handleDeleteTask(t.id); }} aria-label={`刪除「${t.title}」`}>
+                    <button className="lpl-delete" onClick={() => setPendingDelete({ kind: 'task', id: t.id, title: t.title })} aria-label={`刪除「${t.title}」`}>
                       <span className="material-symbols-outlined" aria-hidden="true">delete</span><span className="lpl-delete-text">刪除</span>
                     </button>
                   </li>
@@ -197,7 +203,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
                         </span>
                       </span>
                     </button>
-                    <button className="lpl-delete" onClick={() => { void handleDelete(p.id); }} aria-label={`刪除「${p.title}」`}>
+                    <button className="lpl-delete" onClick={() => setPendingDelete({ kind: 'plan', id: p.id, title: p.title })} aria-label={`刪除「${p.title}」`}>
                       <span className="material-symbols-outlined" aria-hidden="true">delete</span><span className="lpl-delete-text">刪除</span>
                     </button>
                   </li>
@@ -216,12 +222,75 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
       </main>
 
       {libraryOpen && <TemplateLibrary onApply={handleApplyTemplate} onClose={() => setLibraryOpen(false)} />}
+      {pendingDelete && (
+        <ConfirmDeleteModal
+          target={pendingDelete}
+          onConfirm={() => confirmDelete(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
       {aiOpen && (
         <AiGenerateModal
           onGenerated={handleGenerated}
           onClose={() => setAiOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+interface PendingDelete {
+  kind: 'task' | 'plan';
+  id: string;
+  title: string;
+}
+
+interface ConfirmDeleteModalProps {
+  target: PendingDelete;
+  /** 失敗時 reject，錯誤訊息顯示在視窗裡 */
+  onConfirm: () => Promise<void>;
+  onCancel: () => void;
+}
+
+/** 刪除前的確認視窗；預設焦點在「取消」，Esc / 點背景 = 取消 */
+function ConfirmDeleteModal({ target, onConfirm, onCancel }: ConfirmDeleteModalProps) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !deleting) onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [deleting, onCancel]);
+
+  const handleConfirm = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await onConfirm();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setDeleting(false);
+    }
+  };
+
+  const kindLabel = target.kind === 'task' ? '任務' : '教案';
+  return (
+    <div className="lpl-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget && !deleting) onCancel(); }}>
+      <div className="lpl-modal" role="alertdialog" aria-modal="true" aria-labelledby="lpl-del-title" aria-describedby="lpl-del-desc">
+        <span className="lpl-modal-icon material-symbols-outlined" aria-hidden="true">delete</span>
+        <h2 id="lpl-del-title" className="lpl-modal-title">刪除這個{kindLabel}？</h2>
+        <p id="lpl-del-desc" className="lpl-modal-desc">
+          「<strong>{target.title}</strong>」刪除後就無法復原。
+        </p>
+        {error && <p className="lpl-modal-error" role="alert">{error}</p>}
+        <div className="lpl-modal-actions">
+          <button className="lpl-modal-cancel" onClick={onCancel} disabled={deleting} autoFocus>取消</button>
+          <button className="lpl-modal-danger" onClick={() => { void handleConfirm(); }} disabled={deleting}>
+            <span className="material-symbols-outlined" aria-hidden="true">delete</span>{deleting ? '刪除中…' : '刪除'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
