@@ -6,6 +6,8 @@ export const clothingStoreReturn: TaskTemplate = {
   name: '退換貨',
   description: '說明退貨原因、出示收據，選擇退款或換貨',
   tags: ['退貨', '換貨', '退款'],
+  icon: 'assignment_return',
+  color: 'teal',
   task: {
     title: '退換貨',
     sceneId: 'clothingStore_cashier',

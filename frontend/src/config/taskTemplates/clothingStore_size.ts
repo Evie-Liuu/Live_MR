@@ -6,6 +6,8 @@ export const clothingStoreSize: TaskTemplate = {
   name: '詢問尺寸與試穿',
   description: '詢問尺寸、要求試穿，並依合身程度換尺寸',
   tags: ['尺寸', '試穿'],
+  icon: 'forum',
+  color: 'purple',
   task: {
     title: '詢問尺寸與試穿',
     sceneId: 'clothingStore_cashier',

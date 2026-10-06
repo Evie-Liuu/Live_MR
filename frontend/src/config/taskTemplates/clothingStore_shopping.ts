@@ -6,6 +6,8 @@ export const clothingStoreShopping: TaskTemplate = {
   name: '服飾店購物',
   description: '從招呼、詢價、確認購買到結帳的完整購物對話',
   tags: ['購物', '詢價', '結帳'],
+  icon: 'storefront',
+  color: 'orange',
   task: {
     title: '服飾店購物',
     sceneId: 'clothingStore_cashier',
