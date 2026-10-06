@@ -1,119 +1,458 @@
-.teacher-home-screen {
+/* ── 老師主畫面（柔和橘色） ─────────────────────────────────────────────── */
+.th-screen {
+  --th-orange: #F76E12;
+  --th-teal: #00A99D;
+  --th-ink: #1F2A37;
+  --th-muted: #4B5563;
+  position: relative;
   min-height: 100vh;
   width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 28px 40px;
+  color: var(--th-ink);
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, .32) 0 22px, transparent 22px 44px),
+    radial-gradient(900px 500px at 15% 0%, #FFF3E4 0%, transparent 70%),
+    linear-gradient(180deg, #FFF4E8 0%, #FCEAD9 100%);
+}
+
+.th-screen .material-symbols-outlined {
+  line-height: 1;
+}
+
+.th-screen button,
+.th-screen select {
+  font: inherit;
+}
+
+/* 背景裝飾 */
+.th-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.th-blob-left {
+  position: absolute;
+  left: -120px;
+  bottom: -140px;
+  width: 360px;
+  height: 340px;
+  border-radius: 60% 40% 50% 50% / 50% 60% 40% 50%;
+  background: linear-gradient(160deg, rgba(255, 196, 140, .7), rgba(255, 220, 186, .45));
+}
+
+.th-circle-small {
+  position: absolute;
+  left: 130px;
+  bottom: 150px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 196, 150, .7);
+}
+
+.th-circle-hatch {
+  position: absolute;
+  left: 150px;
+  bottom: -30px;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: repeating-linear-gradient(135deg, rgba(255, 255, 255, .55) 0 4px, transparent 4px 9px);
+}
+
+.th-blob-right {
+  position: absolute;
+  right: -100px;
+  bottom: -120px;
+  width: 520px;
+  height: 260px;
+  border-radius: 70% 30% 0 0 / 100% 40% 0 0;
+  background: linear-gradient(200deg, #FFB06A, #FF9A4D);
+  opacity: .85;
+}
+
+.th-dots {
+  position: absolute;
+  right: 40px;
+  bottom: 30px;
+  width: 84px;
+  height: 64px;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, .85) 3px, transparent 3.5px);
+  background-size: 21px 21px;
+}
+
+/* 頂列 */
+.th-top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.th-brand {
+  cursor: default;
+}
+
+.th-brand .hs-brand-logo-wrapper {
+  width: 64px;
+  height: 64px;
+}
+
+.th-brand .hs-brand-title {
+  font-size: 40px;
+}
+
+.th-brand-spark {
+  align-self: flex-start;
+}
+
+/* 帳號膠囊：主畫面版加上橘色外框 */
+.th-account .acct-trigger {
+  border: 2.5px solid #F7913D;
+  padding: 5px 14px 5px 5px;
+}
+
+.th-account .acct-avatar {
+  width: 42px;
+  height: 42px;
+}
+
+.th-account .acct-name {
+  font-size: 18px;
+}
+
+.th-account .acct-role {
+  font-size: 13px;
+}
+
+/* 主區 */
+.th-main {
+  position: relative;
+  z-index: 2;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  position: relative;
-  padding: 24px;
-  background: #FAFAF8;
-}
-
-.teacher-home-account {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 5;
-}
-
-.teacher-home-container {
-  width: 100%;
-  max-width: 720px;
   text-align: center;
+  padding-top: 8px;
 }
 
-.teacher-home-title {
-  font-size: 40px;
-  margin: 0 0 8px;
+.th-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
 }
 
-.teacher-home-greeting {
-  color: #6B7280;
-  margin: 0 0 32px;
+.th-megaphone {
+  transform: rotate(-12deg);
+  filter: drop-shadow(0 4px 6px rgba(247, 110, 18, .25));
 }
 
-.teacher-home-cards {
+.th-title {
+  margin: 0;
+  font-family: 'Nunito', sans-serif;
+  font-size: clamp(44px, 6vw, 76px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: .01em;
+}
+
+.th-orange {
+  color: var(--th-orange);
+}
+
+.th-teal {
+  color: var(--th-teal);
+}
+
+.th-hero-spark {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.th-greeting {
+  margin: 10px 0 38px;
+  font-size: clamp(18px, 2vw, 26px);
+  font-weight: 600;
+  color: var(--th-muted);
+  letter-spacing: .04em;
+}
+
+/* 兩張大卡片 */
+.th-cards {
+  width: min(1000px, 100%);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 36px;
 }
 
-@media (max-width: 640px) {
-  .teacher-home-cards {
-    grid-template-columns: 1fr;
-  }
-}
-
-.teacher-home-card {
+.th-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 32px 20px;
-  border-radius: 16px;
-  border: 1px solid #E5E7EB;
-  background: #fff;
-  cursor: pointer;
-  font: inherit;
+  gap: 16px;
+  padding: 30px 40px 32px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, .92);
   color: inherit;
-  transition: box-shadow .15s, transform .15s;
+  text-align: center;
 }
 
-.teacher-home-card:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
-  transform: translateY(-2px);
+/* 卡片角落的柔和色塊 */
+.th-card::before,
+.th-card::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
 }
 
-.teacher-home-card-static {
-  cursor: default;
+.th-card > * {
+  position: relative;
+  z-index: 1;
 }
 
-.teacher-home-card-static:hover {
-  transform: none;
+.th-card-prep {
+  border: 3px solid #F7913D;
+  box-shadow: 0 12px 0 -3px #FFE2B5, 0 18px 30px rgba(247, 145, 61, .12);
+  cursor: pointer;
+  transition: transform .18s, box-shadow .18s;
 }
 
-.teacher-home-card-icon {
-  font-size: 44px;
-  color: #00897B;
+.th-card-prep::before {
+  top: -60px;
+  left: -50px;
+  width: 150px;
+  height: 120px;
+  background: rgba(255, 224, 196, .7);
 }
 
-.teacher-home-card-title {
-  font-size: 20px;
-  font-weight: 600;
+.th-card-prep::after {
+  bottom: -70px;
+  left: -40px;
+  width: 140px;
+  height: 120px;
+  background: rgba(255, 232, 212, .7);
 }
 
-.teacher-home-card-desc {
-  font-size: 13px;
-  color: #6B7280;
+.th-card-prep:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 0 -3px #FFE2B5, 0 24px 36px rgba(247, 145, 61, .2);
 }
 
-.teacher-home-select {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #D1D5DB;
-  font: inherit;
+.th-card-prep:focus-visible {
+  outline: 3px solid #FDBA8C;
+  outline-offset: 4px;
 }
 
-.teacher-home-start-btn {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: #FF7043;
+.th-card-class {
+  border: 3px solid #2BB5A8;
+  box-shadow: 0 12px 0 -3px #FFE7C4, 0 18px 30px rgba(43, 181, 168, .12);
+}
+
+.th-card-class::before {
+  top: -60px;
+  right: -50px;
+  width: 150px;
+  height: 120px;
+  background: rgba(198, 238, 232, .75);
+}
+
+.th-card-class::after {
+  bottom: -60px;
+  right: -50px;
+  width: 130px;
+  height: 100px;
+  background: rgba(214, 243, 239, .7);
+}
+
+.th-card-art {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 88px;
+}
+
+.th-card-art svg:first-child {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .08));
+}
+
+.th-card-spark {
+  position: absolute;
+  right: -30px;
+  top: 6px;
+}
+
+.th-pill {
+  min-width: 190px;
+  padding: 6px 40px;
+  border-radius: 999px;
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1.3;
+}
+
+.th-pill-orange {
+  background: #FFEFD9;
+  color: #F2701C;
+}
+
+.th-pill-teal {
+  background: #D6F3EF;
+  color: #0E9384;
+}
+
+.th-card-desc {
+  font-size: 19px;
+  color: var(--th-muted);
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.th-card-go {
+  position: absolute;
+  right: 26px;
+  bottom: 22px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #FF8C3A, #F2640F);
   color: #fff;
-  font: inherit;
-  font-weight: 600;
+  font-size: 30px !important;
+  box-shadow: 0 4px 10px rgba(242, 100, 15, .3);
+  transition: transform .18s;
+}
+
+.th-card-prep:hover .th-card-go {
+  transform: translateX(3px);
+}
+
+.th-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 44px 13px 18px;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 16px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%231F2A37' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 18px center,
+    #F9FAFB;
+  appearance: none;
+  color: var(--th-ink);
+  font-size: 19px !important;
   cursor: pointer;
 }
 
-.teacher-home-start-btn:disabled {
+.th-select:focus {
+  outline: 3px solid #99E0D9;
+  border-color: var(--th-teal);
+}
+
+.th-start-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #FF8C3A, #F2640F);
+  color: #fff;
+  font-size: 22px !important;
+  font-weight: 800;
+  letter-spacing: .08em;
+  box-shadow: 0 6px 16px rgba(242, 100, 15, .3);
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+}
+
+.th-start-btn .material-symbols-outlined {
+  font-size: 30px;
+  font-variation-settings: 'FILL' 1;
+}
+
+.th-start-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(242, 100, 15, .38);
+}
+
+.th-start-btn:disabled {
   opacity: .6;
   cursor: default;
 }
 
-.teacher-home-error {
-  font-size: 12px;
+.th-error {
+  font-size: 13px;
   color: #B91C1C;
+}
+
+@media (max-width: 860px) {
+  .th-cards {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    max-width: 480px;
+  }
+
+  .th-card {
+    padding: 24px 22px 26px;
+  }
+
+  .th-pill {
+    font-size: 26px;
+  }
+
+  .th-card-desc {
+    font-size: 16px;
+    margin-bottom: 44px;
+  }
+}
+
+@media (max-width: 560px) {
+  .th-screen {
+    padding: 14px 16px 32px;
+  }
+
+  .th-brand .hs-brand-logo-wrapper {
+    width: 44px;
+    height: 44px;
+  }
+
+  .th-brand .hs-brand-title {
+    font-size: 26px;
+  }
+
+  .th-brand-spark {
+    display: none;
+  }
+
+  /* 窄螢幕帳號只剩頭像，取消主畫面版的右側內距 */
+  .th-account .acct-trigger {
+    padding: 4px;
+  }
+
+  .th-megaphone {
+    width: 56px;
+    height: 50px;
+  }
+
+  .th-blob-right {
+    width: 300px;
+    height: 160px;
+  }
 }
