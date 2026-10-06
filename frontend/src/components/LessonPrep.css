@@ -373,6 +373,12 @@
   flex-wrap: wrap;
 }
 
+.lpl-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .lpl-back {
   display: inline-flex;
   align-items: center;
@@ -728,8 +734,9 @@
     flex-basis: 100%;
   }
 
-  .lpl-top>.lp-new-wrap {
+  .lpl-top-actions {
     margin-left: auto;
+    gap: 10px;
   }
 
   .lpl-item {

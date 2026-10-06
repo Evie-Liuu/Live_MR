@@ -7,6 +7,7 @@ import LessonPlanView from './LessonPlanView.tsx';
 import TaskEditor from './TaskEditor.tsx';
 import TemplateLibrary from './TemplateLibrary.tsx';
 import AiGenerateModal from './AiGenerateModal.tsx';
+import AccountMenu from './AccountMenu.tsx';
 import { applyTemplate, type TaskTemplate } from '../config/taskTemplates/index.ts';
 import './LessonPrep.css';
 
@@ -141,7 +142,10 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
           <h1><span className="orange">備課</span><span className="teal">中心</span></h1>
           <p>豐富的任務資源，讓教學更輕鬆</p>
         </div>
-        <NewPlanMenuButton align="right" onSelect={handleNewOption} />
+        <div className="lpl-top-actions">
+          <NewPlanMenuButton align="right" onSelect={handleNewOption} />
+          <AccountMenu />
+        </div>
       </header>
 
       {error && <div className="lpl-error" role="alert">{error}</div>}

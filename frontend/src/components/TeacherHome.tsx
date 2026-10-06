@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listLessonPlans } from '../utils/lessonPlanClient.ts';
 import { levelLabel, type LessonPlanSummary } from '../types/lessonPlan.ts';
+import AccountMenu from './AccountMenu.tsx';
 import './TeacherHome.css';
 
 interface TeacherHomeProps {
@@ -34,9 +35,9 @@ export default function TeacherHome({ teacherName, teacherUid, onPrep, onStart, 
 
   return (
     <div className="teacher-home-screen">
-      <button className="teacher-home-logout-btn" onClick={onLogout}>
-        <span className="material-symbols-outlined">logout</span> 登出
-      </button>
+      <div className="teacher-home-account">
+        <AccountMenu onLogout={onLogout} />
+      </div>
       <div className="teacher-home-container">
         <h1 className="teacher-home-title">
           <span className="title-orange">Live</span> <span className="title-teal">MR</span>
