@@ -679,6 +679,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: background .15s, color .15s;
+  font-size: 16px !important;
 }
 
 .lpl-delete .material-symbols-outlined {
@@ -689,6 +690,10 @@
 .lpl-delete:hover {
   background: #FBD5D5;
   color: #B91C1C;
+}
+
+.lpl-delete-text{
+  color: #896969;
 }
 
 /* 空狀態 */

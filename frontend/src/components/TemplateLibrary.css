@@ -180,8 +180,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 390px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 400px minmax(0, 1fr);
+  gap: 20px;
   padding: 18px 22px;
 }
 
@@ -189,7 +189,7 @@
 .tl-cards {
   list-style: none;
   margin: 0;
-  padding: 8px 4px 4px;
+  padding: 8px 6px 4px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -254,13 +254,13 @@
 
 .tl-card-icon {
   flex: none;
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: 34px !important;
+  font-size: 30px !important;
   font-variation-settings: 'FILL' 1;
 }
 
@@ -285,7 +285,7 @@
 }
 
 .tl-card-name {
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 800;
   padding-right: 40px;
 }

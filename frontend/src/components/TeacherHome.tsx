@@ -108,7 +108,7 @@ export default function TeacherHome({ teacherName, teacherUid, onPrep, onStart, 
 function Spark({ className }: { className?: string }) {
   return (
     <svg className={`th-spark ${className ?? ''}`} viewBox="0 0 24 32" width="24" height="32" aria-hidden="true">
-      <path d="M4 6 L9 11 M3 17 L11 16.5 M5 27 L10 22" stroke="#FFC93C" strokeWidth="3.4" strokeLinecap="round" fill="none" />
+      <path d="M14 5 L9 11 M19 14 L11 16.5 M15 25 L10 22" stroke="#FFC93C" strokeWidth="3.4" strokeLinecap="round" fill="none" />
     </svg>
   );
 }
