@@ -37,6 +37,14 @@ import type { RoomEvent as ApiRoomEvent } from '../api.ts';
 import SceneEditor from './SceneEditor.tsx';
 import SceneOccludersPanel from './SceneOccludersPanel.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
+import TaskBankDrawer from './TaskBankDrawer.tsx';
+import LessonTaskDrawer from './LessonTaskDrawer.tsx';
+import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
+import {
+  BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
+  toggleStepDone, toLessonScreen,
+  type HostLessonState,
+} from '../utils/lessonSession.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 import { useAuth } from '../hooks/useAuth';
 
@@ -54,6 +62,11 @@ const MAX_CHAT_TURNS = 40;
 function vrmRoleToPersona(roleId: string | undefined): string | undefined {
   if (!roleId) return undefined;
   return /staff/i.test(roleId) ? 'a shop assistant' : 'a customer';
+}
+
+/** 場景 slot id → 角色名稱 */
+function slotLabelsFor(sceneId: string): Record<string, string> {
+  return Object.fromEntries((SCENE_PRESETS[sceneId]?.slots ?? []).map(s => [s.id, s.label]));
 }
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -379,6 +392,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const [showTaskPanel, setShowTaskPanel] = useState(false);
   const [showPendingPanel, setShowPendingPanel] = useState(false);
   const [showOccludersPanel, setShowOccludersPanel] = useState(false);
+  const [showLessonPanel, setShowLessonPanel] = useState(false);
   const [pending, setPending] = useState<PendingStudent[]>([]);
   // Settlement modal (shown when allDone)
   const [showSettlement, setShowSettlement] = useState(false);
@@ -533,6 +547,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const [selectedSceneId, setSelectedSceneId] = useState<string>(
     () => sessionStorage.getItem('bigscreen-sceneId') ?? DEFAULT_SCENE_ID,
   );
+
+  // ─── 導師任務管理：上課用的對話任務（我的任務）與目前步驟 ─────────────
+  const [lesson, setLesson] = useState<HostLessonState | null>(loadHostLesson);
 
   // ─── 備課教案（可選）────────────────────────────────────────────────────
   const [lessonPlan, setLessonPlan] = useState<LessonPlanRecord | null>(null);
@@ -1184,6 +1201,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       sessionStorage.removeItem('bigscreen-tasks');
       setExpandedModuleIds(new Set());
       setHasRecorded(false);
+      // 課程任務綁定場景：換到別的場景就結束目前課程
+      setLesson(prev => (prev && prev.record.task.sceneId !== sceneId ? null : prev));
       const taskClearMsg: BigScreenMsg = { type: 'task-change', tasks: [] };
       channelRef.current?.postMessage(taskClearMsg);
       // 切到新場景時:讀該場景的遮罩物件清單並廣播。BigScreen 端在 'scene-change'
@@ -1464,6 +1483,35 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       channelRef.current = null;
     };
   }, []);
+
+  // 導師任務管理：保存上課狀態，並把目前步驟的情境送到大屏（不含答案）
+  useEffect(() => {
+    saveHostLesson(lesson);
+    const screen = lesson ? toLessonScreen(lesson, slotLabelsFor(selectedSceneId)) : null;
+    try {
+      if (screen) sessionStorage.setItem(BIGSCREEN_LESSON_STORAGE_KEY, JSON.stringify(screen));
+      else sessionStorage.removeItem(BIGSCREEN_LESSON_STORAGE_KEY);
+    } catch {/* ignore */ }
+    const msg: BigScreenMsg = { type: 'lesson-change', lesson: screen };
+    channelRef.current?.postMessage(msg);
+  }, [lesson, selectedSceneId]);
+
+  // 選中任務：載入到左側，從第一步開始（換任務也是重新開始）
+  const startLesson = useCallback((record: DialogueTaskRecord) => {
+    setLesson({ record, doneCount: 0, showLines: false });
+  }, []);
+  /** 左側步驟點擊：依序完成（點目前步驟 = 完成，點已完成步驟 = 取消） */
+  const toggleLessonStep = useCallback((index: number) => {
+    setLesson(prev => (prev ? { ...prev, doneCount: toggleStepDone(prev, index) } : prev));
+  }, []);
+  /** 橫幅的上一步 / 下一步：取消最後完成的步驟 / 完成目前步驟 */
+  const shiftLessonDone = useCallback((delta: number) => {
+    setLesson(prev => (prev ? { ...prev, doneCount: clampDoneCount(prev, prev.doneCount + delta) } : prev));
+  }, []);
+  const toggleLessonLines = useCallback(() => {
+    setLesson(prev => (prev ? { ...prev, showLines: !prev.showLines } : prev));
+  }, []);
+  const endLesson = useCallback(() => setLesson(null), []);
 
   // 廣播「正在說話」清單給大屏（單一來源 = LiveKit ActiveSpeakers）
   useEffect(() => {
@@ -1807,13 +1855,16 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       sessionStorage.setItem('bigscreen-tasks', JSON.stringify(selectedTasks));
       sessionStorage.setItem('bigscreen-hintEnabled', JSON.stringify(hintEnabled));
       sessionStorage.setItem('bigscreen-hintLevel', JSON.stringify(hintLevel));
+      const lessonScreen = lesson ? toLessonScreen(lesson, slotLabelsFor(selectedSceneId)) : null;
+      if (lessonScreen) sessionStorage.setItem(BIGSCREEN_LESSON_STORAGE_KEY, JSON.stringify(lessonScreen));
+      else sessionStorage.removeItem(BIGSCREEN_LESSON_STORAGE_KEY);
     } catch {/* ignore */ }
 
     const url = `${window.location.origin}/?screen=bigscreen${mode === 'edit' ? '&mode=edit' : ''}`;
     // 兩種模式共用同一視窗名稱:即使 ref 遺失(教師端重整),也只會重用同一個視窗
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId, hintEnabled, hintLevel]);
+  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId, hintEnabled, hintLevel, lesson]);
 
   useEffect(() => {
     if (!bigScreenMenuOpen) return;
@@ -1833,6 +1884,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     ch.postMessage({ type: 'scene-change', sceneId: selectedSceneId } satisfies BigScreenMsg);
     ch.postMessage({ type: 'task-change', tasks: selectedTasks } satisfies BigScreenMsg);
     ch.postMessage({ type: 'hint-change', hintEnabled, hintLevel } satisfies BigScreenMsg);
+    ch.postMessage({
+      type: 'lesson-change',
+      lesson: lesson ? toLessonScreen(lesson, slotLabelsFor(selectedSceneId)) : null,
+    } satisfies BigScreenMsg);
     for (const [slotId, identity] of Object.entries(slotAssignments)) {
       ch.postMessage({ type: 'slot-assign', slotId, identity } satisfies BigScreenMsg);
     }
@@ -1847,7 +1902,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     }
     ch.postMessage({ type: 'camera-bg-device', cameraBgDeviceId } satisfies BigScreenMsg);
     ch.postMessage({ type: 'bg-type-override', bgTypeOverride } satisfies BigScreenMsg);
-  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles, hintEnabled, hintLevel, cameraBgDeviceId, bgTypeOverride]);
+  }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles, hintEnabled, hintLevel, cameraBgDeviceId, bgTypeOverride, lesson]);
 
   const toggleBigScreenPreview = useCallback(() => {
     setShowBigScreenPreview(prev => {
@@ -1963,11 +2018,19 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const currentTaskIndex = selectedTasks.findIndex(t => !t.completed);
 
   // Helpers to open exactly one panel at a time
-  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
-  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
-  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
-  const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowOccludersPanel(false); };
-  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setSceneEditorGroupId(null); };
+  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openLesson = () => { setShowLessonPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
+  const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); setSceneEditorGroupId(null); };
+
+  // 導師任務管理用：老師帳號（與 App 的 teacherUidOf 同規則）與場景角色名稱
+  const teacherUid = user
+    ? ((typeof user.uid === 'string' && user.uid) || (typeof user.id === 'string' && user.id) || user.email || null)
+    : null;
+  const lessonStep = lesson ? lesson.record.task.steps[currentStepIndex(lesson)] : undefined;
+  const lessonDone = lesson ? isLessonDone(lesson) : false;
 
   const handleBrandClick = () => {
     setShowExitConfirm(true);
@@ -2324,6 +2387,48 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
             </div>
           )}
 
+          {/* Lesson card：導師任務管理 */}
+          <div className={`hs-card hs-card--lesson ${showLessonPanel ? 'hs-card--open' : ''}`} onClick={openLesson}>
+            <div className="hs-card-header">
+              <span className="hs-card-icon">🎓</span>
+              <span className="hs-card-title">課程管理</span>
+              {lesson && (
+                <span className="hs-badge hs-badge--lesson">{lesson.doneCount}/{lesson.record.task.steps.length}</span>
+              )}
+            </div>
+            {lesson ? (
+              <div className="hs-task-preview hs-lesson-steps">
+                <span className="hs-lesson-preview-title">{lesson.record.task.title}</span>
+                <div className="hs-task-progress-bar">
+                  <div
+                    className="hs-task-progress-fill hs-lesson-progress-fill"
+                    style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
+                  />
+                </div>
+                <div className="hs-task-preview-list">
+                  {lesson.record.task.steps.map((step, idx) => {
+                    const done = idx < lesson.doneCount;
+                    const current = idx === lesson.doneCount;
+                    return (
+                      <label
+                        key={step.id}
+                        className={`hs-task-preview-row ${done ? 'completed' : current ? 'current' : ''}`}
+                        title={done ? '點擊取消完成' : current ? '點擊標記此階段完成' : '請依序完成前面的步驟'}
+                        onClick={e => { e.stopPropagation(); e.preventDefault(); toggleLessonStep(idx); }}
+                      >
+                        <input type="checkbox" checked={done} disabled={!done && !current} readOnly onClick={e => e.stopPropagation()} />
+                        <span>{idx + 1}. {step.title || '未命名步驟'}{step.purpose ? `（${step.purpose}）` : ''}</span>
+                      </label>
+                    );
+                  })}
+                  {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>}
+                </div>
+              </div>
+            ) : (
+              <div className="hs-task-empty">選擇任務開始上課</div>
+            )}
+          </div>
+
           {/* Task card */}
           {hasModules && (
             <div className={`hs-card hs-card--task ${showTaskPanel ? 'hs-card--open' : ''}`} onClick={openTask}>
@@ -2367,6 +2472,52 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
         {/* ── Video Area ────────────────────────────────────────────────────── */}
         <div className="hs-video-area hs-video-area--with-hint">
+
+          {/* Lesson banner：導師任務管理的目前步驟 */}
+          {lesson && lessonStep && (
+            <div className={`hs-lesson-banner ${lessonDone ? 'hs-lesson-banner--done' : ''}`}>
+              <div className="hs-task-banner-bar">
+                <div
+                  className="hs-task-banner-fill"
+                  style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
+                />
+              </div>
+              <div className="hs-lesson-banner-text">
+                <span className="hs-lesson-banner-task" title={lesson.record.task.title}>{lesson.record.task.title}</span>
+                {lessonDone ? (
+                  <span className="hs-lesson-banner-title">✓ 課程完成</span>
+                ) : (
+                  <>
+                    <span className="hs-lesson-banner-step">步驟 {currentStepIndex(lesson) + 1}/{lesson.record.task.steps.length}</span>
+                    <span className="hs-lesson-banner-title">{lessonStep.title}</span>
+                    {lessonStep.purpose && <span className="hs-lesson-banner-purpose">{lessonStep.purpose}</span>}
+                  </>
+                )}
+                {/* <span className="hs-lesson-banner-actions">
+                  <button
+                    className={`hs-lesson-lines-btn ${lesson.showLines ? 'is-on' : ''}`}
+                    onClick={toggleLessonLines}
+                    disabled={lessonDone}
+                    title={lesson.showLines ? '大螢幕隱藏台詞提示' : '大螢幕顯示台詞提示'}
+                  >
+                    <span className="material-symbols-outlined">lightbulb</span>台詞提示 {lesson.showLines ? 'ON' : 'OFF'}
+                  </button>
+                  <button className="hs-lesson-nav-btn" onClick={() => shiftLessonDone(-1)} disabled={lesson.doneCount === 0} aria-label="上一步（取消完成）" title="上一步">
+                    <span className="material-symbols-outlined">chevron_left</span>
+                  </button>
+                  <button
+                    className="hs-lesson-nav-btn hs-lesson-nav-btn--next"
+                    onClick={() => shiftLessonDone(1)}
+                    disabled={lessonDone}
+                    aria-label="完成此步驟"
+                    title="完成此步驟"
+                  >
+                    <span className="material-symbols-outlined">chevron_right</span>
+                  </button>
+                </span> */}
+              </div>
+            </div>
+          )}
 
           {/* Task banner strip */}
           {selectedTasks.length > 0 && (() => {
@@ -2919,7 +3070,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       </div>
 
       {/* ── Drawer Backdrop ───────────────────────────────────────────────────── */}
-      {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel || sceneEditorGroupId) && (
+      {(showScenePanel || showSlotPanel || showTaskPanel || showPendingPanel || showLessonPanel || sceneEditorGroupId) && (
         <div className="panel-backdrop" onClick={closeAll} />
       )}
 
@@ -3192,111 +3343,37 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
         );
       })()}
 
-      {/* ── Task Drawer ──────────────────────────────────────────────────────── */}
+      {/* ── Task Drawer（舊有任務庫）──────────────────────────────────────────── */}
       {hasModules && (
-        <div className={`panel-drawer panel-drawer--wide ${showTaskPanel ? 'panel-drawer--open' : ''}`}>
-          <div className="panel-drawer-header">
-            <div className="slot-drawer-title">
-              <span className="orange">任務管理</span> <span className="teal">TASKS</span>
-            </div>
-            <button className="panel-close-btn" onClick={() => setShowTaskPanel(false)}>
-              <span className="material-symbols-outlined">close</span>
-            </button>
-          </div>
-          <div className="panel-drawer-body task-manager-drawer">
-            {/* Left: Task Bank */}
-            <div className="task-bank">
-              <div className="task-bank-header">
-                <span>任務庫</span>
-                {lessonPlan && lessonPlan.plan.sceneId === selectedSceneId && (
-                  <span className="task-bank-plan-tag">{lessonPlan.plan.title}</span>
-                )}
-              </div>
-              <div className="task-bank-tree">
-                {taskBankModules.map((mod) => (
-                  <div key={mod.id} className="module-group">
-                    <div
-                      className={`module-header ${expandedModuleIds.has(mod.id) ? 'expanded' : ''}`}
-                      onClick={() => toggleModuleExpansion(mod.id)}
-                    >
-                      <span className="module-icon">{mod.icon || '📁'}</span>
-                      <span className="module-label">{mod.label}</span>
-                      <span className="module-arrow material-symbols-outlined">
-                        {expandedModuleIds.has(mod.id) ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </div>
-                    {expandedModuleIds.has(mod.id) && (
-                      <div className="module-tasks">
-                        {mod.tasks.map((task) => {
-                          const isSelected = selectedTasks.some(t => t.id === task.id);
-                          return (
-                            <button
-                              key={task.id}
-                              className={`task-select-btn ${isSelected ? 'selected' : ''}`}
-                              onClick={() => toggleTaskSelection(task.id, task.label, task.hint)}
-                              disabled={!isSelected && selectedTasks.length >= 7}
-                            >
-                              <div className="btn-check">
-                                {isSelected && <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>}
-                              </div>
-                              <span className="btn-label">{task.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: Selected task list + clear */}
-            <div className="active-tasks">
-              <div className="active-tasks-header">
-                <span>已選任務</span>
-                <span className={`task-count ${selectedTasks.length >= 7 ? 'limit' : ''}`}>{selectedTasks.length}/7</span>
-              </div>
-              {selectedTasks.length === 0 ? (
-                <div className="active-tasks-empty">
-                  從左側任務庫點選，<br />最多 7 項
-                </div>
-              ) : (
-                <div className="active-tasks-list">
-                  {selectedTasks.map((task, idx) => (
-                    <div
-                      key={`${task.id}-${idx}`}
-                      className={`active-task-row ${task.completed ? 'completed' : ''} ${dropIndicator?.index === idx ? `drop-${dropIndicator.position}` : ''}`}
-                      draggable
-                      onDragStart={() => handleTaskDragStart(idx)}
-                      onDragOver={(e) => handleTaskDragOver(e, idx)}
-                      onDrop={(e) => handleTaskDrop(e, idx)}
-                      onDragEnd={handleTaskDragEnd}
-                    >
-                      <div className="task-index">{idx + 1}</div>
-                      <div className="task-info">
-                        <span className="task-label">{task.label}</span>
-                      </div>
-                      <button
-                        className="task-remove-btn"
-                        title="移除此任務"
-                        onClick={() => toggleTaskSelection(task.id, task.label)}
-                      >
-                        <span className="material-symbols-outlined">close</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedTasks.length > 0 && (
-                <button className="clear-tasks-btn" onClick={() => { setSelectedTasks([]); broadcastTaskChange([]); }}>
-                  <span className="material-symbols-outlined">delete_sweep</span>
-                  清空所有任務
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <TaskBankDrawer
+          open={showTaskPanel}
+          onClose={() => setShowTaskPanel(false)}
+          modules={taskBankModules}
+          planTitle={lessonPlan && lessonPlan.plan.sceneId === selectedSceneId ? lessonPlan.plan.title : null}
+          expandedModuleIds={expandedModuleIds}
+          onToggleModule={toggleModuleExpansion}
+          selectedTasks={selectedTasks}
+          onToggleTask={toggleTaskSelection}
+          onClear={() => { setSelectedTasks([]); broadcastTaskChange([]); }}
+          dropIndicator={dropIndicator}
+          onDragStart={handleTaskDragStart}
+          onDragOver={handleTaskDragOver}
+          onDrop={handleTaskDrop}
+          onDragEnd={handleTaskDragEnd}
+        />
       )}
+
+      {/* ── Lesson Drawer（導師任務管理）─────────────────────────────────────── */}
+      <LessonTaskDrawer
+        open={showLessonPanel}
+        onClose={() => setShowLessonPanel(false)}
+        teacherUid={teacherUid}
+        sceneId={selectedSceneId}
+        sceneLabel={currentSceneVariant?.label ?? currentScenePreset.label}
+        activeTaskId={lesson?.record.id ?? null}
+        onSelect={startLesson}
+        onEnd={endLesson}
+      />
 
       <ConfirmationModal
         isOpen={showRemoveConfirm}

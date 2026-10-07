@@ -13,6 +13,7 @@ import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel, TaskHint } from '../config/taskHints.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
+import { BIGSCREEN_LESSON_STORAGE_KEY, type LessonScreenState } from '../utils/lessonSession.ts';
 
 export interface TaskEntry {
   id: string;
@@ -28,7 +29,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -43,6 +44,8 @@ export interface BigScreenMsg {
   tasks?: TaskEntry[];
   /** For 'recording-start': session identifier */
   sessionId?: string;
+  /** For 'lesson-change': 導師任務管理的目前步驟情境（null = 未上課） */
+  lesson?: LessonScreenState | null;
   /** For 'hint-change': 是否啟用提示欄 */
   hintEnabled?: boolean;
   /** For 'hint-change': 目前顯示的階層（null = 不顯示任何階） */
@@ -380,6 +383,11 @@ export default function BigScreen() {
     try {
       return JSON.parse(sessionStorage.getItem('bigscreen-tasks') || '[]');
     } catch { return []; }
+  });
+
+  // 導師任務管理：目前步驟的情境（不含答案，台詞只有老師開提示時才有）
+  const [lesson, setLesson] = useState<LessonScreenState | null>(() => {
+    try { return JSON.parse(sessionStorage.getItem(BIGSCREEN_LESSON_STORAGE_KEY) ?? 'null'); } catch { return null; }
   });
 
   const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
@@ -2175,6 +2183,13 @@ export default function BigScreen() {
         const tasks = msg.tasks ?? [];
         setActiveTasks(tasks);
         sessionStorage.setItem('bigscreen-tasks', JSON.stringify(tasks));
+      } else if (msg.type === 'lesson-change') {
+        const next = msg.lesson ?? null;
+        setLesson(next);
+        try {
+          if (next) sessionStorage.setItem(BIGSCREEN_LESSON_STORAGE_KEY, JSON.stringify(next));
+          else sessionStorage.removeItem(BIGSCREEN_LESSON_STORAGE_KEY);
+        } catch {/* ignore */ }
       } else if (msg.type === 'hint-change') {
         const en = msg.hintEnabled ?? false;
         const lv = msg.hintLevel ?? null;
@@ -2487,11 +2502,53 @@ export default function BigScreen() {
 
         return (
           <div className="bigscreen-current-task-container">
+            {/* 導師任務管理：只顯示情境（步驟、目的、角色），不給答案 */}
+            {lesson && (
+              <div className="bs-lesson">
+                <div className="bs-lesson-top">
+                  <span className="bs-lesson-step">
+                    {lesson.allDone ? '完成' : `步驟 ${lesson.stepIndex + 1}/${lesson.stepCount}`}
+                  </span>
+                  <span className="bs-lesson-task">{lesson.taskTitle}</span>
+                </div>
+                {lesson.allDone ? (
+                  <div className="bs-lesson-title">🎉 課程完成！</div>
+                ) : (
+                  <div className="bs-lesson-title">
+                    {lesson.stepTitle}
+                    {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>}
+                  </div>
+                )}
+                {/* {!lesson.allDone && lesson.roles.length > 0 && (
+                  <div className="bs-lesson-roles">
+                    {lesson.roles.map((r, i) => (
+                      <span key={r} className="bs-lesson-role-wrap">
+                        {i > 0 && <span className="bs-lesson-arrow" aria-hidden="true">⇄</span>}
+                        <span className="bs-lesson-role">{r}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {lesson.lines && lesson.lines.length > 0 && (
+                  <ul className="bs-lesson-lines">
+                    {lesson.lines.map((l, i) => (
+                      <li key={i}><b>{l.speaker}</b>{l.en}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="bs-lesson-dots" aria-hidden="true">
+                  {Array.from({ length: lesson.stepCount }, (_, i) => (
+                    <span key={i} className={i < lesson.doneCount ? 'is-done' : i === lesson.doneCount ? 'is-current' : ''} />
+                  ))}
+                </div> */}
+              </div>
+            )}
+
             {currentTask && <div className="bigscreen-current-task-label">{currentTask.label}</div>}
 
             {/* Hint bar — 附著在中央米色對話框底部，顯示當前任務選定階的提示 */}
             {currentTask && hintEnabled && hintLevel && currentTaskId && (() => {
-              const hint = TASK_HINTS[currentTaskId];
+              const hint = currentTask.hint ?? TASK_HINTS[currentTaskId];
               const meta = hintLevelMeta(hintLevel);
               return (
                 <div className="bs-hint-bar">
