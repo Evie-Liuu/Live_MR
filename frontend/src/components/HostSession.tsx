@@ -2417,11 +2417,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                         onClick={e => { e.stopPropagation(); e.preventDefault(); toggleLessonStep(idx); }}
                       >
                         <input type="checkbox" checked={done} disabled={!done && !current} readOnly onClick={e => e.stopPropagation()} />
-                        <span>{idx + 1}. {step.title || '未命名步驟'}{step.purpose ? `（${step.purpose}）` : ''}</span>
+                        <span>{idx + 1}. {step.purpose ? `${step.purpose}` : ''}</span>
+                        {/* <span>{idx + 1}. {step.title || '未命名步驟'}{step.purpose ? `（${step.purpose}）` : ''}</span> */}
                       </label>
                     );
                   })}
-                  {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>}
+                  {/* {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>} */}
                 </div>
               </div>
             ) : (

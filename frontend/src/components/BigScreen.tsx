@@ -2516,7 +2516,7 @@ export default function BigScreen() {
                 ) : (
                   <div className="bs-lesson-title">
                     {lesson.stepTitle}
-                    {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>}
+                    {/* {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>} */}
                   </div>
                 )}
                 {/* {!lesson.allDone && lesson.roles.length > 0 && (
