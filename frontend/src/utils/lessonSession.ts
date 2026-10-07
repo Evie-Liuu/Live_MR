@@ -27,6 +27,8 @@ export interface LessonScreenState {
   purpose: string;
   /** 這一步出場的角色名稱（依第一次出現的順序） */
   roles: string[];
+  /** 所有步驟的名稱與目的（給完成視窗列出，不含台詞） */
+  steps: { title: string; purpose: string }[];
   /** 只有老師開啟台詞提示、且課程尚未完成時才有 */
   lines?: { speaker: string; en: string }[];
 }
@@ -84,6 +86,7 @@ export function toLessonScreen(lesson: HostLessonState, slotLabels: Record<strin
     stepTitle: step.title,
     purpose: step.purpose,
     roles,
+    steps: task.steps.map(s => ({ title: s.title, purpose: s.purpose })),
     ...(lesson.showLines && !allDone
       ? { lines: step.lines.filter(l => l.en.trim()).map(l => ({ speaker: label(l.speakerSlotId), en: l.en })) }
       : {}),

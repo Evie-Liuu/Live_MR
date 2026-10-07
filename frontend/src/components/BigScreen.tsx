@@ -458,13 +458,48 @@ export default function BigScreen() {
   // Settlement panel: shown when all tasks are done
   const allDone = activeTasks.length > 0 && activeTasks.every(t => t.completed);
   const [showSettlement, setShowSettlement] = useState(false);
+  /** 完成視窗是由「任務全部完成」或「課程全部步驟完成」觸發，決定清單內容 */
+  const [settlementSource, setSettlementSource] = useState<'tasks' | 'lesson'>('tasks');
   const prevAllDoneRef = useRef(false);
   useEffect(() => {
     if (allDone && !prevAllDoneRef.current) {
+      setSettlementSource('tasks');
       setShowSettlement(true);
     }
     prevAllDoneRef.current = allDone;
   }, [allDone]);
+
+  // 課程管理：所有步驟完成時同樣跳出完成視窗（初始值用目前狀態，重開大屏不會重複跳出）
+  const lessonAllDone = !!lesson?.allDone;
+  const prevLessonDoneRef = useRef(lessonAllDone);
+  useEffect(() => {
+    if (lessonAllDone && !prevLessonDoneRef.current) {
+      setSettlementSource('lesson');
+      setShowSettlement(true);
+    }
+    prevLessonDoneRef.current = lessonAllDone;
+  }, [lessonAllDone]);
+
+  /** 完成視窗的內容（DOM 與錄影 canvas 共用） */
+  const settlementView = useMemo(() => (
+    settlementSource === 'lesson' && lesson
+      ? {
+        subtitle: `「${lesson.taskTitle}」課程已完成！`,
+        listTitle: '課程步驟',
+        items: (lesson.steps ?? []).map((s, i) => ({
+          key: `step-${i}`,
+          label: s.purpose ? `${s.title}（${s.purpose}）` : s.title,
+          completed: i < lesson.doneCount,
+        })),
+      }
+      : {
+        subtitle: '所有任務已完成！',
+        listTitle: '任務清單',
+        items: activeTasks.map(t => ({ key: t.id, label: t.label, completed: t.completed })),
+      }
+  ), [settlementSource, lesson, activeTasks]);
+  const settlementViewRef = useRef(settlementView);
+  useEffect(() => { settlementViewRef.current = settlementView; }, [settlementView]);
 
   /** Track identities that have appeared (for participant list in settlement) */
   const participantNamesRef = useRef<Map<string, string>>(new Map());
@@ -650,7 +685,7 @@ export default function BigScreen() {
     setEditMode(false)
   }, [editor])
   // 供 BroadcastChannel handler(deps 為空)呼叫的最新版 tryExitEditMode
-  const tryExitEditModeRef = useRef<() => void>(() => {});
+  const tryExitEditModeRef = useRef<() => void>(() => { });
   useEffect(() => { tryExitEditModeRef.current = tryExitEditMode; }, [tryExitEditMode]);
 
   useEffect(() => {
@@ -1438,7 +1473,7 @@ export default function BigScreen() {
 
       ctx.fillStyle = '#5EBAAD';
       ctx.font = '600 15px system-ui, sans-serif';
-      ctx.fillText('所有任務已完成！', cw / 2, sy);
+      ctx.fillText(settlementViewRef.current.subtitle, cw / 2, sy);
       sy += 28;
 
       ctx.strokeStyle = 'rgba(0,0,0,0.08)';
@@ -1476,7 +1511,7 @@ export default function BigScreen() {
       };
       drawColTitle('參與人員', col1X);
       drawColTitle('錄製', col2X);
-      drawColTitle('任務清單', col3X);
+      drawColTitle(settlementViewRef.current.listTitle, col3X);
 
       const rowY = sy + 22;
 
@@ -1552,8 +1587,9 @@ export default function BigScreen() {
       let ty = rowY;
       const taskRowH = 44;
       const taskGap = 8;
-      for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i];
+      const settlementItems = settlementViewRef.current.items;
+      for (let i = 0; i < settlementItems.length; i++) {
+        const task = settlementItems[i];
         const isDone = task.completed;
 
         ctx.fillStyle = isDone ? '#E6F7F6' : '#F9F9F9';
@@ -2511,14 +2547,10 @@ export default function BigScreen() {
                   </span>
                   <span className="bs-lesson-task">{lesson.taskTitle}</span>
                 </div>
-                {lesson.allDone ? (
-                  <div className="bs-lesson-title">🎉 課程完成！</div>
-                ) : (
-                  <div className="bs-lesson-title">
-                    {lesson.stepTitle}
-                    {/* {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>} */}
-                  </div>
-                )}
+                <div className="bs-lesson-title">
+                  {lesson.stepTitle}
+                  {/* {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>} */}
+                </div>
                 {/* {!lesson.allDone && lesson.roles.length > 0 && (
                   <div className="bs-lesson-roles">
                     {lesson.roles.map((r, i) => (
@@ -2640,7 +2672,7 @@ export default function BigScreen() {
                 <img src="/images/UI/medal.png" alt="Trophy" />
               </div>
               <div className="bs-settlement-title">情境對話結束</div>
-              <div className="bs-settlement-subtitle">所有任務已完成！</div>
+              <div className="bs-settlement-subtitle">{settlementView.subtitle}</div>
             </div>
 
             <div className="bs-settlement-columns">
@@ -2697,10 +2729,10 @@ export default function BigScreen() {
 
               {/* Tasks List */}
               <div className="bs-settlement-col">
-                <div className="bs-settlement-col-title">任務清單</div>
+                <div className="bs-settlement-col-title">{settlementView.listTitle}</div>
                 <div className="bs-settlement-tasklist">
-                  {activeTasks.map((task, idx) => (
-                    <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
+                  {settlementView.items.map((task, idx) => (
+                    <div key={task.key} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
                       <div className="bs-task-num">{idx + 1}</div>
                       <span className="bs-task-label">{task.label}</span>
                       <span className="bs-task-check">

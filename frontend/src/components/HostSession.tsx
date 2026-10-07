@@ -550,6 +550,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
   // ─── 導師任務管理：上課用的對話任務（我的任務）與目前步驟 ─────────────
   const [lesson, setLesson] = useState<HostLessonState | null>(loadHostLesson);
+  const lessonAllDone = lesson ? isLessonDone(lesson) : false;
 
   // ─── 備課教案（可選）────────────────────────────────────────────────────
   const [lessonPlan, setLessonPlan] = useState<LessonPlanRecord | null>(null);
@@ -693,8 +694,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // listener), we fall back to stopping 5 s after all tasks are done, which gives
   // BigScreen enough time to show and record the settlement panel.
   useEffect(() => {
-    if (selectedTasks.length === 0) return;
-    const allDone = selectedTasks.every(t => t.completed);
+    const tasksDone = selectedTasks.length > 0 && selectedTasks.every(t => t.completed);
+    // 課程管理：所有步驟完成時，大屏同樣跳出完成視窗並停止它的錄影
+    const allDone = tasksDone || lessonAllDone;
     if (!allDone || !isRecording) return;
 
     let stopped = false;
@@ -725,7 +727,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       clearTimeout(fallbackTimer);
       settlementChannel.close();
     };
-  }, [selectedTasks, isRecording]);
+  }, [selectedTasks, isRecording, lessonAllDone]);
 
   // Broadcast scene/VRM changes to any open BigScreen window
   const broadcastSceneChange = useCallback((sceneId: string) => {
@@ -2030,7 +2032,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     ? ((typeof user.uid === 'string' && user.uid) || (typeof user.id === 'string' && user.id) || user.email || null)
     : null;
   const lessonStep = lesson ? lesson.record.task.steps[currentStepIndex(lesson)] : undefined;
-  const lessonDone = lesson ? isLessonDone(lesson) : false;
+  const lessonDone = lessonAllDone;
 
   const handleBrandClick = () => {
     setShowExitConfirm(true);

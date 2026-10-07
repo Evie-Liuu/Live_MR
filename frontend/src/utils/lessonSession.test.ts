@@ -28,6 +28,7 @@ describe('toLessonScreen', () => {
     expect(toLessonScreen(lesson(0), labels)).toEqual({
       taskTitle: '服飾店購物', stepIndex: 0, stepCount: 3, doneCount: 0, allDone: false,
       stepTitle: '招呼', purpose: '問候引導', roles: ['收銀員', '顧客'],
+      steps: [{ title: '招呼', purpose: '問候引導' }, { title: '報價', purpose: '價格查詢' }, { title: '結帳', purpose: '' }],
     });
   });
 
