@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { THEMES } from '../config/scenes.ts';
 import { TASK_TEMPLATES, type TaskTemplate } from '../config/taskTemplates/index.ts';
 import type { TemplateColor } from '../config/taskTemplates/types.ts';
@@ -113,20 +113,20 @@ export default function TemplateLibrary({ onApply, onClose }: TemplateLibraryPro
         </header>
 
         <div className="tl-filters">
-          <label className="tl-filter">
-            <span className="tl-filter-icon material-symbols-outlined" aria-hidden="true">grid_view</span>
-            <select value={sceneId} onChange={e => setSceneId(e.target.value)} aria-label="篩選場景">
-              <option value="">全部場景</option>
-              {sceneOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-            </select>
-          </label>
-          <label className="tl-filter">
-            <span className="tl-filter-icon material-symbols-outlined" aria-hidden="true">sell</span>
-            <select value={level} onChange={e => setLevel(e.target.value)} aria-label="篩選難度">
-              <option value="">全部難度</option>
-              {CEFR_LEVELS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
-            </select>
-          </label>
+          <FilterSelect
+            icon="grid_view"
+            ariaLabel="篩選場景"
+            value={sceneId}
+            onChange={setSceneId}
+            options={[{ value: '', label: '全部場景' }, ...sceneOptions.map(o => ({ value: o.id, label: o.label }))]}
+          />
+          <FilterSelect
+            icon="sell"
+            ariaLabel="篩選難度"
+            value={level}
+            onChange={setLevel}
+            options={[{ value: '', label: '全部難度' }, ...CEFR_LEVELS.map(l => ({ value: l.value, label: l.grade, badge: l.cefr }))]}
+          />
           <label className="tl-search">
             <span className="tl-search-icon material-symbols-outlined" aria-hidden="true">search</span>
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜尋模板名稱或標籤" aria-label="搜尋模板" />
@@ -229,6 +229,115 @@ export default function TemplateLibrary({ onApply, onClose }: TemplateLibraryPro
           </button>
         </footer>
       </div>
+    </div>
+  );
+}
+
+interface FilterOption {
+  value: string;
+  label: string;
+  /** 選項右側的小標籤（例如 CEFR 級別） */
+  badge?: string;
+}
+
+interface FilterSelectProps {
+  icon: string;
+  ariaLabel: string;
+  value: string;
+  options: FilterOption[];
+  onChange: (value: string) => void;
+}
+
+/**
+ * 自訂下拉選單：原生 <select> 展開的清單由作業系統繪製、無法套用樣式。
+ * 支援鍵盤：↑↓ 移動、Enter / 空白鍵選擇、Esc 關閉（只關選單，不關整個任務庫）。
+ */
+function FilterSelect({ icon, ariaLabel, value, options, onChange }: FilterSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const listId = useId();
+  const selectedIndex = Math.max(0, options.findIndex(o => o.value === value));
+  const selected = options[selectedIndex];
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  const openList = () => { setActive(selectedIndex); setOpen(true); };
+  const choose = (i: number) => {
+    onChange(options[i].value);
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+
+  const onKeyDown = (e: ReactKeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!open) { openList(); return; }
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      setActive(i => (i + delta + options.length) % options.length);
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (open) choose(active); else openList();
+    } else if (e.key === 'Escape' && open) {
+      // 只關選單，不讓任務庫視窗的 Esc 把整個視窗關掉
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    } else if (e.key === 'Tab') {
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className={`tl-filter${open ? ' is-open' : ''}`} ref={ref}>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="tl-filter-btn"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={open ? `${listId}-${active}` : undefined}
+        onClick={() => (open ? setOpen(false) : openList())}
+        onKeyDown={onKeyDown}
+      >
+        <span className="tl-filter-icon material-symbols-outlined" aria-hidden="true">{icon}</span>
+        <span className="tl-filter-value">{selected?.label}</span>
+        {selected?.badge && <span className="tl-filter-badge">{selected.badge}</span>}
+        <span className="tl-filter-chevron material-symbols-outlined" aria-hidden="true">expand_more</span>
+      </button>
+      {open && (
+        <ul className="tl-filter-menu" id={listId} role="listbox" aria-label={ariaLabel}>
+          {options.map((o, i) => {
+            const isSelected = o.value === value;
+            return (
+              <li
+                key={o.value || '__all'}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={isSelected}
+                className={`tl-filter-option${i === active ? ' is-active' : ''}${isSelected ? ' is-selected' : ''}`}
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => choose(i)}
+              >
+                <span className="tl-filter-option-label">{o.label}</span>
+                {o.badge && <span className="tl-filter-badge">{o.badge}</span>}
+                <span className="tl-filter-check material-symbols-outlined" aria-hidden="true">{isSelected ? 'check' : ''}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
