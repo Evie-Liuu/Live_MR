@@ -14,7 +14,9 @@
   --tl-teal: #00A99D;
   --tl-ink: #1F2A37;
   --tl-muted: #6B7280;
-  width: min(1150px, 100%);
+  --tl-text-dark: var(--text-dark, #482607);
+  --tl-text-light: var(--text-light, #A69688);
+  width: min(1300px, 100%);
   max-height: min(940px, calc(100vh - 32px));
   display: flex;
   flex-direction: column;
@@ -46,11 +48,33 @@
 
 /* 標題列 */
 .tl-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 14px 22px 12px;
   border-bottom: 1.5px solid #F6E3D2;
+}
+
+/* 背景圖層獨立出來設定 opacity */
+.tl-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/images/UI/card_background.png");
+  /* background-size: 40%; */
+  /* background-repeat: repeat; */
+  opacity: 0.5;
+  /* 調整這裡的透明度 (0 ~ 1) */
+  z-index: 0;
+  pointer-events: none;
+  /* 確保不阻擋點擊事件 */
+}
+
+/* 確保內部內容顯示在背景層之上 */
+.tl-head>* {
+  position: relative;
+  z-index: 1;
 }
 
 .tl-head h2 {
@@ -82,6 +106,7 @@
   height: 40px;
   display: grid;
   place-items: center;
+  justify-content: center;
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -124,7 +149,7 @@
 }
 
 .tl-filter-icon {
-  color: #3F3A36;
+  color: #7B4C24;
   font-variation-settings: 'FILL' 1;
 }
 
@@ -240,7 +265,7 @@
 }
 
 /* 選中卡片右上角的小圓點 */
-.tl-card.is-selected::after {
+/* .tl-card.is-selected::after {
   content: '';
   position: absolute;
   top: -7px;
@@ -250,7 +275,7 @@
   border-radius: 50%;
   border: 2.5px solid #F7913D;
   background: #fff;
-}
+} */
 
 .tl-card-icon {
   flex: none;
@@ -287,7 +312,6 @@
 .tl-card-name {
   font-size: 20px;
   font-weight: 800;
-  padding-right: 40px;
 }
 
 .tl-card-desc {
@@ -328,9 +352,8 @@
 }
 
 .tl-card-go {
-  position: absolute;
-  top: 18px;
-  right: 18px;
+  flex: none;
+  align-self: flex-start;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -351,7 +374,7 @@
 .tl-preview {
   min-height: 0;
   overflow-y: auto;
-  padding: 20px 22px;
+  padding: 12px 20px 22px;
   background: rgba(255, 255, 255, .92);
   border-radius: 22px;
   box-shadow: 0 3px 14px rgba(194, 120, 60, .1);
