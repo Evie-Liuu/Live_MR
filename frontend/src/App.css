@@ -7741,8 +7741,8 @@ button:disabled {
 
 /* ── 導師任務管理：側欄卡片、課程橫幅 ─────────────────────────────────── */
 .hs-card--lesson {
-  --card-color: #F7913D;
-  --card-shadow: #d9701f;
+  --card-color: #95CC4D;
+  --card-shadow: #76a23d;
 }
 
 .hs-card--lesson.hs-card--open {
@@ -7768,10 +7768,6 @@ button:disabled {
   white-space: nowrap;
 }
 
-.hs-lesson-progress-fill {
-  background: linear-gradient(90deg, #FFB06A, #F76E12);
-}
-
 .hs-lesson-done {
   margin-top: 4px;
   font-size: 13px;
@@ -7791,11 +7787,6 @@ button:disabled {
   overflow: hidden;
 }
 
-.hs-lesson-banner .hs-task-banner-fill {
-  background: linear-gradient(90deg, #FFB06A, #F76E12);
-  box-shadow: 0 0 6px rgba(247, 110, 18, 0.35);
-}
-
 .hs-lesson-banner-text {
   flex: 1;
   min-width: 0;
@@ -7807,7 +7798,7 @@ button:disabled {
 
 .hs-lesson-banner-task {
   max-width: 220px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: #9A5A26;
   overflow: hidden;

@@ -2403,7 +2403,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                 <span className="hs-lesson-preview-title">{lesson.record.task.title}</span>
                 <div className="hs-task-progress-bar">
                   <div
-                    className="hs-task-progress-fill hs-lesson-progress-fill"
+                    className="hs-task-progress-fill"
                     style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
                   />
                 </div>
