@@ -5,10 +5,11 @@ import type { AuthUser } from './hooks/useAuth.ts';
 import { useAuth } from './hooks/useAuth.ts';
 import { createRoom, joinRequest } from './api.ts';
 import LoginScreen from './components/LoginScreen.tsx';
-import BigScreen from './components/BigScreen.tsx';
-import HostSession from './components/HostSession.tsx';
 import './App.css';
 
+// 上課頁面含 three / LiveKit / MediaPipe，按需載入，登入頁不必下載
+const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
+const HostSession = lazy(() => import('./components/HostSession.tsx'));
 const ShareScreen = lazy(() => import('./components/ShareScreen.tsx'));
 const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
 const StudentHome = lazy(() => import('./components/StudentHome.tsx'));
