@@ -396,6 +396,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const [pending, setPending] = useState<PendingStudent[]>([]);
   // Settlement modal (shown when allDone)
   const [showSettlement, setShowSettlement] = useState(false);
+  const [settlementTab, setSettlementTab] = useState<'tasks' | 'steps'>('tasks');
   const [showUserMenu, setShowUserMenu] = useState(false);
   // QR Code share modal (now opened in separate window)
   const openShareWindow = useCallback(() => {
@@ -557,7 +558,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const [lessonPlanNotice, setLessonPlanNotice] = useState<string | null>(null);
   // handleSceneChange 定義在檔案後段（以 useCallback），此處先用 ref 保存最新版本，
   // 避免教案載入 effect 必須等到 handleSceneChange 宣告之後才能撰寫。
-  const handleSceneChangeRef = useRef<(sceneId: string) => void>(() => {});
+  const handleSceneChangeRef = useRef<(sceneId: string) => void>(() => { });
   useEffect(() => {
     if (!planId) return;
     let cancelled = false;
@@ -2218,7 +2219,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       {/* ── Settlement Modal ──────────────────────────────────────────────────── */}
       {showSettlement && (
         <div className="settlement-backdrop" onClick={() => setShowSettlement(false)}>
-          <div className="settlement-modal" onClick={e => e.stopPropagation()}>
+          <div className="settlement-modal settlement-modal--resizable" onClick={e => e.stopPropagation()}>
             {/* Close button */}
             <button className="settlement-close" onClick={() => setShowSettlement(false)}>✕</button>
 
@@ -2228,7 +2229,11 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                 <img src="/images/UI/medal.png" alt="Trophy" />
               </div>
               <div className="bs-settlement-title">情境對話結束</div>
-              <div className="bs-settlement-subtitle">所有任務已完成！</div>
+              <div className="bs-settlement-subtitle">
+                {lessonDone && lesson
+                  ? `${lesson.record.task.title} · 全部步驟完成！`
+                  : '所有任務已完成！'}
+              </div>
             </div>
 
             <div className="bs-settlement-columns">
@@ -2283,28 +2288,110 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                 </div>
               </div>
 
-              {/* Tasks List */}
-              <div className="bs-settlement-col">
-                <div className="bs-settlement-col-title">任務清單</div>
-                <div className="bs-settlement-tasklist">
-                  {selectedTasks.map((task, idx) => (
-                    <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
-                      <div className="bs-task-num">{idx + 1}</div>
-                      <span className="bs-task-label">{task.label}</span>
-                      <span className="bs-task-check">
-                        {task.completed
-                          ? <span className="material-symbols-outlined">check</span>
-                          : <span className="material-symbols-outlined">close</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* ── Content tab: task list / lesson steps ───────────────────────── */}
+              {(() => {
+                const hasTasks = selectedTasks.length > 0;
+                const hasSteps = !!(lesson && lesson.record.task.steps.length > 0);
+                const activeTab = hasTasks && hasSteps
+                  ? settlementTab
+                  : hasTasks ? 'tasks' : 'steps';
+
+                return (
+                  <div className="bs-settlement-col settlement-content-col">
+                    {/* Tab buttons — only rendered when both lists exist */}
+                    {/* {hasTasks && hasSteps && (
+                      <div className="settlement-tab-bar">
+                        <button
+                          className={`settlement-tab-btn ${activeTab === 'tasks' ? 'active' : ''}`}
+                          onClick={() => setSettlementTab('tasks')}
+                        >
+                          <span className="material-symbols-outlined">task_alt</span>
+                          任務清單
+                          <span className="settlement-tab-badge">
+                            {selectedTasks.filter(t => t.completed).length}/{selectedTasks.length}
+                          </span>
+                        </button>
+                        <button
+                          className={`settlement-tab-btn ${activeTab === 'steps' ? 'active' : ''}`}
+                          onClick={() => setSettlementTab('steps')}
+                        >
+                          <span className="material-symbols-outlined">menu_book</span>
+                          課程步驟
+                          <span className="settlement-tab-badge">
+                            {Math.min(lesson!.doneCount, lesson!.record.task.steps.length)}/{lesson!.record.task.steps.length}
+                          </span>
+                        </button>
+                      </div>
+                    )} */}
+
+                    {/* Tasks List */}
+                    {activeTab === 'tasks' && hasTasks && (
+                      <>
+                        {!hasSteps && <div className="bs-settlement-col-title">任務清單</div>}
+                        <div className="bs-settlement-tasklist">
+                          {selectedTasks.map((task, idx) => (
+                            <div key={task.id} className={`bs-settlement-task ${task.completed ? 'done' : 'undone'}`}>
+                              <div className="bs-task-num">{idx + 1}</div>
+                              <span className="bs-task-label">{task.label}</span>
+                              <span className="bs-task-check">
+                                {task.completed
+                                  ? <span className="material-symbols-outlined">check</span>
+                                  : <span className="material-symbols-outlined">close</span>}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Lesson Steps */}
+                    {activeTab === 'steps' && hasSteps && lesson && (
+                      <>
+                        {!hasTasks && (
+                          <div className="bs-settlement-col-title settlement-lesson-col-title">
+                            <span className="material-symbols-outlined settlement-lesson-icon">menu_book</span>
+                            <span>課程步驟</span>
+                            <span className="settlement-lesson-task-name" title={lesson.record.task.title}>{lesson.record.task.title}</span>
+                            <span className="settlement-lesson-progress">
+                              {Math.min(lesson.doneCount, lesson.record.task.steps.length)}/{lesson.record.task.steps.length}
+                            </span>
+                          </div>
+                        )}
+                        <div className="bs-settlement-tasklist settlement-steps-list">
+                          {lesson.record.task.steps.map((step, idx) => {
+                            const done = idx < lesson.doneCount;
+                            return (
+                              <div key={step.id} className={`bs-settlement-task settlement-step-row ${done ? 'done' : 'undone'}`}>
+                                <div className="bs-task-num">{idx + 1}</div>
+                                <div className="settlement-step-body">
+                                  <span className="bs-task-label">{step.title}</span>
+                                  {step.purpose && (
+                                    <span className="settlement-step-purpose">{step.purpose}</span>
+                                  )}
+                                </div>
+                                <span className="bs-task-check">
+                                  {done
+                                    ? <span className="material-symbols-outlined">check</span>
+                                    : <span className="material-symbols-outlined">close</span>}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+
             </div>
 
             <div className="bs-settlement-footer">
               <button className="bs-settlement-dismiss" onClick={() => setShowSettlement(false)}>關閉</button>
             </div>
+
+            {/* Resize handle (bottom-right corner) */}
+            <div className="settlement-resize-handle" title="拖曳調整大小" />
           </div>
         </div>
       )}
@@ -2488,7 +2575,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
               <div className="hs-lesson-banner-text">
                 <span className="hs-lesson-banner-task" title={lesson.record.task.title}>{lesson.record.task.title}</span>
                 {lessonDone ? (
-                  <span className="hs-lesson-banner-title">✓ 課程完成</span>
+                  <>
+                    <span className="hs-lesson-banner-title">✓ 課程完成</span>
+                    <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setSettlementTab('steps'); setShowSettlement(true); }}><span className="material-symbols-outlined">finance</span>結算</button>
+                  </>
                 ) : (
                   <>
                     <span className="hs-lesson-banner-step">步驟 {currentStepIndex(lesson) + 1}/{lesson.record.task.steps.length}</span>
@@ -2536,7 +2626,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   {allDone ? (
                     <>
                       <span>✓ 所有任務完成！</span>
-                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setShowSettlement(true); }}><span className="material-symbols-outlined">finance</span>結算</button>
+                      <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setSettlementTab('tasks'); setShowSettlement(true); }}><span className="material-symbols-outlined">finance</span>結算</button>
                     </>
                   ) : (
                     <>
