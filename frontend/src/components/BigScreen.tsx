@@ -620,7 +620,6 @@ export default function BigScreen() {
       hideBootOverlay();
     }, 20000);
     return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -1034,7 +1033,7 @@ export default function BigScreen() {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText(tagText, barX + padX, midY);
-        let cx = contentX0;
+        const cx = contentX0;
 
         // Content
         if (!hint) {
@@ -1983,7 +1982,6 @@ export default function BigScreen() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode, editor, tryExitEditMode]);
 
   // Apply snapshot stored by HostSession before the window was opened

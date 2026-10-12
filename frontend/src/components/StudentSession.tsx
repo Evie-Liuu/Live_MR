@@ -25,6 +25,9 @@ function isMobileDevice(): boolean {
   return hasTouch && (!/Macintosh/.test(navigator.userAgent) || isIPad);
 }
 
+/** 切換鏡頭按鈕：保留功能但目前隱藏 */
+const SHOW_SWITCH_CAMERA = false;
+
 export default function StudentSession({ roomId, token, name, onExit }: StudentSessionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [connected, setConnected] = useState(false);
@@ -34,7 +37,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const displayStreamRef = useRef<MediaStream | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
   const [faceEnabled, setFaceEnabled] = useState(true);
-  const [handEnabled, _] = useState(faceEnabled);
+  const [handEnabled] = useState(faceEnabled);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const isMobile = isMobileDevice();
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
@@ -549,7 +552,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           )}
 
           {/* 切換鏡頭按鈕（保留功能但隱藏，如圖所示）*/}
-          {false && connected && (
+          {SHOW_SWITCH_CAMERA && connected && (
             <button
               onClick={switchCamera}
               disabled={isSwitchingCamera}

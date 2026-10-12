@@ -109,10 +109,12 @@ export default function BigScreenEditorOverlay({
 
   // 列表 tab 切換 — 同時跟著 selection 自動切到對應 tab
   const [tab, setTab] = useState<'objects' | 'groups'>('objects')
-  useEffect(() => {
+  const [prevSelection, setPrevSelection] = useState(state.selection)
+  if (prevSelection !== state.selection) {
+    setPrevSelection(state.selection)
     if (state.selection?.kind === 'occluder') setTab('objects')
     else if (state.selection?.kind === 'group') setTab('groups')
-  }, [state.selection])
+  }
 
   // 左側 tab:素材庫 / 背景來源(null = 收起)— 改由 hover 觸發
   const [leftTab, setLeftTab] = useState<'library' | 'bg' | null>(null)
@@ -120,23 +122,27 @@ export default function BigScreenEditorOverlay({
   const [panelMounted, setPanelMounted] = useState(false)
   const [panelExiting, setPanelExiting] = useState(false)
   // 退場期間 leftTab 已是 null,記住最後顯示的 tab 讓內容不閃空。
-  const displayTabRef = useRef<'library' | 'bg'>('library')
-  if (leftTab) displayTabRef.current = leftTab
-  const displayTab = leftTab ?? displayTabRef.current
-  useEffect(() => {
+  const [lastTab, setLastTab] = useState<'library' | 'bg'>('library')
+  if (leftTab && leftTab !== lastTab) setLastTab(leftTab)
+  const displayTab = leftTab ?? lastTab
+  const [prevLeftTab, setPrevLeftTab] = useState(leftTab)
+  if (prevLeftTab !== leftTab) {
+    setPrevLeftTab(leftTab)
     if (leftTab) {
       setPanelExiting(false)
       setPanelMounted(true)
-      return
+    } else if (panelMounted) {
+      setPanelExiting(true)
     }
-    if (!panelMounted) return
-    setPanelExiting(true)
+  }
+  useEffect(() => {
+    if (!panelExiting) return
     const t = window.setTimeout(() => {
       setPanelMounted(false)
       setPanelExiting(false)
     }, 180)
     return () => window.clearTimeout(t)
-  }, [leftTab, panelMounted])
+  }, [panelExiting])
   // 移開到 rail/panel 外才關;短延遲讓滑鼠跨過 rail→panel 的間隙
   const closeTimerRef = useRef<number | null>(null)
   const cancelClose = () => {

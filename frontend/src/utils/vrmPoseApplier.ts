@@ -18,6 +18,7 @@
 import * as THREE from 'three';
 import { solveWithKalidokit, BONE_ROTATION_LIMITS, clampAngle, type BoneRotation } from './kalidokitSolver';
 import { Face } from 'kalidokit';
+import type { VRMHumanoid, VRMHumanBoneName } from '@pixiv/three-vrm';
 import type { VRM } from '@pixiv/three-vrm';
 import type { PoseFrame } from '../types/vrm';
 
@@ -421,7 +422,7 @@ export function applyPoseToVrm(
   // ── Apply Face ────────────────────────────────────────────────────────────
   // (skip when reuseLastSolve – bones already lerp toward last cached targets)
   if (!reuseLastSolve && faceEnabled && frame.faceLandmarks && frame.faceLandmarks.length >= 478) {
-    const faceRig = Face.solve(frame.faceLandmarks as any, {
+    const faceRig = Face.solve(frame.faceLandmarks as Parameters<typeof Face.solve>[0], {
       runtime: 'mediapipe',
       video: undefined,
       imageSize: { width: 640, height: 480 },
@@ -487,12 +488,12 @@ export function applyPoseToVrm(
  * The bone map + mirror convention are already baked into the keys by solveHand().
  */
 function applyHandBones(
-  humanoid: any, // VRMHumanoid
+  humanoid: VRMHumanoid,
   bones: Record<string, BoneRotation>,
   t: number,
 ): void {
   for (const [vrmName, rot] of Object.entries(bones)) {
-    const bone = humanoid.getNormalizedBoneNode(vrmName as any);
+    const bone = humanoid.getNormalizedBoneNode(vrmName as VRMHumanBoneName);
     if (!bone) continue;
     _targetQuat.set(rot.x, rot.y, rot.z, rot.w);
     bone.quaternion.slerp(_targetQuat, t);

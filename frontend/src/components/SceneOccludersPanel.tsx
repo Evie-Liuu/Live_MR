@@ -12,7 +12,7 @@
  *    由父層(HostSession)寫 localStorage + 廣播 'occluders-set'。
  *  - libraryId 找不到對應 library item → 顯示「(已失效)」,只能刪。
  */
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { OCCLUDER_LIBRARY, OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders'
 import type { SceneOccluderInstance } from '../types/sceneOccluder'
 import { defaultOccluderTransform } from '../utils/occluderDefaults'
@@ -40,13 +40,14 @@ export default function SceneOccludersPanel({
 }: SceneOccludersPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // 切場景或實例被外部刪除時清除選中
-  useEffect(() => {
-    if (selectedId && !instances.some((i) => i.instanceId === selectedId)) {
-      setSelectedId(null)
-    }
-  }, [instances, selectedId])
-  useEffect(() => { setSelectedId(null) }, [sceneId])
+  // 切場景或實例被外部刪除時清除選中（render 期間調整 state）
+  const [prevSceneId, setPrevSceneId] = useState(sceneId)
+  if (prevSceneId !== sceneId) {
+    setPrevSceneId(sceneId)
+    setSelectedId(null)
+  } else if (selectedId && !instances.some((i) => i.instanceId === selectedId)) {
+    setSelectedId(null)
+  }
 
   const selected = selectedId ? instances.find((i) => i.instanceId === selectedId) ?? null : null
   const atLimit = instances.length >= MAX_OCCLUDERS_PER_SCENE

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { GroupConfig } from '../types/vrm';
 
 type Vec3 = [number, number, number];
@@ -55,9 +55,13 @@ const DEG2RAD = Math.PI / 180;
 export default function SceneEditor({ sceneId, group, channel, open, onClose }: SceneEditorProps) {
   const [t, setT] = useState<Transform>(() => loadStored(sceneId, group.id));
 
-  useEffect(() => {
+  // 換場景 / 群組時重新讀取（render 期間調整 state，不用 effect 多 render 一次）
+  const storageKey = `${sceneId}:${group.id}`;
+  const [loadedKey, setLoadedKey] = useState(storageKey);
+  if (loadedKey !== storageKey) {
+    setLoadedKey(storageKey);
     setT(loadStored(sceneId, group.id));
-  }, [sceneId, group.id]);
+  }
 
   const broadcast = (next: Transform) => {
     channel?.postMessage({

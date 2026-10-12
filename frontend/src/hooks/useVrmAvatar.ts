@@ -199,7 +199,6 @@ export function useVrmAvatar(
       lastFrameRef.current = null;
     };
     // Re-init when scene or model changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasRef, sceneId, vrmSourceId]);
 
   const applyPose = useCallback((rawData: unknown) => {

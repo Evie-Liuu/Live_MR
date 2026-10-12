@@ -35,13 +35,13 @@ export function rotateByEulerXYZ(v: Vec3, r: Vec3): Vec3 {
   const cz = Math.cos(rz), sz = Math.sin(rz);
 
   // Rx
-  let x1 = x;
-  let y1 = y * cx - z * sx;
-  let z1 = y * sx + z * cx;
+  const x1 = x;
+  const y1 = y * cx - z * sx;
+  const z1 = y * sx + z * cx;
   // Ry
-  let x2 = x1 * cy + z1 * sy;
-  let y2 = y1;
-  let z2 = -x1 * sy + z1 * cy;
+  const x2 = x1 * cy + z1 * sy;
+  const y2 = y1;
+  const z2 = -x1 * sy + z1 * cy;
   // Rz
   const x3 = x2 * cz - y2 * sz;
   const y3 = x2 * sz + y2 * cz;

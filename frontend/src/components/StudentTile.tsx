@@ -29,7 +29,7 @@ export default function StudentTile({
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { applyPose } = useVrmAvatar(canvasRef, { vrmSourceId })
-  const [_, setVideoSize] = useState({ width: 320, height: 240 })
+  const [, setVideoSize] = useState({ width: 320, height: 240 })
 
   const isCameraOff = muteState?.video === true
 

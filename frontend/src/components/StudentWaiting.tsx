@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getRequestStatus } from '../api.ts';
 
 interface StudentWaitingProps {
@@ -24,7 +24,7 @@ export default function StudentWaiting({
   onExit,
 }: StudentWaitingProps) {
   const [isTimedOut, setIsTimedOut] = useState(false);
-  const startTime = useRef(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +32,7 @@ export default function StudentWaiting({
     const poll = async () => {
       if (cancelled) return;
 
-      if (Date.now() - startTime.current > TIMEOUT_MS) {
+      if (Date.now() - startTime > TIMEOUT_MS) {
         setIsTimedOut(true);
         return;
       }
@@ -63,7 +63,7 @@ export default function StudentWaiting({
     return () => {
       cancelled = true;
     };
-  }, [roomId, requestId, onApproved, onRejected, onError]);
+  }, [roomId, requestId, onApproved, onRejected, onError, startTime]);
 
   if (isTimedOut) {
     return (

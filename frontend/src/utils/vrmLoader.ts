@@ -24,7 +24,7 @@ function configureSpringBones(vrm: VRM): void {
   const allColliderGroups = springBoneManager.colliderGroups;
 
   // Iterate through all spring bone joints
-  springBoneManager.joints.forEach((joint: any) => {
+  springBoneManager.joints.forEach(joint => {
     // Identify hair bones by checking the bone name
     const boneName = joint.bone ? joint.bone.name.toLowerCase() : '';
     const isHair = boneName.includes('hair');

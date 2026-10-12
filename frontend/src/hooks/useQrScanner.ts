@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import QrScanner from 'qr-scanner';
 
 // 注意：qr-scanner 1.4.x 已不需要（也不支援）手動設定 QrScanner.WORKER_PATH——
@@ -28,8 +28,10 @@ export function useQrScanner({ onDecode, onError }: UseQrScannerOptions): UseQrS
   const scannerRef = useRef<QrScanner | null>(null);
   const onDecodeRef = useRef(onDecode);
   const onErrorRef = useRef(onError);
-  onDecodeRef.current = onDecode;
-  onErrorRef.current = onError;
+  useLayoutEffect(() => {
+    onDecodeRef.current = onDecode;
+    onErrorRef.current = onError;
+  });
 
   const stop = useCallback(() => {
     scannerRef.current?.stop();

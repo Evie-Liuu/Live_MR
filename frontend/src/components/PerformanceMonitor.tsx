@@ -30,7 +30,8 @@ export default function PerformanceMonitor({
 }: PerformanceMonitorProps) {
   const [fps, setFps] = useState(0);
   const frameCountRef = useRef(0);
-  const lastTimeRef = useRef(performance.now());
+  const [mountTime] = useState(() => performance.now());
+  const lastTimeRef = useRef(mountTime);
   const lastCountRef = useRef(count ?? 0);
 
   // ── Mode 1: rAF throughput (no trigger / no count) ──

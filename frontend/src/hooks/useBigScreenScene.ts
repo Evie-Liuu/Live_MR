@@ -813,7 +813,7 @@ export function useBigScreenScene(
               const dpCfg = presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
               const effective = effectiveDisplayPosRef.current.get(taskId);
               const dp = effective ?? dpCfg;
-              if (dp) _displayPosVec.set(...dp), prop.position.copy(_displayPosVec);
+              if (dp) prop.position.copy(_displayPosVec.set(...dp));
             }
 
             // console.log(heldBy);

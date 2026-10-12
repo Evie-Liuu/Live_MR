@@ -134,6 +134,7 @@ function App() {
     if (isLoading || hasAutoRoutedRef.current) return;
     hasAutoRoutedRef.current = true;
     if (isAuthenticated && user && state.screen === 'select-role') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 開機自動導向只跑一次（見上方說明）
       routeUser(user);
     }
   });

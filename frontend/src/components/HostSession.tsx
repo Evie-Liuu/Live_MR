@@ -102,7 +102,7 @@ interface CustomSelectProps {
   placeholder?: string;
 }
 
-function CustomSelect({ value, options, onChange, disabled, placeholder: _placeholder = "請選擇..." }: CustomSelectProps) {
+function CustomSelect({ value, options, onChange, disabled }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
 
@@ -302,7 +302,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   }, [connectedRoom, user]);
   const [teacherPoseData, setTeacherPoseData] = useState<PoseFrame | null>(null);
   const [faceEnabled, setFaceEnabled] = useState(true);
-  const [handEnabled, _] = useState(faceEnabled);
+  const [handEnabled] = useState(faceEnabled);
   const [lowPowerMode] = useState(true);
   const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintEnabled') ?? 'false'); } catch { return false; }
@@ -3049,7 +3049,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                           )}
                           {import.meta.env.DEV && aiUsage && (
                             <div className="hs-ai-usage" style={{ fontSize: 12, opacity: 0.6, marginTop: 4 }}>
-                              用量　本次 in {aiUsage.prompt} / out {aiUsage.output} / 合 {aiUsage.total}　·　累計 {aiCumulativeTokens}
+                              用量{'　'}本次 in {aiUsage.prompt} / out {aiUsage.output} / 合 {aiUsage.total}{'　·　'}累計 {aiCumulativeTokens}
                             </div>
                           )}
                           {/* {import.meta.env.DEV && heardTranscript && (
@@ -3317,7 +3317,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
             <button className="panel-close-btn" onClick={() => setShowSlotPanel(false)}>✕</button>
           </div>
           <div className="panel-drawer-body">
-            {currentScenePreset.slots!.map((sceneSlot, _slotIndex) => {
+            {currentScenePreset.slots!.map(sceneSlot => {
               const assignedIdentity = slotAssignments[sceneSlot.id];
               const assignedVrmId = assignedIdentity
                 ? (assignedIdentity === teacherIdentity
