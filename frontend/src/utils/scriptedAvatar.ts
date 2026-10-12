@@ -79,6 +79,11 @@ function interp(i: THREE.Interpolant, t: number): number {
   return (i.evaluate(t) as unknown as number[])[0];
 }
 
+/** KeyframeTrack 執行時有 createInterpolant（依插值模式設定），但 @types/three 沒有宣告 */
+function createInterpolant(track: THREE.KeyframeTrack): THREE.Interpolant {
+  return (track as THREE.KeyframeTrack & { createInterpolant(): THREE.Interpolant }).createInterpolant();
+}
+
 function approach(current: number, target: number, speed: number, delta: number): number {
   return current + (target - current) * Math.min(1, speed * delta);
 }
@@ -227,10 +232,10 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
         const obj = vrm.scene.getObjectByName(nodeName);
         if (!obj) continue;
         if (propertyName === 'quaternion') {
-          bones.push({ bone: obj, interp: track.createInterpolant() });
+          bones.push({ bone: obj, interp: createInterpolant(track) });
           touched.add(obj);
         } else if (propertyName === 'weight') {
-          expressions.push({ target: obj as unknown as { weight: number }, interp: track.createInterpolant() });
+          expressions.push({ target: obj as unknown as { weight: number }, interp: createInterpolant(track) });
         }
       }
       gesture = { time: 0, duration: clip.duration, bones, expressions };

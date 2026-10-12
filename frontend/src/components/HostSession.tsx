@@ -41,7 +41,7 @@ import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
-  BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
+  BIGSCREEN_LESSON_STORAGE_KEY, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
   toggleStepDone, toLessonScreen,
   type HostLessonState,
 } from '../utils/lessonSession.ts';

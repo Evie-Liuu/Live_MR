@@ -3,7 +3,7 @@ import { lessonPlanToMarkdown } from './lessonPlanMarkdown'
 import type { LessonPlan } from '../types/lessonPlan'
 
 const plan: LessonPlan = {
-  title: '退換貨', sceneId: 'clothingStore_cashier', topic: '退換貨', level: 'A2', durationMin: 15,
+  title: '退換貨', sceneId: 'clothingStore_cashier', topic: '退換貨', level: 'A2-B1', durationMin: 15,
   objectives: ['能提出退貨要求', '能詢問退款方式'],
   timeline: [
     { phase: '暖身', minutes: 3, activity: '問候', teacherScript: 'Hello everyone.' },
