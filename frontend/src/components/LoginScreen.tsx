@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import loginIllustration from '../assets/login_page.png';
+import loginIllustration from '../assets/login_page.webp';
 import type { AuthUser } from '../hooks/useAuth.ts';
 import { useAuth } from '../hooks/useAuth.ts';
 import { secureStorageManager } from '../utils/secureStorageManager.ts';
