@@ -1508,12 +1508,17 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     setLesson(prev => (prev ? { ...prev, doneCount: toggleStepDone(prev, index) } : prev));
   }, []);
   /** 橫幅的上一步 / 下一步：取消最後完成的步驟 / 完成目前步驟 */
-  const shiftLessonDone = useCallback((delta: number) => {
-    setLesson(prev => (prev ? { ...prev, doneCount: clampDoneCount(prev, prev.doneCount + delta) } : prev));
+  // const shiftLessonDone = useCallback((delta: number) => {
+  //   setLesson(prev => (prev ? { ...prev, doneCount: clampDoneCount(prev, prev.doneCount + delta) } : prev));
+  // }, []);
+  // const toggleLessonLines = useCallback(() => {
+  //   setLesson(prev => (prev ? { ...prev, showLines: !prev.showLines } : prev));
+  // }, []);
+
+  const resetAllLessons = useCallback(() => {
+    setLesson(prev => (prev ? { ...prev, doneCount: 0 } : prev));
   }, []);
-  const toggleLessonLines = useCallback(() => {
-    setLesson(prev => (prev ? { ...prev, showLines: !prev.showLines } : prev));
-  }, []);
+
   const endLesson = useCallback(() => setLesson(null), []);
 
   // 廣播「正在說話」清單給大屏（單一來源 = LiveKit ActiveSpeakers）
@@ -2012,7 +2017,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     () => resolveModules(currentScenePreset.modules ?? [], lessonPlan?.plan, selectedSceneId),
     [currentScenePreset, lessonPlan, selectedSceneId],
   );
-  const hasModules = taskBankModules.length > 0;
+  const hasModules = false //taskBankModules.length > 0;
   const SLOT_COLORS = ['#44aaff', '#ff8844', '#aa88ff', '#44ff88'];
   // SceneConfig has no icon — look it up from THEMES SceneVariant
   const currentSceneVariant = THEMES.flatMap(t => t.scenes).find(s => s.id === selectedSceneId);
@@ -2479,11 +2484,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
           {/* Lesson card：導師任務管理 */}
           <div className={`hs-card hs-card--lesson ${showLessonPanel ? 'hs-card--open' : ''}`} onClick={openLesson}>
             <div className="hs-card-header">
-              <span className="hs-card-icon">🎓</span>
-              <span className="hs-card-title">課程管理</span>
-              {lesson && (
-                <span className="hs-badge hs-badge--lesson">{lesson.doneCount}/{lesson.record.task.steps.length}</span>
-              )}
+              <span className="hs-card-icon">📋</span>
+              <span className="hs-card-title">任務</span>
+              <span className="hs-badge hs-badge--lesson">{lesson ? `${lesson.doneCount}/${lesson.record.task.steps.length}` : '0/0'}</span>
             </div>
             {lesson ? (
               <div className="hs-task-preview hs-lesson-steps">
@@ -2506,16 +2509,18 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                         onClick={e => { e.stopPropagation(); e.preventDefault(); toggleLessonStep(idx); }}
                       >
                         <input type="checkbox" checked={done} disabled={!done && !current} readOnly onClick={e => e.stopPropagation()} />
-                        <span>{idx + 1}. {step.purpose ? `${step.purpose}` : ''}</span>
+                        <span>{idx + 1}. </span>
+                        <span>{step.purpose ? `${step.purpose}` : ''}</span>
                         {/* <span>{idx + 1}. {step.title || '未命名步驟'}{step.purpose ? `（${step.purpose}）` : ''}</span> */}
                       </label>
                     );
                   })}
                   {/* {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>} */}
                 </div>
+                <div className="hs-task-reset" onClick={(e) => { e.stopPropagation(); resetAllLessons(); }}>↺ 重置全部</div>
               </div>
             ) : (
-              <div className="hs-task-empty">選擇任務開始上課</div>
+              <div className="hs-task-empty">點擊選擇任務</div>
             )}
           </div>
 

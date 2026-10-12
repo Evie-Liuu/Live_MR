@@ -4420,6 +4420,12 @@ button:disabled {
   background: var(--third);
 }
 
+.hs-task-preview-row span:last-child {
+  flex: 2;
+  text-align: center;
+  margin-right: 12px;
+}
+
 .hs-task-reset {
   font-size: 16px;
   color: #fff;
