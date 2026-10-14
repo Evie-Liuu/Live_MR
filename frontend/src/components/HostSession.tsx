@@ -42,9 +42,10 @@ import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
   BIGSCREEN_LESSON_STORAGE_KEY, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
-  toggleStepDone, toLessonScreen,
+  setLessonPhase, setQuestionIndex, toggleStepDone, toLessonScreen,
   type HostLessonState,
 } from '../utils/lessonSession.ts';
+import { LESSON_PHASES, phaseContent, phaseMeta, type LessonPhase } from '../config/lessonPhases.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 import { useAuth } from '../hooks/useAuth';
 
@@ -1499,9 +1500,17 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     channelRef.current?.postMessage(msg);
   }, [lesson, selectedSceneId]);
 
-  // 選中任務：載入到左側，從第一步開始（換任務也是重新開始）
+  // 選中任務：載入到左側，從任務前（暖身）開始（換任務也是重新開始）
   const startLesson = useCallback((record: DialogueTaskRecord) => {
-    setLesson({ record, doneCount: 0, showLines: false });
+    setLesson({ record, doneCount: 0, showLines: false, phase: 'pre', questionIndex: 0 });
+  }, []);
+  /** 手動切換任務前 / 任務中 / 任務後 */
+  const changeLessonPhase = useCallback((phase: LessonPhase) => {
+    setLesson(prev => (prev && prev.phase !== phase ? setLessonPhase(prev, phase) : prev));
+  }, []);
+  /** 任務前 / 任務後：點選要在大螢幕聚焦的提問 */
+  const focusLessonQuestion = useCallback((index: number) => {
+    setLesson(prev => (prev ? setQuestionIndex(prev, index) : prev));
   }, []);
   /** 左側步驟點擊：依序完成（點目前步驟 = 完成，點已完成步驟 = 取消） */
   const toggleLessonStep = useCallback((index: number) => {
@@ -2039,6 +2048,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     : null;
   const lessonStep = lesson ? lesson.record.task.steps[currentStepIndex(lesson)] : undefined;
   const lessonDone = lessonAllDone;
+  const lessonPhaseContent = lesson ? phaseContent(lesson.record.task, lesson.phase) : null;
+  const lessonQuestion = lesson && lessonPhaseContent ? lessonPhaseContent.questions[lesson.questionIndex] : undefined;
 
   const handleBrandClick = () => {
     setShowExitConfirm(true);
@@ -2491,6 +2502,53 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
             {lesson ? (
               <div className="hs-task-preview hs-lesson-steps">
                 <span className="hs-lesson-preview-title">{lesson.record.task.title}</span>
+                <div className="hs-lesson-phases" role="tablist" aria-label="課程階段">
+                  {LESSON_PHASES.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={lesson.phase === p.id}
+                      className={`hs-lesson-phase ${lesson.phase === p.id ? 'is-active' : ''}`}
+                      title={p.sub}
+                      onClick={e => { e.stopPropagation(); changeLessonPhase(p.id); }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                {lesson.phase !== 'during' && lessonPhaseContent ? (
+                  <div className="hs-lesson-phase-body">
+                    <div className="hs-lesson-phase-sub">{phaseMeta(lesson.phase).sub}</div>
+                    <div className="hs-task-preview-list">
+                      {lessonPhaseContent.questions.map((q, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`hs-lesson-question ${idx === lesson.questionIndex ? 'is-current' : ''}`}
+                          aria-pressed={idx === lesson.questionIndex}
+                          onClick={e => { e.stopPropagation(); focusLessonQuestion(idx); }}
+                        >
+                          <span className="hs-lesson-question-en">{idx + 1}. {q.en}</span>
+                          {/* <span className="hs-lesson-question-zh">{q.zh}</span> */}
+                        </button>
+                      ))}
+                    </div>
+                    {lessonPhaseContent.focusPoints.length > 0 && (
+                      <div className="hs-lesson-chips">
+                        <span className="hs-lesson-chips-label">語言重點</span>
+                        {lessonPhaseContent.focusPoints.map(f => <span key={f} className="hs-lesson-chip">{f}</span>)}
+                      </div>
+                    )}
+                    {lessonPhaseContent.frames.length > 0 && (
+                      <div className="hs-lesson-chips">
+                        <span className="hs-lesson-chips-label">句型框架</span>
+                        {lessonPhaseContent.frames.map(f => <span key={f} className="hs-lesson-chip hs-lesson-chip--frame">{f}</span>)}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                <>
                 <div className="hs-task-progress-bar">
                   <div
                     className="hs-task-progress-fill"
@@ -2518,6 +2576,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   {/* {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>} */}
                 </div>
                 <div className="hs-task-reset" onClick={(e) => { e.stopPropagation(); resetAllLessons(); }}>↺ 重置全部</div>
+                </>
+                )}
               </div>
             ) : (
               <div className="hs-task-empty">點擊選擇任務</div>
@@ -2579,7 +2639,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
               </div>
               <div className="hs-lesson-banner-text">
                 <span className="hs-lesson-banner-task" title={lesson.record.task.title}>{lesson.record.task.title}</span>
-                {lessonDone ? (
+                <span className={`hs-lesson-banner-phase hs-lesson-banner-phase--${lesson.phase}`}>{phaseMeta(lesson.phase).label}</span>
+                {lesson.phase !== 'during' ? (
+                  lessonQuestion && (
+                    <>
+                      <span className="hs-lesson-banner-step">提問 {lesson.questionIndex + 1}/{lessonPhaseContent!.questions.length}</span>
+                      <span className="hs-lesson-banner-title" title={lessonQuestion.zh}>{lessonQuestion.en}</span>
+                    </>
+                  )
+                ) : lessonDone ? (
                   <>
                     <span className="hs-lesson-banner-title">✓ 課程完成</span>
                     <button className="hs-settlement-btn" onClick={e => { e.stopPropagation(); setSettlementTab('steps'); setShowSettlement(true); }}><span className="material-symbols-outlined">finance</span>結算</button>

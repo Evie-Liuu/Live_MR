@@ -1,18 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { currentStepIndex, isLessonDone, toLessonScreen, toggleStepDone, type HostLessonState } from './lessonSession.ts';
+import {
+  currentStepIndex, isLessonDone, setLessonPhase, setQuestionIndex, toLessonScreen, toggleStepDone, type HostLessonState,
+} from './lessonSession.ts';
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
+import { phaseContent } from '../config/lessonPhases.ts';
 
 const record: DialogueTaskRecord = {
   id: 'r1', teacherUid: 't', institutionId: null, createdAt: '', updatedAt: '',
   task: {
     title: '服飾店購物', sceneId: 'clothingStore_cashier', level: 'A1',
     steps: [
-      { id: 's1', title: '招呼', purpose: '問候引導', grammarPoints: [], grammarNote: '', teachingNotes: [], lines: [
+      { id: 's1', title: '招呼', purpose: '問候引導', grammarPoints: ['Can I help you?'], grammarNote: '', teachingNotes: [], lines: [
         { id: 'a', speakerSlotId: 'cashier', en: 'Hello!', zh: '你好' },
         { id: 'b', speakerSlotId: 'customer', en: 'Hi.', zh: '嗨' },
         { id: 'c', speakerSlotId: 'cashier', en: '  ', zh: '（空白）' },
       ] },
-      { id: 's2', title: '報價', purpose: '價格查詢', grammarPoints: [], grammarNote: '', teachingNotes: [], lines: [
+      { id: 's2', title: '報價', purpose: '價格查詢', grammarPoints: ['How much is it?', ' Can I help you? '], grammarNote: '', teachingNotes: [], lines: [
         { id: 'd', speakerSlotId: 'customer', en: 'How much?', zh: '多少錢' },
         { id: 'e', speakerSlotId: 'ghost', en: '???', zh: '' },
       ] },
@@ -21,7 +24,9 @@ const record: DialogueTaskRecord = {
   },
 };
 const labels = { cashier: '收銀員', customer: '顧客' };
-const lesson = (doneCount: number, showLines = false): HostLessonState => ({ record, doneCount, showLines });
+const lesson = (doneCount: number, showLines = false, phase: HostLessonState['phase'] = 'during'): HostLessonState => (
+  { record, doneCount, showLines, phase, questionIndex: 0 }
+);
 
 describe('toLessonScreen', () => {
   it('只帶情境：目前步驟名稱、目的、角色與進度，不帶台詞', () => {
@@ -29,6 +34,7 @@ describe('toLessonScreen', () => {
       taskTitle: '服飾店購物', stepIndex: 0, stepCount: 3, doneCount: 0, allDone: false,
       stepTitle: '招呼', purpose: '問候引導', roles: ['收銀員', '顧客'],
       steps: [{ title: '招呼', purpose: '問候引導' }, { title: '報價', purpose: '價格查詢' }, { title: '結帳', purpose: '' }],
+      phase: 'during',
     });
   });
 
@@ -74,5 +80,29 @@ describe('currentStepIndex / isLessonDone', () => {
     expect(currentStepIndex(lesson(3))).toBe(2);
     expect(isLessonDone(lesson(2))).toBe(false);
     expect(isLessonDone(lesson(3))).toBe(true);
+  });
+});
+
+describe('三階段', () => {
+  it('任務前：依程度帶出聚焦提問與句型框架，不帶台詞', () => {
+    const screen = toLessonScreen(lesson(0, true, 'pre'), labels);
+    const { questions } = phaseContent(record.task, 'pre');
+    expect(screen?.phase).toBe('pre');
+    expect(screen?.prompt).toEqual({ ...questions[0], index: 0, count: questions.length });
+    expect(screen?.frames?.length).toBeGreaterThan(0);
+    expect(screen).not.toHaveProperty('lines');
+    expect(screen).not.toHaveProperty('focusPoints');
+  });
+
+  it('任務後：帶出去重後的語言重點', () => {
+    const screen = toLessonScreen(lesson(3, false, 'post'), labels);
+    expect(screen?.focusPoints).toEqual(['Can I help you?', 'How much is it?']);
+  });
+
+  it('切換階段時提問回到第一題；題號限制在範圍內', () => {
+    const pre = setQuestionIndex(lesson(0, false, 'pre'), 99);
+    expect(pre.questionIndex).toBe(phaseContent(record.task, 'pre').questions.length - 1);
+    expect(setLessonPhase(pre, 'post').questionIndex).toBe(0);
+    expect(setQuestionIndex(pre, -1).questionIndex).toBe(0);
   });
 });

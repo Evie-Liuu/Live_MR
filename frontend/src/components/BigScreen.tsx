@@ -14,6 +14,7 @@ import type { HintLevel, TaskHint } from '../config/taskHints.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 import { BIGSCREEN_LESSON_STORAGE_KEY, type LessonScreenState } from '../utils/lessonSession.ts';
+import { phaseMeta } from '../config/lessonPhases.ts';
 
 export interface TaskEntry {
   id: string;
@@ -2537,9 +2538,42 @@ export default function BigScreen() {
         return (
           <div className="bigscreen-current-task-container">
             {/* 導師任務管理：只顯示情境（步驟、目的、角色），不給答案 */}
-            {lesson && (
+            {/* 任務前 / 任務後：一次聚焦一題提問與句型框架 */}
+            {lesson && lesson.phase && lesson.phase !== 'during' && (
+              <div className={`bs-lesson bs-lesson--${lesson.phase}`}>
+                <div className="bs-lesson-top">
+                  <span className={`bs-lesson-phase bs-lesson-phase--${lesson.phase}`}>
+                    {phaseMeta(lesson.phase).label}・{phaseMeta(lesson.phase).sub}
+                  </span>
+                  {lesson.prompt && lesson.prompt.count > 1 && (
+                    <span className="bs-lesson-step">提問 {lesson.prompt.index + 1}/{lesson.prompt.count}</span>
+                  )}
+                  <span className="bs-lesson-task">{lesson.taskTitle}</span>
+                </div>
+                {lesson.prompt && (
+                  <>
+                    <div className="bs-lesson-question">{lesson.prompt.en}</div>
+                    {/* <div className="bs-lesson-question-zh">{lesson.prompt.zh}</div> */}
+                  </>
+                )}
+                {/* {lesson.focusPoints && lesson.focusPoints.length > 0 && (
+                  <div className="bs-lesson-chips">
+                    <span className="bs-lesson-chips-label">語言重點</span>
+                    {lesson.focusPoints.map(f => <span key={f} className="bs-lesson-chip">{f}</span>)}
+                  </div>
+                )} */}
+                {lesson.frames && lesson.frames.length > 0 && (
+                  <div className="bs-lesson-chips">
+                    <span className="bs-lesson-chips-label">試著這樣說</span>
+                    {lesson.frames.map(f => <span key={f} className="bs-lesson-chip bs-lesson-chip--frame">{f}</span>)}
+                  </div>
+                )}
+              </div>
+            )}
+            {lesson && (!lesson.phase || lesson.phase === 'during') && (
               <div className="bs-lesson">
                 <div className="bs-lesson-top">
+                  <span className="bs-lesson-phase bs-lesson-phase--during">任務中</span>
                   <span className="bs-lesson-step">
                     {lesson.allDone ? '完成' : `步驟 ${lesson.stepIndex + 1}/${lesson.stepCount}`}
                   </span>
