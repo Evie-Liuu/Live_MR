@@ -69,6 +69,7 @@
 }
 
 .ss-player {
+  position: relative;
   border-radius: 18px;
   overflow: hidden;
   background: var(--ss-panel-solid);
@@ -90,13 +91,18 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 80px);
   margin: 0 auto;
   background: #020817;
 }
 
 .ss-player.is-fullscreen .ss-stage {
-  max-height: calc(100vh - 64px);
+  max-height: 100vh;
+}
+
+/* 控制列隱藏時，播放中的舞台也隱藏游標 */
+.ss-player.controls-hidden .ss-stage {
+  cursor: none;
 }
 
 .ss-bg,
@@ -258,6 +264,7 @@
   bottom: 4%;
   z-index: 1;
   transform: translateX(-50%);
+  transition: bottom 0.25s ease;
   max-width: 70%;
   display: flex;
   flex-direction: column;
@@ -267,7 +274,7 @@
   border-radius: 14px;
   background: rgba(8, 20, 48, 0.82);
   border: 1px solid var(--ss-line);
-  border-left: 4px solid var(--speaker);
+  /* border-left: 4px solid var(--speaker); */
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
 }
@@ -292,28 +299,55 @@
   color: #C7D5EE;
 }
 
-/* 播放控制列 */
+/* 控制列顯示時，字幕往上讓位 */
+.ss-player.controls-shown .ss-subtitle {
+  bottom: 76px;
+}
+
+/* 播放控制列：疊在舞台底部，滑鼠移入顯示、閒置後淡出 */
 .ss-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  background: linear-gradient(180deg, rgba(10, 26, 58, 0.95), rgba(7, 19, 44, 0.98));
-  border-top: 1px solid var(--ss-line);
+  padding: 30px 14px 12px;
+  background: linear-gradient(180deg, transparent, rgba(5, 15, 38, 0.82) 40%, rgba(5, 15, 38, 0.95));
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.ss-player.controls-hidden .ss-controls:not(:has(:focus-visible)) {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
 }
 
 .ss-ctrl {
   flex: none;
   width: 38px;
   height: 38px;
-  display: grid;
-  place-items: center;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--ss-line);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.04);
   color: var(--ss-text);
+  line-height: 1;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+}
+
+.ss-ctrl .material-symbols-outlined {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
 }
 
 .ss-ctrl:hover:not(:disabled) {
@@ -731,7 +765,7 @@
 
 .ss-line.is-active {
   background: rgba(34, 211, 238, 0.1);
-  box-shadow: inset 3px 0 0 var(--speaker);
+  /* box-shadow: inset 3px 0 0 var(--speaker); */
 }
 
 .ss-line-num {

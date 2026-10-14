@@ -23,6 +23,10 @@ const LINE_GAP_MS = 700;
 const SPEAKER_COLORS = ['#2BB5A8', '#8B6FD9', '#F59E0B', '#3B82F6'];
 /** 播放中更新時間軸的間隔（毫秒） */
 const TICK_MS = 200;
+/** 滑鼠在播放器上靜止多久後隱藏控制列（毫秒） */
+const CONTROLS_IDLE_MS = 2500;
+/** 滑鼠離開播放器多久後隱藏控制列（毫秒） */
+const CONTROLS_LEAVE_MS = 1000;
 
 const PANEL_TABS: { id: PanelTab; label: string; icon: string }[] = [
   { id: 'script', label: '對話劇本', icon: 'forum' },
@@ -185,6 +189,30 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     return () => window.clearInterval(id);
   }, [status, index, speed, timeline]);
 
+  // 控制列：滑鼠在播放器上移動時顯示，靜止或離開一陣子後隱藏（暫停、開著章節選擇單時保持顯示）
+  const [controlsAwake, setControlsAwake] = useState(true);
+  const [hoverControls, setHoverControls] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
+  const scheduleHideControls = useCallback((ms: number) => {
+    if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = window.setTimeout(() => {
+      hideTimerRef.current = null;
+      setControlsAwake(false);
+    }, ms);
+  }, []);
+  const wakeControls = () => {
+    setControlsAwake(true);
+    scheduleHideControls(CONTROLS_IDLE_MS);
+  };
+  // 開始播放後（例如用空白鍵）也會在一段時間後隱藏
+  useEffect(() => {
+    if (status === 'playing') scheduleHideControls(CONTROLS_IDLE_MS);
+  }, [status, scheduleHideControls]);
+  useEffect(() => () => {
+    if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
+  }, []);
+  const controlsShown = controlsAwake || hoverControls || showChapters || status !== 'playing';
+
   const pause = () => { stopAudio(); setStatus('paused'); setCueElapsed(0); };
   const togglePlay = () => {
     if (status === 'playing') pause();
@@ -311,7 +339,13 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     <div className="ss-screen" role="dialog" aria-modal="true" aria-label="劇本模擬器">
       <div className="ss-body">
         <section className="ss-main">
-          <div className={`ss-player${isFullscreen ? ' is-fullscreen' : ''}`} ref={playerRef}>
+          <div
+            className={`ss-player${isFullscreen ? ' is-fullscreen' : ''}${controlsShown ? ' controls-shown' : ' controls-hidden'}`}
+            ref={playerRef}
+            onPointerMove={wakeControls}
+            onPointerDown={wakeControls}
+            onPointerLeave={() => scheduleHideControls(CONTROLS_LEAVE_MS)}
+          >
             <div className="ss-stage">
               {preset?.backgroundType === 'video' && preset.backgroundValue && (
                 <video className="ss-bg" src={preset.backgroundValue} autoPlay muted loop playsInline />
@@ -363,7 +397,11 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
             </div>
 
             {/* 播放控制列 */}
-            <div className="ss-controls">
+            <div
+              className="ss-controls"
+              onPointerEnter={() => setHoverControls(true)}
+              onPointerLeave={() => setHoverControls(false)}
+            >
               <button className="ss-ctrl" onClick={() => jump(index - 1)} disabled={index <= 0} aria-label="上一句" title="上一句（←）">
                 <span className="material-symbols-outlined">skip_previous</span>
               </button>
@@ -402,7 +440,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
                   aria-controls="ss-chapter-menu"
                   title="選擇章節"
                 >
-                  <span className="material-symbols-outlined" aria-hidden="true">video_library</span>章節
+                  <span className="material-symbols-outlined" aria-hidden="true">video_library</span>
                 </button>
                 {showChapters && (
                   <div
@@ -439,7 +477,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
                 aria-pressed={showZh}
                 title={showZh ? '隱藏中文字幕' : '顯示中文字幕'}
               >
-                <span className="material-symbols-outlined" aria-hidden="true">subtitles</span>中文字幕
+                <span className="material-symbols-outlined" aria-hidden="true">subtitles</span>
               </button>
               <label className="ss-speed">
                 <span className="sr-only">速度</span>
@@ -477,69 +515,69 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
           <div className="ss-panel-body" ref={listRef} role="tabpanel">
             {panelTab === 'script' && (
               cues.length === 0 ? <p className="ss-empty">這份任務還沒有台詞。</p> : <>
-              <div className="ss-script-bar">
-                <button className="ss-script-bar-btn" onClick={toggleAllSteps}>
-                  <span className="material-symbols-outlined" aria-hidden="true">{allCollapsed ? 'unfold_more' : 'unfold_less'}</span>
-                  {allCollapsed ? '全部展開' : '全部收合'}
-                </button>
-              </div>
-              {chapters.map(ch => {
-                const stepCues = cues.filter(c => c.stepIndex === ch.stepIndex);
-                const open = !collapsed.has(ch.step.id);
-                const linesId = `ss-lines-${ch.step.id}`;
-                return (
-                  <section key={ch.step.id} className={`ss-step${ch.stepIndex === currentStepIndex ? ' is-current' : ''}${open ? '' : ' is-collapsed'}`}>
-                    <button
-                      className="ss-step-head ss-step-toggle"
-                      onClick={() => toggleStep(ch.step.id)}
-                      aria-expanded={open}
-                      aria-controls={linesId}
-                    >
-                      <span className="ss-step-num">{ch.stepIndex + 1}</span>
-                      <span className="ss-step-title">{ch.step.title || '未命名步驟'}</span>
-                      {ch.step.purpose && <span className="ss-step-purpose">{ch.step.purpose}</span>}
-                      <span className="ss-step-count">{stepCues.length} 句</span>
-                      <span className="ss-step-chevron material-symbols-outlined" aria-hidden="true">expand_more</span>
-                    </button>
-                    <ol className="ss-lines" id={linesId} hidden={!open}>
-                      {stepCues.length === 0 && <li className="ss-line-empty">（沒有台詞）</li>}
-                      {stepCues.map(c => {
-                        const { slot, color } = slotOf(c.line.speakerSlotId);
-                        const active = c.index === index;
-                        const playing = active && status === 'playing';
-                        const g = gestureById(c.line.gesture);
-                        return (
-                          <li
-                            key={c.line.id}
-                            className={`ss-line${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}`}
-                            style={{ ['--speaker' as string]: color }}
-                            aria-current={active ? 'true' : undefined}
-                          >
-                            <span className="ss-line-num">{c.index + 1}</span>
-                            <span className="ss-line-avatar" aria-hidden="true">{slot?.icon ?? '🙂'}</span>
-                            <button className="ss-line-body" onClick={() => jump(c.index)} title="跳到這一句">
-                              <span className="ss-line-speaker">
-                                {slot?.label ?? c.line.speakerSlotId}
-                                {g && <span className="ss-line-gesture" title={`動作：${g.label}`}>{g.icon} {g.label}</span>}
-                              </span>
-                              <span className="ss-line-en">{c.line.en || '（尚未填寫）'}</span>
-                              {c.line.zh && <span className="ss-line-zh">{c.line.zh}</span>}
-                            </button>
-                            <button
+                <div className="ss-script-bar">
+                  <button className="ss-script-bar-btn" title={`${allCollapsed ? '展開' : '收合'}所有步驟`} onClick={toggleAllSteps}>
+                    <span className="material-symbols-outlined" aria-hidden="true">{allCollapsed ? 'unfold_more' : 'unfold_less'}</span>
+                    {/* {allCollapsed ? '全部展開' : '全部收合'} */}
+                  </button>
+                </div>
+                {chapters.map(ch => {
+                  const stepCues = cues.filter(c => c.stepIndex === ch.stepIndex);
+                  const open = !collapsed.has(ch.step.id);
+                  const linesId = `ss-lines-${ch.step.id}`;
+                  return (
+                    <section key={ch.step.id} className={`ss-step${ch.stepIndex === currentStepIndex ? ' is-current' : ''}${open ? '' : ' is-collapsed'}`}>
+                      <button
+                        className="ss-step-head ss-step-toggle"
+                        onClick={() => toggleStep(ch.step.id)}
+                        aria-expanded={open}
+                        aria-controls={linesId}
+                      >
+                        {/* <span className="ss-step-num">{ch.stepIndex + 1}</span> */}
+                        <span className="ss-step-title">{ch.step.title || '未命名步驟'}</span>
+                        {ch.step.purpose && <span className="ss-step-purpose">{ch.step.purpose}</span>}
+                        <span className="ss-step-count">{stepCues.length} 句</span>
+                        <span className="ss-step-chevron material-symbols-outlined" aria-hidden="true">expand_more</span>
+                      </button>
+                      <ol className="ss-lines" id={linesId} hidden={!open}>
+                        {stepCues.length === 0 && <li className="ss-line-empty">（沒有台詞）</li>}
+                        {stepCues.map(c => {
+                          const { slot, color } = slotOf(c.line.speakerSlotId);
+                          const active = c.index === index;
+                          const playing = active && status === 'playing';
+                          const g = gestureById(c.line.gesture);
+                          return (
+                            <li
+                              key={c.line.id}
+                              className={`ss-line${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}`}
+                              style={{ ['--speaker' as string]: color }}
+                              aria-current={active ? 'true' : undefined}
+                            >
+                              <span className="ss-line-num">{c.index + 1}</span>
+                              <span className="ss-line-avatar" aria-hidden="true">{slot?.icon ?? '🙂'}</span>
+                              <button className="ss-line-body" onClick={() => jump(c.index)} title="跳到這一句">
+                                <span className="ss-line-speaker">
+                                  {slot?.label ?? c.line.speakerSlotId}
+                                  {g && <span className="ss-line-gesture" title={`動作：${g.label}`}>{g.icon} {g.label}</span>}
+                                </span>
+                                <span className="ss-line-en">{c.line.en || '（尚未填寫）'}</span>
+                                {c.line.zh && <span className="ss-line-zh">{c.line.zh}</span>}
+                              </button>
+                              {/* <button
                               className="ss-line-play"
                               onClick={() => playLine(c.index)}
                               disabled={!stage.ready}
                               aria-label={playing ? '暫停這一句' : '播放這一句'}
                             >
                               <span className="material-symbols-outlined" aria-hidden="true">{playing ? 'pause' : 'play_arrow'}</span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  </section>
-                );
-              })}
+                            </button> */}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </section>
+                  );
+                })}
               </>
             )}
 
