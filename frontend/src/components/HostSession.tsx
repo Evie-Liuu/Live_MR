@@ -2643,7 +2643,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                 {lesson.phase !== 'during' ? (
                   lessonQuestion && (
                     <>
-                      <span className="hs-lesson-banner-step">提問 {lesson.questionIndex + 1}/{lessonPhaseContent!.questions.length}</span>
+                      {lessonPhaseContent!.questions.length > 1 && (
+                        <span className="hs-lesson-banner-step">提問 {lesson.questionIndex + 1}/{lessonPhaseContent!.questions.length}</span>
+                      )}
                       <span className="hs-lesson-banner-title" title={lessonQuestion.zh}>{lessonQuestion.en}</span>
                     </>
                   )
