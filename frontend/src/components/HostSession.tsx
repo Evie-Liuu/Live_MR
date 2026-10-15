@@ -3400,7 +3400,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                     <div className="slot-icon-container">
                       {sceneSlot.icon}
                     </div>
-                    {(() => {
+                    {/* {(() => {
                       const g = groupForSlot(sceneSlot.id);
                       if (!g) return null;
                       return (
@@ -3412,7 +3412,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                           ⚙
                         </button>
                       );
-                    })()}
+                    })()} */}
                     <div className="slot-info">
                       <div className="slot-name">{sceneSlot.label}</div>
                       <div className="slot-status-badge">

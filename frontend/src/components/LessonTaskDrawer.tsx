@@ -58,7 +58,7 @@ export default function LessonTaskDrawer({
     <div className={`panel-drawer ${open ? 'panel-drawer--open' : ''}`}>
       <div className="panel-drawer-header">
         <div className="slot-drawer-title">
-          <span className="orange">課程管理</span> <span className="teal">LESSON</span>
+          <span className="orange">任務管理</span> <span className="teal">TASKS</span>
         </div>
         <button className="panel-close-btn" onClick={onClose}>
           <span className="material-symbols-outlined">close</span>
