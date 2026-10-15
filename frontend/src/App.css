@@ -2367,7 +2367,7 @@ button:disabled {
 }
 
 .panel-drawer--wide {
-  width: 860px;
+  width: 990px;
 }
 
 @media (max-width: 768px) {

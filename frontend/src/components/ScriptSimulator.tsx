@@ -223,11 +223,6 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     if (status === 'playing') playCue(target);
     else { stopAudio(); setIndex(target); setStatus('idle'); setCueElapsed(0); }
   };
-  /** 右側清單的播放鈕：播放中的那句再按一次就暫停 */
-  const playLine = (i: number) => {
-    if (status === 'playing' && i === index) pause();
-    else playCue(i);
-  };
   /** 拖曳進度條：跳到該時間點所在的那一句 */
   const seek = (sec: number) => {
     let target = 0;
@@ -563,14 +558,6 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
                                 <span className="ss-line-en">{c.line.en || '（尚未填寫）'}</span>
                                 {c.line.zh && <span className="ss-line-zh">{c.line.zh}</span>}
                               </button>
-                              {/* <button
-                              className="ss-line-play"
-                              onClick={() => playLine(c.index)}
-                              disabled={!stage.ready}
-                              aria-label={playing ? '暫停這一句' : '播放這一句'}
-                            >
-                              <span className="material-symbols-outlined" aria-hidden="true">{playing ? 'pause' : 'play_arrow'}</span>
-                            </button> */}
                             </li>
                           );
                         })}

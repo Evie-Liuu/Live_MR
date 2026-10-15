@@ -1977,11 +1977,11 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const currentScenePreset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
 
   /** Find which group (if any) contains this slot — used for the slot-card ⚙ shortcut */
-  const groupForSlot = (slotId: string) => {
-    return currentScenePreset.groups?.find(g =>
-      g.members.some(m => m.kind === 'slot' && m.id === slotId)
-    );
-  };
+  // const groupForSlot = (slotId: string) => {
+  //   return currentScenePreset.groups?.find(g =>
+  //     g.members.some(m => m.kind === 'slot' && m.id === slotId)
+  //   );
+  // };
   const allowedVrms = useMemo(
     () => currentScenePreset.allowedVrmIds
       ? currentScenePreset.allowedVrmIds.map(id => VRM_SOURCES[id]).filter(Boolean)
