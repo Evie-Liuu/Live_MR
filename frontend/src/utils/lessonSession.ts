@@ -7,6 +7,7 @@
  * 任務前、任務後一次聚焦一題提問（questionIndex），大螢幕只顯示該題。
  */
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
+import type { CefrLevel } from '../types/lessonPlan.ts';
 import { phaseContent, type LessonPhase } from '../config/lessonPhases.ts';
 
 /** 教師端的上課狀態（存在 sessionStorage，重整後還原） */
@@ -39,6 +40,8 @@ export interface LessonScreenState {
   /** 只有老師開啟台詞提示、任務中且課程尚未完成時才有 */
   lines?: { speaker: string; en: string }[];
   phase: LessonPhase;
+  /** 任務程度（例如 'preA1-A1' 代表國小中低年級） */
+  level?: CefrLevel;
   /** 任務前 / 任務後：目前聚焦的提問 */
   prompt?: { en: string; zh: string; index: number; count: number };
   /** 任務前 / 任務後：句型框架 */
@@ -113,6 +116,7 @@ export function toLessonScreen(lesson: HostLessonState, slotLabels: Record<strin
     roles,
     steps: task.steps.map(s => ({ title: s.title, purpose: s.purpose })),
     phase: lesson.phase,
+    level: task.level,
     ...(lesson.phase === 'during' && lesson.showLines && !allDone
       ? { lines: step.lines.filter(l => l.en.trim()).map(l => ({ speaker: label(l.speakerSlotId), en: l.en })) }
       : {}),

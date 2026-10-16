@@ -2562,7 +2562,7 @@ export default function BigScreen() {
                     {lesson.focusPoints.map(f => <span key={f} className="bs-lesson-chip">{f}</span>)}
                   </div>
                 )} */}
-                {lesson.frames && lesson.frames.length > 0 && (
+                {lesson.level === 'preA1-A1' && lesson.frames && lesson.frames.length > 0 && (
                   <div className="bs-lesson-chips">
                     <span className="bs-lesson-chips-label">試著這樣說</span>
                     {lesson.frames.map(f => <span key={f} className="bs-lesson-chip bs-lesson-chip--frame">{f}</span>)}
