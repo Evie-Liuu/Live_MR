@@ -1,10 +1,10 @@
 import { callGemini } from './client.js'
 import type { GeminiCaller } from './lessonPlan.js'
 import {
-  LINES_PER_STEP_RANGE, STEP_RANGE, buildDialogueTaskPrompt, buildDialogueTaskSchema,
+  LINES_PER_STEP_RANGE, STEP_RANGE, TAG_RANGE, buildDialogueTaskPrompt, buildDialogueTaskSchema,
 } from './dialogueTaskPrompts.js'
 import type { CefrLevel, SceneContext } from '../lessonPlanTypes.js'
-import { isGestureId, type DialogueTask, type GestureId } from '../dialogueTaskTypes.js'
+import { MAX_TAG_LEN, cleanTag, isGestureId, type DialogueTask, type GestureId } from '../dialogueTaskTypes.js'
 
 export interface DialogueTaskRequest {
   topic: string
@@ -22,7 +22,7 @@ interface RawStep {
   grammarNote: string
   teachingNotes: string[]
 }
-interface RawTask { title: string; steps: RawStep[] }
+interface RawTask { title: string; tags: string[]; steps: RawStep[] }
 
 const TAG = '[ai/dialogue-task]'
 /** 與 dialogueTaskRoutes 的儲存上限一致，避免生成結果存不進去 */
@@ -35,6 +35,18 @@ function isText(v: unknown, max = MAX_TEXT_LEN): v is string {
 
 function textList(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((x): x is string => isText(x)).map(x => x.trim()).slice(0, 20) : []
+}
+
+/** 標籤是加分項：去掉 #、過長與重複的，最多保留 TAG_RANGE.max 個；沒有也不重試 */
+function cleanTags(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  const tags: string[] = []
+  for (const x of v) {
+    if (typeof x !== 'string') continue
+    const tag = cleanTag(x)
+    if (tag && tag.length <= MAX_TAG_LEN && !tags.includes(tag)) tags.push(tag)
+  }
+  return tags.slice(0, TAG_RANGE.max)
 }
 
 /** 結構檢查；不合格拋錯，呼叫端決定是否重試 */
@@ -65,7 +77,7 @@ export function validateDialogueDraft(raw: unknown, slotIds: string[]): RawTask 
       teachingNotes: textList(s.teachingNotes),
     }
   })
-  return { title: t.title.trim(), steps }
+  return { title: t.title.trim(), tags: cleanTags(t.tags), steps }
 }
 
 /** 補上步驟 / 台詞 id，轉成任務編輯器格式 */
@@ -86,6 +98,7 @@ export function toDialogueTask(draft: RawTask, req: DialogueTaskRequest): Dialog
       grammarNote: s.grammarNote,
       teachingNotes: s.teachingNotes,
     })),
+    ...(draft.tags.length > 0 ? { tags: draft.tags } : {}),
   }
 }
 

@@ -85,6 +85,26 @@ describe('generateDialogueTask', () => {
   })
 })
 
+describe('topic tags', () => {
+  it('keeps cleaned tags from the draft (strip #, dedupe, max 5)', async () => {
+    const tags = ['#購物', '詢價', '購物', '結帳', '', 'x'.repeat(30), '付款', '找零', '道別']
+    const { call } = fakeCaller([{ ...goodDraft, tags }])
+    const task = await generateDialogueTask(req, { call })
+    expect(task.tags).toEqual(['購物', '詢價', '結帳', '付款', '找零'])
+  })
+
+  it('omits tags when the model returns none, without retrying', async () => {
+    const { call, calls } = fakeCaller([{ ...goodDraft, tags: [] }])
+    const task = await generateDialogueTask(req, { call })
+    expect(calls).toHaveLength(1)
+    expect(task).not.toHaveProperty('tags')
+  })
+
+  it('asks for topic tags in the prompt', () => {
+    expect(buildDialogueTaskPrompt('購物', 'A1', ctx).systemInstruction).toContain('"tags"')
+  })
+})
+
 describe('validateDialogueDraft', () => {
   it('trims text and drops blank list items', () => {
     const draft = validateDialogueDraft({
@@ -116,7 +136,7 @@ describe('buildDialogueTaskPrompt', () => {
 
   it('schema requires every field the editor needs', () => {
     const schema = buildDialogueTaskSchema(SLOTS) as { required: string[]; properties: { steps: { items: { required: string[] } } } }
-    expect(schema.required).toEqual(['title', 'steps'])
+    expect(schema.required).toEqual(['title', 'tags', 'steps'])
     expect(schema.properties.steps.items.required).toEqual(['title', 'purpose', 'lines', 'grammarPoints', 'grammarNote', 'teachingNotes'])
     const line = (schema as unknown as { properties: { steps: { items: { properties: { lines: { items: { required: string[]; properties: { gesture: { enum: string[] } } } } } } } } })
       .properties.steps.items.properties.lines.items

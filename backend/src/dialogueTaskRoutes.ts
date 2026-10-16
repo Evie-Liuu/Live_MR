@@ -4,7 +4,7 @@ import type { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from './lessonPlanTypes.js'
 import { isSceneContext } from './lessonPlanRoutes.js'
 import { generateDialogueTask } from './ai/dialogueTask.js'
-import { isGestureId, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource } from './dialogueTaskTypes.js'
+import { isGestureId, normalizeTags, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource } from './dialogueTaskTypes.js'
 
 export interface DialogueTaskRouteDeps {
   /** null 表示資料庫開啟失敗，所有端點回 503 */
@@ -63,6 +63,8 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
   if (!level) return null
   if (!Array.isArray(t.steps) || t.steps.length > MAX_STEPS || !t.steps.every(isStep)) return null
   if (t.sourceTemplate !== undefined && !isTemplateSource(t.sourceTemplate)) return null
+  const tags = normalizeTags(t.tags)
+  if (!tags) return null
   return {
     title: t.title.trim(),
     sceneId: t.sceneId,
@@ -77,6 +79,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
     })),
     ...(t.sourceTemplate ? { sourceTemplate: { id: t.sourceTemplate.id, version: t.sourceTemplate.version } } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
   }
 }
 

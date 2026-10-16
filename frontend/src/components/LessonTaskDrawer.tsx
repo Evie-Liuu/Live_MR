@@ -67,7 +67,8 @@ export default function LessonTaskDrawer({
   const keyword = query.trim().toLowerCase();
   const visibleTasks = sceneTasks.filter(t =>
     (!levelFilter || normalizeLevel(t.level) === levelFilter)
-    && (!keyword || t.title.toLowerCase().includes(keyword)));
+    && (!keyword || t.title.toLowerCase().includes(keyword)
+      || (t.tags ?? []).some(tag => tag.toLowerCase().includes(keyword.replace(/^[#＃]/, '')))));
   const filtering = !!keyword || !!levelFilter;
   const clearFilters = () => { setQuery(''); setLevelFilter(null); };
   const selectedId = [pickedId, activeTaskId, sceneTasks[0]?.id]
@@ -141,8 +142,8 @@ export default function LessonTaskDrawer({
                     type="search"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
-                    placeholder="搜尋課程名稱"
-                    aria-label="搜尋課程名稱"
+                    placeholder="搜尋課程名稱或 #標籤"
+                    aria-label="搜尋課程名稱或標籤"
                   />
                   {query && (
                     <button type="button" className="ltd-search-clear" onClick={() => setQuery('')} aria-label="清除搜尋">
@@ -198,6 +199,9 @@ export default function LessonTaskDrawer({
                             <span className="ltd-item-tags">
                               <span className={`ltd-item-tag ltd-tag--${level}`}>{levelLabel(level, true)}</span>
                               <span className="ltd-item-tag">{t.stepCount} 步驟</span>
+                              {(t.tags ?? []).slice(0, 3).map(tag => (
+                                <span key={tag} className="ltd-item-tag ltd-item-tag--topic">#{tag}</span>
+                              ))}
                             </span>
                           </span>
                           {isActive && <span className="ltd-live">上課中</span>}
@@ -293,6 +297,11 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
               <span className="ltd-chip"><span className="material-symbols-outlined" aria-hidden="true">chat</span>{lineCount} 句台詞</span>
               <span className="ltd-chip"><span className="material-symbols-outlined" aria-hidden="true">schedule</span>對話約 {minutes} 分鐘</span>
             </div>
+            {(task.tags ?? []).length > 0 && (
+              <div className="ltd-chips">
+                {(task.tags ?? []).map(tag => <span key={tag} className="ltd-item-tag ltd-item-tag--topic">#{tag}</span>)}
+              </div>
+            )}
             <p className="ltd-hero-updated">最後更新：{new Date(record.updatedAt).toLocaleDateString()}</p>
           </div>
           {onEdit && (

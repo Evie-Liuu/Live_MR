@@ -29,6 +29,7 @@ export function applyTemplate(template: TaskTemplate): DialogueTask {
       teachingNotes: [...s.teachingNotes],
     })),
     sourceTemplate: { id: template.id, version: template.version },
+    ...(template.tags.length > 0 ? { tags: [...template.tags] } : {}),
   };
 }
 
@@ -63,13 +64,13 @@ export function toTemplateSource(task: DialogueTask, templateId: string): string
     version: 1,
     name: task.title,
     description: 'TODO：一句話說明',
-    tags: [],
+    tags: task.tags ?? [],
     task: readable,
   };
   const body = JSON.stringify(template, null, 2);
   return [
     `// frontend/src/config/taskTemplates/${templateId}.ts`,
-    `// 貼上後：補 description / tags，並在 index.ts 的 TASK_TEMPLATES 加入 ${toCamel(templateId)}`,
+    `// 貼上後：補 description（tags 沿用任務標籤），並在 index.ts 的 TASK_TEMPLATES 加入 ${toCamel(templateId)}`,
     `import type { TaskTemplate } from './types.ts';`,
     '',
     `export const ${toCamel(templateId)}: TaskTemplate = ${body};`,

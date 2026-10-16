@@ -68,6 +68,23 @@ describe('dialogue task routes', () => {
     expect(res.body.task.steps[0]).not.toHaveProperty('hacked')
   })
 
+  it('normalizes tags (strip #, trim, dedupe), lists them, and rejects malformed tags', async () => {
+    const ok = await request(app).post('/api/dialogue-tasks')
+      .send({ teacherUid: 't1', task: { ...sampleTask(), tags: ['#購物', ' 詢價 ', '＃購物', '', '結帳'] } })
+    expect(ok.status).toBe(201)
+    expect(ok.body.task.tags).toEqual(['購物', '詢價', '結帳'])
+    const list = await request(app).get('/api/dialogue-tasks').query({ teacherUid: 't1' })
+    expect(list.body[0].tags).toEqual(['購物', '詢價', '結帳'])
+
+    const none = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: sampleTask() })
+    expect(none.body.task).not.toHaveProperty('tags')
+
+    for (const tags of ['購物', [1], ['x'.repeat(21)], Array.from({ length: 9 }, (_, i) => `t${i}`)]) {
+      const bad = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: { ...sampleTask(), tags } })
+      expect(bad.status).toBe(400)
+    }
+  })
+
   it('keeps a valid sourceTemplate and rejects a malformed one', async () => {
     const ok = await request(app).post('/api/dialogue-tasks')
       .send({ teacherUid: 't1', task: { ...sampleTask(), sourceTemplate: { id: 'clothingStore_shopping', version: 1, extra: 1 } } })

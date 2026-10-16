@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
-  blankTask, cloneStep, formatClock, newLine, newStep, stepTimings,
+  MAX_TAGS, MAX_TAG_LEN, blankTask, cloneStep, formatClock, newLine, newStep, splitTags, stepTimings,
   type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
 } from '../types/dialogueTask.ts';
 import { createDialogueTask, dialogueTaskErrorText, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
@@ -320,6 +320,10 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                 </select>
               </label>
             </div>
+            <TagEditor
+              tags={task.tags ?? []}
+              onChange={tags => edit(t => ({ ...t, tags }))}
+            />
             {sourceTemplateName && (
               <span className="te-field">來自模板：{sourceTemplateName}（v{task.sourceTemplate!.version}）</span>
             )}
@@ -694,5 +698,68 @@ function ListEditor({ label, placeholder, items, onChange }: ListEditorProps) {
         <span className="material-symbols-outlined" aria-hidden="true">add</span>新增一項
       </button>
     </fieldset>
+  );
+}
+
+/** 主題標籤：Enter / 逗號 / 頓號新增，Backspace 刪最後一個，可一次貼上「#購物 #詢價」 */
+function TagEditor({ tags, onChange }: { tags: string[]; onChange: (tags: string[]) => void }) {
+  const [draft, setDraft] = useState('');
+  const full = tags.length >= MAX_TAGS;
+
+  const add = (text: string) => {
+    const next = [...tags];
+    for (const tag of splitTags(text)) {
+      if (next.length >= MAX_TAGS) break;
+      const clipped = tag.slice(0, MAX_TAG_LEN);
+      if (!next.includes(clipped)) next.push(clipped);
+    }
+    if (next.length !== tags.length) onChange(next);
+    setDraft('');
+  };
+
+  return (
+    <div className="te-field te-tags-field">
+      <span id="te-tags-label">標籤</span>
+      <div className="te-tags" role="group" aria-labelledby="te-tags-label">
+        {tags.map(tag => (
+          <span key={tag} className="te-tag">
+            #{tag}
+            <button
+              type="button"
+              className="te-tag-remove"
+              onClick={() => onChange(tags.filter(t => t !== tag))}
+              aria-label={`移除標籤 ${tag}`}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+          </span>
+        ))}
+        {!full && (
+          <input
+            className="te-tag-input"
+            value={draft}
+            maxLength={MAX_TAG_LEN + 1}
+            placeholder={tags.length === 0 ? '例：購物、詢價，按 Enter 新增' : '新增標籤'}
+            aria-label="新增標籤"
+            onChange={e => {
+              const v = e.target.value;
+              // 輸入逗號、頓號或 # 視為分隔，直接把前面的文字變成標籤
+              if (/[,，、;；]/.test(v) || (/[#＃]/.test(v.slice(1)))) add(v);
+              else setDraft(v);
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); add(draft); }
+              else if (e.key === 'Backspace' && !draft && tags.length > 0) onChange(tags.slice(0, -1));
+            }}
+            onPaste={e => {
+              const text = e.clipboardData.getData('text');
+              if (splitTags(text).length > 1) { e.preventDefault(); add(text); }
+            }}
+            onBlur={() => { if (draft.trim()) add(draft); }}
+          />
+        )}
+      </div>
+      <span className="te-tags-hint">{tags.length}/{MAX_TAGS}・用於任務管理的搜尋與篩選</span>
+    </div>
   );
 }

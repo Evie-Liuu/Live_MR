@@ -47,6 +47,33 @@ export interface DialogueTask {
   level: CefrLevel
   steps: DialogueStep[]
   sourceTemplate?: TemplateSource
+  /** 主題標籤（不含 #），例如 購物、詢價、結帳 */
+  tags?: string[]
+}
+
+export const MAX_TAGS = 8
+export const MAX_TAG_LEN = 20
+
+/** 標籤正規化：去掉前置 #、多餘空白，去重；空字串略過 */
+export function cleanTag(v: string): string {
+  return v.trim().replace(/^[#＃]+/, '').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * 驗證並正規化儲存用的標籤：undefined 視為沒有標籤；
+ * 型別不對、單一標籤過長或數量超過上限時回 null（整份任務拒收）。
+ */
+export function normalizeTags(v: unknown): string[] | null {
+  if (v === undefined) return []
+  if (!Array.isArray(v) || !v.every(x => typeof x === 'string')) return null
+  const tags: string[] = []
+  for (const raw of v as string[]) {
+    const tag = cleanTag(raw)
+    if (!tag) continue
+    if (tag.length > MAX_TAG_LEN) return null
+    if (!tags.includes(tag)) tags.push(tag)
+  }
+  return tags.length > MAX_TAGS ? null : tags
 }
 
 export interface DialogueTaskRecord {
@@ -64,6 +91,7 @@ export interface DialogueTaskSummary {
   sceneId: string
   level: CefrLevel
   stepCount: number
+  tags: string[]
   createdAt: string
   updatedAt: string
 }

@@ -40,6 +40,22 @@ export interface DialogueTask {
   level: CefrLevel
   steps: DialogueStep[]
   sourceTemplate?: TemplateSource
+  /** 主題標籤（不含 #），例如 購物、詢價、結帳；用於搜尋與篩選 */
+  tags?: string[]
+}
+
+/** 與後端 dialogueTaskTypes 的上限一致 */
+export const MAX_TAGS = 8
+export const MAX_TAG_LEN = 20
+
+/** 標籤正規化：去掉前置 #、多餘空白 */
+export function cleanTag(v: string): string {
+  return v.trim().replace(/^[#＃]+/, '').replace(/\s+/g, ' ').trim()
+}
+
+/** 把輸入或貼上的文字拆成多個標籤（以 #、逗號、頓號、換行分隔） */
+export function splitTags(text: string): string[] {
+  return text.split(/[#＃,，、;；\n]+/).map(cleanTag).filter(Boolean)
 }
 
 export interface DialogueTaskRecord {
@@ -57,6 +73,8 @@ export interface DialogueTaskSummary {
   sceneId: string
   level: CefrLevel
   stepCount: number
+  /** 舊版後端沒有此欄位 */
+  tags?: string[]
   createdAt: string
   updatedAt: string
 }

@@ -854,3 +854,8 @@ details[open]>.ltd-step-head .ltd-step-chevron {
 .ltd-edit .material-symbols-outlined {
   font-size: 18px;
 }
+
+.ltd-item-tag--topic {
+  background: #E6F6F4;
+  color: #00695F;
+}

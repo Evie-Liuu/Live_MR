@@ -11,6 +11,8 @@ export const DIALOGUE_TASK_DURATION_MIN = 5
 /** 5 分鐘內能讓學生讀完並角色扮演一輪的份量 */
 export const STEP_RANGE = { min: 3, max: 5 }
 export const LINES_PER_STEP_RANGE = { min: 2, max: 4 }
+/** AI 產生的主題標籤數量 */
+export const TAG_RANGE = { min: 3, max: 5 }
 
 const STR = { type: 'STRING' }
 const STR_ARRAY = { type: 'ARRAY', items: STR }
@@ -21,6 +23,7 @@ export function buildDialogueTaskSchema(slotIds: string[]): Record<string, unkno
     type: 'OBJECT',
     properties: {
       title: STR,
+      tags: STR_ARRAY,
       steps: {
         type: 'ARRAY',
         items: {
@@ -49,7 +52,7 @@ export function buildDialogueTaskSchema(slotIds: string[]): Record<string, unkno
         },
       },
     },
-    required: ['title', 'steps'],
+    required: ['title', 'tags', 'steps'],
   }
 }
 
@@ -76,6 +79,7 @@ Rules:
   happy (pleased or excited), or none.
   Use a gesture only where it is natural — roughly one third to one half of the lines — and use none for the rest.
 - "title" (task) and step "title": short Traditional Chinese names, e.g. 服飾店購物 / 招呼 / 報價.
+- "tags": ${TAG_RANGE.min} to ${TAG_RANGE.max} short Traditional Chinese topic tags (2-4 characters each, no "#") naming the situations and communicative functions the task practises, so teachers can search and filter tasks, e.g. for clothing-store shopping: 購物, 詢價, 結帳.
 - "purpose": a 2-6 character Traditional Chinese tag describing the communicative goal of the step, e.g. 問候引導, 價格查詢, 確認購買.
 - "grammarPoints": 1 to 3 key sentence patterns used in the step, written in English with placeholders in Chinese where helpful, e.g. "How much is + 單數物品?".
 - "grammarNote": one or two Traditional Chinese sentences explaining the grammar for the teacher.

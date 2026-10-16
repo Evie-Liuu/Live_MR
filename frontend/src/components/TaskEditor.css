@@ -1261,3 +1261,74 @@ button.te-side-card:hover {
 .te-gesture:focus {
   outline: 2px solid #C4B5FD;
 }
+/* 主題標籤（左欄任務資訊，場景／程度下方） */
+.te-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 5px 8px;
+  border: 1px solid #DDD8D2;
+  border-radius: 10px;
+  background: #fff;
+  box-sizing: border-box;
+  cursor: text;
+}
+
+.te-tags:focus-within {
+  outline: 2px solid #99E0D9;
+  border-color: var(--te-teal);
+}
+
+.te-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  background: #E6F6F4;
+  color: #00695F;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.te-tag-remove {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #00857B;
+  cursor: pointer;
+}
+
+.te-tag-remove:hover {
+  background: rgba(0, 133, 123, .15);
+}
+
+.te-tag-remove .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.te-field .te-tag-input {
+  flex: 1;
+  min-width: 90px;
+  width: auto;
+  padding: 3px 2px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+}
+
+.te-field .te-tag-input:focus {
+  outline: none;
+}
+
+.te-tags-hint {
+  font-size: 11px;
+  color: var(--te-muted);
+}

@@ -44,6 +44,7 @@ export class DialogueTaskRepo {
       const task = JSON.parse(r.task_json) as DialogueTask
       return {
         id: r.id, title: r.title, sceneId: r.scene_id, level: task.level, stepCount: task.steps.length,
+        tags: Array.isArray(task.tags) ? task.tags : [],
         createdAt: r.created_at, updatedAt: r.updated_at,
       }
     })
