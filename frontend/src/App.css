@@ -8303,3 +8303,24 @@ button:disabled {
   border-color: rgba(247, 110, 18, 0.35);
   color: #C2560C;
 }
+
+/* ── 上課中的備課中心覆蓋層（HostSession 保持掛載，課堂持續進行） ───────── */
+.hs-prep-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  overflow-y: auto;
+  background: #FFF9F3;
+  animation: hs-prep-in .2s ease-out;
+}
+
+@keyframes hs-prep-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.hs-prep-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}

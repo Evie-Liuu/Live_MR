@@ -402,6 +402,52 @@
   box-shadow: 0 4px 14px rgba(194, 120, 60, .2);
 }
 
+/* 上課中從教室進入：返回課堂按鈕 */
+.lpl-back-class {
+  border: 1.5px solid #9ADBD3;
+  color: #00695F;
+  font-weight: 800;
+}
+
+.lpl-back-class .material-symbols-outlined {
+  color: #00857B;
+}
+
+.lpl-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #E6F6F4;
+  color: #00857B;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lpl-live::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00A99D;
+  animation: lpl-live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes lpl-live-pulse {
+  50% { opacity: .35; }
+}
+
+.lpl-opening {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #6B7280;
+}
+
 .lpl-heading {
   flex: 1;
   min-width: 0;

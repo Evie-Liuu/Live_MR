@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import {
   Room,
   RoomEvent,
@@ -39,15 +39,19 @@ import SceneOccludersPanel from './SceneOccludersPanel.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
+import { getDialogueTask } from '../utils/dialogueTaskClient.ts';
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
-  BIGSCREEN_LESSON_STORAGE_KEY, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
+  BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
   setLessonPhase, setQuestionIndex, toggleStepDone, toLessonScreen,
   type HostLessonState,
 } from '../utils/lessonSession.ts';
 import { LESSON_PHASES, phaseContent, phaseMeta, type LessonPhase } from '../config/lessonPhases.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 import { useAuth } from '../hooks/useAuth';
+
+// 上課中快速進入備課中心（疊在課堂上方，課堂與連線保持進行）
+const LessonPrep = lazy(() => import('./LessonPrep.tsx'));
 
 // ─── Module-level constants & types ─────────────────────────────────────────
 type InteractionPhase = 'idle' | 'teacher' | 'generating' | 'student';
@@ -1529,6 +1533,28 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   }, []);
 
   const endLesson = useCallback(() => setLesson(null), []);
+
+  // ── 上課中進入備課中心：以覆蓋層開啟，HostSession 不卸載，課堂、連線與大屏保持進行 ──
+  /** null = 未開啟；taskId 有值時直接編輯該任務 */
+  const [prepTarget, setPrepTarget] = useState<{ taskId?: string } | null>(null);
+  const openPrep = useCallback((taskId?: string) => {
+    setShowLessonPanel(false);
+    setPrepTarget({ taskId });
+  }, []);
+  /** 返回課堂：更新進行中課程的內容（可能剛被編輯），並重新打開任務管理 */
+  const closePrep = useCallback(() => {
+    setPrepTarget(null);
+    setShowLessonPanel(true);
+    const activeId = lesson?.record.id;
+    if (!activeId) return;
+    getDialogueTask(activeId)
+      .then(record => setLesson(prev => {
+        if (!prev || prev.record.id !== record.id) return prev;
+        const next = { ...prev, record };
+        return { ...next, doneCount: clampDoneCount(next, prev.doneCount) };
+      }))
+      .catch(() => { /* 任務已刪除或讀取失敗：保留原本內容 */ });
+  }, [lesson?.record.id]);
 
   // 廣播「正在說話」清單給大屏（單一來源 = LiveKit ActiveSpeakers）
   useEffect(() => {
@@ -3541,7 +3567,23 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
         activeTaskId={lesson?.record.id ?? null}
         onSelect={startLesson}
         onEnd={endLesson}
+        onOpenPrep={teacherUid ? openPrep : undefined}
       />
+
+      {/* ── 備課中心覆蓋層（上課中快速編輯，返回後課堂照常進行）──────────────── */}
+      {prepTarget && teacherUid && (
+        <div className="hs-prep-overlay" role="dialog" aria-modal="true" aria-label="備課中心">
+          <Suspense fallback={<div className="hs-prep-loading"><div className="gradient-spinner" /></div>}>
+            <LessonPrep
+              teacherUid={teacherUid}
+              institutionId={user?.institution_id != null ? String(user.institution_id) : undefined}
+              classMode
+              initialTaskId={prepTarget.taskId}
+              onBack={closePrep}
+            />
+          </Suspense>
+        </div>
+      )}
 
       <ConfirmationModal
         isOpen={showRemoveConfirm}

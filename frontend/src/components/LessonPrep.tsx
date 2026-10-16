@@ -15,6 +15,10 @@ interface LessonPrepProps {
   teacherUid: string;
   institutionId?: string;
   onBack: () => void;
+  /** 上課中從教室進入：顯示「返回課堂」，onBack 會回到進行中的課堂 */
+  classMode?: boolean;
+  /** 開啟時直接進入此任務的編輯器（上課中快速編輯；關閉編輯器即返回課堂） */
+  initialTaskId?: string;
 }
 
 type View =
@@ -37,8 +41,12 @@ const NEW_PLAN_OPTIONS: NewPlanOption[] = [
   { key: 'template', icon: 'inventory_2', title: '從任務庫中選擇模板', desc: '套用現有模板快速建立任務' },
 ];
 
-export default function LessonPrep({ teacherUid, institutionId, onBack }: LessonPrepProps) {
+export default function LessonPrep({ teacherUid, institutionId, onBack, classMode = false, initialTaskId }: LessonPrepProps) {
   const [view, setView] = useState<View>({ kind: 'list' });
+  /** 正在開啟 initialTaskId 指定的任務（避免先閃過清單） */
+  const [openingInitial, setOpeningInitial] = useState(!!initialTaskId);
+  /** 編輯器是否由 initialTaskId 直接開啟：關閉時直接返回課堂 */
+  const [directEdit, setDirectEdit] = useState(!!initialTaskId);
   const [plans, setPlans] = useState<LessonPlanSummary[]>([]);
   const [tasks, setTasks] = useState<DialogueTaskSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +61,17 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
     listDialogueTasks(teacherUid).then(setTasks).catch(e => setError(dialogueTaskErrorText(e)));
 
   useEffect(() => { void refresh(); void refreshTasks(); }, [teacherUid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 上課中快速編輯：直接開啟指定任務的編輯器
+  useEffect(() => {
+    if (!initialTaskId) return;
+    let cancelled = false;
+    getDialogueTask(initialTaskId)
+      .then(record => { if (!cancelled) setView({ kind: 'task-editor', record }); })
+      .catch(e => { if (!cancelled) { setError(dialogueTaskErrorText(e)); setDirectEdit(false); } })
+      .finally(() => { if (!cancelled) setOpeningInitial(false); });
+    return () => { cancelled = true; };
+  }, [initialTaskId]);
 
   const handleNewOption = (key: NewPlanOption['key']) => {
     if (key === 'ai') setAiOpen(true);
@@ -107,8 +126,20 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
         initial={view.record}
         initialTask={view.draft}
         onSaved={() => { void refreshTasks(); }}
-        onClose={() => setView({ kind: 'list' })}
+        onClose={() => {
+          if (directEdit) { onBack(); return; }
+          setView({ kind: 'list' });
+        }}
       />
+    );
+  }
+
+  if (openingInitial) {
+    return (
+      <div className="lpl-page lpl-opening">
+        <div className="gradient-spinner" />
+        <p>開啟任務中…</p>
+      </div>
     );
   }
 
@@ -143,6 +174,12 @@ export default function LessonPrep({ teacherUid, institutionId, onBack }: Lesson
           <p>豐富的任務資源，讓教學更輕鬆</p>
         </div>
         <div className="lpl-top-actions">
+          {classMode && (
+            <button className="lpl-back lpl-back-class" onClick={onBack}>
+              <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>返回課堂
+              <span className="lpl-live" aria-label="課堂進行中">進行中</span>
+            </button>
+          )}
           <NewPlanMenuButton align="right" onSelect={handleNewOption} />
           <AccountMenu />
         </div>

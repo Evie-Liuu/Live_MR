@@ -22,13 +22,15 @@ interface LessonTaskDrawerProps {
   /** 開始課程：載入到左側並關閉抽屜 */
   onSelect: (record: DialogueTaskRecord) => void;
   onEnd: () => void;
+  /** 前往備課中心（帶 taskId 則直接編輯該任務）；課堂保持進行 */
+  onOpenPrep?: (taskId?: string) => void;
 }
 
 /** 步驟之間預留的轉場時間（秒），用於估算整份任務長度 */
 const STEP_GAP_SEC = 5;
 
 export default function LessonTaskDrawer({
-  open, onClose, teacherUid, sceneId, sceneLabel, activeTaskId, onSelect, onEnd,
+  open, onClose, teacherUid, sceneId, sceneLabel, activeTaskId, onSelect, onEnd, onOpenPrep,
 }: LessonTaskDrawerProps) {
   const [tasks, setTasks] = useState<DialogueTaskSummary[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -113,6 +115,16 @@ export default function LessonTaskDrawer({
             目前場景：<strong>{sceneLabel}</strong>
           </p>
           {listError && <div className="ltd-error" role="alert">{listError}</div>}
+          {onOpenPrep && teacherUid && (
+            <button type="button" className="ltd-prep-link" onClick={() => onOpenPrep()}>
+              <span className="material-symbols-outlined" aria-hidden="true">edit_note</span>
+              <span className="ltd-prep-link-text">
+                <strong>前往備課中心</strong>
+                <small>新增或修改任務，課堂會保持進行</small>
+              </span>
+              <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            </button>
+          )}
 
           {!teacherUid ? (
             <p className="ltd-empty">請先登入老師帳號。</p>
@@ -223,6 +235,7 @@ export default function LessonTaskDrawer({
               hasOtherActive={!!activeTaskId && record.id !== activeTaskId}
               onStart={start}
               onEnd={() => { onEnd(); onClose(); }}
+              onEdit={onOpenPrep ? () => onOpenPrep(record.id) : undefined}
             />
           )}
         </section>
@@ -238,9 +251,11 @@ interface TaskPreviewProps {
   hasOtherActive: boolean;
   onStart: () => void;
   onEnd: () => void;
+  /** 到備課中心編輯此任務 */
+  onEdit?: () => void;
 }
 
-function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd }: TaskPreviewProps) {
+function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit }: TaskPreviewProps) {
   const { task } = record;
   const slots = useMemo(
     () => THEMES.flatMap(t => t.scenes).find(s => s.id === task.sceneId)?.slots ?? [],
@@ -280,6 +295,11 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd }: TaskP
             </div>
             <p className="ltd-hero-updated">最後更新：{new Date(record.updatedAt).toLocaleDateString()}</p>
           </div>
+          {onEdit && (
+            <button type="button" className="ltd-edit" onClick={onEdit} title="到備課中心編輯此任務，課堂會保持進行">
+              <span className="material-symbols-outlined" aria-hidden="true">edit</span>編輯任務
+            </button>
+          )}
         </header>
 
         {roles.length > 0 && (
