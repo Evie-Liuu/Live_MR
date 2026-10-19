@@ -33,6 +33,8 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [connected, setConnected] = useState(false);
   const roomRef = useRef<Room | null>(null);
   const [landmarks, setLandmarks] = useState<PoseLandmark[] | null>(null);
+  /** 老師指定了角色才發布姿勢資料（全班只有最多 MAX_POSE_PUBLISHERS 人） */
+  const [poseActive, setPoseActive] = useState(false);
   // 追蹤目前本地預覽用的 stream，確保切換鏡頭時能正確釋放
   const displayStreamRef = useRef<MediaStream | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
@@ -191,7 +193,14 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       });
     }
     setLandmarks(lms);
-  }, faceEnabled, handEnabled);
+  }, faceEnabled, handEnabled, undefined, poseActive);
+
+  // 下台時清掉骨架疊圖（偵測已暫停，不會再更新）
+  const [prevPoseActive, setPrevPoseActive] = useState(poseActive);
+  if (prevPoseActive !== poseActive) {
+    setPrevPoseActive(poseActive);
+    if (!poseActive) setLandmarks(null);
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -267,6 +276,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           phase?: 'idle' | 'teacher' | 'generating' | 'student';
           action?: 'start' | 'stop';
           sessionId?: string;
+          identities?: string[];
         };
         if (msg.type === 'ai-hint') {
           const p = msg.payload ?? null;
@@ -276,6 +286,8 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             setExtension(null);
             setExtendError(null);
           }
+        } else if (msg.type === 'pose-publishers' && Array.isArray(msg.identities)) {
+          if (isMounted) setPoseActive(msg.identities.includes(room.localParticipant.identity));
         } else if (msg.type === 'interaction-phase' && msg.phase) {
           if (isMounted) setInteractionPhase(msg.phase);
         } else if (msg.type === 'recording-signal') {
@@ -520,6 +532,12 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
         <div className="connection-status-pill">
           {connected ? '已連線' : connectionError ? '連線失敗' : '連線中...'}
         </div>
+        {connected && (
+          <div className={`pose-role-pill ${poseActive ? 'is-active' : ''}`} role="status">
+            <span className="material-symbols-outlined" aria-hidden="true">{poseActive ? 'accessibility_new' : 'hourglass_empty'}</span>
+            {poseActive ? '演出中・動作同步到大螢幕' : '等待老師指定角色'}
+          </div>
+        )}
         <div className="user-initials-circle">
           {initials}
         </div>

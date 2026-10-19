@@ -1049,6 +1049,31 @@ button:disabled {
   font-weight: 500;
 }
 
+/* 學生端：是否被指定角色（只有演出中的學生發布姿勢資料） */
+.pose-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 50px;
+  border: 2px solid #D9CBB8;
+  background: #FFF9F2;
+  color: #8A6A45;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.pose-role-pill .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.pose-role-pill.is-active {
+  border-color: #F76E12;
+  background: #F76E12;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(247, 110, 18, .3);
+}
+
 .user-initials-circle {
   width: 45px;
   height: 45px;

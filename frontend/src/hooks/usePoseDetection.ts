@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { PoseLandmarker, FaceLandmarker, HandLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import type { PoseLandmark, PoseFrame, FaceBlendshapes } from '../types/vrm';
@@ -38,6 +38,11 @@ export function usePoseDetection(
   handEnabled?: boolean,
   /** Drop face/hand to 7.5 FPS (tick÷4) instead of 15 FPS (tick÷2) */
   lowPowerMode?: boolean,
+  /**
+   * false = 暫停偵測與發布（例如學生未被指定角色）。模型在第一次啟用時才下載，
+   * 之後暫停也保留，再次啟用可立即恢復。預設 true。
+   */
+  active = true,
 ) {
   const poseRef = useRef<PoseLandmarker | null>(null);
   const faceRef = useRef<FaceLandmarker | null>(null);
@@ -54,8 +59,14 @@ export function usePoseDetection(
   handEnabledRef.current = handEnabled ?? false;
   const lowPowerModeRef = useRef(lowPowerMode ?? false);
   lowPowerModeRef.current = lowPowerMode ?? false;
+  const activeRef = useRef(active);
+  activeRef.current = active;
+  // 第一次啟用後才初始化模型（未上台的裝置不必下載約 40 MB 的模型）
+  const [armed, setArmed] = useState(active);
+  if (active && !armed) setArmed(true);
 
   useEffect(() => {
+    if (!armed) return;
     let cancelled = false;
 
     const init = async () => {
@@ -172,8 +183,8 @@ export function usePoseDetection(
 
           const now = performance.now();
 
-          // ── Throttle: skip detection if under interval ──
-          if (now - lastDetectTime >= DETECT_INTERVAL_MS) {
+          // ── Throttle: skip detection if under interval；暫停時完全不偵測 ──
+          if (activeRef.current && now - lastDetectTime >= DETECT_INTERVAL_MS) {
             lastDetectTime = now;
             const tick = detectionFrame++;
 
@@ -317,5 +328,5 @@ export function usePoseDetection(
       faceRef.current?.close();
       handRef.current?.close();
     };
-  }, [videoRef]); // onPublish, onLandmarksUpdate, faceEnabled, handEnabled intentionally excluded — updated via refs
+  }, [videoRef, armed]); // onPublish, onLandmarksUpdate, faceEnabled, handEnabled, active intentionally excluded — updated via refs
 }

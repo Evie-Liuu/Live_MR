@@ -25,3 +25,12 @@ export const MIC_AUDIO_OPTIONS = {
   echoCancellation: true,
   autoGainControl: true,
 } as const;
+
+/**
+ * 同時發布姿勢資料的學生上限：全班都連線並發布鏡頭、麥克風，
+ * 但只有被指定角色的學生（最多這麼多人）跑姿勢偵測並送出姿勢資料。
+ */
+export const MAX_POSE_PUBLISHERS = 4;
+
+/** 老師端定期重送「姿勢發布名單」的間隔（毫秒），讓晚加入或掉封包的學生也能同步 */
+export const POSE_PUBLISHERS_RESEND_MS = 5000;

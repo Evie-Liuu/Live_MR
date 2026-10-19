@@ -15,7 +15,9 @@ import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 // import PerformanceMonitor from './PerformanceMonitor.tsx';
-import { LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
+import {
+  LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, MIC_AUDIO_OPTIONS, MAX_POSE_PUBLISHERS, POSE_PUBLISHERS_RESEND_MS,
+} from '../config/constants.ts';
 import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
 import { HINT_LEVELS, hintLevelMeta } from '../config/taskHints.ts';
@@ -1312,9 +1314,52 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     [],
   );
 
+  // ── 姿勢發布名單：全班都發布鏡頭與麥克風，只有被指定角色的學生（最多 MAX_POSE_PUBLISHERS 人）
+  //    跑姿勢偵測並送出姿勢資料，降低學生裝置、網路與大屏的負擔 ─────────────────────
+  const posePublishers = useMemo(() => {
+    const teacherIdentity = connectedRoom?.localParticipant.identity;
+    return [...new Set(Object.values(slotAssignments))]
+      .filter(id => id && id !== teacherIdentity)
+      .sort()
+      .slice(0, MAX_POSE_PUBLISHERS);
+  }, [slotAssignments, connectedRoom]);
+  const posePublishersRef = useRef(posePublishers);
+  useEffect(() => { posePublishersRef.current = posePublishers; }, [posePublishers]);
+  /** 送出名單；指定 destinations 時只送給這些學生（例如剛加入的人） */
+  const sendPosePublishers = useCallback((destinations?: string[]) => {
+    const room = roomRef.current;
+    if (!room || room.state !== 'connected') return;
+    try {
+      const bytes = new TextEncoder().encode(
+        JSON.stringify({ type: 'pose-publishers', identities: posePublishersRef.current }),
+      );
+      void room.localParticipant
+        .publishData(bytes, { reliable: true, ...(destinations ? { destinationIdentities: destinations } : {}) })
+        .catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
+  }, []);
+  const posePublishersKey = posePublishers.join('|');
+  // 名單變更時立即廣播，並定期重送（晚加入、重連或漏收的學生也會同步）
+  useEffect(() => {
+    if (!connectedRoom) return;
+    sendPosePublishers();
+    const timer = window.setInterval(() => sendPosePublishers(), POSE_PUBLISHERS_RESEND_MS);
+    return () => window.clearInterval(timer);
+  }, [connectedRoom, posePublishersKey, sendPosePublishers]);
+
   const handleSlotAssign = useCallback(
     (slotId: string, identity: string | null) => {
       const previousIdentity = slotAssignments[slotId];
+      // 同時發布姿勢資料的學生有上限：已滿時不能再指定新的學生（換掉同一個位置不受影響）
+      const teacherIdentity = connectedRoom?.localParticipant.identity;
+      if (identity && identity !== teacherIdentity && !Object.values(slotAssignments).includes(identity)) {
+        const otherStudents = Object.entries(slotAssignments)
+          .filter(([sid, id]) => sid !== slotId && id !== teacherIdentity).length;
+        if (otherStudents >= MAX_POSE_PUBLISHERS) {
+          window.alert(`同時最多 ${MAX_POSE_PUBLISHERS} 位學生扮演角色，請先取消其他學生的角色。`);
+          return;
+        }
+      }
       const preset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
       const sceneSlot = preset.slots?.find(s => s.id === slotId);
 
@@ -1638,6 +1683,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
           return prev;
         });
       }
+
+      // 新學生加入 / 重連 → 補送姿勢發布名單（未在名單內的學生不跑姿勢偵測）
+      sendPosePublishers([participant.identity]);
 
       // 新學生加入 / 重連 → 立刻把目前 phase 補送一次（單一接收端，不全廣播）
       const phaseNow = interactionPhaseRef.current;
