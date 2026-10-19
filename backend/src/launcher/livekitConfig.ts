@@ -3,25 +3,35 @@ export interface LivekitConfigOptions {
   apiKey: string
   apiSecret: string
   port?: number
+  /**
+   * 所有 WebRTC 媒體共用的單一 UDP 埠（UDP mux）。不論多少人連線都只用這一個埠，
+   * 避免 port range 太小時人數一多就用光（每位參與者會建立多條連線）。
+   */
+  udpPort?: number
+  /** UDP 被擋（例如校園網路只放行 TCP）時的 ICE/TCP 備援埠 */
+  tcpPort?: number
+  /** 舊設定：改用 UDP 埠範圍（同時提供 start 與 end 時才生效，取代 udpPort） */
   udpPortStart?: number
   udpPortEnd?: number
 }
 
-/**
- * 產生 LiveKit 執行期設定（YAML）。取代 docker-compose 用 envsubst 套
- * livekit.yaml.template 的做法，改在 JS 端組字串。刻意不寫 redis 區塊——
- * 單機教室場景不需要，LiveKit 沒有 redis 設定時會自動用單機模式。
- */
+export const DEFAULT_LIVEKIT_UDP_PORT = 7882
+export const DEFAULT_LIVEKIT_TCP_PORT = 7881
+
 export function buildLivekitConfig(opts: LivekitConfigOptions): string {
   const port = opts.port ?? 7880
-  const udpPortStart = opts.udpPortStart ?? 40000
-  const udpPortEnd = opts.udpPortEnd ?? 40020
+  const tcpPort = opts.tcpPort ?? DEFAULT_LIVEKIT_TCP_PORT
+  const useRange = opts.udpPortStart !== undefined && opts.udpPortEnd !== undefined
+  const udpLines = useRange
+    ? `  port_range_start: ${opts.udpPortStart}
+  port_range_end: ${opts.udpPortEnd}`
+    : `  udp_port: ${opts.udpPort ?? DEFAULT_LIVEKIT_UDP_PORT}`
 
   return `port: ${port}
 rtc:
   node_ip: ${opts.nodeIp}
-  port_range_start: ${udpPortStart}
-  port_range_end: ${udpPortEnd}
+${udpLines}
+  tcp_port: ${tcpPort}
   use_external_ip: false
 room:
   enable_remote_unmute: true
