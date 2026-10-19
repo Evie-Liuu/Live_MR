@@ -23,3 +23,23 @@ describe('extractRoomId', () => {
     expect(extractRoomId('')).toBeNull()
   })
 })
+
+describe('room code helpers', () => {
+  it('normalizes typed 6-digit codes with spaces or dashes', async () => {
+    const { normalizeRoomId } = await import('./qrRoomId')
+    expect(normalizeRoomId(' 482 913 ')).toBe('482913')
+    expect(normalizeRoomId('482-913')).toBe('482913')
+    expect(normalizeRoomId('39a3841e-a589-4b3d')).toBe('39a3841e-a589-4b3d')
+  })
+
+  it('formats 6-digit codes as two groups and leaves other ids unchanged', async () => {
+    const { formatRoomId } = await import('./qrRoomId')
+    expect(formatRoomId('482913')).toBe('482 913')
+    expect(formatRoomId('39a3841e-a589')).toBe('39a3841e-a589')
+  })
+
+  it('normalizes codes taken from a QR / join URL', () => {
+    expect(extractRoomId('https://example.com/?roomId=482913')).toBe('482913')
+    expect(extractRoomId('482 913')).toBe('482913')
+  })
+})

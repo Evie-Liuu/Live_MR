@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { joinRequest } from '../api.ts';
-import { extractRoomId } from '../utils/qrRoomId.ts';
+import { extractRoomId, normalizeRoomId } from '../utils/qrRoomId.ts';
 import { useQrScanner } from '../hooks/useQrScanner.ts';
 import './StudentHome.css';
 
@@ -21,7 +21,7 @@ export default function StudentHome({ fullName, onSubmitted, onLogout }: Student
   const isSubmittingRef = useRef(false);
 
   const submitRoomId = async (id: string) => {
-    const trimmed = id.trim();
+    const trimmed = normalizeRoomId(id);
     if (!trimmed || loading || isSubmittingRef.current) return;
     isSubmittingRef.current = true;
     setLoading(true);
@@ -81,7 +81,10 @@ export default function StudentHome({ fullName, onSubmitted, onLogout }: Student
             <form onSubmit={handleSubmit}>
               <input
                 type="text"
-                placeholder="請輸入房間 ID"
+                placeholder="請輸入 6 位數房號"
+                inputMode="numeric"
+                autoComplete="off"
+                aria-label="房號"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
                 disabled={loading}

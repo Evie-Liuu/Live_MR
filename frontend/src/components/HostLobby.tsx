@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { formatRoomId } from '../utils/qrRoomId.ts';
 import { QRCodeSVG } from 'qrcode.react';
 import { subscribeToRoomEvents, approveRequest, rejectRequest } from '../api.ts';
 import type { RoomEvent } from '../api.ts';
@@ -89,7 +90,7 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart, on
         </div>
         <div className="room-info">
           <p className="room-id-label">
-            房間 ID : <span className="room-id-value">{roomId}</span>
+            房號 : <span className="room-id-value">{formatRoomId(roomId)}</span>
           </p>
           <button
             onClick={handleCopyCode}

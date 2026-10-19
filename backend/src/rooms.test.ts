@@ -21,6 +21,15 @@ describe('RoomStore', () => {
       const r2 = store.createRoom()
       expect(r1.roomId).not.toBe(r2.roomId)
     })
+
+    it('uses a 6-digit room code that is easy to type on a tablet', () => {
+      for (let i = 0; i < 50; i++) expect(store.createRoom().roomId).toMatch(/^\d{6}$/)
+    })
+
+    it('never reuses a code of an active room', () => {
+      const codes = new Set(Array.from({ length: 500 }, () => store.createRoom().roomId))
+      expect(codes.size).toBe(500)
+    })
   })
 
   describe('getRoom', () => {

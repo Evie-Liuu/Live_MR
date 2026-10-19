@@ -1,4 +1,8 @@
+import { randomInt } from 'node:crypto'
 import { v4 as uuidv4 } from 'uuid'
+
+/** 房號位數：6 位數字，學生在平板上用數字鍵盤就能輸入 */
+export const ROOM_CODE_LENGTH = 6
 
 export interface JoinRequest {
   requestId: string
@@ -19,8 +23,18 @@ export interface Room {
 export class RoomStore {
   private rooms = new Map<string, Room>()
 
+  /** 產生進行中房間沒有用過的 6 位數房號（hostToken 仍為 UUID，房號只用來加入、需老師核准） */
+  private generateRoomCode(): string {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const code = String(randomInt(0, 10 ** ROOM_CODE_LENGTH)).padStart(ROOM_CODE_LENGTH, '0')
+      if (!this.rooms.has(code)) return code
+    }
+    // 理論上不會發生（同時進行的房間遠少於一百萬間）；保險起見退回 UUID
+    return uuidv4()
+  }
+
   createRoom(): { roomId: string; hostToken: string } {
-    const roomId = uuidv4()
+    const roomId = this.generateRoomCode()
     const hostToken = uuidv4()
     this.rooms.set(roomId, { roomId, hostToken, requests: [], createdAt: Date.now() })
     return { roomId, hostToken }

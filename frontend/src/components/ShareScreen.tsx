@@ -1,4 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
+import { formatRoomId } from '../utils/qrRoomId.ts';
 
 export default function ShareScreen() {
   const params = new URLSearchParams(window.location.search);
@@ -31,8 +32,8 @@ export default function ShareScreen() {
       </div>
 
       <div className="share-room-info">
-        <div className="share-room-label">房間 ID</div>
-        <div className="share-room-id">{roomId}</div>
+        <div className="share-room-label">房號・學生可直接輸入</div>
+        <div className={`share-room-id${/^\d{6}$/.test(roomId) ? ' share-room-id--code' : ''}`}>{formatRoomId(roomId)}</div>
       </div>
 
       <button

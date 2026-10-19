@@ -6,6 +6,7 @@ import { useLocalAudioRecorder } from '../hooks/useLocalAudioRecorder.ts';
 import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
+import { formatRoomId } from '../utils/qrRoomId.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import { buildStudentExtendPrompt } from '../config/aiAssistant.ts';
 import { generateHint, toFriendlyError } from '../utils/geminiClient.ts';
@@ -527,7 +528,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     <div className="student-session-container">
       <div className="student-session-header">
         <div className="room-id-box">
-          房間：{roomId}
+          房號：{formatRoomId(roomId)}
         </div>
         <div className="connection-status-pill">
           {connected ? '已連線' : connectionError ? '連線失敗' : '連線中...'}

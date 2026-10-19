@@ -490,6 +490,15 @@ button:disabled {
   padding: 0 20px;
 }
 
+/* 6 位數房號：放大、等寬數字，方便學生從投影或大螢幕上抄寫 */
+.share-room-id--code {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  word-break: normal;
+}
+
 .share-copy-btn {
   background-color: #136B6D;
   color: white;
