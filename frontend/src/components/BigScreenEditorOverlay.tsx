@@ -452,8 +452,11 @@ function BgSourceTab({
   scene: SceneConfig
 }) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+  // 非安全環境（http://區網IP）瀏覽器不提供 navigator.mediaDevices，相機背景無法使用
+  const mediaSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.enumerateDevices
 
   const refreshDevices = async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return
     try {
       let probe: MediaStream | null = null
       try {
@@ -474,10 +477,10 @@ function BgSourceTab({
     let cancelled = false
     const wrap = async () => { if (!cancelled) await refreshDevices() }
     wrap()
-    navigator.mediaDevices.addEventListener?.('devicechange', wrap)
+    navigator.mediaDevices?.addEventListener?.('devicechange', wrap)
     return () => {
       cancelled = true
-      navigator.mediaDevices.removeEventListener?.('devicechange', wrap)
+      navigator.mediaDevices?.removeEventListener?.('devicechange', wrap)
     }
   }, [])
 
@@ -557,6 +560,7 @@ function BgSourceTab({
           className="bs-editor-bg-refresh"
           onClick={refreshDevices}
           title="重新列舉裝置"
+          disabled={!mediaSupported}
         >
           <span className="material-symbols-outlined">refresh</span>
         </button>
@@ -565,7 +569,7 @@ function BgSourceTab({
         className="bs-editor-bg-select"
         value={deviceId}
         onChange={(e) => onDeviceChange(e.target.value)}
-        disabled={bgType !== 'camera'}
+        disabled={bgType !== 'camera' || !mediaSupported}
       >
         <option value="">— 預設相機 —</option>
         {devices.map((d, i) => (
@@ -577,7 +581,9 @@ function BgSourceTab({
       {bgType === 'camera' && selectedDevice && (
         <div className="bs-editor-bg-device-current">{selectedDevice.label || '預設相機'}</div>
       )}
-      {bgType !== 'camera' && (
+      {!mediaSupported ? (
+        <div className="bs-editor-hint">此連線無法使用相機：請改用 https 或 localhost 開啟大螢幕</div>
+      ) : bgType !== 'camera' && (
         <div className="bs-editor-hint">切換到「相機背景」才會啟用裝置選擇</div>
       )}
     </div>

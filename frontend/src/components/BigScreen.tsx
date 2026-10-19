@@ -146,8 +146,10 @@ function CameraBackground({ deviceId }: { deviceId?: string }) {
 
     async function startCamera() {
       // Prefer the explicitly selected deviceId; fall back to default if missing.
-      const tryGet = async (constraints: MediaStreamConstraints) =>
-        navigator.mediaDevices.getUserMedia(constraints);
+      const tryGet = async (constraints: MediaStreamConstraints) => {
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('camera unavailable (insecure context)');
+        return navigator.mediaDevices.getUserMedia(constraints);
+      };
       try {
         const primary: MediaStreamConstraints = {
           audio: false,
@@ -201,6 +203,8 @@ function CameraDevicePicker({
     let cancelled = false;
 
     const refresh = async () => {
+      // 非安全環境（http://區網IP）沒有 navigator.mediaDevices
+      if (!navigator.mediaDevices?.enumerateDevices) return;
       try {
         // Labels are empty until camera permission is granted at least once in
         // this origin. Probe once with a tiny stream so the upcoming enumerate
@@ -225,10 +229,10 @@ function CameraDevicePicker({
     };
 
     refresh();
-    navigator.mediaDevices.addEventListener?.('devicechange', refresh);
+    navigator.mediaDevices?.addEventListener?.('devicechange', refresh);
     return () => {
       cancelled = true;
-      navigator.mediaDevices.removeEventListener?.('devicechange', refresh);
+      navigator.mediaDevices?.removeEventListener?.('devicechange', refresh);
     };
   }, []);
 
