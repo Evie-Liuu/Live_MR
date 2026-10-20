@@ -443,8 +443,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
         if (prev.some((s) => s.requestId === student.requestId)) return prev;
         return [...prev, student];
       });
-    } else if (event.type === 'request-approved' || event.type === 'request-rejected') {
-      // Remove from pending when replayed on reconnect (avoids join/pending overlap)
+    } else if (event.type === 'request-approved' || event.type === 'request-rejected' || event.type === 'request-cancelled') {
+      // Remove from pending when replayed on reconnect (avoids join/pending overlap)；
+      // request-cancelled：學生離開等待頁
       setPending((prev) => prev.filter((s) => s.requestId !== (event.requestId as string)));
     }
   }, []);

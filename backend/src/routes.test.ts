@@ -298,4 +298,28 @@ describe('API Routes', () => {
         .set('X-Host-Token', hostToken)).status).toBe(200)
     })
   })
+  describe('student leaves the waiting page', () => {
+    it('cancel removes the request from the host list; polling again brings it back', async () => {
+      const { roomId, hostToken } = (await request(app).post('/api/rooms')).body
+      const { requestId } = (await request(app).post(`/api/rooms/${roomId}/join`).send({ name: 'Amy' })).body
+
+      expect((await request(app).post(`/api/rooms/${roomId}/requests/${requestId}/cancel`)).status).toBe(200)
+      let events = (await request(app).get(`/api/rooms/${roomId}/events?since=0`).set('X-Host-Token', hostToken)).body.events
+      expect(events.map((e: { type: string }) => e.type)).toEqual(['join-request', 'request-cancelled'])
+
+      // 學生又回到等待頁輪詢（例如切回 App）：恢復等待中，老師名單重新出現
+      const status = await request(app).get(`/api/rooms/${roomId}/requests/${requestId}`)
+      expect(status.body.status).toBe('pending')
+      events = (await request(app).get(`/api/rooms/${roomId}/events?since=0`).set('X-Host-Token', hostToken)).body.events
+      expect(events.map((e: { type: string }) => e.type)).toEqual(['join-request', 'request-cancelled', 'join-request'])
+    })
+
+    it('cancel does not undo an approval', async () => {
+      const { roomId, hostToken } = (await request(app).post('/api/rooms')).body
+      const { requestId } = (await request(app).post(`/api/rooms/${roomId}/join`).send({ name: 'Amy' })).body
+      await request(app).post(`/api/rooms/${roomId}/requests/${requestId}/approve`).set('X-Host-Token', hostToken)
+      await request(app).post(`/api/rooms/${roomId}/requests/${requestId}/cancel`)
+      expect((await request(app).get(`/api/rooms/${roomId}/requests/${requestId}`)).body.status).toBe('approved')
+    })
+  })
 })

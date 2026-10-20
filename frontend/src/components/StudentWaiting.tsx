@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getRequestStatus } from '../api.ts';
+import { cancelJoinRequest, getRequestStatus } from '../api.ts';
 
 interface StudentWaitingProps {
   roomId: string;
@@ -64,6 +64,15 @@ export default function StudentWaiting({
       cancelled = true;
     };
   }, [roomId, requestId, onApproved, onRejected, onError, startTime]);
+
+  // 離開等待頁（返回首頁、登出、逾時）就撤回申請，老師名單即時移除。
+  // 已核准／拒絕時後端不會改動，所以核准後切到上課畫面也不受影響。
+  // 重新整理或直接關分頁不會跑 cleanup：關分頁由後端「太久沒輪詢」自動移除；
+  // 重新整理回來繼續輪詢，就算曾被移除也會自動恢復。
+  useEffect(() => {
+    if (isTimedOut) void cancelJoinRequest(roomId, requestId).catch(() => {});
+  }, [isTimedOut, roomId, requestId]);
+  useEffect(() => () => { void cancelJoinRequest(roomId, requestId).catch(() => {}); }, [roomId, requestId]);
 
   if (isTimedOut) {
     return (

@@ -168,4 +168,25 @@ describe('RoomStore', () => {
       expect(store.getRoom(roomId)).toBeDefined()
     })
   })
+  describe('cancel / stale requests', () => {
+    it('expires pending requests whose student stopped polling', () => {
+      const { roomId } = store.createRoom()
+      const idle = store.addJoinRequest(roomId, 'Idle')
+      const active = store.addJoinRequest(roomId, 'Active')
+      const later = Date.now() + 30000
+      active.lastSeenAt = later
+
+      expect(store.expireStaleRequests(20000, later).map(r => r.name)).toEqual(['Idle'])
+      expect(store.getPendingRequests(roomId).map(r => r.name)).toEqual(['Active'])
+      expect(store.getRequestStatus(roomId, idle.requestId)?.status).toBe('cancelled')
+    })
+
+    it('only cancels pending requests', () => {
+      const { roomId } = store.createRoom()
+      const req = store.addJoinRequest(roomId, 'A')
+      store.rejectRequest(roomId, req.requestId)
+      expect(store.cancelRequest(roomId, req.requestId)).toBeUndefined()
+      expect(store.getRequestStatus(roomId, req.requestId)?.status).toBe('rejected')
+    })
+  })
 })

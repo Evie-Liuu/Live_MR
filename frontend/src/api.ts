@@ -11,7 +11,7 @@ export interface JoinRequestResponse {
 }
 
 export interface RequestStatusResponse {
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
   token?: string;
 }
 
@@ -46,6 +46,11 @@ export async function getRequestStatus(
   const res = await fetch(`/api/rooms/${roomId}/requests/${requestId}`);
   if (!res.ok) throw new Error(`getRequestStatus failed: ${res.status}`);
   return res.json() as Promise<RequestStatusResponse>;
+}
+
+/** 學生離開等待頁：撤回加入申請，老師的待審核名單會即時移除（keepalive：頁面切換時也送得出去） */
+export async function cancelJoinRequest(roomId: string, requestId: string): Promise<void> {
+  await fetch(`/api/rooms/${roomId}/requests/${requestId}/cancel`, { method: 'POST', keepalive: true });
 }
 
 /** 只有老師能做的操作要帶 hostToken（房號只有 6 位數，後端不單憑房號授權） */

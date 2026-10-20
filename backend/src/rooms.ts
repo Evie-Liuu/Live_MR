@@ -8,9 +8,12 @@ export interface JoinRequest {
   requestId: string
   roomId: string
   name: string
-  status: 'pending' | 'approved' | 'rejected'
+  /** cancelled：學生已離開等待頁（按返回、登出，或太久沒有輪詢狀態） */
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   token?: string
   createdAt: number
+  /** 學生最後一次輪詢申請狀態的時間；等待頁每 2 秒輪詢一次，太久沒來代表學生已離開 */
+  lastSeenAt: number
 }
 
 export interface Room {
@@ -50,7 +53,8 @@ export class RoomStore {
   addJoinRequest(roomId: string, name: string): JoinRequest {
     const room = this.rooms.get(roomId)
     if (!room) throw new Error('Room not found')
-    const request: JoinRequest = { requestId: uuidv4(), roomId, name, status: 'pending', createdAt: Date.now() }
+    const now = Date.now()
+    const request: JoinRequest = { requestId: uuidv4(), roomId, name, status: 'pending', createdAt: now, lastSeenAt: now }
     room.requests.push(request)
     return request
   }
@@ -78,6 +82,42 @@ export class RoomStore {
     const room = this.rooms.get(roomId)
     if (!room) return undefined
     return room.requests.find(r => r.requestId === requestId)
+  }
+
+  /** 學生離開等待頁：只有還在等待中的申請會被取消（已核准／拒絕的維持原狀） */
+  cancelRequest(roomId: string, requestId: string): JoinRequest | undefined {
+    const req = this.getRequestStatus(roomId, requestId)
+    if (!req || req.status !== 'pending') return undefined
+    req.status = 'cancelled'
+    return req
+  }
+
+  /**
+   * 學生輪詢申請狀態時呼叫：更新最後出現時間。
+   * 已取消的申請若學生又回來輪詢（例如平板切到別的 App 再切回來、或重新整理），代表他仍在等待，
+   * 恢復成 pending 並回傳 revived=true，讓老師端名單重新出現。
+   */
+  touchRequest(roomId: string, requestId: string): { request: JoinRequest; revived: boolean } | undefined {
+    const req = this.getRequestStatus(roomId, requestId)
+    if (!req) return undefined
+    req.lastSeenAt = Date.now()
+    if (req.status !== 'cancelled') return { request: req, revived: false }
+    req.status = 'pending'
+    return { request: req, revived: true }
+  }
+
+  /** 把超過 maxIdleMs 沒輪詢的等待中申請標成取消，回傳被取消的申請（呼叫端負責通知老師） */
+  expireStaleRequests(maxIdleMs: number, now = Date.now()): JoinRequest[] {
+    const expired: JoinRequest[] = []
+    for (const room of this.rooms.values()) {
+      for (const req of room.requests) {
+        if (req.status === 'pending' && now - req.lastSeenAt > maxIdleMs) {
+          req.status = 'cancelled'
+          expired.push(req)
+        }
+      }
+    }
+    return expired
   }
 
   getPendingRequests(roomId: string): JoinRequest[] {

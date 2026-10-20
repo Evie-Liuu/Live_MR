@@ -31,6 +31,9 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart, on
         if (prev.some((s) => s.requestId === student.requestId)) return prev;
         return [...prev, student];
       });
+    } else if (event.type === 'request-approved' || event.type === 'request-rejected' || event.type === 'request-cancelled') {
+      // request-cancelled：學生離開等待頁；approved/rejected：重新連線補送事件時避免重複
+      setPending((prev) => prev.filter((s) => s.requestId !== (event.requestId as string)));
     }
   }, []);
 

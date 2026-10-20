@@ -91,6 +91,15 @@ export function createRouter(
     for (const w of waiters) w()
   }
 
+  // 學生等待頁每 2 秒輪詢一次；超過這個時間沒輪詢（關掉分頁、斷網）就從老師的待審核名單移除
+  const REQUEST_STALE_MS = 20000
+  const staleSweep = setInterval(() => {
+    for (const req of store.expireStaleRequests(REQUEST_STALE_MS)) {
+      notifyRoom(req.roomId, 'request-cancelled', { requestId: req.requestId })
+    }
+  }, 5000)
+  staleSweep.unref()
+
   /** 老師身分：X-Host-Token 標頭（長輪詢 events 也接受 ?token=） */
   const hostTokenOf = (req: Request): string => {
     const header = req.headers['x-host-token']
@@ -153,18 +162,33 @@ export function createRouter(
   router.get('/rooms/:roomId/requests/:requestId', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const requestId = req.params.requestId as string
-    const request = store.getRequestStatus(roomId, requestId)
+    const touched = store.touchRequest(roomId, requestId)
 
-    if (!request) {
+    if (!touched) {
       res.status(404).json({ error: 'Request not found' })
       return
     }
+
+    const { request, revived } = touched
+    if (revived) notifyRoom(roomId, 'join-request', { requestId: request.requestId, name: request.name })
 
     const response: Record<string, unknown> = { status: request.status }
     if (request.status === 'approved' && request.token) {
       response.token = request.token
     }
     res.json(response)
+  })
+
+  // POST /api/rooms/:roomId/requests/:requestId/cancel — 學生離開等待頁
+  // 不需 hostToken：requestId 是只有該學生知道的 UUID
+  router.post('/rooms/:roomId/requests/:requestId/cancel', (req: Request, res: Response) => {
+    const roomId = req.params.roomId as string
+    const requestId = req.params.requestId as string
+    if (store.cancelRequest(roomId, requestId)) {
+      notifyRoom(roomId, 'request-cancelled', { requestId })
+    }
+    // 已核准／拒絕／不存在都視為已經不在等待中，一律回 200，讓離開流程不必處理錯誤
+    res.json({ status: 'cancelled' })
   })
 
   // POST /api/rooms/:roomId/requests/:requestId/approve
