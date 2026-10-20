@@ -42,10 +42,10 @@ import ConfirmationModal from './ConfirmationModal.tsx';
 import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import { getDialogueTask } from '../utils/dialogueTaskClient.ts';
-import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
+import { castChoices, type DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
   BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
-  setLessonPhase, setQuestionIndex, taskCast, toggleStepDone, toLessonScreen,
+  lessonTask, setLessonPhase, setQuestionIndex, taskCast, toggleStepDone, toLessonScreen,
   type HostLessonState,
 } from '../utils/lessonSession.ts';
 import { LESSON_PHASES, phaseContent, phaseMeta, type LessonPhase } from '../config/lessonPhases.ts';
@@ -1564,6 +1564,17 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       setShowSlotPanel(true);
     }
   }, []);
+  /** 角色配置切換演出人數（完整人數時不存，跟著任務原本的角色） */
+  const changeCastSize = useCallback((size: number) => {
+    setLesson(prev => {
+      if (!prev) return prev;
+      const full = castChoices(prev.record.task).at(-1)?.size;
+      const next = { ...prev };
+      delete next.castSize;
+      if (size !== full) next.castSize = size;
+      return next;
+    });
+  }, []);
   /** 手動切換任務前 / 任務中 / 任務後 */
   const changeLessonPhase = useCallback((phase: LessonPhase) => {
     setLesson(prev => (prev && prev.phase !== phase ? setLessonPhase(prev, phase) : prev));
@@ -2110,10 +2121,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
   // 選定任務後只列出有台詞的角色（依場景 slot 順序）；尚未選任務時列出場景全部角色
+  // 依目前演出人數併角後的台詞計算（例如 2 人版時店員B 的台詞算在店員A）
   const castLines = useMemo(
-    () => new Map(lesson ? taskCast(lesson.record.task).map(c => [c.slotId, c.lines] as const) : []),
+    () => new Map(lesson ? taskCast(lessonTask(lesson)).map(c => [c.slotId, c.lines] as const) : []),
     [lesson],
   );
+  /** 任務可選的演出人數（只有一種時不顯示切換） */
+  const castOptions = useMemo(() => (lesson ? castChoices(lesson.record.task) : []), [lesson]);
+  const castFull = castOptions[castOptions.length - 1]?.size;
+  const activeCastSize = lesson?.castSize ?? castFull;
   const castSlots = useMemo(
     () => (currentScenePreset.slots ?? []).filter(slot => !lesson || castLines.has(slot.id)),
     [currentScenePreset.slots, lesson, castLines],
@@ -3491,8 +3507,25 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
           </div>
           <div className="panel-drawer-body">
             {lesson ? (
-              <div className="slot-drawer-banner">
-                任務「{lesson.record.task.title}」需要 {castSlots.length} 個角色，依台詞句數分配學生
+              <div className="slot-drawer-banner slot-drawer-banner--cast">
+                <span>任務「{lesson.record.task.title}」需要 {castSlots.length} 個角色，依台詞句數分配學生</span>
+                {castOptions.length > 1 && (
+                  <div className="slot-cast-size" role="radiogroup" aria-label="演出人數">
+                    <span className="slot-cast-size-label">演出人數</span>
+                    {castOptions.map(c => (
+                      <button
+                        key={c.size}
+                        type="button"
+                        role="radio"
+                        aria-checked={c.size === activeCastSize}
+                        className={`slot-cast-size-btn ${c.size === activeCastSize ? 'is-active' : ''}`}
+                        onClick={() => changeCastSize(c.size)}
+                      >
+                        {c.size} 人
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="slot-drawer-banner slot-drawer-banner--todo">
@@ -3535,7 +3568,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                         {assignedIdentity ? '已指派' : '未指派'}
                       </div>
                       {lines !== undefined && <div className="slot-line-count">{lines} 句台詞</div>}
-                      {unused && <div className="slot-line-count slot-line-count--none">此任務沒有台詞，可移除指派</div>}
+                      {unused && <div className="slot-line-count slot-line-count--none">目前人數沒有這個角色的台詞，可移除指派</div>}
                       <div className="slot-pos-hint">
                         位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'}
                         {/* 位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'} (x={sceneSlot.position[0]}) */}

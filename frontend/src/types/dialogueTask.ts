@@ -54,12 +54,23 @@ export interface TemplateSource {
   version: number
 }
 
+/**
+ * 併角方案：用比原本少的人數演出時，把某些角色的台詞併給另一個角色說。
+ * merge 是「被併掉的角色 → 改由哪個角色說」，例如 { staff: 'cashier' }＝店員B 的台詞由店員A 說。
+ * 演出人數不另外存，由併角後實際有台詞的角色數算出（任務改過台詞也不會對不上）。
+ */
+export interface CastOption {
+  merge: Record<string, string>
+}
+
 export interface DialogueTask {
   title: string
   sceneId: string
   level: CefrLevel
   steps: DialogueStep[]
   sourceTemplate?: TemplateSource
+  /** 少於完整人數演出時的併角方案（選填；完整人數不需要列） */
+  castOptions?: CastOption[]
   /** 主題標籤（不含 #），例如 購物、詢價、結帳；用於搜尋與篩選 */
   tags?: string[]
 }
@@ -78,6 +89,52 @@ export function cloneCheckpoints(step: DialogueStep): Pick<DialogueStep, 'checkp
 
 export const MAX_TAGS = 8
 export const MAX_TAG_LEN = 20
+export const MAX_CAST_OPTIONS = 4
+
+/** 任務中有台詞的角色（依第一次出場順序） */
+export function speakingSlots(task: DialogueTask): string[] {
+  const ids: string[] = []
+  for (const line of task.steps.flatMap(s => s.lines)) if (!ids.includes(line.speakerSlotId)) ids.push(line.speakerSlotId)
+  return ids
+}
+
+/**
+ * 併角後實際演出的人數；規則不成立時回 null：
+ * 併給自己、併給沒有台詞的角色、或併給同樣被併掉的角色（不允許連鎖）。
+ * 被併掉但任務裡已經沒有台詞的角色直接略過。
+ */
+export function castSize(task: DialogueTask, merge: Record<string, string>): number | null {
+  const speakers = speakingSlots(task)
+  for (const [from, to] of Object.entries(merge)) {
+    if (!speakers.includes(from)) continue
+    if (from === to || !speakers.includes(to) || merge[to] !== undefined) return null
+  }
+  return speakers.filter(id => !(id in merge)).length
+}
+
+/** 可選的演出人數（由少到多，最後一個是完整人數）；無效或與其他方案同人數的併角方案略過 */
+export function castChoices(task: DialogueTask): { size: number; merge: Record<string, string> }[] {
+  const full = speakingSlots(task).length
+  const choices: { size: number; merge: Record<string, string> }[] = []
+  for (const opt of task.castOptions ?? []) {
+    const size = castSize(task, opt.merge)
+    if (size !== null && size >= 1 && size < full && !choices.some(c => c.size === size)) choices.push({ size, merge: opt.merge })
+  }
+  choices.sort((a, b) => a.size - b.size)
+  return [...choices, { size: full, merge: {} }]
+}
+
+/** 依併角規則把被併掉角色的台詞改由對應角色說（回傳新任務，不改原任務） */
+export function applyCastMerge(task: DialogueTask, merge: Record<string, string>): DialogueTask {
+  if (Object.keys(merge).length === 0) return task
+  return {
+    ...task,
+    steps: task.steps.map(s => ({
+      ...s,
+      lines: s.lines.map(l => (merge[l.speakerSlotId] ? { ...l, speakerSlotId: merge[l.speakerSlotId] } : l)),
+    })),
+  }
+}
 
 /** 標籤正規化：去掉前置 #、多餘空白 */
 export function cleanTag(v: string): string {

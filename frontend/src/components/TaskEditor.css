@@ -1166,6 +1166,8 @@ button.te-side-card:hover {
   font-size: 14px;
   color: #44403C;
   line-height: 1.6;
+  /* 語法說明可分行（與劇本模擬器 .ss-info-text 一致） */
+  white-space: pre-wrap;
 }
 
 .te-side-empty {
@@ -1331,4 +1333,56 @@ button.te-side-card:hover {
 .te-tags-hint {
   font-size: 11px;
   color: var(--te-muted);
+}
+
+/* 演出人數（併角規則） */
+.te-cast-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--te-line, #e3e3e3);
+  border-radius: 10px;
+}
+
+.te-cast-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.te-cast-head .te-tag-remove {
+  margin-left: auto;
+}
+
+.te-cast-error {
+  font-size: 11px;
+  color: #C2410C;
+}
+
+.te-cast-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.te-field .te-cast-row select {
+  width: auto;
+  min-width: 0;
+  flex: 0 1 60%;
+}
+
+.te-cast-add {
+  align-self: flex-start;
+  border: 1px dashed var(--te-teal, #00A99D);
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: transparent;
+  color: #00695F;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }

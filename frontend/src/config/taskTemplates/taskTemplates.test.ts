@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { THEMES } from '../scenes.ts';
 import { CEFR_LEVELS } from '../../types/lessonPlan.ts';
 import { isGestureId } from '../gestures.ts';
-import { MAX_CHECKPOINTS_PER_STEP, MAX_CHECKPOINT_OPTIONS, MIN_CHECKPOINT_OPTIONS } from '../../types/dialogueTask.ts';
+import {
+  MAX_CAST_OPTIONS, MAX_CHECKPOINTS_PER_STEP, MAX_CHECKPOINT_OPTIONS, MIN_CHECKPOINT_OPTIONS, castSize, speakingSlots,
+} from '../../types/dialogueTask.ts';
 import { TASK_TEMPLATES, applyTemplate, toTemplateSource } from './index.ts';
 
 // 與 backend/src/dialogueTaskRoutes.ts 的上限一致；超過的模板老師套用後會存不進去
@@ -75,6 +77,19 @@ describe('內建任務模板', () => {
           expect(Number.isInteger(cp.answerIndex) && cp.answerIndex >= 0 && cp.answerIndex < cp.options.length, `${cp.id} 正確答案不在選項內`).toBe(true);
         }
       }
+    });
+
+    it('併角方案有效：人數少於完整人數且彼此不同', () => {
+      const opts = tpl.task.castOptions ?? [];
+      expect(opts.length).toBeLessThanOrEqual(MAX_CAST_OPTIONS);
+      const full = speakingSlots(tpl.task).length;
+      const sizes = opts.map(o => castSize(tpl.task, o.merge));
+      for (const [i, size] of sizes.entries()) {
+        expect(size, `第 ${i + 1} 個併角方案不成立`).not.toBeNull();
+        expect(size!).toBeLessThan(full);
+        expect(size!).toBeGreaterThanOrEqual(1);
+      }
+      expect(new Set(sizes).size).toBe(sizes.length);
     });
 
     it('步驟與台詞 id 在模板內不重複', () => {

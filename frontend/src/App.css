@@ -5224,6 +5224,37 @@ button:disabled {
   font-weight: 700;
 }
 
+.slot-drawer-banner--cast {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.slot-cast-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slot-cast-size-label {
+  margin-right: 4px;
+  font-size: 14px;
+}
+
+.slot-cast-size-btn {
+  border: 2px solid #00A99D;
+  border-radius: 999px;
+  padding: 4px 14px;
+  background: #fff;
+  color: #136B6D;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.slot-cast-size-btn.is-active {
+  background: #00A99D;
+  color: #fff;
+}
+
 .slot-drawer-banner--todo {
   background: #FFF1E6;
   color: #8a4b12;

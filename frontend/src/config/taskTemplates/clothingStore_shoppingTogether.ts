@@ -13,6 +13,11 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
     title: '服飾店結伴購物',
     sceneId: 'clothingStore_cashier',
     level: 'A1-A2',
+    // 3 人：店員 ×1、顧客 ×2（10、6、4 句）；2 人：店員 ×1、顧客 ×1（10、10 句）
+    castOptions: [
+      { merge: { staff: 'cashier' } },
+      { merge: { staff: 'cashier', customer2: 'customer' } },
+    ],
     steps: [
       {
         id: 'step1',
@@ -38,7 +43,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           '讓學生辨認店員與顧客的角色，理解購物對話的基本順序：打招呼 → 說明需求 → 回答顏色。',
           '引導學生聽懂不同顧客選擇的顏色，避免只依賴畫面判斷。',
           '初級學生可先練習完整句型，再逐步接受簡短回答，例如 Blue, please.',
-          '角色可 2–4 人：4 人各演一角；3 人時店員 B 的台詞由店員 A 說；2 人時再把顧客 B 的台詞併給顧客 A。',
+          '可 2–4 人演出（角色配置切換演出人數）：3 人時店員 B 的台詞由店員 A 說；2 人時再把顧客 B 的台詞併給顧客 A。',
         ],
         checkpoints: [
           { id: 'step1_cp1', title: '聽力理解', question: 'Which color does Customer A want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 },

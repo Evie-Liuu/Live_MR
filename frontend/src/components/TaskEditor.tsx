@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
-  MAX_TAGS, MAX_TAG_LEN, blankTask, cloneStep, formatClock, newLine, newStep, splitTags, stepTimings,
-  type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
+  MAX_CAST_OPTIONS, MAX_TAGS, MAX_TAG_LEN, blankTask, castSize, cloneStep, formatClock, newLine, newStep, speakingSlots,
+  splitTags, stepTimings,
+  type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
 } from '../types/dialogueTask.ts';
 import { createDialogueTask, dialogueTaskErrorText, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
 import { TASK_TEMPLATES, toTemplateSource } from '../config/taskTemplates/index.ts';
@@ -174,6 +175,10 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
   const save = useCallback(async (): Promise<boolean> => {
     if (saving) return false;
     const payload: DialogueTask = { ...task, title: task.title.trim() || '未命名任務' };
+    // 還沒設定任何併角的空白版本不存（後端不接受空的併角）
+    const castOptions = (task.castOptions ?? []).filter(c => Object.keys(c.merge).length > 0);
+    if (castOptions.length > 0) payload.castOptions = castOptions;
+    else delete payload.castOptions;
     setSaving(true);
     setError(null);
     try {
@@ -233,15 +238,19 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
 
   const changeScene = (sceneId: string) => {
     const nextSlots = SCENES.find(s => s.id === sceneId)?.slots ?? [];
-    // 換場景時，舊角色對不上的台詞改指派給新場景的第一個角色
-    edit(t => ({
-      ...t,
-      sceneId,
-      steps: t.steps.map(s => ({
-        ...s,
-        lines: s.lines.map(l => (nextSlots.some(sl => sl.id === l.speakerSlotId) ? l : { ...l, speakerSlotId: nextSlots[0]?.id ?? '' })),
-      })),
-    }));
+    // 換場景時，舊角色對不上的台詞改指派給新場景的第一個角色；併角規則的角色 id 也對不上，一併清掉
+    edit(t => {
+      const next: DialogueTask = {
+        ...t,
+        sceneId,
+        steps: t.steps.map(s => ({
+          ...s,
+          lines: s.lines.map(l => (nextSlots.some(sl => sl.id === l.speakerSlotId) ? l : { ...l, speakerSlotId: nextSlots[0]?.id ?? '' })),
+        })),
+      };
+      delete next.castOptions;
+      return next;
+    });
   };
 
   return (
@@ -323,6 +332,11 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
             <TagEditor
               tags={task.tags ?? []}
               onChange={tags => edit(t => ({ ...t, tags }))}
+            />
+            <CastEditor
+              task={task}
+              slotLabel={id => slots.find(sl => sl.id === id)?.label ?? id}
+              onChange={castOptions => edit(t => ({ ...t, castOptions }))}
             />
             {sourceTemplateName && (
               <span className="te-field">來自模板：{sourceTemplateName}（v{task.sourceTemplate!.version}）</span>
@@ -698,6 +712,80 @@ function ListEditor({ label, placeholder, items, onChange }: ListEditorProps) {
         <span className="material-symbols-outlined" aria-hidden="true">add</span>新增一項
       </button>
     </fieldset>
+  );
+}
+
+/**
+ * 演出人數（併角規則）：完整人數之外，可新增較少人數的版本，把某些角色的台詞併給另一個角色。
+ * 上課時老師在角色配置切換人數，台詞句數與大屏顯示的角色會跟著換算。
+ */
+function CastEditor({ task, slotLabel, onChange }: {
+  task: DialogueTask;
+  slotLabel: (id: string) => string;
+  onChange: (options: CastOption[]) => void;
+}) {
+  const options = task.castOptions ?? [];
+  const speakers = speakingSlots(task);
+  const full = speakers.length;
+  if (full < 2 && options.length === 0) return null;
+  const sizes = options.map(o => castSize(task, o.merge));
+
+  const setMerge = (index: number, from: string, to: string) => {
+    onChange(options.map((o, i) => {
+      if (i !== index) return o;
+      const merge = { ...o.merge };
+      if (to) merge[from] = to; else delete merge[from];
+      return { merge };
+    }));
+  };
+
+  const problem = (i: number): string | null => {
+    const size = sizes[i];
+    if (Object.keys(options[i].merge).length === 0) return '尚未設定併角（儲存時略過）';
+    if (size === null) return '不能把台詞併給已經被併掉的角色';
+    if (size >= full) return '與完整人數相同';
+    if (sizes.indexOf(size) !== i) return '與其他版本人數相同';
+    return null;
+  };
+
+  return (
+    <div className="te-field te-cast-field">
+      <span id="te-cast-label">演出人數</span>
+      <span className="te-tags-hint">完整 {full} 人；可新增較少人數的版本，把某些角色的台詞併給別人說</span>
+      {options.map((opt, i) => {
+        const err = problem(i);
+        return (
+          <div key={i} className="te-cast-option" role="group" aria-label={`演出人數版本 ${i + 1}`}>
+            <div className="te-cast-head">
+              <strong>{sizes[i] !== null && !err ? `${sizes[i]} 人版` : '人數版本'}</strong>
+              {err && <span className="te-cast-error">{err}</span>}
+              <button
+                type="button"
+                className="te-tag-remove"
+                onClick={() => onChange(options.filter((_, k) => k !== i))}
+                aria-label={`刪除演出人數版本 ${i + 1}`}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">close</span>
+              </button>
+            </div>
+            {speakers.map(id => (
+              <label key={id} className="te-cast-row">
+                <span>{slotLabel(id)}</span>
+                <select value={opt.merge[id] ?? ''} onChange={e => setMerge(i, id, e.target.value)}>
+                  <option value="">自己演</option>
+                  {speakers.filter(o => o !== id).map(o => <option key={o} value={o}>台詞給 {slotLabel(o)}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+        );
+      })}
+      {full >= 2 && options.length < MAX_CAST_OPTIONS && (
+        <button type="button" className="te-cast-add" onClick={() => onChange([...options, { merge: {} }])}>
+          ＋ 新增人數版本
+        </button>
+      )}
+    </div>
   );
 }
 

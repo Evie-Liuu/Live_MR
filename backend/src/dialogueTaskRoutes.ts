@@ -6,7 +6,7 @@ import { isSceneContext } from './lessonPlanRoutes.js'
 import { generateDialogueTask } from './ai/dialogueTask.js'
 import {
   isGestureId, normalizeTags, MAX_CHECKPOINTS_PER_STEP, MIN_CHECKPOINT_OPTIONS, MAX_CHECKPOINT_OPTIONS,
-  type AudienceCheckpoint, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource,
+  MAX_CAST_OPTIONS, MAX_CAST_MERGES, type AudienceCheckpoint, type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource,
 } from './dialogueTaskTypes.js'
 
 export interface DialogueTaskRouteDeps {
@@ -62,6 +62,14 @@ function isStep(v: unknown): v is DialogueStep {
       (Array.isArray(s.checkpoints) && s.checkpoints.length <= MAX_CHECKPOINTS_PER_STEP && s.checkpoints.every(isCheckpoint)))
 }
 
+/** 併角方案只檢查形狀（角色 id → 角色 id、不併給自己）；是否對得上台詞由前端依任務內容判斷 */
+function isCastOption(v: unknown): v is CastOption {
+  const c = v as Partial<CastOption> | null
+  if (!c || typeof c.merge !== 'object' || c.merge === null || Array.isArray(c.merge)) return false
+  const entries = Object.entries(c.merge)
+  return entries.length >= 1 && entries.length <= MAX_CAST_MERGES && entries.every(([from, to]) => isId(from) && isId(to) && from !== to)
+}
+
 function isTemplateSource(v: unknown): v is TemplateSource {
   const s = v as Partial<TemplateSource> | null
   return !!s && isId(s.id) && Number.isInteger(s.version) && (s.version as number) >= 1
@@ -77,6 +85,8 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
   if (!level) return null
   if (!Array.isArray(t.steps) || t.steps.length > MAX_STEPS || !t.steps.every(isStep)) return null
   if (t.sourceTemplate !== undefined && !isTemplateSource(t.sourceTemplate)) return null
+  if (t.castOptions !== undefined &&
+    !(Array.isArray(t.castOptions) && t.castOptions.length <= MAX_CAST_OPTIONS && t.castOptions.every(isCastOption))) return null
   const tags = normalizeTags(t.tags)
   if (!tags) return null
   return {
@@ -100,6 +110,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
     })),
     ...(t.sourceTemplate ? { sourceTemplate: { id: t.sourceTemplate.id, version: t.sourceTemplate.version } } : {}),
     ...(tags.length > 0 ? { tags } : {}),
+    ...(t.castOptions?.length ? { castOptions: t.castOptions.map(c => ({ merge: { ...c.merge } })) } : {}),
   }
 }
 

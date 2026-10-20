@@ -78,6 +78,20 @@ describe('dialogue task routes', () => {
     }
   })
 
+  it('keeps cast options (role merges) and rejects malformed ones', async () => {
+    const ok = await request(app).post('/api/dialogue-tasks')
+      .send({ teacherUid: 't1', task: { ...sampleTask(), castOptions: [{ merge: { customer: 'cashier' }, extra: 1 }] } })
+    expect(ok.status).toBe(201)
+    expect(ok.body.task.castOptions).toEqual([{ merge: { customer: 'cashier' } }])
+
+    const none = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: sampleTask() })
+    expect(none.body.task).not.toHaveProperty('castOptions')
+
+    for (const castOptions of [[{ merge: { cashier: 'cashier' } }], [{ merge: {} }], [{ merge: { a: 42 } }], 'x']) {
+      expect((await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: { ...sampleTask(), castOptions } })).status).toBe(400)
+    }
+  })
+
   it('strips unknown fields from the stored task', async () => {
     const task = { ...sampleTask(), extra: 'x', steps: [{ ...sampleTask().steps[0], hacked: true }] }
     const res = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task })

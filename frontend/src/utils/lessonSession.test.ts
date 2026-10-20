@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  currentStepIndex, isLessonDone, setLessonPhase, setQuestionIndex, taskCast, toLessonScreen, toggleStepDone, type HostLessonState,
+  currentStepIndex, isLessonDone, setLessonPhase, setQuestionIndex, taskCast, lessonTask, toLessonScreen, toggleStepDone, type HostLessonState,
 } from './lessonSession.ts';
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
 import { phaseContent } from '../config/lessonPhases.ts';
@@ -116,5 +116,23 @@ describe('taskCast', () => {
       steps: [step([line('cashier'), line('customer'), line('cashier')]), step([line('customer2')])],
     })
     expect(cast).toEqual([{ slotId: 'cashier', lines: 2 }, { slotId: 'customer', lines: 1 }, { slotId: 'customer2', lines: 1 }])
+  })
+})
+
+describe('lessonTask（演出人數）', () => {
+  it('依選定人數併角，大螢幕角色名稱跟著改；沒有對應人數時用完整人數', () => {
+    const line = (speakerSlotId: string) => ({ id: speakerSlotId, speakerSlotId, en: 'Hi', zh: '嗨' })
+    const record = {
+      id: 'r', teacherUid: 't', institutionId: null, createdAt: '', updatedAt: '',
+      task: {
+        title: 'x', sceneId: 'clothingStore_cashier', level: 'A1' as const,
+        steps: [{ id: 's', title: 't', purpose: '', grammarPoints: [], grammarNote: '', teachingNotes: [], lines: [line('cashier'), line('staff'), line('customer')] }],
+        castOptions: [{ merge: { staff: 'cashier' } }],
+      },
+    }
+    const base = { record, doneCount: 0, showLines: false, phase: 'during' as const, questionIndex: 0 }
+    expect(taskCast(lessonTask({ ...base, castSize: 2 }))).toEqual([{ slotId: 'cashier', lines: 2 }, { slotId: 'customer', lines: 1 }])
+    expect(toLessonScreen({ ...base, castSize: 2 }, { cashier: '店員A', staff: '店員B', customer: '顧客A' })!.roles).toEqual(['店員A', '顧客A'])
+    expect(taskCast(lessonTask({ ...base, castSize: 9 }))).toHaveLength(3)
   })
 })

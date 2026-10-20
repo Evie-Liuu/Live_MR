@@ -61,12 +61,23 @@ export interface TemplateSource {
   version: number
 }
 
+/**
+ * 併角方案：用比原本少的人數演出時，把某些角色的台詞併給另一個角色說。
+ * merge 是「被併掉的角色 → 改由哪個角色說」，例如 { staff: 'cashier' }＝店員B 的台詞由店員A 說。
+ * 演出人數不另外存，由併角後實際有台詞的角色數算出（任務改過台詞也不會對不上）。
+ */
+export interface CastOption {
+  merge: Record<string, string>
+}
+
 export interface DialogueTask {
   title: string
   sceneId: string
   level: CefrLevel
   steps: DialogueStep[]
   sourceTemplate?: TemplateSource
+  /** 少於完整人數演出時的併角方案（選填；完整人數不需要列） */
+  castOptions?: CastOption[]
   /** 主題標籤（不含 #），例如 購物、詢價、結帳 */
   tags?: string[]
 }
@@ -76,6 +87,8 @@ export const MAX_TAG_LEN = 20
 export const MAX_CHECKPOINTS_PER_STEP = 5
 export const MIN_CHECKPOINT_OPTIONS = 2
 export const MAX_CHECKPOINT_OPTIONS = 6
+export const MAX_CAST_OPTIONS = 4
+export const MAX_CAST_MERGES = 8
 
 /** 標籤正規化：去掉前置 #、多餘空白，去重；空字串略過 */
 export function cleanTag(v: string): string {

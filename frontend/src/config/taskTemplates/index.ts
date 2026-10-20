@@ -33,6 +33,7 @@ export function applyTemplate(template: TaskTemplate): DialogueTask {
     })),
     sourceTemplate: { id: template.id, version: template.version },
     ...(template.tags.length > 0 ? { tags: [...template.tags] } : {}),
+    ...(task.castOptions?.length ? { castOptions: task.castOptions.map(c => ({ merge: { ...c.merge } })) } : {}),
   };
 }
 
@@ -64,6 +65,7 @@ export function toTemplateSource(task: DialogueTask, templateId: string): string
         ? { checkpoints: s.checkpoints.map((c, k) => ({ ...c, id: `step${i + 1}_cp${k + 1}` })) }
         : {}),
     })),
+    ...(task.castOptions?.length ? { castOptions: task.castOptions } : {}),
   };
   const template: TaskTemplate = {
     id: templateId,

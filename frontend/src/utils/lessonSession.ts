@@ -6,7 +6,7 @@
  * 一堂課分三階段（任務前 / 任務中 / 任務後），由老師手動切換；
  * 任務前、任務後一次聚焦一題提問（questionIndex），大螢幕只顯示該題。
  */
-import type { DialogueTask, DialogueTaskRecord } from '../types/dialogueTask.ts';
+import { applyCastMerge, castChoices, type DialogueTask, type DialogueTaskRecord } from '../types/dialogueTask.ts';
 import type { CefrLevel } from '../types/lessonPlan.ts';
 import { phaseContent, type LessonPhase } from '../config/lessonPhases.ts';
 
@@ -21,6 +21,8 @@ export interface HostLessonState {
   phase: LessonPhase;
   /** 任務前 / 任務後目前聚焦的提問（0 起算） */
   questionIndex: number;
+  /** 演出人數（任務有併角方案時可選）；未設定＝完整人數 */
+  castSize?: number;
 }
 
 /** 送到大螢幕的課程狀態 */
@@ -70,6 +72,13 @@ export function taskCast(task: DialogueTask): { slotId: string; lines: number }[
   return [...counts].map(([slotId, lines]) => ({ slotId, lines }));
 }
 
+/** 目前演出人數下的任務：被併掉角色的台詞改由對應角色說（找不到該人數時用完整人數） */
+export function lessonTask(lesson: HostLessonState): DialogueTask {
+  const { task } = lesson.record;
+  const choice = lesson.castSize === undefined ? undefined : castChoices(task).find(c => c.size === lesson.castSize);
+  return choice ? applyCastMerge(task, choice.merge) : task;
+}
+
 export function clampDoneCount(lesson: HostLessonState, doneCount: number): number {
   return Math.min(Math.max(0, doneCount), stepCount(lesson));
 }
@@ -106,7 +115,7 @@ export function setQuestionIndex(lesson: HostLessonState, index: number): HostLe
 
 /** 教師端狀態 → 大螢幕狀態；slotLabels 用來把角色 id 轉成中文名稱 */
 export function toLessonScreen(lesson: HostLessonState, slotLabels: Record<string, string>): LessonScreenState | null {
-  const { task } = lesson.record;
+  const task = lessonTask(lesson);
   const index = currentStepIndex(lesson);
   const step = task.steps[index];
   if (!step) return null;
@@ -160,7 +169,8 @@ export function loadHostLesson(): HostLessonState | null {
     // 沒有階段資訊的舊狀態：視為正在任務中
     const phase: LessonPhase = parsed.phase === 'pre' || parsed.phase === 'post' ? parsed.phase : 'during';
     const questionIndex = typeof parsed.questionIndex === 'number' ? parsed.questionIndex : 0;
-    return { record: parsed.record, doneCount, showLines: !!parsed.showLines, phase, questionIndex };
+    const castSize = typeof parsed.castSize === 'number' ? parsed.castSize : undefined;
+    return { record: parsed.record, doneCount, showLines: !!parsed.showLines, phase, questionIndex, ...(castSize !== undefined ? { castSize } : {}) };
   } catch {
     return null;
   }
