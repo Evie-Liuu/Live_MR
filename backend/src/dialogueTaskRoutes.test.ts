@@ -61,6 +61,23 @@ describe('dialogue task routes', () => {
     expect((await request(app).get(`/api/dialogue-tasks/${id}`)).status).toBe(404)
   })
 
+  it('keeps valid audience checkpoints and rejects malformed ones', async () => {
+    const cp = { id: 'cp1', title: '聽力理解', question: 'Which color does Customer A want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1, extra: 'x' }
+    const withCp = (c: object) => ({ ...sampleTask(), steps: [{ ...sampleTask().steps[0], checkpoints: [c] }] })
+
+    const ok = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: withCp(cp) })
+    expect(ok.status).toBe(201)
+    expect(ok.body.task.steps[0].checkpoints).toEqual([{ id: 'cp1', title: '聽力理解', question: cp.question, options: cp.options, answerIndex: 1 }])
+
+    // 沒有互動點的步驟不產生欄位
+    const none = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: sampleTask() })
+    expect(none.body.task.steps[0]).not.toHaveProperty('checkpoints')
+
+    for (const bad of [{ ...cp, answerIndex: 3 }, { ...cp, options: ['Only one'] }, { ...cp, question: 42 }]) {
+      expect((await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: withCp(bad) })).status).toBe(400)
+    }
+  })
+
   it('strips unknown fields from the stored task', async () => {
     const task = { ...sampleTask(), extra: 'x', steps: [{ ...sampleTask().steps[0], hacked: true }] }
     const res = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task })

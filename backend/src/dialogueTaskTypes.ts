@@ -22,6 +22,24 @@ export function isGestureId(v: unknown): v is GestureId {
   return typeof v === 'string' && (GESTURE_IDS as readonly string[]).includes(v)
 }
 
+/**
+ * 台下互動點：老師在這個步驟演完後暫停，讓台下全班在自己的裝置上作答的選擇題
+ * （題目直接取自剛才的對話）。目前只存在任務資料裡，之後會發佈到台下學生的裝置。
+ */
+export interface AudienceCheckpoint {
+  id: string
+  /** 互動類型，例如「聽力理解」「價格理解」 */
+  title: string
+  /** 英文題目 */
+  question: string
+  /** 選項（2–6 個，不含 A. B. 前綴） */
+  options: string[]
+  /** 正確答案在 options 的位置（從 0 開始） */
+  answerIndex: number
+  /** 給老師的延伸追問（選填），例如讓程度較好的學生延伸回答 */
+  followUp?: string
+}
+
 export interface DialogueStep {
   id: string
   title: string
@@ -33,6 +51,8 @@ export interface DialogueStep {
   /** 語法說明 */
   grammarNote: string
   teachingNotes: string[]
+  /** 步驟結束時的台下互動點（選填） */
+  checkpoints?: AudienceCheckpoint[]
 }
 
 /** 由內建模板套用而來時記錄來源 */
@@ -53,6 +73,9 @@ export interface DialogueTask {
 
 export const MAX_TAGS = 8
 export const MAX_TAG_LEN = 20
+export const MAX_CHECKPOINTS_PER_STEP = 5
+export const MIN_CHECKPOINT_OPTIONS = 2
+export const MAX_CHECKPOINT_OPTIONS = 6
 
 /** 標籤正規化：去掉前置 #、多餘空白，去重；空字串略過 */
 export function cleanTag(v: string): string {

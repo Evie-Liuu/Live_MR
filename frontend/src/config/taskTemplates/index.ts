@@ -1,9 +1,10 @@
 import type { DialogueTask } from '../../types/dialogueTask.ts';
-import { createId } from '../../types/dialogueTask.ts';
+import { cloneCheckpoints, createId } from '../../types/dialogueTask.ts';
 import type { TaskTemplate } from './types.ts';
 import { clothingStoreShopping } from './clothingStore_shopping.ts';
 import { clothingStoreSize } from './clothingStore_size.ts';
 import { clothingStoreReturn } from './clothingStore_return.ts';
+import { clothingStoreShoppingTogether } from './clothingStore_shoppingTogether.ts';
 
 export type { TaskTemplate } from './types.ts';
 
@@ -12,6 +13,7 @@ export const TASK_TEMPLATES: readonly TaskTemplate[] = [
   clothingStoreShopping,
   clothingStoreSize,
   clothingStoreReturn,
+  clothingStoreShoppingTogether,
 ];
 
 /** 套用模板：深拷貝內容、換上新 id，並記錄來源模板。回傳的任務尚未存檔。 */
@@ -27,6 +29,7 @@ export function applyTemplate(template: TaskTemplate): DialogueTask {
       lines: s.lines.map(l => ({ ...l, id: createId('line') })),
       grammarPoints: [...s.grammarPoints],
       teachingNotes: [...s.teachingNotes],
+      ...cloneCheckpoints(s),
     })),
     sourceTemplate: { id: template.id, version: template.version },
     ...(template.tags.length > 0 ? { tags: [...template.tags] } : {}),
@@ -57,6 +60,9 @@ export function toTemplateSource(task: DialogueTask, templateId: string): string
       grammarPoints: s.grammarPoints,
       grammarNote: s.grammarNote,
       teachingNotes: s.teachingNotes,
+      ...(s.checkpoints?.length
+        ? { checkpoints: s.checkpoints.map((c, k) => ({ ...c, id: `step${i + 1}_cp${k + 1}` })) }
+        : {}),
     })),
   };
   const template: TaskTemplate = {

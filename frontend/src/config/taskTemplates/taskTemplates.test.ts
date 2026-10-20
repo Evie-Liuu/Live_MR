@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { THEMES } from '../scenes.ts';
 import { CEFR_LEVELS } from '../../types/lessonPlan.ts';
 import { isGestureId } from '../gestures.ts';
+import { MAX_CHECKPOINTS_PER_STEP, MAX_CHECKPOINT_OPTIONS, MIN_CHECKPOINT_OPTIONS } from '../../types/dialogueTask.ts';
 import { TASK_TEMPLATES, applyTemplate, toTemplateSource } from './index.ts';
 
 // 與 backend/src/dialogueTaskRoutes.ts 的上限一致；超過的模板老師套用後會存不進去
@@ -61,8 +62,23 @@ describe('內建任務模板', () => {
       }
     });
 
+    it('台下互動點格式正確（選項數、正確答案在選項內）', () => {
+      for (const step of tpl.task.steps) {
+        const cps = step.checkpoints ?? [];
+        expect(cps.length).toBeLessThanOrEqual(MAX_CHECKPOINTS_PER_STEP);
+        for (const cp of cps) {
+          expect(cp.title.trim(), `${cp.id} 缺類型`).not.toBe('');
+          expect(cp.question.trim(), `${cp.id} 缺題目`).not.toBe('');
+          expect(cp.options.length).toBeGreaterThanOrEqual(MIN_CHECKPOINT_OPTIONS);
+          expect(cp.options.length).toBeLessThanOrEqual(MAX_CHECKPOINT_OPTIONS);
+          expect(cp.options.every(o => o.trim() !== '' && o.length <= MAX_TITLE_LEN), `${cp.id} 選項不可空白或過長`).toBe(true);
+          expect(Number.isInteger(cp.answerIndex) && cp.answerIndex >= 0 && cp.answerIndex < cp.options.length, `${cp.id} 正確答案不在選項內`).toBe(true);
+        }
+      }
+    });
+
     it('步驟與台詞 id 在模板內不重複', () => {
-      const ids = tpl.task.steps.flatMap(s => [s.id, ...s.lines.map(l => l.id)]);
+      const ids = tpl.task.steps.flatMap(s => [s.id, ...s.lines.map(l => l.id), ...(s.checkpoints ?? []).map(c => c.id)]);
       expect(new Set(ids).size).toBe(ids.length);
     });
 
@@ -97,6 +113,16 @@ describe('applyTemplate', () => {
     task.steps[0].lines[0].en = 'changed';
     expect(tpl.task.steps[0].grammarPoints).not.toContain('x');
     expect(tpl.task.steps[0].lines[0].en).not.toBe('changed');
+  });
+
+  it('台下互動點一併複製（新 id、深拷貝）', () => {
+    const tpl = TASK_TEMPLATES.find(t => t.task.steps.some(s => s.checkpoints?.length))!;
+    const task = applyTemplate(tpl);
+    const [orig, copy] = [tpl.task.steps[0].checkpoints![0], task.steps[0].checkpoints![0]];
+    expect(copy).toMatchObject({ question: orig.question, options: orig.options, answerIndex: orig.answerIndex });
+    expect(copy.id).not.toBe(orig.id);
+    copy.options.push('x');
+    expect(orig.options).not.toContain('x');
   });
 });
 

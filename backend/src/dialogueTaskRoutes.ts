@@ -4,7 +4,10 @@ import type { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from './lessonPlanTypes.js'
 import { isSceneContext } from './lessonPlanRoutes.js'
 import { generateDialogueTask } from './ai/dialogueTask.js'
-import { isGestureId, normalizeTags, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource } from './dialogueTaskTypes.js'
+import {
+  isGestureId, normalizeTags, MAX_CHECKPOINTS_PER_STEP, MIN_CHECKPOINT_OPTIONS, MAX_CHECKPOINT_OPTIONS,
+  type AudienceCheckpoint, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource,
+} from './dialogueTaskTypes.js'
 
 export interface DialogueTaskRouteDeps {
   /** null 表示資料庫開啟失敗，所有端點回 503 */
@@ -41,11 +44,22 @@ function isLine(v: unknown): v is DialogueLine {
   return !!l && isId(l.id) && isText(l.speakerSlotId, MAX_ID_LEN) && isText(l.en) && isText(l.zh)
 }
 
+function isCheckpoint(v: unknown): v is AudienceCheckpoint {
+  const c = v as Partial<AudienceCheckpoint> | null
+  return !!c && isId(c.id) && isText(c.title, MAX_TITLE_LEN) && isText(c.question) &&
+    Array.isArray(c.options) && c.options.length >= MIN_CHECKPOINT_OPTIONS && c.options.length <= MAX_CHECKPOINT_OPTIONS &&
+    c.options.every(o => isText(o, MAX_TITLE_LEN)) &&
+    Number.isInteger(c.answerIndex) && (c.answerIndex as number) >= 0 && (c.answerIndex as number) < c.options.length &&
+    (c.followUp === undefined || isText(c.followUp))
+}
+
 function isStep(v: unknown): v is DialogueStep {
   const s = v as Partial<DialogueStep> | null
   return !!s && isId(s.id) && isText(s.title, MAX_TITLE_LEN) && isText(s.purpose, MAX_TITLE_LEN) &&
     Array.isArray(s.lines) && s.lines.length <= MAX_LINES_PER_STEP && s.lines.every(isLine) &&
-    isTextList(s.grammarPoints) && isText(s.grammarNote) && isTextList(s.teachingNotes)
+    isTextList(s.grammarPoints) && isText(s.grammarNote) && isTextList(s.teachingNotes) &&
+    (s.checkpoints === undefined ||
+      (Array.isArray(s.checkpoints) && s.checkpoints.length <= MAX_CHECKPOINTS_PER_STEP && s.checkpoints.every(isCheckpoint)))
 }
 
 function isTemplateSource(v: unknown): v is TemplateSource {
@@ -77,6 +91,12 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
         ...(isGestureId(l.gesture) ? { gesture: l.gesture } : {}),
       })),
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
+      ...(s.checkpoints?.length ? {
+        checkpoints: s.checkpoints.map(c => ({
+          id: c.id, title: c.title, question: c.question, options: c.options, answerIndex: c.answerIndex,
+          ...(c.followUp ? { followUp: c.followUp } : {}),
+        })),
+      } : {}),
     })),
     ...(t.sourceTemplate ? { sourceTemplate: { id: t.sourceTemplate.id, version: t.sourceTemplate.version } } : {}),
     ...(tags.length > 0 ? { tags } : {}),

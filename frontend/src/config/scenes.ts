@@ -33,7 +33,7 @@ export const THEMES: ThemeConfig[] = [
         slots: [
           {
             id: 'cashier',
-            label: '收銀員',
+            label: '店員A',
             icon: '🏪',
             // position: [0.6, 1.0, -1.5],
             position: [2.0, 1.0, -1.5],
@@ -42,11 +42,28 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'customer',
-            label: '顧客',
+            label: '顧客A',
             icon: '🛍️',
             position: [-1.4, 0.5, -1.5],
             rotation: [0, Math.PI / 4, 0],
             defaultVrmId: 'student_male',
+          },
+          {
+            id: 'staff',
+            label: '店員B',
+            icon: '🏪',
+            // position: [0.6, 1.0, -1.5],
+            position: [2.0, 1.0, -1.5],
+            rotation: [0, -Math.PI / 4, 0],
+            defaultVrmId: 'clothingStoreStaff_male',
+          },
+          {
+            id: 'customer2',
+            label: '顧客B',
+            icon: '🛍️',
+            position: [-1.4, 0.5, -1.5],
+            rotation: [0, Math.PI / 4, 0],
+            defaultVrmId: 'student_female',
           },
         ],
         modules: [

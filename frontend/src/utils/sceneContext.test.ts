@@ -12,7 +12,7 @@ describe('buildSceneContext', () => {
     expect(ctx.themeLabel).toBe('服飾店')
     expect(ctx.sceneLabel).toBe('收銀台')
     expect(ctx.sceneLabelEn).toBe('Cashier')
-    expect(ctx.slots.map(s => s.id)).toEqual(['cashier', 'customer'])
+    expect(ctx.slots.map(s => s.id)).toEqual(['cashier', 'customer', 'staff', 'customer2'])
     expect(ctx.existingModuleLabels).toContain('Price')
     expect(ctx.exampleTasks.length).toBeGreaterThan(0)
     expect(ctx.exampleTasks.length).toBeLessThanOrEqual(3)
