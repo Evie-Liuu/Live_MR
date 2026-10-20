@@ -91,10 +91,31 @@ export function createRouter(
     for (const w of waiters) w()
   }
 
+  /** 老師身分：X-Host-Token 標頭（長輪詢 events 也接受 ?token=） */
+  const hostTokenOf = (req: Request): string => {
+    const header = req.headers['x-host-token']
+    const query = req.query.token
+    return (typeof header === 'string' && header) || (typeof query === 'string' && query) || ''
+  }
+
+  /**
+   * 只有老師能做的操作（讀加入申請、核准／拒絕、錄影、靜音、移出）一律驗證 hostToken。
+   * 房號只有 6 位數、可以被猜到，不能單憑房號就授權。房間不存在回 404，權杖不符回 403。
+   */
+  const requireHost = (req: Request, res: Response, roomId: string): boolean => {
+    if (!store.getRoom(roomId)) { res.status(404).json({ error: 'Room not found' }); return false }
+    if (!store.validateHost(roomId, hostTokenOf(req))) {
+      res.status(403).json({ error: 'Host token required' })
+      return false
+    }
+    return true
+  }
+
   // POST /api/rooms — 建立房間
   router.post('/rooms', async (_req: Request, res: Response) => {
     try {
       const { roomId, hostToken } = store.createRoom()
+      recording?.recordingStore.clearRoom(roomId)
       getOrCreateQueue(roomId) // pre-create so first join-request has no backfill race
       const hostId = `host-${Math.random().toString(36).substring(7)}`
       const livekitToken = await createToken(roomId, hostId, true)
@@ -150,6 +171,7 @@ export function createRouter(
   router.post('/rooms/:roomId/requests/:requestId/approve', async (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const requestId = req.params.requestId as string
+    if (!requireHost(req, res, roomId)) return
 
     try {
       const request = store.getRequestStatus(roomId, requestId)
@@ -177,6 +199,7 @@ export function createRouter(
   router.post('/rooms/:roomId/requests/:requestId/reject', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const requestId = req.params.requestId as string
+    if (!requireHost(req, res, roomId)) return
 
     const rejected = store.rejectRequest(roomId, requestId)
     if (!rejected) {
@@ -191,12 +214,7 @@ export function createRouter(
   // GET /api/rooms/:roomId/events?since=N — long polling
   router.get('/rooms/:roomId/events', (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
-    const room = store.getRoom(roomId)
-
-    if (!room) {
-      res.status(404).json({ error: 'Room not found' })
-      return
-    }
+    if (!requireHost(req, res, roomId)) return
 
     const since = Number.parseInt((req.query.since as string) ?? '0', 10) || 0
     const q = getOrCreateQueue(roomId)
@@ -242,8 +260,7 @@ export function createRouter(
     const roomId = req.params.roomId as string
     const { sceneId, participantName } = req.body as { sceneId?: string; participantName?: string }
 
-    const room = store.getRoom(roomId)
-    if (!room) { res.status(404).json({ error: 'Room not found' }); return }
+    if (!requireHost(req, res, roomId)) return
 
     const existing = recording.recordingStore.getActiveSession(roomId)
     if (existing) { res.status(409).json({ error: 'Already recording' }); return }
@@ -284,8 +301,9 @@ export function createRouter(
   })
 
   router.post('/rooms/:roomId/recording/stop', async (req: Request, res: Response) => {
-    if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
     const roomId = req.params.roomId as string
+    if (!requireHost(req, res, roomId)) return
+    if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
     const session = recording.recordingStore.getActiveSession(roomId)
     if (!session) { res.status(404).json({ error: 'No active recording' }); return }
 
@@ -317,8 +335,9 @@ export function createRouter(
   })
 
   router.get('/rooms/:roomId/recordings', (req: Request, res: Response) => {
-    if (!recording) { res.json({ recordings: [] }); return }
     const roomId = req.params.roomId as string
+    if (!requireHost(req, res, roomId)) return
+    if (!recording) { res.json({ recordings: [] }); return }
     const recordings = recording.recordingStore.listSessions(roomId).map((s) => ({
       sessionId: s.sessionId,
       status: s.status,
@@ -551,8 +570,9 @@ export function createRouter(
   router.post(
     '/rooms/:roomId/participants/:identity/remove',
     async (req: Request, res: Response) => {
-      if (!recording) { res.status(501).json({ error: 'LiveKit admin not configured' }); return }
       const roomId = req.params.roomId as string
+      if (!requireHost(req, res, roomId)) return
+      if (!recording) { res.status(501).json({ error: 'LiveKit admin not configured' }); return }
       const identity = req.params.identity as string
       try {
         await recording.roomAdmin.removeParticipant(roomId, identity)
@@ -567,8 +587,9 @@ export function createRouter(
   router.post(
     '/rooms/:roomId/participants/:identity/mute',
     async (req: Request, res: Response) => {
-      if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
       const roomId = req.params.roomId as string
+      if (!requireHost(req, res, roomId)) return
+      if (!recording) { res.status(501).json({ error: 'Recording not configured' }); return }
       const identity = req.params.identity as string
       const { trackType, muted } = req.body as { trackType?: string; muted?: boolean }
 

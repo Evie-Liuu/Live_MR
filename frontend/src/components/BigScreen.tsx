@@ -1903,8 +1903,9 @@ export default function BigScreen() {
 
   // Restore recording state on mount
   useEffect(() => {
-    if (!roomIdRef.current) return
-    getRecordings(roomIdRef.current)
+    const hostToken = sessionStorage.getItem('bigscreen-hostToken') ?? ''
+    if (!roomIdRef.current || !hostToken) return
+    getRecordings(roomIdRef.current, hostToken)
       .then((sessions) => {
         const active = sessions.find((s) => s.status === 'recording')
         if (active && !mediaRecorderRef.current) {

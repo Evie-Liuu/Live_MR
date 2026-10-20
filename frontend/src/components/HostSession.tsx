@@ -456,7 +456,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
   const handleApprove = async (requestId: string) => {
     try {
-      await approveRequest(roomId, requestId);
+      await approveRequest(roomId, requestId, hostToken);
       setPending((prev) => prev.filter((s) => s.requestId !== requestId));
     } catch {
       // ignore
@@ -465,7 +465,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
   const handleReject = async (requestId: string) => {
     try {
-      await rejectRequest(roomId, requestId);
+      await rejectRequest(roomId, requestId, hostToken);
       setPending((prev) => prev.filter((s) => s.requestId !== requestId));
     } catch {
       // ignore
@@ -480,7 +480,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const confirmRemoveStudent = useCallback(async () => {
     if (!studentToRemove) return;
     try {
-      await removeParticipant(roomId, studentToRemove);
+      await removeParticipant(roomId, hostToken, studentToRemove);
     } catch (err) {
       console.error('Failed to remove participant:', err);
       window.alert('移出失敗，請稍後再試');
@@ -488,7 +488,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       setShowRemoveConfirm(false);
       setStudentToRemove(null);
     }
-  }, [roomId, studentToRemove]);
+  }, [roomId, hostToken, studentToRemove]);
 
   const cancelRemoveStudent = useCallback(() => {
     setShowRemoveConfirm(false);
@@ -674,6 +674,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
   const { isRecording, start, stop, muteState, toggleMute } = useRecording(
     roomId,
+    hostToken,
     connectedRoom,
     selectedSceneId,
     connectedRoom?.localParticipant.name || connectedRoom?.localParticipant.identity || 'Host',
@@ -1936,6 +1937,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     }
     try {
       sessionStorage.setItem('bigscreen-roomId', roomId);
+      // 大屏重開時要查錄影狀態（老師專用 API），一起帶上老師權杖
+      sessionStorage.setItem('bigscreen-hostToken', hostToken);
       sessionStorage.setItem('bigscreen-snapshot', JSON.stringify(poseSnapshotRef.current));
       sessionStorage.setItem('bigscreen-sceneId', selectedSceneId);
       if (selectedVrmSourceId) sessionStorage.setItem('bigscreen-vrmSourceId', selectedVrmSourceId);
@@ -1955,7 +1958,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     // 兩種模式共用同一視窗名稱:即使 ref 遺失(教師端重整),也只會重用同一個視窗
     const win = window.open(url, 'live-mr-bigscreen', 'width=1280,height=720,menubar=no,toolbar=no');
     bigScreenWindowRef.current = win;
-  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId, hintEnabled, hintLevel, lesson]);
+  }, [selectedSceneId, selectedVrmSourceId, teacherVrmSourceId, slotAssignments, selectedTasks, roomId, hostToken, hintEnabled, hintLevel, lesson]);
 
   useEffect(() => {
     if (!bigScreenMenuOpen) return;

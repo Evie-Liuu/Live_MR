@@ -48,12 +48,19 @@ export async function getRequestStatus(
   return res.json() as Promise<RequestStatusResponse>;
 }
 
+/** 只有老師能做的操作要帶 hostToken（房號只有 6 位數，後端不單憑房號授權） */
+function hostHeaders(hostToken: string, extra: Record<string, string> = {}): Record<string, string> {
+  return { 'X-Host-Token': hostToken, ...extra };
+}
+
 export async function approveRequest(
   roomId: string,
   requestId: string,
+  hostToken: string,
 ): Promise<void> {
   const res = await fetch(`/api/rooms/${roomId}/requests/${requestId}/approve`, {
     method: 'POST',
+    headers: hostHeaders(hostToken),
   });
   if (!res.ok) throw new Error(`approveRequest failed: ${res.status}`);
 }
@@ -61,9 +68,11 @@ export async function approveRequest(
 export async function rejectRequest(
   roomId: string,
   requestId: string,
+  hostToken: string,
 ): Promise<void> {
   const res = await fetch(`/api/rooms/${roomId}/requests/${requestId}/reject`, {
     method: 'POST',
+    headers: hostHeaders(hostToken),
   });
   if (!res.ok) throw new Error(`rejectRequest failed: ${res.status}`);
 }
@@ -136,20 +145,21 @@ export interface StopRecordingResponse {
 
 export async function startRecording(
   roomId: string,
+  hostToken: string,
   sceneId: string,
   participantName: string,
 ): Promise<StartRecordingResponse> {
   const res = await fetch(`/api/rooms/${roomId}/recording/start`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: hostHeaders(hostToken, { 'Content-Type': 'application/json' }),
     body: JSON.stringify({ sceneId, participantName }),
   });
   if (!res.ok) throw new Error(`startRecording failed: ${res.status}`);
   return res.json() as Promise<StartRecordingResponse>;
 }
 
-export async function stopRecording(roomId: string): Promise<StopRecordingResponse> {
-  const res = await fetch(`/api/rooms/${roomId}/recording/stop`, { method: 'POST' });
+export async function stopRecording(roomId: string, hostToken: string): Promise<StopRecordingResponse> {
+  const res = await fetch(`/api/rooms/${roomId}/recording/stop`, { method: 'POST', headers: hostHeaders(hostToken) });
   if (!res.ok) throw new Error(`stopRecording failed: ${res.status}`);
   return res.json() as Promise<StopRecordingResponse>;
 }
@@ -171,8 +181,8 @@ export async function uploadParticipantAudio(
   });
 }
 
-export async function getRecordings(roomId: string): Promise<RecordingSession[]> {
-  const res = await fetch(`/api/rooms/${roomId}/recordings`);
+export async function getRecordings(roomId: string, hostToken: string): Promise<RecordingSession[]> {
+  const res = await fetch(`/api/rooms/${roomId}/recordings`, { headers: hostHeaders(hostToken) });
   if (!res.ok) throw new Error(`getRecordings failed: ${res.status}`);
   const data = await res.json() as { recordings: RecordingSession[] };
   return data.recordings;
@@ -180,13 +190,14 @@ export async function getRecordings(roomId: string): Promise<RecordingSession[]>
 
 export async function muteParticipant(
   roomId: string,
+  hostToken: string,
   identity: string,
   trackType: 'audio' | 'video',
   muted: boolean,
 ): Promise<void> {
   const res = await fetch(`/api/rooms/${roomId}/participants/${identity}/mute`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: hostHeaders(hostToken, { 'Content-Type': 'application/json' }),
     body: JSON.stringify({ trackType, muted }),
   });
   if (!res.ok) throw new Error(`muteParticipant failed: ${res.status}`);
@@ -194,10 +205,12 @@ export async function muteParticipant(
 
 export async function removeParticipant(
   roomId: string,
+  hostToken: string,
   identity: string,
 ): Promise<void> {
   const res = await fetch(`/api/rooms/${roomId}/participants/${identity}/remove`, {
     method: 'POST',
+    headers: hostHeaders(hostToken),
   });
   if (!res.ok) throw new Error(`removeParticipant failed: ${res.status}`);
 }

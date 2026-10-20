@@ -60,6 +60,11 @@ export class RecordingStore {
     return this.sessions.get(roomId) ?? []
   }
 
+  /** 房號會重複使用（6 位數），新房間建立時清掉同房號舊課堂的錄影紀錄，避免新老師看到 */
+  clearRoom(roomId: string): void {
+    this.sessions.delete(roomId)
+  }
+
   getSessionById(sessionId: string): RecordingSession | null {
     for (const sessions of this.sessions.values()) {
       const found = sessions.find((s) => s.sessionId === sessionId)

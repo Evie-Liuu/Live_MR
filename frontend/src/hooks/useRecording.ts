@@ -35,6 +35,7 @@ function broadcastRecordingSignal(room: Room | null, action: 'start' | 'stop', s
 
 export function useRecording(
   roomId: string,
+  hostToken: string,
   room: Room | null,
   sceneId: string,
   participantName: string,
@@ -58,7 +59,7 @@ export function useRecording(
   // Restore recording state on mount (e.g. host refreshed mid-recording)
   useEffect(() => {
     if (!roomId) return
-    getRecordings(roomId)
+    getRecordings(roomId, hostToken)
       .then((sessions) => {
         const active = sessions.find((s) => s.status === 'recording')
         if (active) {
@@ -68,7 +69,7 @@ export function useRecording(
         }
       })
       .catch(() => { /* backend may still be starting */ })
-  }, [roomId, localAudio])
+  }, [roomId, hostToken, localAudio])
 
   // Sync mute state from LiveKit room
   useEffect(() => {
@@ -105,7 +106,7 @@ export function useRecording(
   }, [room])
 
   const start = useCallback(async () => {
-    const result = await startRecording(roomId, sceneId, participantName)
+    const result = await startRecording(roomId, hostToken, sceneId, participantName)
     setIsRecording(true)
     setSessionId(result.sessionId)
 
@@ -113,10 +114,10 @@ export function useRecording(
 
     channelRef?.current?.postMessage({ type: 'recording-start', sessionId: result.sessionId })
     broadcastRecordingSignal(room, 'start', result.sessionId)
-  }, [roomId, room, channelRef, sceneId, participantName, localAudio])
+  }, [roomId, hostToken, room, channelRef, sceneId, participantName, localAudio])
 
   const stop = useCallback(async () => {
-    await stopRecording(roomId)
+    await stopRecording(roomId, hostToken)
     setIsRecording(false)
     const activeSessionId = sessionId
     setSessionId(null)
@@ -127,12 +128,12 @@ export function useRecording(
 
     channelRef?.current?.postMessage({ type: 'recording-stop' })
     broadcastRecordingSignal(room, 'stop', activeSessionId ?? '')
-  }, [roomId, room, sessionId, channelRef, localAudio])
+  }, [roomId, hostToken, room, sessionId, channelRef, localAudio])
 
   const toggleMute = useCallback(
     async (identity: string, trackType: 'audio' | 'video') => {
       const current = muteState[identity]?.[trackType] ?? false
-      await muteParticipant(roomId, identity, trackType, !current)
+      await muteParticipant(roomId, hostToken, identity, trackType, !current)
       setMuteState((prev) => ({
         ...prev,
         [identity]: {
@@ -142,7 +143,7 @@ export function useRecording(
         },
       }))
     },
-    [roomId, muteState],
+    [roomId, hostToken, muteState],
   )
 
   return { isRecording, sessionId, start, stop, muteState, toggleMute }

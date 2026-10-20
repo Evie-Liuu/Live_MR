@@ -96,7 +96,7 @@ describe('API Routes', () => {
   describe('POST /api/rooms/:roomId/requests/:requestId/approve', () => {
     it('approves a request', async () => {
       const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
+      const { roomId, hostToken } = createRes.body
 
       const joinRes = await request(app)
         .post(`/api/rooms/${roomId}/join`)
@@ -104,7 +104,7 @@ describe('API Routes', () => {
       const { requestId } = joinRes.body
 
       const res = await request(app)
-        .post(`/api/rooms/${roomId}/requests/${requestId}/approve`)
+        .post(`/api/rooms/${roomId}/requests/${requestId}/approve`).set('X-Host-Token', hostToken)
       expect(res.status).toBe(200)
       expect(res.body.status).toBe('approved')
 
@@ -116,10 +116,10 @@ describe('API Routes', () => {
 
     it('returns 404 for unknown request', async () => {
       const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
+      const { roomId, hostToken } = createRes.body
 
       const res = await request(app)
-        .post(`/api/rooms/${roomId}/requests/nonexistent/approve`)
+        .post(`/api/rooms/${roomId}/requests/nonexistent/approve`).set('X-Host-Token', hostToken)
       expect(res.status).toBe(404)
     })
   })
@@ -127,7 +127,7 @@ describe('API Routes', () => {
   describe('POST /api/rooms/:roomId/requests/:requestId/reject', () => {
     it('rejects a request', async () => {
       const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
+      const { roomId, hostToken } = createRes.body
 
       const joinRes = await request(app)
         .post(`/api/rooms/${roomId}/join`)
@@ -135,7 +135,7 @@ describe('API Routes', () => {
       const { requestId } = joinRes.body
 
       const res = await request(app)
-        .post(`/api/rooms/${roomId}/requests/${requestId}/reject`)
+        .post(`/api/rooms/${roomId}/requests/${requestId}/reject`).set('X-Host-Token', hostToken)
       expect(res.status).toBe(200)
       expect(res.body.status).toBe('rejected')
 
@@ -146,10 +146,10 @@ describe('API Routes', () => {
 
     it('returns 404 for unknown request', async () => {
       const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
+      const { roomId, hostToken } = createRes.body
 
       const res = await request(app)
-        .post(`/api/rooms/${roomId}/requests/nonexistent/reject`)
+        .post(`/api/rooms/${roomId}/requests/nonexistent/reject`).set('X-Host-Token', hostToken)
       expect(res.status).toBe(404)
     })
   })
@@ -162,10 +162,10 @@ describe('API Routes', () => {
 
     it('returns pending requests immediately when since=0', async () => {
       const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
+      const { roomId, hostToken } = createRes.body
       store.addJoinRequest(roomId, 'Alice')
 
-      const res = await request(app).get(`/api/rooms/${roomId}/events?since=0`)
+      const res = await request(app).get(`/api/rooms/${roomId}/events?since=0`).set('X-Host-Token', hostToken)
 
       expect(res.status).toBe(200)
       expect(res.body.events).toHaveLength(1)
@@ -175,23 +175,23 @@ describe('API Routes', () => {
 
     it('returns empty events array after timeout when no pending', async () => {
       const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
+      const { roomId, hostToken } = createRes.body
 
       // Cancel the long poll quickly via aborted request
-      const req = request(app).get(`/api/rooms/${roomId}/events?since=0`).timeout(150)
+      const req = request(app).get(`/api/rooms/${roomId}/events?since=0`).set('X-Host-Token', hostToken).timeout(150)
       await expect(req).rejects.toThrow()
     })
 
     it('returns only events after since', async () => {
       const createRes = await request(app).post('/api/rooms')
-      const { roomId } = createRes.body
+      const { roomId, hostToken } = createRes.body
       store.addJoinRequest(roomId, 'Alice')
 
-      const first = await request(app).get(`/api/rooms/${roomId}/events?since=0`)
+      const first = await request(app).get(`/api/rooms/${roomId}/events?since=0`).set('X-Host-Token', hostToken)
       const lastId = first.body.lastEventId as number
 
       const second = await request(app)
-        .get(`/api/rooms/${roomId}/events?since=${lastId}`)
+        .get(`/api/rooms/${roomId}/events?since=${lastId}`).set('X-Host-Token', hostToken)
         .timeout(150)
         .catch((e) => e)
 
@@ -279,6 +279,23 @@ describe('API Routes', () => {
 
       // When remote server is up, invalid_token returns 400/401; when down, proxy returns 502/500
       expect([400, 401, 500, 502]).toContain(res.status)
+    })
+  })
+  describe('host-only endpoints', () => {
+    it('reject requests without the host token (6-digit room codes are guessable)', async () => {
+      const { roomId, hostToken } = (await request(app).post('/api/rooms')).body
+      const { requestId } = (await request(app).post(`/api/rooms/${roomId}/join`).send({ name: 'Mallory' })).body
+
+      // 學生只知道房號：不能讀加入申請、也不能自己核准
+      expect((await request(app).get(`/api/rooms/${roomId}/events?since=0`)).status).toBe(403)
+      expect((await request(app).post(`/api/rooms/${roomId}/requests/${requestId}/approve`)).status).toBe(403)
+      expect((await request(app).post(`/api/rooms/${roomId}/requests/${requestId}/approve`)
+        .set('X-Host-Token', 'wrong')).status).toBe(403)
+      expect((await request(app).post(`/api/rooms/${roomId}/requests/${requestId}/reject`)).status).toBe(403)
+
+      // 老師帶權杖可以
+      expect((await request(app).post(`/api/rooms/${roomId}/requests/${requestId}/approve`)
+        .set('X-Host-Token', hostToken)).status).toBe(200)
     })
   })
 })

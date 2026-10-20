@@ -56,7 +56,7 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart, on
 
   const handleApprove = async (requestId: string) => {
     try {
-      await approveRequest(roomId, requestId);
+      await approveRequest(roomId, requestId, hostToken);
       setPending((prev) => prev.filter((s) => s.requestId !== requestId));
       setApprovedCount((c) => c + 1);
     } catch {
@@ -66,7 +66,7 @@ export default function HostLobby({ roomId, hostToken, livekitToken, onStart, on
 
   const handleReject = async (requestId: string) => {
     try {
-      await rejectRequest(roomId, requestId);
+      await rejectRequest(roomId, requestId, hostToken);
       setPending((prev) => prev.filter((s) => s.requestId !== requestId));
     } catch {
       // ignore errors for now
