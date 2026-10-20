@@ -96,7 +96,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           { id: 'step3_7', speakerSlotId: 'customer', en: 'Thank you. Bye!', zh: '謝謝，再見！', gesture: 'wave' },
           { id: 'step3_8', speakerSlotId: 'cashier', en: "You're welcome. Have a nice day!", zh: '不客氣，祝你有美好的一天！', gesture: 'bow' },
         ],
-        grammarPoints: ["I'll take it.", 'Anything else?', "That's all.", "I'll pay first.", 'Cash or card?', 'Here is your receipt.', "You're welcome.", 'Have a nice day!'],
+        grammarPoints: ["I'll take it.", 'Anything else?', "That's all.", 'Cash or card?', 'Here is your receipt.', "You're welcome.", 'Have a nice day!'],
         grammarNote: [
           "I'll take it.：表示決定購買某件商品。",
           'Anything else?：詢問顧客是否還需要其他商品。',
