@@ -35,7 +35,6 @@ export const THEMES: ThemeConfig[] = [
             id: 'cashier',
             label: '店員A',
             icon: '🏪',
-            // position: [0.6, 1.0, -1.5],
             position: [2.0, 1.0, -1.5],
             rotation: [0, -Math.PI / 4, 0],
             defaultVrmId: 'clothingStoreStaff_female',
@@ -52,16 +51,15 @@ export const THEMES: ThemeConfig[] = [
             id: 'staff',
             label: '店員B',
             icon: '🏪',
-            // position: [0.6, 1.0, -1.5],
-            position: [2.0, 1.0, -1.5],
-            rotation: [0, -Math.PI / 4, 0],
+            position: [-0.5, 1.0, -3],
+            rotation: [0, -Math.PI / 8, 0],
             defaultVrmId: 'clothingStoreStaff_male',
           },
           {
             id: 'customer2',
             label: '顧客B',
             icon: '🛍️',
-            position: [-1.4, 0.5, -1.5],
+            position: [-2.4, 0.5, -1.5],
             rotation: [0, Math.PI / 4, 0],
             defaultVrmId: 'student_female',
           },
@@ -174,7 +172,7 @@ export const THEMES: ThemeConfig[] = [
           policy: 'auto-swap',
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
-            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.9, -0.6, -1], rotation: [0, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI/30, Math.PI / 30, 0], scale: 1.2 },
             { id: 'rack', label: "衣架", url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
           ],
           taskProps: {
@@ -192,6 +190,7 @@ export const THEMES: ThemeConfig[] = [
             label: '收銀區',
             members: [
               { kind: 'slot', id: 'cashier' },
+              { kind: 'slot', id: 'staff' },
               { kind: 'staticProp', id: 'cashier_counter' },
             ],
           },
@@ -200,6 +199,7 @@ export const THEMES: ThemeConfig[] = [
             label: '顧客區',
             members: [
               { kind: 'slot', id: 'customer' },
+              { kind: 'slot', id: 'customer2' },
               { kind: 'staticProp', id: 'rack' },
               { kind: 'taskProp', id: 'ask_price_1' },
               { kind: 'taskProp', id: 'ask_price_2' },

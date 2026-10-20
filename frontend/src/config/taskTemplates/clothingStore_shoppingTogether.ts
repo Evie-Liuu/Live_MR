@@ -89,7 +89,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
         lines: [
           { id: 'step3_1', speakerSlotId: 'customer', en: "I'll take it.", zh: '我要買這件。', gesture: 'nod' },
           { id: 'step3_2', speakerSlotId: 'cashier', en: 'Great choice! Anything else?', zh: '好選擇！還需要其他東西嗎？', gesture: 'thumbsUp' },
-          { id: 'step3_3', speakerSlotId: 'customer2', en: "That's all. Thank you. I'll pay first.", zh: '不用了，謝謝。我先結帳。' },
+          { id: 'step3_3', speakerSlotId: 'customer2', en: "That's all. Thank you.", zh: '不用了，謝謝。' },
           { id: 'step3_4', speakerSlotId: 'staff', en: "That's 33 dollars. Cash or card?", zh: '總共 33 元。付現還是刷卡？' },
           { id: 'step3_5', speakerSlotId: 'customer', en: 'Card, please.', zh: '刷卡，謝謝。' },
           { id: 'step3_6', speakerSlotId: 'staff', en: 'Here is your receipt.', zh: '這是你的收據。', gesture: 'handOver' },
@@ -101,7 +101,6 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           "I'll take it.：表示決定購買某件商品。",
           'Anything else?：詢問顧客是否還需要其他商品。',
           "That's all.：表示沒有其他需求，購物已經結束。",
-          "I'll pay first.：我先結帳。",
           'Cash or card?：詢問顧客要付現金或刷卡；Card, please. 表示選擇刷卡付款。',
           'Here is your receipt.：店員交付收據時使用的句型。',
           "You're welcome.：回應對方的感謝；Have a nice day! 是結帳結束時常用的禮貌用語。",
