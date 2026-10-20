@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import type { AppState } from './state.ts';
-import { resolveAuthRoute } from './state.ts';
+import { PENDING_ROOM_STORAGE_KEY, readPendingRoomId, resolveAuthRoute } from './state.ts';
+import { formatRoomId, joinErrorText } from './utils/qrRoomId.ts';
 import type { AuthUser } from './hooks/useAuth.ts';
 import { useAuth } from './hooks/useAuth.ts';
 import { createRoom, joinRequest } from './api.ts';
@@ -77,9 +78,12 @@ function App() {
   const [state, setState] = useState<AppState>(getInitialState);
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   // 外部 QR/連結帶進站的房號只在開機當下讀一次；登入成功後才會用到（見 routeUser）
-  const [pendingRoomId] = useState<string | null>(
-    () => new URLSearchParams(window.location.search).get('roomId'),
-  );
+  // 也記在 sessionStorage：在登入畫面重新整理時網址上的 roomId 已被清掉，仍能接著加入
+  const [pendingRoomId] = useState<string | null>(() => {
+    let storage: Storage | null = null;
+    try { storage = window.sessionStorage; } catch { /* storage disabled */ }
+    return readPendingRoomId(window.location.search, storage);
+  });
   const hasAutoRoutedRef = useRef(false);
 
   // Handle host room creation
@@ -95,12 +99,15 @@ function App() {
   // 外部深連結（roomId 已知）登入成功後自動送出加入請求；student-home 手動輸入/
   // 掃 QR 走 StudentHome 自己內部呼叫 joinRequest，不經過這個函式。
   const autoJoinRoom = async (roomId: string, name: string) => {
+    // 房號只自動使用一次（之後離開房間回到登入畫面不會又被帶回去）
+    try { sessionStorage.removeItem(PENDING_ROOM_STORAGE_KEY); } catch { /* ignore */ }
     setState({ screen: 'student-joining', roomId });
     try {
       const { requestId } = await joinRequest(roomId, name);
       setState({ screen: 'student-waiting', roomId, requestId, name });
     } catch (err) {
-      setState({ screen: 'error', message: String(err) });
+      // 失敗時回到加入畫面並預填房號，學生可直接重試或修正，不必重新輸入
+      setState({ screen: 'student-home', roomId, error: `房號 ${formatRoomId(roomId)}：${joinErrorText(err)}` });
     }
   };
 
@@ -235,6 +242,8 @@ function App() {
         return (
           <StudentHome
             fullName={user ? displayNameOf(user) : '學生'}
+            initialRoomId={state.roomId}
+            initialError={state.error}
             onSubmitted={(requestId, roomId) =>
               setState({
                 screen: 'student-waiting',

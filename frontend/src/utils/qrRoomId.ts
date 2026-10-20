@@ -31,3 +31,12 @@ export function extractRoomId(scannedText: string): string | null {
     return normalizeRoomId(trimmed);
   }
 }
+
+/** 申請加入失敗時給學生看的說明（joinRequest 會丟出「joinRequest failed: <status>」） */
+export function joinErrorText(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/\b404\b/.test(msg)) return '找不到這個房號，可能輸入錯誤或課堂已結束。';
+  if (/\b400\b/.test(msg)) return '資料不完整，請重新登入後再試一次。';
+  if (/failed to fetch|network/i.test(msg)) return '連不上伺服器，請確認已連上教室的網路。';
+  return `加入失敗，請稍後再試（${msg}）`;
+}

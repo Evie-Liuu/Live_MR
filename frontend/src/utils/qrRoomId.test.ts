@@ -43,3 +43,11 @@ describe('room code helpers', () => {
     expect(extractRoomId('482 913')).toBe('482913')
   })
 })
+
+describe('joinErrorText', () => {
+  it('explains common join failures in plain language', async () => {
+    const { joinErrorText } = await import('./qrRoomId')
+    expect(joinErrorText(new Error('joinRequest failed: 404'))).toContain('找不到這個房號')
+    expect(joinErrorText(new TypeError('Failed to fetch'))).toContain('連不上伺服器')
+  })
+})

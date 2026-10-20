@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { joinRequest } from '../api.ts';
-import { extractRoomId, normalizeRoomId } from '../utils/qrRoomId.ts';
+import { extractRoomId, joinErrorText, normalizeRoomId } from '../utils/qrRoomId.ts';
 import { useQrScanner } from '../hooks/useQrScanner.ts';
 import './StudentHome.css';
 
@@ -8,13 +8,16 @@ interface StudentHomeProps {
   fullName: string;
   onSubmitted: (requestId: string, roomId: string) => void;
   onLogout: () => void;
+  /** 預填房號（例如 QR 連結自動加入失敗後回到這裡） */
+  initialRoomId?: string;
+  initialError?: string;
 }
 
-export default function StudentHome({ fullName, onSubmitted, onLogout }: StudentHomeProps) {
+export default function StudentHome({ fullName, onSubmitted, onLogout, initialRoomId, initialError }: StudentHomeProps) {
   const [mode, setMode] = useState<'input' | 'scanning'>('input');
-  const [roomId, setRoomId] = useState('');
+  const [roomId, setRoomId] = useState(initialRoomId ?? '');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError ?? '');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   // loading (state) 生效前有一段延遲，QR 掃描器可能在同一個 tick 內重複觸發
   // onDecode，因此另外用 ref 做同步鎖，避免送出兩次 joinRequest。
@@ -30,7 +33,7 @@ export default function StudentHome({ fullName, onSubmitted, onLogout }: Student
       const { requestId } = await joinRequest(trimmed, fullName);
       onSubmitted(requestId, trimmed);
     } catch (err) {
-      setError(String(err));
+      setError(joinErrorText(err));
       setLoading(false);
       isSubmittingRef.current = false;
     }
