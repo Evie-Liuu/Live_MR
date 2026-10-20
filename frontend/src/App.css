@@ -557,17 +557,22 @@ button:disabled {
   font-size: 20px;
 }
 
-/* waiting 畫面的 inline 版（非 absolute，跟著 flow 排列） */
+/* waiting 畫面的 inline 版（非 absolute，跟著 flow 排列）；淺色背景用主色外框膠囊 */
 .student-back-btn--inline {
   position: static;
-  margin-top: 24px;
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.75);
+  margin-top: 40px;
+  padding: 12px 32px 12px 24px;
+  gap: 8px;
+  background: transparent;
+  backdrop-filter: none;
+  border: 2px solid #136B6D;
+  color: #136B6D;
+  font-size: 1.1rem;
   box-shadow: none;
 }
 
 .student-back-btn--inline:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: #136B6D;
   color: #fff;
 }
 
@@ -632,6 +637,9 @@ button:disabled {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  min-width: 100vw;
+  box-sizing: border-box;
+  padding: 24px 16px;
   /* background-color: #ffffff; */
 }
 

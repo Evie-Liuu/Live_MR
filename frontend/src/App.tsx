@@ -279,7 +279,8 @@ function App() {
               setState({ screen: 'student-rejected', roomId: state.roomId })
             }
             onError={(message) => setState({ screen: 'error', message })}
-            onExit={() => setState({ screen: 'select-role' })}
+            // 返回首頁 = 學生加入畫面（保持登入），預填剛才的房號方便重新申請或改房號
+            onExit={() => setState({ screen: 'student-home', roomId: state.roomId })}
           />
         );
 
