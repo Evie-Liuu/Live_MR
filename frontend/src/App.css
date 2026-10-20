@@ -4398,6 +4398,25 @@ button:disabled {
   opacity: 0.5;
 }
 
+/* 角色卡：台詞句數（選定任務後才有） */
+.hs-slot-lines {
+  font-size: 14px;
+  font-weight: 800;
+  color: #F76E12;
+  background: #FFF1E6;
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+/* 角色卡：尚未選任務的提示 */
+.hs-slot-hint {
+  font-size: 14px;
+  font-weight: 700;
+  color: #8a6a4a;
+  margin: -4px 0 10px;
+}
+
 /* Add the minus button style for slots like in the image */
 .hs-slot-row::after {
   content: '−';
@@ -5188,6 +5207,52 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* 角色配置：目前任務需要的角色 / 尚未選任務的提示 */
+.slot-drawer-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #E6F6F5;
+  color: #136B6D;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.slot-drawer-banner--todo {
+  background: #FFF1E6;
+  color: #8a4b12;
+}
+
+.slot-drawer-banner-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: #F76E12;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.slot-line-count {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #F76E12;
+}
+
+.slot-line-count--none {
+  color: #999;
+}
+
+.slot-card--unused {
+  opacity: 0.6;
 }
 
 .slot-drawer-footer {

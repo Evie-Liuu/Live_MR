@@ -45,7 +45,7 @@ import { getDialogueTask } from '../utils/dialogueTaskClient.ts';
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
   BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
-  setLessonPhase, setQuestionIndex, toggleStepDone, toLessonScreen,
+  setLessonPhase, setQuestionIndex, taskCast, toggleStepDone, toLessonScreen,
   type HostLessonState,
 } from '../utils/lessonSession.ts';
 import { LESSON_PHASES, phaseContent, phaseMeta, type LessonPhase } from '../config/lessonPhases.ts';
@@ -662,6 +662,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       return {};
     }
   });
+  // startLesson 讀最新的角色指定，不必把 slotAssignments 放進依賴
+  const slotAssignmentsRef = useRef(slotAssignments);
+  useEffect(() => { slotAssignmentsRef.current = slotAssignments; }, [slotAssignments]);
 
   // Ordered list of selected tasks (教學任務層)
   const [selectedTasks, setSelectedTasks] = useState<TaskEntry[]>(() => {
@@ -1554,6 +1557,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // 選中任務：載入到左側，從任務前（暖身）開始（換任務也是重新開始）
   const startLesson = useCallback((record: DialogueTaskRecord) => {
     setLesson({ record, doneCount: 0, showLines: false, phase: 'pre', questionIndex: 0 });
+    // 流程：選定任務 → 指定角色。任務需要的角色還有人沒指定時，接著打開角色配置
+    const needed = taskCast(record.task).map(c => c.slotId);
+    const preset = SCENE_PRESETS[record.task.sceneId];
+    if (preset?.slots?.some(slot => needed.includes(slot.id) && !slotAssignmentsRef.current[slot.id])) {
+      setShowSlotPanel(true);
+    }
   }, []);
   /** 手動切換任務前 / 任務中 / 任務後 */
   const changeLessonPhase = useCallback((phase: LessonPhase) => {
@@ -2100,6 +2109,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   ], [teacherIdentity, teacherName, studentList]);
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
+  // 選定任務後只列出有台詞的角色（依場景 slot 順序）；尚未選任務時列出場景全部角色
+  const castLines = useMemo(
+    () => new Map(lesson ? taskCast(lesson.record.task).map(c => [c.slotId, c.lines] as const) : []),
+    [lesson],
+  );
+  const castSlots = useMemo(
+    () => (currentScenePreset.slots ?? []).filter(slot => !lesson || castLines.has(slot.id)),
+    [currentScenePreset.slots, lesson, castLines],
+  );
   const taskBankModules = useMemo(
     () => resolveModules(currentScenePreset.modules ?? [], lessonPlan?.plan, selectedSceneId),
     [currentScenePreset, lessonPlan, selectedSceneId],
@@ -2538,38 +2556,6 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
             </div>
           </div> */}
 
-          {/* Character / Slot card */}
-          {hasSlots && (
-            <div className={`hs-card hs-card--character ${showSlotPanel ? 'hs-card--open' : ''}`} onClick={openSlot}>
-              <div className="hs-card-header">
-                <span className="hs-card-icon">🎭</span>
-                <span className="hs-card-title">角色</span>
-                <span className="hs-badge hs-badge--info">{Object.keys(slotAssignments).length}/{currentScenePreset.slots!.length}</span>
-              </div>
-              <div className="hs-slot-list">
-                {currentScenePreset.slots!.map((slot, i) => {
-                  const assigned = slotAssignments[slot.id];
-                  const assignedParticipant = assigned ? (
-                    assigned === teacherIdentity
-                      ? (teacherName ? teacherName : '老師')
-                      : studentList.find(info => info.participant.identity === assigned)?.participant.name || assigned
-                  ) : '─';
-                  return (
-                    <div
-                      key={slot.id}
-                      className={`hs-slot-row ${assigned ? 'hs-slot-row--filled' : 'hs-slot-row--empty'}`}
-                      style={{ '--slot-color': SLOT_COLORS[i % SLOT_COLORS.length] } as React.CSSProperties}
-                    >
-                      <span className="hs-slot-dot" />
-                      <span className="hs-slot-label">{slot.icon} {slot.label}</span>
-                      <span className="hs-slot-assigned">{assignedParticipant}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           {/* Lesson card：導師任務管理 */}
           <div className={`hs-card hs-card--lesson ${showLessonPanel ? 'hs-card--open' : ''}`} onClick={openLesson}>
             <div className="hs-card-header">
@@ -2661,6 +2647,45 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
               <div className="hs-task-empty">點擊選擇任務</div>
             )}
           </div>
+
+          {/* Character / Slot card：排在任務之後——選定任務才知道需要哪些角色、各幾句台詞 */}
+          {hasSlots && (
+            <div className={`hs-card hs-card--character ${showSlotPanel ? 'hs-card--open' : ''}`} onClick={openSlot}>
+              <div className="hs-card-header">
+                <span className="hs-card-icon">🎭</span>
+                <span className="hs-card-title">角色</span>
+                <span className="hs-badge hs-badge--info">
+                  {castSlots.filter(slot => slotAssignments[slot.id]).length}/{castSlots.length}
+                </span>
+              </div>
+              {!lesson && <div className="hs-slot-hint">建議先選定任務，再指定角色</div>}
+              <div className="hs-slot-list">
+                {castSlots.map((slot, i) => {
+                  const assigned = slotAssignments[slot.id];
+                  const assignedParticipant = assigned ? (
+                    assigned === teacherIdentity
+                      ? (teacherName ? teacherName : '老師')
+                      : studentList.find(info => info.participant.identity === assigned)?.participant.name || assigned
+                  ) : '─';
+                  const lines = castLines.get(slot.id);
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`hs-slot-row ${assigned ? 'hs-slot-row--filled' : 'hs-slot-row--empty'}`}
+                      style={{ '--slot-color': SLOT_COLORS[i % SLOT_COLORS.length] } as React.CSSProperties}
+                    >
+                      <span className="hs-slot-dot" />
+                      <span className="hs-slot-label">
+                        {slot.icon} {slot.label}
+                        {lines !== undefined && <span className="hs-slot-lines">{lines} 句</span>}
+                      </span>
+                      <span className="hs-slot-assigned">{assignedParticipant}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Task card */}
           {hasModules && (
@@ -3465,15 +3490,28 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
             <button className="panel-close-btn" onClick={() => setShowSlotPanel(false)}>✕</button>
           </div>
           <div className="panel-drawer-body">
-            {currentScenePreset.slots!.map(sceneSlot => {
+            {lesson ? (
+              <div className="slot-drawer-banner">
+                任務「{lesson.record.task.title}」需要 {castSlots.length} 個角色，依台詞句數分配學生
+              </div>
+            ) : (
+              <div className="slot-drawer-banner slot-drawer-banner--todo">
+                <span>尚未選定任務：先選任務，才知道需要哪些角色</span>
+                <button type="button" className="slot-drawer-banner-btn" onClick={openLesson}>選擇任務</button>
+              </div>
+            )}
+            {/* 任務沒有台詞的角色不列出；若之前已指定了人，仍顯示出來讓老師移除 */}
+            {currentScenePreset.slots!.filter(slot => castSlots.includes(slot) || slotAssignments[slot.id]).map(sceneSlot => {
               const assignedIdentity = slotAssignments[sceneSlot.id];
+              const lines = castLines.get(sceneSlot.id);
+              const unused = !!lesson && lines === undefined;
               const assignedVrmId = assignedIdentity
                 ? (assignedIdentity === teacherIdentity
                   ? teacherVrmSourceId
                   : (studentRoles[assignedIdentity] ?? sceneSlot.defaultVrmId ?? selectedVrmSourceId))
                 : (sceneSlot.defaultVrmId ?? selectedVrmSourceId);
               return (
-                <div key={sceneSlot.id} className="slot-card">
+                <div key={sceneSlot.id} className={`slot-card ${unused ? 'slot-card--unused' : ''}`}>
                   <div className="slot-card-top">
                     <div className="slot-icon-container">
                       {sceneSlot.icon}
@@ -3496,6 +3534,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                       <div className="slot-status-badge">
                         {assignedIdentity ? '已指派' : '未指派'}
                       </div>
+                      {lines !== undefined && <div className="slot-line-count">{lines} 句台詞</div>}
+                      {unused && <div className="slot-line-count slot-line-count--none">此任務沒有台詞，可移除指派</div>}
                       <div className="slot-pos-hint">
                         位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'}
                         {/* 位置：{sceneSlot.position[0] >= 0 ? '右側' : '左側'} (x={sceneSlot.position[0]}) */}

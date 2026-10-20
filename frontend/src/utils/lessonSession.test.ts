@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  currentStepIndex, isLessonDone, setLessonPhase, setQuestionIndex, toLessonScreen, toggleStepDone, type HostLessonState,
+  currentStepIndex, isLessonDone, setLessonPhase, setQuestionIndex, taskCast, toLessonScreen, toggleStepDone, type HostLessonState,
 } from './lessonSession.ts';
 import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
 import { phaseContent } from '../config/lessonPhases.ts';
@@ -106,3 +106,15 @@ describe('三階段', () => {
     expect(setQuestionIndex(pre, -1).questionIndex).toBe(0);
   });
 });
+
+describe('taskCast', () => {
+  it('lists speaking slots with line counts in order of first appearance', () => {
+    const line = (speakerSlotId: string) => ({ id: speakerSlotId, speakerSlotId, en: 'Hi', zh: '嗨' })
+    const step = (lines: ReturnType<typeof line>[]) => ({ id: 's', title: 't', purpose: '', lines, grammarPoints: [], grammarNote: '', teachingNotes: [] })
+    const cast = taskCast({
+      title: 'x', sceneId: 'clothingStore_cashier', level: 'A1',
+      steps: [step([line('cashier'), line('customer'), line('cashier')]), step([line('customer2')])],
+    })
+    expect(cast).toEqual([{ slotId: 'cashier', lines: 2 }, { slotId: 'customer', lines: 1 }, { slotId: 'customer2', lines: 1 }])
+  })
+})

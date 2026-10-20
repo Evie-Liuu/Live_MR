@@ -6,7 +6,7 @@
  * 一堂課分三階段（任務前 / 任務中 / 任務後），由老師手動切換；
  * 任務前、任務後一次聚焦一題提問（questionIndex），大螢幕只顯示該題。
  */
-import type { DialogueTaskRecord } from '../types/dialogueTask.ts';
+import type { DialogueTask, DialogueTaskRecord } from '../types/dialogueTask.ts';
 import type { CefrLevel } from '../types/lessonPlan.ts';
 import { phaseContent, type LessonPhase } from '../config/lessonPhases.ts';
 
@@ -58,6 +58,18 @@ function stepCount(lesson: HostLessonState): number {
 }
 
 /** 已完成步驟數限制在 0 ~ 步驟總數 */
+/**
+ * 任務需要的角色：有台詞的場景 slot 與各自的台詞句數（依第一次出場順序）。
+ * 角色指定排在選定任務之後，老師依句數分配學生，沒有台詞的 slot 不必指定。
+ */
+export function taskCast(task: DialogueTask): { slotId: string; lines: number }[] {
+  const counts = new Map<string, number>();
+  for (const line of task.steps.flatMap(s => s.lines)) {
+    counts.set(line.speakerSlotId, (counts.get(line.speakerSlotId) ?? 0) + 1);
+  }
+  return [...counts].map(([slotId, lines]) => ({ slotId, lines }));
+}
+
 export function clampDoneCount(lesson: HostLessonState, doneCount: number): number {
   return Math.min(Math.max(0, doneCount), stepCount(lesson));
 }
