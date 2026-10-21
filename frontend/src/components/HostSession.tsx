@@ -1612,16 +1612,19 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   }, []);
   /** 手動切換任務前 / 任務中 / 任務後 */
   const changeLessonPhase = useCallback((phase: LessonPhase) => {
+    if (checkpointPoll) return;
     setLesson(prev => (prev && prev.phase !== phase ? setLessonPhase(prev, phase) : prev));
-  }, []);
+  }, [checkpointPoll]);
   /** 任務前 / 任務後：點選要在大螢幕聚焦的提問 */
   const focusLessonQuestion = useCallback((index: number) => {
+    if (checkpointPoll) return;
     setLesson(prev => (prev ? setQuestionIndex(prev, index) : prev));
-  }, []);
+  }, [checkpointPoll]);
   /** 左側步驟點擊：依序完成（點目前步驟 = 完成，點已完成步驟 = 取消） */
   const toggleLessonStep = useCallback((index: number) => {
+    if (checkpointPoll) return;
     setLesson(prev => (prev ? { ...prev, doneCount: toggleStepDone(prev, index) } : prev));
-  }, []);
+  }, [checkpointPoll]);
   /** 橫幅的上一步 / 下一步：取消最後完成的步驟 / 完成目前步驟 */
   // const shiftLessonDone = useCallback((delta: number) => {
   //   setLesson(prev => (prev ? { ...prev, doneCount: clampDoneCount(prev, prev.doneCount + delta) } : prev));
@@ -2209,11 +2212,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const currentTaskIndex = selectedTasks.findIndex(t => !t.completed);
 
   // Helpers to open exactly one panel at a time
-  const openScene = () => { setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
-  const openSlot = () => { setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
-  const openTask = () => { setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
-  const openPending = () => { setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
-  const openLesson = () => { setShowLessonPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
+  // 題目發布中（checkpointPoll 進行中）時封鎖所有面板切換，避免誤操作
+  const openScene = () => { if (checkpointPoll) return; setShowScenePanel(v => !v); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openSlot = () => { if (checkpointPoll) return; setShowSlotPanel(v => !v); setShowScenePanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openTask = () => { if (checkpointPoll) return; setShowTaskPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openPending = () => { if (checkpointPoll) return; setShowPendingPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); };
+  const openLesson = () => { if (checkpointPoll) return; setShowLessonPanel(v => !v); setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); };
   const closeAll = () => { setShowScenePanel(false); setShowSlotPanel(false); setShowTaskPanel(false); setShowPendingPanel(false); setShowOccludersPanel(false); setShowLessonPanel(false); setSceneEditorGroupId(null); };
 
   // 導師任務管理用：老師帳號（與 App 的 teacherUidOf 同規則）與場景角色名稱
@@ -2590,7 +2594,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       <div className="hs-body">
 
         {/* ── Left Sidebar ──────────────────────────────────────────────────── */}
-        <div className="hs-sidebar">
+        <div className={`hs-sidebar${checkpointPoll ? ' is-poll-active' : ''}`}>
 
           {/* Scene card */}
           <div className={`hs-card hs-card--scene ${showScenePanel ? 'hs-card--open' : ''}`} onClick={openScene}>
@@ -2719,7 +2723,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                 </div>
                 <CheckpointHostPanel
                   steps={lesson.record.task.steps}
-                  doneCount={lesson.doneCount}
+                  currentIndex={currentStepIndex(lesson)}
                   poll={checkpointPoll}
                   studentIds={studentIds}
                   onPublish={publishCheckpoint}

@@ -46,7 +46,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           '可 2–4 人演出（角色配置切換演出人數）：3 人時店員 B 的台詞由店員 A 說；2 人時再把顧客 B 的台詞併給顧客 A。',
         ],
         checkpoints: [
-          { id: 'step1_cp1', title: '聽力理解', question: 'Which color does Customer A want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 },
+          { id: 'step1_cp1', title: '顏色理解', question: 'Which color does Customer A want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 },
           { id: 'step1_cp2', kind: 'truefalse', title: '是非判斷', question: 'Customer B wants a red T-shirt.', options: ['True', 'False'], answerIndex: 0 },
         ],
       },

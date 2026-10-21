@@ -4231,6 +4231,28 @@ button:disabled {
   transform: none;
 }
 
+/* 題目發布中：非任務卡灰暗、不可互動 */
+.hs-sidebar.is-poll-active .hs-card:not(.hs-card--lesson) {
+  opacity: 0.4;
+  filter: grayscale(0.5);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.hs-sidebar.is-poll-active .hs-card:not(.hs-card--lesson):hover {
+  transform: none;
+}
+
+/* 任務卡內：步驟列與階段 tab 灰暗 */
+.hs-sidebar.is-poll-active .hs-task-preview-row,
+.hs-sidebar.is-poll-active .hs-lesson-phase,
+.hs-sidebar.is-poll-active .hs-lesson-question,
+.hs-sidebar.is-poll-active .hs-task-reset {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .hs-card--scene.hs-card--open {
   background: #fff;
 }

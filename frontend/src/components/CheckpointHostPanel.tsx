@@ -7,8 +7,8 @@ import './CheckpointHostPanel.css';
 
 interface CheckpointHostPanelProps {
   steps: DialogueStep[];
-  /** 已完成步驟數：列出剛完成的步驟與目前步驟的互動點 */
-  doneCount: number;
+  /** 當下正在演出的步驟 index（= currentStepIndex，不隨 doneCount 超出最後一步） */
+  currentIndex: number;
   poll: CheckpointPoll | null;
   /** 目前在線的學生 */
   studentIds: string[];
@@ -23,12 +23,12 @@ interface CheckpointHostPanelProps {
  * 發布 → 學生作答（即時人數與分布只有老師看得到）→ 結束作答 → 公布答案（大屏顯示統計）→ 結束。
  */
 export default function CheckpointHostPanel({
-  steps, doneCount, poll, studentIds, onPublish, onClose, onReveal, onEnd,
+  steps, currentIndex, poll, studentIds, onPublish, onClose, onReveal, onEnd,
 }: CheckpointHostPanelProps) {
-  // 演完一段後才問：列出剛完成的步驟，以及目前步驟（老師可能還沒勾完成）
-  const candidates = [doneCount - 1, doneCount]
-    .filter(i => i >= 0 && i < steps.length)
-    .flatMap(i => (steps[i].checkpoints ?? []).map(cp => ({ step: steps[i], index: i, cp })));
+  // 只列出當下正在演出步驟的台下互動
+  const candidates = currentIndex >= 0 && currentIndex < steps.length
+    ? (steps[currentIndex].checkpoints ?? []).map(cp => ({ step: steps[currentIndex], index: currentIndex, cp }))
+    : [];
 
   if (!poll && candidates.length === 0) return null;
 
