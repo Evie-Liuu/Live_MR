@@ -75,9 +75,10 @@ export default function CheckpointHostPanel({
     <div className="cph" onClick={stop}>
       <div className="cph-head"><span className="cph-title">台下互動</span></div>
       <ul className="cph-list">
-        {candidates.map(({ step, index, cp }) => (
+        {candidates.map(({ step, cp }) => (
           <li key={`${step.id}-${cp.id}`} className="cph-item">
-            <span className="cph-item-step">{index + 1}</span>
+            {/* <span className="cph-item-step">{index + 1}</span> */}
+            <span className="cph-item-step">?</span>
             <span className="cph-item-text">
               <span className="cph-item-kind">{checkpointKind(cp) === 'truefalse' ? '是非' : '選擇'}・{cp.title}</span>
               <span className="cph-item-q">{cp.question}</span>

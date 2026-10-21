@@ -5,7 +5,7 @@
   left: 50%;
   z-index: 40;
   transform: translate(-50%, -50%);
-  width: min(900px, 86vw);
+  width: min(850px, 86vw);
   max-height: 86vh;
   overflow: hidden;
   box-sizing: border-box;
@@ -52,7 +52,7 @@
 
 .cpo-question {
   margin: 20px 0 24px;
-  font-size: 44px;
+  font-size: 42px;
   line-height: 1.25;
   font-weight: 900;
 }
