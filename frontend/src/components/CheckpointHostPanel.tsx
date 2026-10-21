@@ -69,20 +69,33 @@ export default function CheckpointHostPanel({
           <div className="cph-follow">延伸追問：{poll.checkpoint.followUp}</div>
         )}
         <div className="cph-actions">
-          <button
-            type="button"
-            className={`cph-btn cph-btn--screen-toggle ${showText ? 'is-active' : ''}`}
-            onClick={onToggleQuestionText}
-            aria-pressed={showText}
-            title={showText ? '大屏與學生裝置目前顯示題目文字，點擊改為只顯示選項代號' : '大屏與學生裝置目前只顯示選項代號，點擊顯示題目文字'}
-          >
-            <span className="material-symbols-outlined" aria-hidden="true">{showText ? 'subject' : 'format_list_bulleted'}</span>
-            題目：{showText ? '顯示文字' : '只顯示選項'}
-          </button>
-          <div className="cph-actions-right">
+          {/* 題目文字顯示：兩段式切換，一眼看出目前狀態 */}
+          <div className="cph-seg" role="group" aria-label="大屏與學生裝置的題目顯示">
+            <span className="cph-seg-label">題目</span>
+            {([true, false] as const).map(value => (
+              <button
+                key={String(value)}
+                type="button"
+                className={`cph-seg-btn ${showText === value ? 'is-active' : ''}`}
+                aria-pressed={showText === value}
+                onClick={() => { if (showText !== value) onToggleQuestionText(); }}
+                title={value ? '大屏與學生裝置顯示題目與選項文字' : '大屏與學生裝置只顯示 A、B… 或 O / X'}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">{value ? 'subject' : 'format_list_bulleted'}</span>
+                {value ? '顯示文字' : '只顯示選項'}
+              </button>
+            ))}
+          </div>
+          <div className="cph-actions-main">
             {poll.status === 'open' && <button type="button" className="cph-btn cph-btn--primary" onClick={onClose}>結束作答</button>}
             {poll.status === 'closed' && <button type="button" className="cph-btn cph-btn--primary" onClick={onReveal}>公布答案</button>}
-            <button type="button" className="cph-btn" onClick={onEnd}>{poll.status === 'revealed' ? '完成' : '取消'}</button>
+            <button
+              type="button"
+              className={`cph-btn ${poll.status === 'revealed' ? 'cph-btn--primary' : 'cph-btn--ghost'}`}
+              onClick={onEnd}
+            >
+              {poll.status === 'revealed' ? '完成' : '取消'}
+            </button>
           </div>
         </div>
       </div>

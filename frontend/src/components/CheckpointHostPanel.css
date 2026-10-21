@@ -118,46 +118,77 @@
   font-weight: 700;
 }
 
+/* 操作區：上排題目顯示切換，下排主要操作；寬度不夠時按鈕縮小、文字不換行也不超出 */
 .cph-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 8px;
   margin-top: 10px;
 }
 
-.cph-actions-right {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.cph-btn--screen-toggle {
-  border-color: #F76E12;
-  color: #C05621;
-  background: #FFF7F2;
-  font-size: 12px;
-  padding: 3px 10px;
-  transition: all 0.2s;
-}
-
-.cph-btn--screen-toggle:hover {
-  background: #FFEADF;
-}
-
-.cph-btn--screen-toggle.is-active {
-  background: #F76E12;
-  color: #fff;
-}
-
-.cph-btn--screen-toggle {
-  display: inline-flex;
+.cph-seg {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #F3F4F4;
 }
 
-.cph-btn--screen-toggle .material-symbols-outlined {
-  font-size: 16px;
+.cph-seg-label {
+  padding: 0 6px 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #8a6a4a;
+}
+
+.cph-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b6b6b;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.cph-seg-btn .material-symbols-outlined {
+  flex-shrink: 0;
+  font-size: 15px;
+}
+
+.cph-seg-btn.is-active {
+  background: #fff;
+  color: #C05621;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.cph-actions-main {
+  display: flex;
+  gap: 8px;
+}
+
+.cph-actions-main .cph-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 取消：次要操作，比主要按鈕窄 */
+.cph-actions-main .cph-btn--ghost {
+  flex: 0 1 auto;
 }
 
 .cph-default-hint {
@@ -182,6 +213,11 @@
 .cph-btn--primary {
   background: #00A99D;
   color: #fff;
+}
+
+.cph-btn--ghost {
+  border-color: #CFCFCF;
+  color: #6b6b6b;
 }
 
 .cph-item {
