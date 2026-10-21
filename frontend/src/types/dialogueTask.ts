@@ -21,6 +21,8 @@ export interface DialogueLine {
  */
 export interface AudienceCheckpoint {
   id: string
+  /** 題型：choice 選擇題（預設）、truefalse 是非題（作答時固定顯示 True / False） */
+  kind?: 'choice' | 'truefalse'
   /** 互動類型，例如「聽力理解」「價格理解」 */
   title: string
   /** 英文題目 */

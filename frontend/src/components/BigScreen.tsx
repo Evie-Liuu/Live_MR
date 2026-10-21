@@ -14,6 +14,8 @@ import type { HintLevel, TaskHint } from '../config/taskHints.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 import { BIGSCREEN_LESSON_STORAGE_KEY, type LessonScreenState } from '../utils/lessonSession.ts';
+import { BIGSCREEN_CHECKPOINT_STORAGE_KEY, type ScreenPoll } from '../utils/checkpointPoll.ts';
+import CheckpointScreenOverlay from './CheckpointScreenOverlay.tsx';
 import { phaseMeta } from '../config/lessonPhases.ts';
 
 export interface TaskEntry {
@@ -30,7 +32,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -47,6 +49,8 @@ export interface BigScreenMsg {
   sessionId?: string;
   /** For 'lesson-change': 導師任務管理的目前步驟情境（null = 未上課） */
   lesson?: LessonScreenState | null;
+  /** For 'checkpoint-change': 台下互動點的作答統計（null = 沒有進行中的互動點） */
+  checkpoint?: ScreenPoll | null;
   /** For 'hint-change': 是否啟用提示欄 */
   hintEnabled?: boolean;
   /** For 'hint-change': 目前顯示的階層（null = 不顯示任何階） */
@@ -388,6 +392,11 @@ export default function BigScreen() {
     try {
       return JSON.parse(sessionStorage.getItem('bigscreen-tasks') || '[]');
     } catch { return []; }
+  });
+
+  // 台下互動點：題目與作答統計（公布前不含正確答案）
+  const [checkpoint, setCheckpoint] = useState<ScreenPoll | null>(() => {
+    try { return JSON.parse(sessionStorage.getItem(BIGSCREEN_CHECKPOINT_STORAGE_KEY) ?? 'null'); } catch { return null; }
   });
 
   // 導師任務管理：目前步驟的情境（不含答案，台詞只有老師開提示時才有）
@@ -2223,6 +2232,9 @@ export default function BigScreen() {
         const tasks = msg.tasks ?? [];
         setActiveTasks(tasks);
         sessionStorage.setItem('bigscreen-tasks', JSON.stringify(tasks));
+      } else if (msg.type === 'checkpoint-change') {
+        // 教師端已寫入 sessionStorage（大屏重開時讀取），這裡只更新畫面
+        setCheckpoint(msg.checkpoint ?? null);
       } else if (msg.type === 'lesson-change') {
         const next = msg.lesson ?? null;
         setLesson(next);
@@ -2345,6 +2357,7 @@ export default function BigScreen() {
 
   return (
     <div className="bigscreen-root">
+      {checkpoint && <CheckpointScreenOverlay poll={checkpoint} />}
       {/* 1. Underlying DOM Background Layer */}
       {currentPreset && effectiveBgType !== 'none' && (
         <div

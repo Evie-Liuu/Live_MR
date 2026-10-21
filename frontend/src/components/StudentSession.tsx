@@ -7,6 +7,8 @@ import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
 import { formatRoomId } from '../utils/qrRoomId.ts';
+import CheckpointStudentSheet from './CheckpointStudentSheet.tsx';
+import type { StudentPoll } from '../utils/checkpointPoll.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import { buildStudentExtendPrompt } from '../config/aiAssistant.ts';
 import { generateHint, toFriendlyError } from '../utils/geminiClient.ts';
@@ -29,6 +31,9 @@ function isMobileDevice(): boolean {
 /** 切換鏡頭按鈕：保留功能但目前隱藏 */
 const SHOW_SWITCH_CAMERA = false;
 
+/** 台下互動點：自己最後一次的選擇（重新整理後仍顯示已作答） */
+const CHECKPOINT_ANSWER_KEY = 'student-checkpoint-answer';
+
 export default function StudentSession({ roomId, token, name, onExit }: StudentSessionProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [connected, setConnected] = useState(false);
@@ -36,6 +41,18 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [landmarks, setLandmarks] = useState<PoseLandmark[] | null>(null);
   /** 老師指定了角色才發布姿勢資料（全班只有最多 MAX_POSE_PUBLISHERS 人） */
   const [poseActive, setPoseActive] = useState(false);
+  // 台下互動點：老師發布的題目與自己的選擇（重新整理後記得選過什麼）
+  const [checkpoint, setCheckpoint] = useState<StudentPoll | null>(null);
+  const [checkpointChoice, setCheckpointChoice] = useState<{ pollId: string; choice: number } | null>(() => {
+    try { return JSON.parse(sessionStorage.getItem(CHECKPOINT_ANSWER_KEY) || 'null'); } catch { return null; }
+  });
+  const checkpointChoiceRef = useRef(checkpointChoice);
+  useEffect(() => {
+    checkpointChoiceRef.current = checkpointChoice;
+    try { sessionStorage.setItem(CHECKPOINT_ANSWER_KEY, JSON.stringify(checkpointChoice)); } catch { /* ignore */ }
+  }, [checkpointChoice]);
+  /** 收到題目的老師 identity：作答只送給老師，其他學生看不到 */
+  const checkpointHostRef = useRef<string | null>(null);
   // 追蹤目前本地預覽用的 stream，確保切換鏡頭時能正確釋放
   const displayStreamRef = useRef<MediaStream | null>(null);
   const [videoSize, setVideoSize] = useState({ width: 320, height: 240 });
@@ -56,6 +73,22 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const hostGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const HOST_GRACE_PERIOD_MS = 10000;
   const activeRecordingSessionRef = useRef<string | null>(null);
+
+  /** 送出台下互動點的作答（只送給老師） */
+  const sendCheckpointAnswer = useCallback((pollId: string, choice: number) => {
+    const room = roomRef.current;
+    const host = checkpointHostRef.current;
+    if (!room || room.state !== 'connected' || !host) return;
+    try {
+      const bytes = new TextEncoder().encode(JSON.stringify({ type: 'checkpoint-answer', pollId, choice }));
+      void room.localParticipant.publishData(bytes, { reliable: true, destinationIdentities: [host] }).catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
+  }, []);
+  const chooseCheckpoint = useCallback((choice: number) => {
+    if (!checkpoint || checkpoint.status !== 'open') return;
+    setCheckpointChoice({ pollId: checkpoint.pollId, choice });
+    sendCheckpointAnswer(checkpoint.pollId, choice);
+  }, [checkpoint, sendCheckpointAnswer]);
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
   const [interactionPhase, setInteractionPhase] = useState<
     'idle' | 'teacher' | 'generating' | 'student'
@@ -278,6 +311,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           action?: 'start' | 'stop';
           sessionId?: string;
           identities?: string[];
+          poll?: StudentPoll | null;
         };
         if (msg.type === 'ai-hint') {
           const p = msg.payload ?? null;
@@ -287,6 +321,13 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             setExtension(null);
             setExtendError(null);
           }
+        } else if (msg.type === 'checkpoint') {
+          const poll = msg.poll ?? null;
+          checkpointHostRef.current = participant.identity;
+          if (isMounted) setCheckpoint(poll);
+          // 老師定期重送題目：作答中且自己已選過，就再送一次（老師重新整理或封包遺失時補上）
+          const mine = checkpointChoiceRef.current;
+          if (poll && poll.status === 'open' && mine?.pollId === poll.pollId) sendCheckpointAnswer(poll.pollId, mine.choice);
         } else if (msg.type === 'pose-publishers' && Array.isArray(msg.identities)) {
           if (isMounted) setPoseActive(msg.identities.includes(room.localParticipant.identity));
         } else if (msg.type === 'interaction-phase' && msg.phase) {
@@ -386,7 +427,8 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       // 若連線尚未建立則 disconnect() 內部會安全忽略。
       room.disconnect();
     };
-  }, [token, retryCount]);
+    // sendCheckpointAnswer 是穩定的 useCallback，不會造成重新連線
+  }, [token, retryCount, sendCheckpointAnswer]);
 
   // Publish metadata whenever faceEnabled changes (or on connect)
   // useEffect(() => {
@@ -595,6 +637,14 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           <span className="material-symbols-outlined">logout</span>
         </button>
       </div>
+
+      {connected && checkpoint && (
+        <CheckpointStudentSheet
+          poll={checkpoint}
+          choice={checkpointChoice?.pollId === checkpoint.pollId ? checkpointChoice.choice : null}
+          onChoose={chooseCheckpoint}
+        />
+      )}
 
       {/* 連線中重試提示 */}
       {!connected && !connectionError && retryCount > 0 && retryCount <= MAX_RETRIES && (

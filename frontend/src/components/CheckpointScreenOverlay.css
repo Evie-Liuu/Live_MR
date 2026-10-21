@@ -1,0 +1,171 @@
+/* 大屏：台下互動點題目與統計 */
+.cpo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 40;
+  transform: translate(-50%, -50%);
+  width: min(900px, 86vw);
+  max-height: 86vh;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 32px 40px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+  color: #222;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  text-align: left;
+}
+
+.cpo-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.cpo-status {
+  padding: 6px 16px;
+  border-radius: 999px;
+  color: #fff;
+  background: #F76E12;
+}
+
+.cpo-status--closed { background: #8a8a8a; }
+.cpo-status--revealed { background: #00A99D; }
+
+.cpo-title {
+  flex: 1;
+  color: #136B6D;
+}
+
+.cpo-answered {
+  color: #666;
+}
+
+.cpo-answered strong {
+  font-size: 32px;
+  color: #F76E12;
+}
+
+.cpo-question {
+  margin: 20px 0 24px;
+  font-size: 44px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.cpo-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cpo-options--truefalse {
+  flex-direction: row;
+}
+
+.cpo-options--truefalse .cpo-option {
+  flex: 1;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* 是非題：長條另起一行撐滿，人數置中 */
+.cpo-options--truefalse .cpo-track {
+  flex-basis: 100%;
+}
+
+.cpo-options--truefalse .cpo-num {
+  min-width: 0;
+  text-align: center;
+}
+
+.cpo-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border: 4px solid #EDEDED;
+  border-radius: 22px;
+  font-size: 30px;
+  font-weight: 800;
+  transition: border-color 0.3s, background 0.3s, opacity 0.3s;
+}
+
+.cpo-mark {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #FFF1E6;
+  color: #F76E12;
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.cpo-label {
+  min-width: 140px;
+}
+
+.cpo-track {
+  flex: 1;
+  min-width: 120px;
+  height: 22px;
+  border-radius: 999px;
+  background: #F1F1F1;
+  overflow: hidden;
+}
+
+.cpo-fill {
+  display: block;
+  height: 100%;
+  background: #C9C9C9;
+  transition: width 0.6s ease-out;
+}
+
+.cpo-num {
+  flex-shrink: 0;
+  min-width: 140px;
+  text-align: right;
+  font-size: 24px;
+  color: #666;
+}
+
+.cpo-option.is-answer {
+  border-color: #16A34A;
+  background: #E8F7EE;
+}
+
+.cpo-option.is-answer .cpo-mark {
+  background: #16A34A;
+  color: #fff;
+}
+
+.cpo-option.is-answer .cpo-fill {
+  background: #16A34A;
+}
+
+.cpo-option.is-other {
+  opacity: 0.7;
+}
+
+.cpo-check {
+  color: #16A34A;
+  font-size: 40px;
+}
+
+.cpo-summary {
+  margin-top: 20px;
+  font-size: 28px;
+  font-weight: 900;
+  color: #16A34A;
+  text-align: right;
+}

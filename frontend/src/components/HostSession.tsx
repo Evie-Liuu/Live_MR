@@ -41,8 +41,13 @@ import SceneOccludersPanel from './SceneOccludersPanel.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
+import CheckpointHostPanel from './CheckpointHostPanel.tsx';
+import {
+  BIGSCREEN_CHECKPOINT_STORAGE_KEY, loadHostPoll, recordAnswer, saveHostPoll, setPollStatus, startPoll, toScreenPoll, toStudentPoll,
+  type CheckpointPoll,
+} from '../utils/checkpointPoll.ts';
 import { getDialogueTask } from '../utils/dialogueTaskClient.ts';
-import { castChoices, type DialogueTaskRecord } from '../types/dialogueTask.ts';
+import { castChoices, createId, type AudienceCheckpoint, type DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
   BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
   lessonTask, setLessonPhase, setQuestionIndex, taskCast, toggleStepDone, toLessonScreen,
@@ -560,6 +565,14 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // ─── 導師任務管理：上課用的對話任務（我的任務）與目前步驟 ─────────────
   const [lesson, setLesson] = useState<HostLessonState | null>(loadHostLesson);
   const lessonAllDone = lesson ? isLessonDone(lesson) : false;
+
+  // ─── 台下互動點：發布到學生裝置作答，大屏顯示統計（狀態只存在教師端）──────────
+  const [checkpointPoll, setCheckpointPoll] = useState<CheckpointPoll | null>(loadHostPoll);
+  const checkpointPollRef = useRef(checkpointPoll);
+  useEffect(() => {
+    checkpointPollRef.current = checkpointPoll;
+    saveHostPoll(checkpointPoll);
+  }, [checkpointPoll]);
 
   // ─── 備課教案（可選）────────────────────────────────────────────────────
   const [lessonPlan, setLessonPlan] = useState<LessonPlanRecord | null>(null);
@@ -1343,6 +1356,27 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
         .catch(() => { /* ignore */ });
     } catch { /* ignore */ }
   }, []);
+  /** 把目前的互動點（公布前不含答案）送給學生；指定 destinations 時只送給這些學生 */
+  const sendCheckpoint = useCallback((destinations?: string[]) => {
+    const room = roomRef.current;
+    if (!room || room.state !== 'connected') return;
+    const p = checkpointPollRef.current;
+    try {
+      const bytes = new TextEncoder().encode(JSON.stringify({ type: 'checkpoint', poll: p ? toStudentPoll(p) : null }));
+      void room.localParticipant
+        .publishData(bytes, { reliable: true, ...(destinations ? { destinationIdentities: destinations } : {}) })
+        .catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
+  }, []);
+  // 題目或狀態改變時立即送出；進行中定期重送（晚加入、重連或漏收的學生也會看到題目）
+  const checkpointStudentKey = checkpointPoll ? `${checkpointPoll.pollId}:${checkpointPoll.status}` : '';
+  useEffect(() => {
+    if (!connectedRoom) return;
+    sendCheckpoint();
+    if (!checkpointStudentKey) return;
+    const timer = window.setInterval(() => sendCheckpoint(), POSE_PUBLISHERS_RESEND_MS);
+    return () => window.clearInterval(timer);
+  }, [connectedRoom, checkpointStudentKey, sendCheckpoint]);
   const posePublishersKey = posePublishers.join('|');
   // 名單變更時立即廣播，並定期重送（晚加入、重連或漏收的學生也會同步）
   useEffect(() => {
@@ -1557,6 +1591,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // 選中任務：載入到左側，從任務前（暖身）開始（換任務也是重新開始）
   const startLesson = useCallback((record: DialogueTaskRecord) => {
     setLesson({ record, doneCount: 0, showLines: false, phase: 'pre', questionIndex: 0 });
+    setCheckpointPoll(null);
     // 流程：選定任務 → 指定角色。任務需要的角色還有人沒指定時，接著打開角色配置
     const needed = taskCast(record.task).map(c => c.slotId);
     const preset = SCENE_PRESETS[record.task.sceneId];
@@ -1599,7 +1634,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     setLesson(prev => (prev ? { ...prev, doneCount: 0 } : prev));
   }, []);
 
-  const endLesson = useCallback(() => setLesson(null), []);
+  const endLesson = useCallback(() => { setLesson(null); setCheckpointPoll(null); }, []);
+
+  /** 台下互動點：發布 / 結束作答 / 公布答案 / 結束 */
+  const publishCheckpoint = useCallback((stepId: string, checkpoint: AudienceCheckpoint) => {
+    setCheckpointPoll(startPoll(checkpoint, stepId, createId('poll')));
+  }, []);
+  const closeCheckpoint = useCallback(() => setCheckpointPoll(prev => (prev ? setPollStatus(prev, 'closed') : prev)), []);
+  const revealCheckpoint = useCallback(() => setCheckpointPoll(prev => (prev ? setPollStatus(prev, 'revealed') : prev)), []);
+  const endCheckpoint = useCallback(() => setCheckpointPoll(null), []);
 
   // ── 上課中進入備課中心：以覆蓋層開啟，HostSession 不卸載，課堂、連線與大屏保持進行 ──
   /** null = 未開啟；taskId 有值時直接編輯該任務 */
@@ -1708,6 +1751,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
       // 新學生加入 / 重連 → 補送姿勢發布名單（未在名單內的學生不跑姿勢偵測）
       sendPosePublishers([participant.identity]);
+      // 進行中的台下互動點也補送
+      if (checkpointPollRef.current) sendCheckpoint([participant.identity]);
 
       // 新學生加入 / 重連 → 立刻把目前 phase 補送一次（單一接收端，不全廣播）
       const phaseNow = interactionPhaseRef.current;
@@ -1786,6 +1831,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
           const text = new TextDecoder().decode(payload);
           const parsed = JSON.parse(text);
           if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
+            if (parsed.type === 'checkpoint-answer') {
+              setCheckpointPoll(prev => (prev ? recordAnswer(prev, participant.identity, parsed) : prev));
+              return;
+            }
             if (parsed.type === 'student-done') {
               if (interactionPhaseRef.current === 'student') {
                 cancelAutoCountdown();
@@ -2070,6 +2119,19 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const studentList = Array.from(participants.values()).filter(
     (p) => !p.participant.identity.startsWith('host-'),
   );
+
+  // 台下互動點 → 大屏：各選項人數、已作答 / 在線人數（公布後才含正確答案）
+  const studentIdsKey = studentList.map(s => s.participant.identity).sort().join('|');
+  const studentIds = useMemo(() => (studentIdsKey ? studentIdsKey.split('|') : []), [studentIdsKey]);
+  useEffect(() => {
+    const screen = checkpointPoll ? toScreenPoll(checkpointPoll, studentIds) : null;
+    try {
+      if (screen) sessionStorage.setItem(BIGSCREEN_CHECKPOINT_STORAGE_KEY, JSON.stringify(screen));
+      else sessionStorage.removeItem(BIGSCREEN_CHECKPOINT_STORAGE_KEY);
+    } catch { /* ignore */ }
+    const msg: BigScreenMsg = { type: 'checkpoint-change', checkpoint: screen };
+    channelRef.current?.postMessage(msg);
+  }, [checkpointPoll, studentIds]);
 
   // Derived state: allowed VRMs for current scene
   const currentScenePreset = SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID];
@@ -2655,6 +2717,16 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   })}
                   {/* {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>} */}
                 </div>
+                <CheckpointHostPanel
+                  steps={lesson.record.task.steps}
+                  doneCount={lesson.doneCount}
+                  poll={checkpointPoll}
+                  studentIds={studentIds}
+                  onPublish={publishCheckpoint}
+                  onClose={closeCheckpoint}
+                  onReveal={revealCheckpoint}
+                  onEnd={endCheckpoint}
+                />
                 <div className="hs-task-reset" onClick={(e) => { e.stopPropagation(); resetAllLessons(); }}>↺ 重置全部</div>
                 </>
                 )}

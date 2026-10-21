@@ -47,6 +47,7 @@ function isLine(v: unknown): v is DialogueLine {
 function isCheckpoint(v: unknown): v is AudienceCheckpoint {
   const c = v as Partial<AudienceCheckpoint> | null
   return !!c && isId(c.id) && isText(c.title, MAX_TITLE_LEN) && isText(c.question) &&
+    (c.kind === undefined || c.kind === 'choice' || (c.kind === 'truefalse' && Array.isArray(c.options) && c.options.length === 2)) &&
     Array.isArray(c.options) && c.options.length >= MIN_CHECKPOINT_OPTIONS && c.options.length <= MAX_CHECKPOINT_OPTIONS &&
     c.options.every(o => isText(o, MAX_TITLE_LEN)) &&
     Number.isInteger(c.answerIndex) && (c.answerIndex as number) >= 0 && (c.answerIndex as number) < c.options.length &&
@@ -103,7 +104,8 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
       ...(s.checkpoints?.length ? {
         checkpoints: s.checkpoints.map(c => ({
-          id: c.id, title: c.title, question: c.question, options: c.options, answerIndex: c.answerIndex,
+          id: c.id, ...(c.kind === 'truefalse' ? { kind: c.kind } : {}),
+          title: c.title, question: c.question, options: c.options, answerIndex: c.answerIndex,
           ...(c.followUp ? { followUp: c.followUp } : {}),
         })),
       } : {}),

@@ -47,6 +47,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
         ],
         checkpoints: [
           { id: 'step1_cp1', title: '聽力理解', question: 'Which color does Customer A want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 },
+          { id: 'step1_cp2', kind: 'truefalse', title: '是非判斷', question: 'Customer B wants a red T-shirt.', options: ['True', 'False'], answerIndex: 0 },
         ],
       },
       {

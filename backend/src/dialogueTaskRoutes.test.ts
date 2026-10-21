@@ -73,7 +73,12 @@ describe('dialogue task routes', () => {
     const none = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: sampleTask() })
     expect(none.body.task.steps[0]).not.toHaveProperty('checkpoints')
 
-    for (const bad of [{ ...cp, answerIndex: 3 }, { ...cp, options: ['Only one'] }, { ...cp, question: 42 }]) {
+    // 是非題保留題型
+    const tf = { id: 'cp2', kind: 'truefalse', title: '是非', question: 'Customer A wants a red T-shirt.', options: ['True', 'False'], answerIndex: 1 }
+    const tfRes = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: withCp(tf) })
+    expect(tfRes.body.task.steps[0].checkpoints[0]).toEqual(tf)
+
+    for (const bad of [{ ...cp, answerIndex: 3 }, { ...cp, options: ['Only one'] }, { ...cp, question: 42 }, { ...cp, kind: 'truefalse' }, { ...cp, kind: 'essay' }]) {
       expect((await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: withCp(bad) })).status).toBe(400)
     }
   })

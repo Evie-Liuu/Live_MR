@@ -1,0 +1,165 @@
+/* 學生裝置：台下互動點作答 */
+.cps-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(19, 107, 109, 0.35);
+  backdrop-filter: blur(3px);
+}
+
+.cps-sheet {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+}
+
+.cps-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.cps-chip {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #F76E12;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.cps-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #136B6D;
+}
+
+.cps-question {
+  margin: 16px 0 20px;
+  font-size: 1.7rem;
+  line-height: 1.35;
+  font-weight: 900;
+  color: #222;
+}
+
+.cps-options {
+  display: grid;
+  gap: 12px;
+}
+
+/* 是非題：兩個大按鈕並排 */
+.cps-sheet--truefalse .cps-options {
+  grid-template-columns: 1fr 1fr;
+}
+
+.cps-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 12px 18px;
+  border: 3px solid #E5E5E5;
+  border-radius: 18px;
+  background: #fff;
+  color: #333;
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.cps-option:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.cps-option:disabled {
+  cursor: default;
+  /* 覆蓋全域 button:disabled 的半透明：公布答案時要看清楚對錯 */
+  opacity: 1;
+  color: #333;
+}
+
+.cps-sheet--truefalse .cps-option {
+  flex-direction: column;
+  justify-content: center;
+  min-height: 140px;
+  text-align: center;
+}
+
+.cps-mark {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #FFF1E6;
+  color: #F76E12;
+  font-size: 1.3rem;
+  font-weight: 900;
+}
+
+.cps-sheet--truefalse .cps-mark {
+  width: 64px;
+  height: 64px;
+  font-size: 2rem;
+}
+
+.cps-option.is-chosen {
+  border-color: #00A99D;
+  background: #E6F6F5;
+}
+
+.cps-option.is-chosen .cps-mark {
+  background: #00A99D;
+  color: #fff;
+}
+
+.cps-option.is-correct {
+  border-color: #16A34A;
+  background: #E8F7EE;
+}
+
+.cps-option.is-correct .cps-mark {
+  background: #16A34A;
+  color: #fff;
+}
+
+.cps-option.is-wrong {
+  border-color: #DC2626;
+  background: #FDECEC;
+}
+
+.cps-option.is-wrong .cps-mark {
+  background: #DC2626;
+  color: #fff;
+}
+
+.cps-option.is-dim,
+.cps-option.is-dim:disabled {
+  opacity: 0.5;
+}
+
+.cps-message {
+  margin: 18px 0 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #666;
+}
+
+.cps-message.is-correct { color: #16A34A; }
+.cps-message.is-wrong { color: #DC2626; }
