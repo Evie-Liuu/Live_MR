@@ -120,9 +120,51 @@
 
 .cph-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-top: 10px;
+}
+
+.cph-actions-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.cph-btn--screen-toggle {
+  border-color: #F76E12;
+  color: #C05621;
+  background: #FFF7F2;
+  font-size: 12px;
+  padding: 3px 10px;
+  transition: all 0.2s;
+}
+
+.cph-btn--screen-toggle:hover {
+  background: #FFEADF;
+}
+
+.cph-btn--screen-toggle.is-active {
+  background: #F76E12;
+  color: #fff;
+}
+
+.cph-btn--screen-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cph-btn--screen-toggle .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.cph-default-hint {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a6a4a;
 }
 
 .cph-btn {

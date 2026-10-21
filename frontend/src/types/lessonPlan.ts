@@ -41,6 +41,14 @@ export function levelLabel(level: string, short = false): string {
   return short ? found.short : found.label
 }
 
+/** 判斷任務程度是否含 A1-A2 以上（包含 A1-A2、A2-B1） */
+export function isLevelA1A2OrAbove(level?: string): boolean {
+  if (!level) return false;
+  const norm = normalizeLevel(level);
+  return norm === 'A1-A2' || norm === 'A2-B1';
+}
+
+
 export interface LessonPlanTask {
   id: string
   label: string

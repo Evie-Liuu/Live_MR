@@ -6,6 +6,7 @@
  * - 大屏只收到各選項人數、已作答人數，以及公布後的正確答案。
  */
 import type { AudienceCheckpoint } from '../types/dialogueTask.ts';
+import { isLevelA1A2OrAbove } from '../types/lessonPlan.ts';
 
 export type PollStatus = 'open' | 'closed' | 'revealed';
 
@@ -31,6 +32,8 @@ export interface CheckpointPoll {
   status: PollStatus;
   /** 學生 identity → 選項位置（作答期間可以改，以最後一次為準） */
   answers: Record<string, number>;
+  /** 是否在大屏顯示題目文字（false 時只顯示 A/B 或是非） */
+  showQuestionText?: boolean;
 }
 
 /** 送到學生裝置的內容（公布前不含正確答案） */
@@ -58,6 +61,8 @@ export interface ScreenPoll {
   /** 目前在線的學生數 */
   total: number;
   answerIndex?: number;
+  /** 大屏是否顯示題目與選項文字（false：只顯示 A、B… 或 O / X，讓學生專心聽） */
+  showQuestionText: boolean;
 }
 
 /** 學生 → 老師的作答訊息 */
@@ -67,8 +72,21 @@ export interface CheckpointAnswerMsg {
   choice: number;
 }
 
-export function startPoll(checkpoint: AudienceCheckpoint, stepId: string, pollId: string): CheckpointPoll {
-  return { pollId, stepId, checkpoint, status: 'open', answers: {} };
+/**
+ * 大屏預設是否顯示題目文字：程度 A1-A2 以上預設不顯示（只有選項代號，練習聽力），
+ * 較低程度預設顯示。發布後老師可隨時切換。
+ */
+export function defaultShowQuestionText(level?: string): boolean {
+  return !isLevelA1A2OrAbove(level);
+}
+
+export function startPoll(checkpoint: AudienceCheckpoint, stepId: string, pollId: string, showQuestionText = true): CheckpointPoll {
+  return { pollId, stepId, checkpoint, status: 'open', answers: {}, showQuestionText };
+}
+
+/** 切換大屏是否顯示題目文字（舊狀態沒有這個欄位時視為顯示） */
+export function toggleQuestionText(poll: CheckpointPoll): CheckpointPoll {
+  return { ...poll, showQuestionText: !(poll.showQuestionText ?? true) };
 }
 
 /** 記錄作答；不是這一題、已結束作答或選項不存在時不變 */
@@ -116,6 +134,7 @@ export function toScreenPoll(poll: CheckpointPoll, identities: readonly string[]
     counts,
     answered: counts.reduce((a, b) => a + b, 0),
     total: identities.length,
+    showQuestionText: poll.showQuestionText ?? true,
   };
 }
 

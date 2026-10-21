@@ -43,7 +43,8 @@ import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import CheckpointHostPanel from './CheckpointHostPanel.tsx';
 import {
-  BIGSCREEN_CHECKPOINT_STORAGE_KEY, loadHostPoll, recordAnswer, saveHostPoll, setPollStatus, startPoll, toScreenPoll, toStudentPoll,
+  BIGSCREEN_CHECKPOINT_STORAGE_KEY, defaultShowQuestionText, loadHostPoll, recordAnswer, saveHostPoll, setPollStatus, startPoll,
+  toggleQuestionText, toScreenPoll, toStudentPoll,
   type CheckpointPoll,
 } from '../utils/checkpointPoll.ts';
 import { getDialogueTask } from '../utils/dialogueTaskClient.ts';
@@ -1640,9 +1641,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const endLesson = useCallback(() => { setLesson(null); setCheckpointPoll(null); }, []);
 
   /** 台下互動點：發布 / 結束作答 / 公布答案 / 結束 */
+  // 大屏是否顯示題目文字：依任務程度給預設（A1-A2 以上只顯示選項代號），發布後可切換
+  const lessonLevel = lesson?.record.task.level;
   const publishCheckpoint = useCallback((stepId: string, checkpoint: AudienceCheckpoint) => {
-    setCheckpointPoll(startPoll(checkpoint, stepId, createId('poll')));
-  }, []);
+    setCheckpointPoll(startPoll(checkpoint, stepId, createId('poll'), defaultShowQuestionText(lessonLevel)));
+  }, [lessonLevel]);
+  const toggleCheckpointQuestionText = useCallback(() => setCheckpointPoll(prev => (prev ? toggleQuestionText(prev) : prev)), []);
   const closeCheckpoint = useCallback(() => setCheckpointPoll(prev => (prev ? setPollStatus(prev, 'closed') : prev)), []);
   const revealCheckpoint = useCallback(() => setCheckpointPoll(prev => (prev ? setPollStatus(prev, 'revealed') : prev)), []);
   const endCheckpoint = useCallback(() => setCheckpointPoll(null), []);
@@ -2724,9 +2728,11 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                 <CheckpointHostPanel
                   steps={lesson.record.task.steps}
                   currentIndex={currentStepIndex(lesson)}
+                  level={lesson.record.task.level}
                   poll={checkpointPoll}
                   studentIds={studentIds}
                   onPublish={publishCheckpoint}
+                  onToggleQuestionText={toggleCheckpointQuestionText}
                   onClose={closeCheckpoint}
                   onReveal={revealCheckpoint}
                   onEnd={endCheckpoint}

@@ -2,12 +2,32 @@ import { describe, it, expect } from 'vitest'
 import {
   checkpointOptions, optionMark, recordAnswer, setPollStatus, startPoll, toScreenPoll, toStudentPoll,
 } from './checkpointPoll.ts'
+import { isLevelA1A2OrAbove } from '../types/lessonPlan.ts'
 import type { AudienceCheckpoint } from '../types/dialogueTask.ts'
 
 const choice: AudienceCheckpoint = { id: 'cp1', title: '聽力理解', question: 'Which color?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 }
 const tf: AudienceCheckpoint = { id: 'cp2', kind: 'truefalse', title: '是非', question: 'B wants red.', options: ['對', '錯'], answerIndex: 0 }
 
 describe('checkpointPoll', () => {
+  it('correctly identifies levels A1-A2 and above', () => {
+    expect(isLevelA1A2OrAbove('preA1-A1')).toBe(false)
+    expect(isLevelA1A2OrAbove('A1')).toBe(false)
+    expect(isLevelA1A2OrAbove('A1-A2')).toBe(true)
+    expect(isLevelA1A2OrAbove('A2-B1')).toBe(true)
+    // Legacy support
+    expect(isLevelA1A2OrAbove('B1')).toBe(true)
+  })
+
+  it('supports showQuestionText option and forwards to screenPoll', () => {
+    const pollWithText = startPoll(choice, 's1', 'p1', true)
+    expect(pollWithText.showQuestionText).toBe(true)
+    expect(toScreenPoll(pollWithText, ['amy']).showQuestionText).toBe(true)
+
+    const pollNoText = startPoll(choice, 's1', 'p2', false)
+    expect(pollNoText.showQuestionText).toBe(false)
+    expect(toScreenPoll(pollNoText, ['amy']).showQuestionText).toBe(false)
+  })
+
   it('records the latest valid answer while open, ignores others', () => {
     let poll = startPoll(choice, 's1', 'p1')
     poll = recordAnswer(poll, 'amy', { pollId: 'p1', choice: 0 })

@@ -66,22 +66,26 @@
   gap: 14px;
 }
 
-.cpo-options--truefalse {
+.cpo-options--truefalse,
+.cpo--no-text .cpo-options {
   flex-direction: row;
 }
 
-.cpo-options--truefalse .cpo-option {
+.cpo-options--truefalse .cpo-option,
+.cpo--no-text .cpo-option {
   flex: 1;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 /* 是非題：長條另起一行撐滿，人數置中 */
-.cpo-options--truefalse .cpo-track {
+.cpo-options--truefalse .cpo-track,
+.cpo--no-text .cpo-track {
   flex-basis: 100%;
 }
 
-.cpo-options--truefalse .cpo-num {
+.cpo-options--truefalse .cpo-num,
+.cpo--no-text .cpo-num {
   min-width: 0;
   text-align: center;
 }
@@ -168,4 +172,39 @@
   font-weight: 900;
   color: #16A34A;
   text-align: right;
+}
+
+
+/* 無文字模式（高年級/A1-A2以上預設）：只存在選擇 A、B 或是非 */
+.cpo--no-text {
+  padding: 32px 44px;
+}
+
+.cpo--no-text .cpo-options {
+  margin-top: 24px;
+}
+
+.cpo--no-text .cpo-label--tf {
+  min-width: 60px;
+  font-size: 32px;
+  font-weight: 900;
+  color: #136B6D;
+}
+
+/* 無文字模式：選項只剩代號，放大成並排的方塊 */
+.cpo--no-text .cpo-option {
+  flex-direction: column;
+  padding: 24px 16px;
+}
+
+.cpo--no-text .cpo-mark {
+  width: 96px;
+  height: 96px;
+  font-size: 52px;
+}
+
+/* 直排時長條改用寬度撐滿（flex-basis 在直排會變成高度） */
+.cpo--no-text .cpo-track {
+  flex: 0 0 auto;
+  width: 100%;
 }
