@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
-  MAX_CAST_OPTIONS, MAX_TAGS, MAX_TAG_LEN, blankTask, castSize, cloneStep, formatClock, newLine, newStep, speakingSlots,
+  MAX_CAST_OPTIONS, MAX_TAGS, MAX_TAG_LEN, blankTask, castChoices, castSize, cloneStep, formatClock, newLine, newStep, speakingSlots,
   splitTags, stepTimings,
   type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
 } from '../types/dialogueTask.ts';
@@ -23,7 +23,7 @@ interface TaskEditorProps {
   onClose: () => void;
 }
 
-type Tab = 'dialogue' | 'grammar' | 'notes';
+type Tab = 'dialogue' | 'grammar' | 'notes' | 'cast';
 
 interface SlotOption { id: string; label: string; icon?: string }
 
@@ -333,11 +333,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
               tags={task.tags ?? []}
               onChange={tags => edit(t => ({ ...t, tags }))}
             />
-            <CastEditor
-              task={task}
-              slotLabel={id => slots.find(sl => sl.id === id)?.label ?? id}
-              onChange={castOptions => edit(t => ({ ...t, castOptions }))}
-            />
+            <CastSummary task={task} onEdit={() => setTab('cast')} />
             {sourceTemplateName && (
               <span className="te-field">來自模板：{sourceTemplateName}（v{task.sourceTemplate!.version}）</span>
             )}
@@ -404,6 +400,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                 ['dialogue', 'forum', '對話內容'],
                 ['grammar', 'menu_book', '語法說明'],
                 ['notes', 'lightbulb', '教學注意點'],
+                ['cast', 'groups', '演出人數'],
               ] as const).map(([key, icon, label]) => (
                 <button
                   key={key}
@@ -536,6 +533,14 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                 </div>
               )}
 
+              {tab === 'cast' && (
+                <CastEditor
+                  task={task}
+                  slotLabel={id => slots.find(sl => sl.id === id)?.label ?? id}
+                  onChange={castOptions => edit(t => ({ ...t, castOptions }))}
+                />
+              )}
+
               {tab === 'notes' && (
                 <div className="te-form">
                   <ListEditor
@@ -548,7 +553,8 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
               )}
             </div>
 
-            <footer className="te-step-foot">
+            {/* 演出人數是整個任務共用，不顯示單一步驟的目的與時長 */}
+            {tab !== 'cast' && <footer className="te-step-foot">
               <label className="te-purpose">
                 <span className="material-symbols-outlined" aria-hidden="true">target</span>目的標籤
                 <input
@@ -562,7 +568,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                 <span className="material-symbols-outlined" aria-hidden="true">schedule</span>預計時長
                 <strong>{formatClock(timings.total)}</strong>
               </span>
-            </footer>
+            </footer>}
           </main>
         )}
 
@@ -715,9 +721,49 @@ function ListEditor({ label, placeholder, items, onChange }: ListEditorProps) {
   );
 }
 
+/** 每個角色在某個併角方案下的台詞句數 */
+function castLineCounts(task: DialogueTask, merge: Record<string, string>): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const line of task.steps.flatMap(s => s.lines)) {
+    const id = merge[line.speakerSlotId] ?? line.speakerSlotId;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** 演出人數版本的問題說明；沒問題回 null */
+function castProblem(task: DialogueTask, options: CastOption[], index: number): string | null {
+  const full = speakingSlots(task).length;
+  const sizes = options.map(o => castSize(task, o.merge));
+  const size = sizes[index];
+  if (Object.keys(options[index].merge).length === 0) return '尚未設定併角（儲存時略過）';
+  if (size === null) return '不能把台詞併給已經被併掉的角色';
+  if (size >= full) return '與完整人數相同';
+  if (sizes.indexOf(size) !== index) return '與其他版本人數相同';
+  return null;
+}
+
+/** 左欄摘要：目前有哪些演出人數，點擊到「演出人數」分頁編輯 */
+function CastSummary({ task, onEdit }: { task: DialogueTask; onEdit: () => void }) {
+  const full = speakingSlots(task).length;
+  if (full < 2 && !task.castOptions?.length) return null;
+  const sizes = castChoices(task).map(c => c.size);
+  return (
+    <div className="te-field te-cast-field">
+      <span>演出人數</span>
+      <button type="button" className="te-cast-summary" onClick={onEdit}>
+        <span className="te-cast-summary-sizes">{sizes.map(n => `${n} 人`).join('・')}</span>
+        <span className="te-cast-summary-edit">
+          <span className="material-symbols-outlined" aria-hidden="true">edit</span>編輯
+        </span>
+      </button>
+    </div>
+  );
+}
+
 /**
- * 演出人數（併角規則）：完整人數之外，可新增較少人數的版本，把某些角色的台詞併給另一個角色。
- * 上課時老師在角色配置切換人數，台詞句數與大屏顯示的角色會跟著換算。
+ * 演出人數（併角規則）分頁：完整人數之外，可新增較少人數的版本，把某些角色的台詞併給另一個角色。
+ * 套用到整個任務；上課時老師在角色配置切換人數，台詞句數與大屏顯示的角色會跟著換算。
  */
 function CastEditor({ task, slotLabel, onChange }: {
   task: DialogueTask;
@@ -727,8 +773,7 @@ function CastEditor({ task, slotLabel, onChange }: {
   const options = task.castOptions ?? [];
   const speakers = speakingSlots(task);
   const full = speakers.length;
-  if (full < 2 && options.length === 0) return null;
-  const sizes = options.map(o => castSize(task, o.merge));
+  const fullCounts = castLineCounts(task, {});
 
   const setMerge = (index: number, from: string, to: string) => {
     onChange(options.map((o, i) => {
@@ -739,48 +784,65 @@ function CastEditor({ task, slotLabel, onChange }: {
     }));
   };
 
-  const problem = (i: number): string | null => {
-    const size = sizes[i];
-    if (Object.keys(options[i].merge).length === 0) return '尚未設定併角（儲存時略過）';
-    if (size === null) return '不能把台詞併給已經被併掉的角色';
-    if (size >= full) return '與完整人數相同';
-    if (sizes.indexOf(size) !== i) return '與其他版本人數相同';
-    return null;
-  };
+  if (full < 2 && options.length === 0) {
+    return <p className="te-empty">這個任務只有一個角色有台詞，不需要設定演出人數。</p>;
+  }
 
   return (
-    <div className="te-field te-cast-field">
-      <span id="te-cast-label">演出人數</span>
-      <span className="te-tags-hint">完整 {full} 人；可新增較少人數的版本，把某些角色的台詞併給別人說</span>
-      {options.map((opt, i) => {
-        const err = problem(i);
-        return (
-          <div key={i} className="te-cast-option" role="group" aria-label={`演出人數版本 ${i + 1}`}>
-            <div className="te-cast-head">
-              <strong>{sizes[i] !== null && !err ? `${sizes[i]} 人版` : '人數版本'}</strong>
-              {err && <span className="te-cast-error">{err}</span>}
-              <button
-                type="button"
-                className="te-tag-remove"
-                onClick={() => onChange(options.filter((_, k) => k !== i))}
-                aria-label={`刪除演出人數版本 ${i + 1}`}
-              >
-                <span className="material-symbols-outlined" aria-hidden="true">close</span>
-              </button>
+    <div className="te-cast-panel">
+      <p className="te-cast-intro">
+        套用到整個任務的所有步驟。完整 {full} 人各演一角；人數不夠時可新增較少人數的版本，把某些角色的台詞併給別人說。
+        上課時在「角色配置」切換演出人數。
+      </p>
+
+      <div className="te-cast-grid">
+        <section className="te-cast-option te-cast-option--full" aria-label={`完整 ${full} 人`}>
+          <div className="te-cast-head"><strong>{full} 人版（完整）</strong></div>
+          {speakers.map(id => (
+            <div key={id} className="te-cast-row">
+              <span>{slotLabel(id)}</span>
+              <span className="te-cast-count">{fullCounts.get(id) ?? 0} 句</span>
             </div>
-            {speakers.map(id => (
-              <label key={id} className="te-cast-row">
-                <span>{slotLabel(id)}</span>
-                <select value={opt.merge[id] ?? ''} onChange={e => setMerge(i, id, e.target.value)}>
-                  <option value="">自己演</option>
-                  {speakers.filter(o => o !== id).map(o => <option key={o} value={o}>台詞給 {slotLabel(o)}</option>)}
-                </select>
-              </label>
-            ))}
-          </div>
-        );
-      })}
-      {full >= 2 && options.length < MAX_CAST_OPTIONS && (
+          ))}
+        </section>
+
+        {options.map((opt, i) => {
+          const err = castProblem(task, options, i);
+          const size = castSize(task, opt.merge);
+          const counts = castLineCounts(task, opt.merge);
+          return (
+            <section key={i} className="te-cast-option" aria-label={`演出人數版本 ${i + 1}`}>
+              <div className="te-cast-head">
+                <strong>{size !== null && !err ? `${size} 人版` : '人數版本'}</strong>
+                {err && <span className="te-cast-error">{err}</span>}
+                <button
+                  type="button"
+                  className="te-tag-remove"
+                  onClick={() => onChange(options.filter((_, k) => k !== i))}
+                  aria-label={`刪除演出人數版本 ${i + 1}`}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">close</span>
+                </button>
+              </div>
+              {speakers.map(id => {
+                const merged = opt.merge[id];
+                return (
+                  <label key={id} className="te-cast-row">
+                    <span>{slotLabel(id)}</span>
+                    <select value={merged ?? ''} onChange={e => setMerge(i, id, e.target.value)}>
+                      <option value="">自己演</option>
+                      {speakers.filter(o => o !== id).map(o => <option key={o} value={o}>台詞給 {slotLabel(o)}</option>)}
+                    </select>
+                    <span className="te-cast-count">{merged ? '—' : `${counts.get(id) ?? 0} 句`}</span>
+                  </label>
+                );
+              })}
+            </section>
+          );
+        })}
+      </div>
+
+      {options.length < MAX_CAST_OPTIONS && (
         <button type="button" className="te-cast-add" onClick={() => onChange([...options, { merge: {} }])}>
           ＋ 新增人數版本
         </button>

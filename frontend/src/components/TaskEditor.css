@@ -1336,20 +1336,82 @@ button.te-side-card:hover {
 }
 
 /* 演出人數（併角規則） */
+/* 左欄摘要 */
+.te-cast-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--te-line, #e3e3e3);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.te-cast-summary:hover {
+  border-color: var(--te-teal, #00A99D);
+}
+
+.te-cast-summary-sizes {
+  font-weight: 700;
+  color: #00695F;
+}
+
+.te-cast-summary-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--te-muted);
+}
+
+.te-cast-summary-edit .material-symbols-outlined {
+  font-size: 16px;
+}
+
+/* 分頁 */
+.te-cast-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+
+.te-cast-intro {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--te-muted);
+}
+
+.te-cast-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
 .te-cast-option {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 12px 14px;
   border: 1px solid var(--te-line, #e3e3e3);
-  border-radius: 10px;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.te-cast-option--full {
+  background: #F6FBFA;
 }
 
 .te-cast-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  min-height: 24px;
+  font-size: 15px;
 }
 
 .te-cast-head .te-tag-remove {
@@ -1357,32 +1419,42 @@ button.te-side-card:hover {
 }
 
 .te-cast-error {
-  font-size: 11px;
+  font-size: 12px;
   color: #C2410C;
 }
 
 .te-cast-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 52px;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  font-size: 14px;
+}
+
+.te-cast-option--full .te-cast-row {
+  grid-template-columns: 1fr 52px;
+}
+
+.te-cast-row select {
+  max-width: 150px;
+  padding: 4px 6px;
   font-size: 13px;
 }
 
-.te-field .te-cast-row select {
-  width: auto;
-  min-width: 0;
-  flex: 0 1 60%;
+.te-cast-count {
+  text-align: right;
+  font-weight: 700;
+  color: #C2410C;
 }
 
 .te-cast-add {
   align-self: flex-start;
   border: 1px dashed var(--te-teal, #00A99D);
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: 6px 16px;
   background: transparent;
   color: #00695F;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
 }
