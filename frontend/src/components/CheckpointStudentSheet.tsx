@@ -16,6 +16,8 @@ export default function CheckpointStudentSheet({ poll, choice, onChoose }: Check
   const revealed = poll.status === 'revealed' && poll.answerIndex !== undefined;
   const open = poll.status === 'open';
   const correct = revealed && choice === poll.answerIndex;
+  // 舊版老師端沒有這個欄位：視為顯示
+  const showText = poll.showQuestionText !== false;
 
   let message: string;
   if (revealed) message = choice === null ? '沒有作答，看看正確答案吧！' : correct ? '答對了！' : '再接再厲！正確答案已標示';
@@ -24,12 +26,17 @@ export default function CheckpointStudentSheet({ poll, choice, onChoose }: Check
 
   return (
     <div className="cps-backdrop" role="dialog" aria-modal="true" aria-labelledby="cps-question">
-      <div className={`cps-sheet cps-sheet--${poll.kind}`}>
+      <div className={`cps-sheet cps-sheet--${poll.kind} ${showText ? '' : 'cps-sheet--no-text'}`}>
         <div className="cps-top">
           <span className="cps-chip">{poll.kind === 'truefalse' ? '是非題' : '選擇題'}</span>
           <span className="cps-title">{poll.title}</span>
         </div>
-        <h2 id="cps-question" className="cps-question">{poll.question}</h2>
+        {showText
+          ? <h2 id="cps-question" className="cps-question">{poll.question}</h2>
+          : <h2 id="cps-question" className="cps-question cps-question--listen">
+              <span className="material-symbols-outlined" aria-hidden="true">{revealed ? 'campaign' : 'hearing'}</span>
+              {revealed ? '答案揭曉' : '仔細聽老師的題目，再選答案'}
+            </h2>}
         <div className="cps-options">
           {poll.options.map((opt, i) => {
             const state = revealed
@@ -45,7 +52,9 @@ export default function CheckpointStudentSheet({ poll, choice, onChoose }: Check
                 onClick={() => onChoose(i)}
               >
                 <span className="cps-mark">{optionMark(poll.kind, i)}</span>
-                <span className="cps-label">{optionLabel(poll.kind, opt, i)}</span>
+                {showText
+                  ? <span className="cps-label">{optionLabel(poll.kind, opt, i)}</span>
+                  : poll.kind === 'truefalse' && <span className="cps-label">{i === 0 ? '是' : '非'}</span>}
               </button>
             );
           })}

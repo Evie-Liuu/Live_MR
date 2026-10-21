@@ -4,6 +4,7 @@
  * 狀態只存在教師端（記住每位學生最後一次的選擇）。
  * - 學生端只收到題目與狀態，公布前不帶正確答案（避免從封包看到答案）。
  * - 大屏只收到各選項人數、已作答人數，以及公布後的正確答案。
+ * - 「只顯示選項」時，大屏與學生裝置都不顯示題目與選項文字（學生裝置連文字都不會收到），只有 A、B… 或 O / X。
  */
 import type { AudienceCheckpoint } from '../types/dialogueTask.ts';
 import { isLevelA1A2OrAbove } from '../types/lessonPlan.ts';
@@ -32,7 +33,7 @@ export interface CheckpointPoll {
   status: PollStatus;
   /** 學生 identity → 選項位置（作答期間可以改，以最後一次為準） */
   answers: Record<string, number>;
-  /** 是否在大屏顯示題目文字（false 時只顯示 A/B 或是非） */
+  /** 大屏與學生裝置是否顯示題目文字（false 時只顯示 A/B 或是非） */
   showQuestionText?: boolean;
 }
 
@@ -45,6 +46,8 @@ export interface StudentPoll {
   options: string[];
   status: PollStatus;
   answerIndex?: number;
+  /** false：只顯示選項代號（此時 question 為空字串、options 只保留數量，文字一律為空） */
+  showQuestionText: boolean;
 }
 
 /** 送到大屏的內容 */
@@ -61,7 +64,7 @@ export interface ScreenPoll {
   /** 目前在線的學生數 */
   total: number;
   answerIndex?: number;
-  /** 大屏是否顯示題目與選項文字（false：只顯示 A、B… 或 O / X，讓學生專心聽） */
+  /** 是否顯示題目與選項文字（false：只顯示 A、B… 或 O / X，讓學生專心聽老師唸題） */
   showQuestionText: boolean;
 }
 
@@ -73,7 +76,7 @@ export interface CheckpointAnswerMsg {
 }
 
 /**
- * 大屏預設是否顯示題目文字：程度 A1-A2 以上預設不顯示（只有選項代號，練習聽力），
+ * 大屏與學生裝置預設是否顯示題目文字：程度 A1-A2 以上預設不顯示（只有選項代號，練習聽力），
  * 較低程度預設顯示。發布後老師可隨時切換。
  */
 export function defaultShowQuestionText(level?: string): boolean {
@@ -84,7 +87,7 @@ export function startPoll(checkpoint: AudienceCheckpoint, stepId: string, pollId
   return { pollId, stepId, checkpoint, status: 'open', answers: {}, showQuestionText };
 }
 
-/** 切換大屏是否顯示題目文字（舊狀態沒有這個欄位時視為顯示） */
+/** 切換大屏與學生裝置是否顯示題目文字（舊狀態沒有這個欄位時視為顯示） */
 export function toggleQuestionText(poll: CheckpointPoll): CheckpointPoll {
   return { ...poll, showQuestionText: !(poll.showQuestionText ?? true) };
 }
@@ -115,13 +118,17 @@ export function pollCounts(poll: CheckpointPoll, identities?: readonly string[])
 
 export function toStudentPoll(poll: CheckpointPoll): StudentPoll {
   const { checkpoint: cp } = poll;
+  const showQuestionText = poll.showQuestionText ?? true;
+  const options = checkpointOptions(cp);
   return {
     pollId: poll.pollId,
     kind: checkpointKind(cp),
     title: cp.title,
-    question: cp.question,
-    options: checkpointOptions(cp),
+    // 只顯示選項時不送文字：學生要聽老師唸題，不能從裝置看到
+    question: showQuestionText ? cp.question : '',
+    options: showQuestionText ? options : options.map(() => ''),
     status: poll.status,
+    showQuestionText,
     ...(poll.status === 'revealed' ? { answerIndex: cp.answerIndex } : {}),
   };
 }
@@ -129,8 +136,11 @@ export function toStudentPoll(poll: CheckpointPoll): StudentPoll {
 /** identities：目前在線的學生（已作答人數與分母都只算他們） */
 export function toScreenPoll(poll: CheckpointPoll, identities: readonly string[]): ScreenPoll {
   const counts = pollCounts(poll, identities);
+  // 大屏由教師端直接送出（不經網路），保留完整文字，切回顯示題目時不必重送
   return {
     ...toStudentPoll(poll),
+    question: poll.checkpoint.question,
+    options: checkpointOptions(poll.checkpoint),
     counts,
     answered: counts.reduce((a, b) => a + b, 0),
     total: identities.length,

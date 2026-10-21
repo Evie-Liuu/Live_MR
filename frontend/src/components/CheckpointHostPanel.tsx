@@ -12,10 +12,10 @@ interface CheckpointHostPanelProps {
   poll: CheckpointPoll | null;
   /** 目前在線的學生 */
   studentIds: string[];
-  /** 任務程度：決定發布後大屏預設是否顯示題目文字（A1-A2 以上預設只顯示選項代號） */
+  /** 任務程度：決定發布後大屏與學生裝置預設是否顯示題目文字（A1-A2 以上預設只顯示選項代號） */
   level?: string;
   onPublish: (stepId: string, checkpoint: AudienceCheckpoint) => void;
-  /** 發布後切換大屏是否顯示題目文字 */
+  /** 發布後切換大屏與學生裝置是否顯示題目文字 */
   onToggleQuestionText: () => void;
   onClose: () => void;
   onReveal: () => void;
@@ -25,7 +25,7 @@ interface CheckpointHostPanelProps {
 /**
  * 導師任務卡（任務中）的台下互動控制：
  * 發布 → 學生作答（即時人數與分布只有老師看得到）→ 結束作答 → 公布答案（大屏顯示統計）→ 結束。
- * 大屏預設依程度決定是否顯示題目文字（A1-A2 以上只顯示 A、B… 或 O / X），發布後可切換。
+ * 大屏與學生裝置預設依程度決定是否顯示題目文字（A1-A2 以上只顯示 A、B… 或 O / X），發布後可切換。
  */
 export default function CheckpointHostPanel({
   steps, currentIndex, poll, studentIds, level, onPublish, onToggleQuestionText, onClose, onReveal, onEnd,
@@ -74,10 +74,10 @@ export default function CheckpointHostPanel({
             className={`cph-btn cph-btn--screen-toggle ${showText ? 'is-active' : ''}`}
             onClick={onToggleQuestionText}
             aria-pressed={showText}
-            title={showText ? '大屏目前顯示題目文字，點擊改為只顯示選項代號' : '大屏目前只顯示選項代號，點擊顯示題目文字'}
+            title={showText ? '大屏與學生裝置目前顯示題目文字，點擊改為只顯示選項代號' : '大屏與學生裝置目前只顯示選項代號，點擊顯示題目文字'}
           >
             <span className="material-symbols-outlined" aria-hidden="true">{showText ? 'subject' : 'format_list_bulleted'}</span>
-            大屏：{showText ? '顯示題目' : '只顯示選項'}
+            題目：{showText ? '顯示文字' : '只顯示選項'}
           </button>
           <div className="cph-actions-right">
             {poll.status === 'open' && <button type="button" className="cph-btn cph-btn--primary" onClick={onClose}>結束作答</button>}
@@ -93,7 +93,7 @@ export default function CheckpointHostPanel({
     <div className="cph" onClick={stop}>
       <div className="cph-head">
         <span className="cph-title">台下互動</span>
-        <span className="cph-default-hint">發布後大屏{defaultShowQuestionText(level) ? '顯示題目' : '只顯示選項'}</span>
+        <span className="cph-default-hint">發布後{defaultShowQuestionText(level) ? '顯示題目文字' : '只顯示選項'}</span>
       </div>
       <ul className="cph-list">
         {candidates.map(({ step, cp }) => (

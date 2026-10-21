@@ -163,3 +163,34 @@
 
 .cps-message.is-correct { color: #16A34A; }
 .cps-message.is-wrong { color: #DC2626; }
+
+/* 只顯示選項：提示聽老師唸題，選項放大成並排方塊 */
+.cps-question--listen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1.3rem;
+  color: #136B6D;
+}
+
+.cps-question--listen .material-symbols-outlined {
+  font-size: 1.8rem;
+}
+
+.cps-sheet--no-text .cps-options {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.cps-sheet--no-text .cps-option {
+  flex-direction: column;
+  justify-content: center;
+  min-height: 150px;
+  text-align: center;
+}
+
+.cps-sheet--no-text .cps-mark {
+  width: 80px;
+  height: 80px;
+  font-size: 2.4rem;
+}

@@ -64,3 +64,23 @@ describe('checkpointPoll', () => {
     expect([optionMark('truefalse', 0), optionMark('truefalse', 1), optionMark('choice', 2)]).toEqual(['O', 'X', 'C'])
   })
 })
+
+describe('只顯示選項', () => {
+  it('學生裝置收不到題目與選項文字，大屏保留完整文字', () => {
+    const poll = startPoll(choice, 's1', 'p1', false)
+    const student = toStudentPoll(poll)
+    expect(student.showQuestionText).toBe(false)
+    expect(student.question).toBe('')
+    expect(student.options).toEqual(['', '', ''])
+    const screen = toScreenPoll(poll, [])
+    expect(screen.question).toBe(choice.question)
+    expect(screen.options).toEqual(choice.options)
+    expect(screen.showQuestionText).toBe(false)
+  })
+
+  it('顯示題目時學生裝置收到完整文字', () => {
+    const student = toStudentPoll(startPoll(choice, 's1', 'p1', true))
+    expect(student.question).toBe(choice.question)
+    expect(student.options).toEqual(choice.options)
+  })
+})

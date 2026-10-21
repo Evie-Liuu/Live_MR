@@ -1370,7 +1370,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     } catch { /* ignore */ }
   }, []);
   // 題目或狀態改變時立即送出；進行中定期重送（晚加入、重連或漏收的學生也會看到題目）
-  const checkpointStudentKey = checkpointPoll ? `${checkpointPoll.pollId}:${checkpointPoll.status}` : '';
+  const checkpointStudentKey = checkpointPoll
+    ? `${checkpointPoll.pollId}:${checkpointPoll.status}:${checkpointPoll.showQuestionText ?? true}`
+    : '';
   useEffect(() => {
     if (!connectedRoom) return;
     sendCheckpoint();
@@ -1641,7 +1643,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const endLesson = useCallback(() => { setLesson(null); setCheckpointPoll(null); }, []);
 
   /** 台下互動點：發布 / 結束作答 / 公布答案 / 結束 */
-  // 大屏是否顯示題目文字：依任務程度給預設（A1-A2 以上只顯示選項代號），發布後可切換
+  // 大屏與學生裝置是否顯示題目文字：依任務程度給預設（A1-A2 以上只顯示選項代號），發布後可切換
   const lessonLevel = lesson?.record.task.level;
   const publishCheckpoint = useCallback((stepId: string, checkpoint: AudienceCheckpoint) => {
     setCheckpointPoll(startPoll(checkpoint, stepId, createId('poll'), defaultShowQuestionText(lessonLevel)));
