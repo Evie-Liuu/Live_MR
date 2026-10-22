@@ -1450,7 +1450,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
           // Host assigned: Immediately apply slot default
           handleTeacherVrmChange(sceneSlot.defaultVrmId);
         } else {
-          const hasManualOverride = studentRoles[identity];
+          // 從別的角色移過來時，若模型是舊角色自動套用的預設模型，不算老師手動選的，改套新角色的預設
+          const fromSlotId = Object.entries(slotAssignments).find(([sid, id]) => id === identity && sid !== slotId)?.[0];
+          const fromDefault = fromSlotId ? preset.slots?.find(s => s.id === fromSlotId)?.defaultVrmId : undefined;
+          const hasManualOverride = studentRoles[identity] && studentRoles[identity] !== fromDefault;
           if (!hasManualOverride) {
             const vrmUrl = (VRM_SOURCES[sceneSlot.defaultVrmId] || VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
             const vrmMsg: BigScreenMsg = { type: 'vrm-identity-change', identity, vrmUrl };
@@ -2169,26 +2172,28 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // All participants for slot assignment dropdown (teacher + students)
   const teacherIdentity = connectedRoom?.localParticipant.identity;
   const teacherName = connectedRoom?.localParticipant.name;
-  const allParticipantOptions = useMemo(() => [
-    ...(teacherIdentity ? [{
-      value: teacherIdentity,
+  /** 可指派的人員（老師在最前面） */
+  const assignableParticipants = [
+    ...(teacherIdentity ? [{ identity: teacherIdentity, name: teacherName ? `${teacherName} (老師)` : '老師' }] : []),
+    ...studentList.map(info => ({ identity: info.participant.identity, name: info.participant.name || info.participant.identity })),
+  ];
+  /**
+   * 角色配置的「指派給」選項：已經演其他角色的人標出角色名稱，
+   * 選了會從原角色移過來（原角色變成未指派）。
+   */
+  const participantOptionsFor = (slotId: string) => assignableParticipants.map(p => {
+    const otherSlotId = Object.entries(slotAssignments).find(([sid, id]) => id === p.identity && sid !== slotId)?.[0];
+    const otherLabel = otherSlotId ? currentScenePreset.slots?.find(s => s.id === otherSlotId)?.label ?? otherSlotId : null;
+    return {
+      value: p.identity,
       label: (
         <div className="custom-select-option-content">
-          {/* <span className="material-symbols-outlined" style={{color: '#F76E12'}}>school</span> */}
-          <span>{teacherName ? `${teacherName} (老師)` : '老師'}</span>
+          <span>{p.name}</span>
+          {otherLabel && <span className="slot-option-role" title={`目前演「${otherLabel}」，選擇後改演這個角色`}>{otherLabel}</span>}
         </div>
-      )
-    }] : []),
-    ...studentList.map(info => ({
-      value: info.participant.identity,
-      label: (
-        <div className="custom-select-option-content">
-          {/* <span className="material-symbols-outlined" style={{color: '#00A99D'}}>person</span> */}
-          <span>{info.participant.name || info.participant.identity}</span>
-        </div>
-      )
-    })),
-  ], [teacherIdentity, teacherName, studentList]);
+      ),
+    };
+  });
 
   const hasSlots = currentScenePreset.slots && currentScenePreset.slots.length > 0;
   // 選定任務後只列出有台詞的角色（依場景 slot 順序）；尚未選任務時列出場景全部角色
@@ -2688,7 +2693,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                     </div>
                     {lessonPhaseContent.focusPoints.length > 0 && (
                       <div className="hs-lesson-chips">
-                        <span className="hs-lesson-chips-label">語言重點</span>
+                        <span className="hs-lesson-chips-label">語法重點</span>
                         {lessonPhaseContent.focusPoints.map(f => <span key={f} className="hs-lesson-chip">{f}</span>)}
                       </div>
                     )}
@@ -3674,7 +3679,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                             </div>
                           )
                         },
-                        ...allParticipantOptions
+                        ...participantOptionsFor(sceneSlot.id)
                       ]}
                       onChange={(val) => {
                         handleSlotAssign(sceneSlot.id, val === '' ? null : val);

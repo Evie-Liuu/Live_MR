@@ -641,6 +641,13 @@ export function useBigScreenScene(
     applyAllGroupTransforms();
   }, [groupTransforms, applyAllGroupTransforms]);
 
+  // 角色對應改變（指派、換角色、移除）後重算：模型移到新角色的群組位置，隱藏群組也跟著套用。
+  // ensureAvatar 在收到指派訊息當下就會套一次，但那時 slotAssignments 還是舊的，這裡補正。
+  useEffect(() => {
+    applyAllGroupTransforms();
+    applyAllGroupVisibility();
+  }, [slotAssignments, applyAllGroupTransforms, applyAllGroupVisibility]);
+
   // ─── Scene initialisation ─────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;

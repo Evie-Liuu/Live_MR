@@ -5308,6 +5308,18 @@ button:disabled {
   opacity: 0.6;
 }
 
+/* 指派下拉：此人已在演的角色 */
+.slot-option-role {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #FFF1E6;
+  color: #C05621;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .slot-drawer-footer {
   padding: 32px 0 16px;
   text-align: center;

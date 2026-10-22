@@ -2173,14 +2173,30 @@ export default function BigScreen() {
         } catch {/* ignore */ }
       } else if (msg.type === 'slot-assign' && msg.slotId !== undefined) {
         if (msg.identity != null) {
-          // Assign identity to slot
-          slotAssignmentsRef.current.set(msg.slotId, msg.identity);
-          setSlotAssignments(prev => ({ ...prev, [msg.slotId!]: msg.identity! }));
+          // Assign identity to slot。一人只能演一個角色：老師端會清掉這個人原本的角色，
+          // 大屏也要同步移除舊對應，否則群組位置重算時會把模型拉回舊角色的位置。
+          const identity = msg.identity;
+          const slotId = msg.slotId;
+          const displaced = slotAssignmentsRef.current.get(slotId);
+          const reassign = (map: Record<string, string>) => {
+            for (const [sid, id] of Object.entries(map)) if (id === identity && sid !== slotId) delete map[sid];
+            map[slotId] = identity;
+            return map;
+          };
+          for (const [sid, id] of [...slotAssignmentsRef.current]) {
+            if (id === identity && sid !== slotId) slotAssignmentsRef.current.delete(sid);
+          }
+          slotAssignmentsRef.current.set(slotId, identity);
+          setSlotAssignments(prev => reassign({ ...prev }));
+
           try {
             const stored = JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}');
-            stored[msg.slotId] = msg.identity;
-            sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(stored));
+            sessionStorage.setItem('bigscreen-slotAssignments', JSON.stringify(reassign(stored)));
           } catch {/* ignore */ }
+          // 這個角色原本由別人演：那個人沒有角色了，從大屏移除（未指派者不出現在大屏）
+          if (displaced && displaced !== identity && ![...slotAssignmentsRef.current.values()].includes(displaced)) {
+            removeAvatarRef.current(displaced);
+          }
           // Immediately load avatar at slot position (before next pose frame)
           const preset = SCENE_PRESETS[sceneIdRef.current];
           const sceneSlot = preset?.slots?.find(s => s.id === msg.slotId);
