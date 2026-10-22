@@ -923,6 +923,8 @@
   height: 28px;
   display: grid;
   place-items: center;
+  /* 蓋掉全域 button 的 padding，否則 28px 寬放不下、符號會偏右 */
+  padding: 0;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -931,7 +933,9 @@
 }
 
 .te-mini-btn .material-symbols-outlined {
+  display: block;
   font-size: 18px;
+  line-height: 1;
 }
 
 .te-mini-btn:hover:not(:disabled) {
@@ -1517,11 +1521,12 @@ button.te-side-card:hover {
 
 /* 刪除整題：一直顯示（台詞列的工具列是滑過才出現） */
 .te-cp-tools .te-cp-delete {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
   margin-left: 4px;
-  padding: 4px 10px 4px 6px;
+  padding: 0;
   border: 1px solid #FECACA;
   border-radius: 8px;
   background: #fff;
@@ -1532,7 +1537,9 @@ button.te-side-card:hover {
 }
 
 .te-cp-tools .te-cp-delete .material-symbols-outlined {
+  display: block;
   font-size: 18px;
+  line-height: 1;
 }
 
 .te-cp-tools .te-cp-delete:hover {
