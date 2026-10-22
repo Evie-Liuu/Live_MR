@@ -16,6 +16,8 @@ import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 import { BIGSCREEN_LESSON_STORAGE_KEY, type LessonScreenState } from '../utils/lessonSession.ts';
 import { BIGSCREEN_CHECKPOINT_STORAGE_KEY, type ScreenPoll } from '../utils/checkpointPoll.ts';
 import CheckpointScreenOverlay from './CheckpointScreenOverlay.tsx';
+import AvatarNameplates from './AvatarNameplates.tsx';
+import { buildNameplates, type AvatarAnchors } from '../utils/nameplates.ts';
 import { phaseMeta } from '../config/lessonPhases.ts';
 
 export interface TaskEntry {
@@ -712,6 +714,17 @@ export default function BigScreen() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [editMode, editor.state.dirty]);
 
+  // ── 角色名牌：頭頂顯示「角色・演出者」，目前步驟沒台詞的角色淡化、說話中的角色發光 ──
+  const nameplateSinkRef = useRef<((anchors: AvatarAnchors) => void) | null>(null);
+  const pushNameplateAnchors = useCallback((anchors: AvatarAnchors) => nameplateSinkRef.current?.(anchors), []);
+  const nameplates = useMemo(() => buildNameplates({
+    slots: (SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID]).slots ?? [],
+    slotAssignments,
+    participantNames,
+    lesson,
+    speaking: speakingIdentities,
+  }), [sceneId, slotAssignments, participantNames, lesson, speakingIdentities]);
+
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
       const ids = Array.from(participantNames.keys());
@@ -748,6 +761,7 @@ export default function BigScreen() {
     groupTransforms: effectiveGroupTransforms,
     speakingIdentities: speakingIdentitiesArray,
     onSpeakerAnchors: setSpeakerAnchors,
+    onAvatarAnchors: pushNameplateAnchors,
     occluderInstances: effectiveOccluders,
     editorPlaceholderSlots: placeholderSlots,
     hiddenGroups: effectiveHiddenGroups,
@@ -2444,6 +2458,9 @@ export default function BigScreen() {
           DEV · 強制顯示說話徽章（按 B 關閉）
         </div>
       )}
+
+      {/* 3a. 角色名牌（角色・演出者），跟著模型頭頂移動 */}
+      {!editMode && <AvatarNameplates sinkRef={nameplateSinkRef} plates={nameplates} />}
 
       {/* 3b. 各角色 VRM 頭上說話標記 — 倒三角 callout + 「輪到你回答 / 說話中」
               標籤 + 聚光燈光暈與等化器條，表明目前只收音此人 */}

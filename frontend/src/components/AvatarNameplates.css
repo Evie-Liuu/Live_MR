@@ -1,0 +1,52 @@
+/* 大屏角色名牌：貼在模型頭頂上方，跟著模型移動 */
+.bs-nameplates {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* 在說話徽章（z-index 6）之下，兩者同時出現時徽章在上 */
+  z-index: 5;
+}
+
+.bs-nameplate {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  max-width: 22vw;
+  border: 3px solid var(--plate-color, #00A99D);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  font-size: clamp(14px, 1.4vw, 26px);
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+
+.bs-nameplate-role {
+  padding: 0.4em 0.6em;
+  background: var(--plate-color, #00A99D);
+  color: #fff;
+}
+
+.bs-nameplate-name {
+  padding: 0.4em 0.8em;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 這一段沒有台詞：淡化，讓有台詞的角色更明顯 */
+.bs-nameplate.is-idle {
+  opacity: 0.45;
+}
+
+/* 正在說話：放大、外光 */
+.bs-nameplate.is-speaking {
+  opacity: 1;
+  transform: translate(-50%, -100%) scale(1.12);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85), 0 0 22px 6px var(--plate-color, #00A99D);
+}

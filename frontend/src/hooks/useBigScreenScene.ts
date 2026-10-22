@@ -110,6 +110,14 @@ const _displayPosVec = new THREE.Vector3();
 const _headWorld = new THREE.Vector3();
 const _headUV = { x: 0, y: 0 };
 
+/**
+ * 頭頂標記的高度（從頭部骨骼往上，單位：公尺）。
+ * 名牌貼在頭頂上方；「輪到你說話」標記再往上，兩者同時出現時不重疊。
+ * 本地調整：npm run dev 開大屏，改這兩個數字存檔即熱更新；在大屏按 B 可強制顯示說話標記方便對位。
+ */
+const NAMEPLATE_HEAD_OFFSET = 0.44;
+const SPEAKER_BADGE_HEAD_OFFSET = 0.72;
+
 /** 編輯模式 placeholder avatar identity 命名空間前綴。 */
 const PLACEHOLDER_PREFIX = '__placeholder__:';
 /** placeholder 沒有 pose driver，直接用 slot.position.y 會懸浮：腳貼地的高度 */
@@ -162,6 +170,11 @@ interface UseBigScreenSceneOptions {
    */
   onSpeakerAnchors?: (anchors: Record<string, { x: number; y: number }>) => void;
   /**
+   * 角色名牌用：每 ~100ms 回呼所有可見角色模型（不含編輯模式 placeholder）的頭頂 UV 座標；
+   * 位置沒變時不回呼，避免大屏無謂重新渲染。
+   */
+  onAvatarAnchors?: (anchors: Record<string, { x: number; y: number }>) => void;
+  /**
    * 當前場景的遮罩物件實例清單。改變時依 instanceId 做 diff:
    * 新增 → 載入 GLB;移除 → dispose;保留 → 同步 transform。
    * scene unmount 時全部 dispose。
@@ -191,7 +204,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -472,6 +485,11 @@ export function useBigScreenScene(
   speakingIdentitiesRef.current = speakingIdentities ?? [];
   const onSpeakerAnchorsRef = useRef<UseBigScreenSceneOptions['onSpeakerAnchors']>(undefined);
   onSpeakerAnchorsRef.current = onSpeakerAnchors;
+  const onAvatarAnchorsRef = useRef<UseBigScreenSceneOptions['onAvatarAnchors']>(undefined);
+  onAvatarAnchorsRef.current = onAvatarAnchors;
+  const lastAvatarAnchorAtRef = useRef(0);
+  /** 上次回報的名牌座標（比對有變才回呼） */
+  const lastAvatarAnchorsRef = useRef<Record<string, { x: number; y: number }>>({});
   /** 上次回呼頭部座標的時間（節流） */
   const lastAnchorAtRef = useRef(0);
   /** 上次是否回報過非空 anchors（用來只在「轉為空」時清一次） */
@@ -950,7 +968,7 @@ export function useBigScreenScene(
               const head = slot.vrm.humanoid?.getNormalizedBoneNode('head');
               if (!head) continue;
               head.getWorldPosition(_headWorld);
-              _headWorld.y += 0.44; // 抬到頭頂上方
+              _headWorld.y += SPEAKER_BADGE_HEAD_OFFSET; // 名牌上方
               projectToUV(_headWorld, cam, _headUV);
               anchors[id] = { x: _headUV.x, y: _headUV.y };
               any = true;
@@ -961,6 +979,34 @@ export function useBigScreenScene(
               hadAnchorsRef.current = true;
               cb(anchors);
             }
+          }
+        }
+      }
+
+      // ── 角色名牌：所有可見模型的頭頂座標（與說話標記共用節流時間點）────────
+      {
+        const cb = onAvatarAnchorsRef.current;
+        const cam = cameraRef.current;
+        if (cb && cam && timestamp - lastAvatarAnchorAtRef.current >= 100) {
+          lastAvatarAnchorAtRef.current = timestamp;
+          const next: Record<string, { x: number; y: number }> = {};
+          for (const [id, slot] of avatarsRef.current) {
+            if (id.startsWith('__placeholder__:') || !slot.vrm.scene.visible) continue;
+            const head = slot.vrm.humanoid?.getNormalizedBoneNode('head');
+            if (!head) continue;
+            head.getWorldPosition(_headWorld);
+            _headWorld.y += NAMEPLATE_HEAD_OFFSET;
+            projectToUV(_headWorld, cam, _headUV);
+            if (_headUV.x < 0 || _headUV.x > 1 || _headUV.y < 0 || _headUV.y > 1) continue;
+            next[id] = { x: _headUV.x, y: _headUV.y };
+          }
+          const prev = lastAvatarAnchorsRef.current;
+          const prevIds = Object.keys(prev);
+          const changed = prevIds.length !== Object.keys(next).length ||
+            Object.entries(next).some(([id, p]) => !prev[id] || Math.abs(prev[id].x - p.x) > 0.001 || Math.abs(prev[id].y - p.y) > 0.001);
+          if (changed) {
+            lastAvatarAnchorsRef.current = next;
+            cb(next);
           }
         }
       }
