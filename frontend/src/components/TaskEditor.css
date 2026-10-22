@@ -1458,3 +1458,203 @@ button.te-side-card:hover {
   font-weight: 700;
   cursor: pointer;
 }
+
+/* ── 台下互動分頁 ─────────────────────────────────────────── */
+.te-cp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+
+.te-cp-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--te-muted);
+}
+
+.te-cp-token {
+  border: 1px solid var(--te-teal);
+  border-radius: 999px;
+  padding: 3px 12px;
+  background: #F0FAF9;
+  color: #00695F;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.te-cp-token:hover {
+  background: #DDF3F1;
+}
+
+.te-cp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--te-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.te-cp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.te-cp-tools {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 刪除整題：一直顯示（台詞列的工具列是滑過才出現） */
+.te-cp-tools .te-cp-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  padding: 4px 10px 4px 6px;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  background: #fff;
+  color: #B91C1C;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.te-cp-tools .te-cp-delete .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.te-cp-tools .te-cp-delete:hover {
+  background: #FEE2E2;
+}
+
+.te-cp-num {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--te-orange);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.te-cp-kind {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: #F3F1EE;
+}
+
+.te-cp-kind button {
+  border: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--te-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.te-cp-kind button.is-active {
+  background: #fff;
+  color: var(--te-orange);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+}
+
+.te-cp-title {
+  flex: 1 1 140px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--te-line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.te-cp-preview {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: #00695F;
+}
+
+.te-cp-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.te-cp-options legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--te-muted);
+}
+
+.te-cp-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.te-cp-option > input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--te-line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.te-cp-option.is-answer > input,
+.te-cp-option.is-answer .te-cp-tf {
+  border-color: #16A34A;
+  background: #F0FDF4;
+}
+
+.te-cp-answer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.te-cp-answer input {
+  accent-color: #16A34A;
+}
+
+.te-cp-tf {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--te-line);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.te-cp-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.te-cp-icon {
+  color: var(--te-orange);
+}

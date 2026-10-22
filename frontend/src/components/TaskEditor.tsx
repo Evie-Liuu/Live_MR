@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { THEMES } from '../config/scenes.ts';
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
-  MAX_CAST_OPTIONS, MAX_TAGS, MAX_TAG_LEN, blankTask, castChoices, castSize, cloneStep, formatClock, newLine, newStep, speakingSlots,
+  MAX_CAST_OPTIONS, MAX_CHECKPOINTS_PER_STEP, MAX_CHECKPOINT_OPTIONS, MAX_TAGS, MAX_TAG_LEN, MIN_CHECKPOINT_OPTIONS,
+  blankTask, castChoices, castSize, cleanCheckpoints, cloneStep, formatClock, newCheckpoint, newLine, newStep, speakingSlots,
   splitTags, stepTimings,
-  type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
+  type AudienceCheckpoint, type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
 } from '../types/dialogueTask.ts';
 import { createDialogueTask, dialogueTaskErrorText, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
 import { TASK_TEMPLATES, toTemplateSource } from '../config/taskTemplates/index.ts';
 import ScriptSimulator from './ScriptSimulator.tsx';
 import { GESTURES, isGestureId } from '../config/gestures.ts';
+import { checkpointKind, optionMark, resolveCastText } from '../utils/checkpointPoll.ts';
 import './TaskEditor.css';
 
 interface TaskEditorProps {
@@ -23,7 +25,7 @@ interface TaskEditorProps {
   onClose: () => void;
 }
 
-type Tab = 'dialogue' | 'grammar' | 'notes' | 'cast';
+type Tab = 'dialogue' | 'grammar' | 'notes' | 'checkpoints' | 'cast';
 
 interface SlotOption { id: string; label: string; icon?: string }
 
@@ -174,7 +176,8 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
   /** 回傳是否儲存成功 */
   const save = useCallback(async (): Promise<boolean> => {
     if (saving) return false;
-    const payload: DialogueTask = { ...task, title: task.title.trim() || '未命名任務' };
+    // 題目空白的台下互動點不存
+    const payload: DialogueTask = { ...cleanCheckpoints(task), title: task.title.trim() || '未命名任務' };
     // 還沒設定任何併角的空白版本不存（後端不接受空的併角）
     const castOptions = (task.castOptions ?? []).filter(c => Object.keys(c.merge).length > 0);
     if (castOptions.length > 0) payload.castOptions = castOptions;
@@ -400,6 +403,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                 ['dialogue', 'forum', '對話內容'],
                 ['grammar', 'menu_book', '語法說明'],
                 ['notes', 'lightbulb', '教學注意點'],
+                ['checkpoints', 'quiz', '台下互動'],
                 ['cast', 'groups', '演出人數'],
               ] as const).map(([key, icon, label]) => (
                 <button
@@ -533,6 +537,14 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                 </div>
               )}
 
+              {tab === 'checkpoints' && (
+                <CheckpointEditor
+                  checkpoints={step.checkpoints ?? []}
+                  slots={slots}
+                  onChange={checkpoints => editStep(step.id, s => ({ ...s, checkpoints }))}
+                />
+              )}
+
               {tab === 'cast' && (
                 <CastEditor
                   task={task}
@@ -604,6 +616,17 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                 <p className="te-side-empty">尚未填寫，點此新增</p>
               ) : (
                 <ul>{step.teachingNotes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+              )}
+            </button>
+
+            <button className="te-side-card" onClick={() => setTab('checkpoints')}>
+              <div className="te-side-head">
+                <h3><span className="material-symbols-outlined te-cp-icon" aria-hidden="true">quiz</span>台下互動</h3>
+              </div>
+              {!step.checkpoints?.length ? (
+                <p className="te-side-empty">這一步演完後沒有台下互動，點此新增</p>
+              ) : (
+                <ul>{step.checkpoints.map(c => <li key={c.id}>{c.title}：{c.question || '（題目空白）'}</li>)}</ul>
               )}
             </button>
 
@@ -846,6 +869,247 @@ function CastEditor({ task, slotLabel, onChange }: {
         <button type="button" className="te-cast-add" onClick={() => onChange([...options, { merge: {} }])}>
           ＋ 新增人數版本
         </button>
+      )}
+    </div>
+  );
+}
+
+/** 互動點的問題說明（顯示在卡片標題旁）；沒問題回 null */
+function checkpointProblem(cp: AudienceCheckpoint): string | null {
+  if (!cp.question.trim()) return '題目空白（儲存時略過）';
+  if (checkpointKind(cp) === 'choice' && cp.options.some(o => !o.trim())) return '有選項空白';
+  return null;
+}
+
+/**
+ * 台下互動分頁：這一步演完後，老師發布到台下學生裝置作答的選擇題 / 是非題。
+ * 題目提到角色時插入角色代號，上課發布時換成演出者名字（少人數併角時換成接手的人）。
+ */
+function CheckpointEditor({ checkpoints, slots, onChange }: {
+  checkpoints: AudienceCheckpoint[];
+  slots: SlotOption[];
+  onChange: (checkpoints: AudienceCheckpoint[]) => void;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const slotLabels = useMemo(() => Object.fromEntries(slots.map(s => [s.id, s.label])), [slots]);
+  /** 編輯器預覽：沒有演出者，代號顯示成角色名稱 */
+  const preview = (text: string) => resolveCastText(text, { slotLabels, merge: {}, slotAssignments: {}, names: {} });
+
+  const update = (i: number, patch: Partial<AudienceCheckpoint>) =>
+    onChange(checkpoints.map((c, k) => (k === i ? { ...c, ...patch } : c)));
+
+  const setKind = (i: number, kind: 'choice' | 'truefalse') => {
+    const cp = checkpoints[i];
+    if (checkpointKind(cp) === kind) return;
+    if (kind === 'truefalse') {
+      update(i, { kind, options: ['True', 'False'], answerIndex: Math.min(cp.answerIndex, 1) });
+    } else {
+      // 是非題的 True / False 不沿用成選擇題選項
+      const next = { ...cp, options: ['', '', ''], answerIndex: 0 };
+      delete next.kind;
+      onChange(checkpoints.map((c, k) => (k === i ? next : c)));
+    }
+  };
+
+  const setOption = (i: number, j: number, value: string) =>
+    update(i, { options: checkpoints[i].options.map((o, k) => (k === j ? value : o)) });
+
+  const removeOption = (i: number, j: number) => {
+    const cp = checkpoints[i];
+    const answerIndex = cp.answerIndex === j ? 0 : cp.answerIndex > j ? cp.answerIndex - 1 : cp.answerIndex;
+    update(i, { options: cp.options.filter((_, k) => k !== j), answerIndex });
+  };
+
+  /** 角色代號插入到游標所在的題目／選項／延伸追問欄位 */
+  const insertToken = (slotId: string) => {
+    const el = document.activeElement;
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) || !panelRef.current?.contains(el)) return;
+    const i = Number(el.dataset.cp);
+    const field = el.dataset.field;
+    if (!Number.isInteger(i) || !field) return;
+    const token = `{${slotId}}`;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? start;
+    const value = el.value.slice(0, start) + token + el.value.slice(end);
+    if (field === 'question') update(i, { question: value });
+    else if (field === 'followUp') update(i, { followUp: value });
+    else if (field.startsWith('opt-')) setOption(i, Number(field.slice(4)), value);
+    requestAnimationFrame(() => el.setSelectionRange(start + token.length, start + token.length));
+  };
+
+  return (
+    <div className="te-cp-panel" ref={panelRef}>
+      <p className="te-cast-intro">
+        這一步演完後，老師在任務卡按「發布」，台下學生在自己的裝置作答，大屏顯示統計與正確答案。
+        題目提到角色時，先點題目欄位再點下方角色，會插入代號，上課時自動換成演出學生的名字。
+      </p>
+
+      {slots.length > 0 && (
+        <div className="te-cp-tokens" aria-label="插入角色代號">
+          <span className="te-cp-tokens-label">插入角色：</span>
+          {slots.map(s => (
+            <button
+              key={s.id}
+              type="button"
+              className="te-cp-token"
+              // 不搶走輸入欄位的焦點，才知道要插到哪裡
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => insertToken(s.id)}
+              title={`插入 {${s.id}}，上課時換成演出「${s.label}」的學生名字`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {checkpoints.length === 0 && <p className="te-empty">這一步還沒有台下互動，按下方新增選擇題或是非題。</p>}
+
+      {checkpoints.map((cp, i) => {
+        const kind = checkpointKind(cp);
+        const problem = checkpointProblem(cp);
+        const resolved = preview(cp.question);
+        return (
+          <section key={cp.id} className="te-cp-card" aria-label={`台下互動 ${i + 1}`}>
+            <div className="te-cp-head">
+              <span className="te-cp-num">{i + 1}</span>
+              <div className="te-cp-kind" role="radiogroup" aria-label="題型">
+                {(['choice', 'truefalse'] as const).map(k => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={kind === k}
+                    className={kind === k ? 'is-active' : ''}
+                    onClick={() => setKind(i, k)}
+                  >
+                    {k === 'choice' ? '選擇題' : '是非題'}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="te-cp-title"
+                value={cp.title}
+                maxLength={100}
+                placeholder="互動類型，例：聽力理解"
+                aria-label="互動類型"
+                onChange={e => update(i, { title: e.target.value })}
+              />
+              {problem && <span className="te-cast-error">{problem}</span>}
+              <span className="te-cp-tools">
+                <button className="te-mini-btn" onClick={() => onChange(moveItem(checkpoints, i, i - 1))} disabled={i === 0} aria-label="上移互動">
+                  <span className="material-symbols-outlined">arrow_upward</span>
+                </button>
+                <button className="te-mini-btn" onClick={() => onChange(moveItem(checkpoints, i, i + 1))} disabled={i === checkpoints.length - 1} aria-label="下移互動">
+                  <span className="material-symbols-outlined">arrow_downward</span>
+                </button>
+                <button
+                  type="button"
+                  className="te-cp-delete"
+                  onClick={() => onChange(checkpoints.filter((_, k) => k !== i))}
+                  aria-label={`刪除第 ${i + 1} 題`}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">delete</span>
+                </button>
+              </span>
+            </div>
+
+            <label className="te-field">
+              <span>{kind === 'truefalse' ? '敘述（學生判斷對錯）' : '英文題目'}</span>
+              <textarea
+                rows={2}
+                value={cp.question}
+                maxLength={1000}
+                data-cp={i}
+                data-field="question"
+                placeholder={kind === 'truefalse' ? '例：{customer2} wants a red T-shirt.' : '例：Which color does {customer} want?'}
+                onChange={e => update(i, { question: e.target.value })}
+              />
+            </label>
+            {resolved !== cp.question && <p className="te-cp-preview">預覽：{resolved}</p>}
+
+            <fieldset className="te-cp-options">
+              <legend>選項（點圓圈設定正確答案）</legend>
+              {cp.options.map((opt, j) => (
+                <div key={j} className={`te-cp-option${cp.answerIndex === j ? ' is-answer' : ''}`}>
+                  <label className="te-cp-answer" title="正確答案">
+                    <input
+                      type="radio"
+                      name={`cp-answer-${cp.id}`}
+                      checked={cp.answerIndex === j}
+                      onChange={() => update(i, { answerIndex: j })}
+                      aria-label={`選項 ${optionMark(kind, j)} 是正確答案`}
+                    />
+                    <span>{optionMark(kind, j)}</span>
+                  </label>
+                  {kind === 'truefalse' ? (
+                    <span className="te-cp-tf">{j === 0 ? '對 True' : '錯 False'}</span>
+                  ) : (
+                    <>
+                      <input
+                        value={opt}
+                        maxLength={100}
+                        data-cp={i}
+                        data-field={`opt-${j}`}
+                        placeholder={`選項 ${optionMark(kind, j)}`}
+                        aria-label={`選項 ${optionMark(kind, j)}`}
+                        onChange={e => setOption(i, j, e.target.value)}
+                      />
+                      <button
+                        className="te-mini-btn te-mini-danger"
+                        onClick={() => removeOption(i, j)}
+                        disabled={cp.options.length <= MIN_CHECKPOINT_OPTIONS}
+                        aria-label={`刪除選項 ${optionMark(kind, j)}`}
+                      >
+                        <span className="material-symbols-outlined">close</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+              {kind === 'choice' && (
+                <button
+                  className="te-link-btn"
+                  onClick={() => update(i, { options: [...cp.options, ''] })}
+                  disabled={cp.options.length >= MAX_CHECKPOINT_OPTIONS}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">add</span>新增選項
+                </button>
+              )}
+            </fieldset>
+
+            <label className="te-field">
+              <span>延伸追問（選填，公布答案後只有老師看得到）</span>
+              <input
+                value={cp.followUp ?? ''}
+                maxLength={1000}
+                data-cp={i}
+                data-field="followUp"
+                placeholder="例：Which T-shirt is more expensive?"
+                onChange={e => {
+                  const followUp = e.target.value;
+                  if (followUp) update(i, { followUp });
+                  else {
+                    const next = { ...cp };
+                    delete next.followUp;
+                    onChange(checkpoints.map((c, k) => (k === i ? next : c)));
+                  }
+                }}
+              />
+            </label>
+          </section>
+        );
+      })}
+
+      {checkpoints.length < MAX_CHECKPOINTS_PER_STEP && (
+        <div className="te-cp-add">
+          <button type="button" className="te-cast-add" onClick={() => onChange([...checkpoints, newCheckpoint('choice')])}>
+            ＋ 新增選擇題
+          </button>
+          <button type="button" className="te-cast-add" onClick={() => onChange([...checkpoints, newCheckpoint('truefalse')])}>
+            ＋ 新增是非題
+          </button>
+        </div>
       )}
     </div>
   );

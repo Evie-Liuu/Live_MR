@@ -179,6 +179,24 @@ export function createId(prefix: string): string {
   return `${prefix}_${rand}`
 }
 
+export function newCheckpoint(kind: 'choice' | 'truefalse'): AudienceCheckpoint {
+  return kind === 'truefalse'
+    ? { id: createId('cp'), kind, title: '是非判斷', question: '', options: ['True', 'False'], answerIndex: 0 }
+    : { id: createId('cp'), title: '聽力理解', question: '', options: ['', '', ''], answerIndex: 0 }
+}
+
+/** 儲存時略過題目空白的互動點；步驟沒有互動點時不產生欄位 */
+export function cleanCheckpoints(task: DialogueTask): DialogueTask {
+  return {
+    ...task,
+    steps: task.steps.map(s => {
+      const { checkpoints, ...rest } = s
+      const kept = (checkpoints ?? []).filter(c => c.question.trim())
+      return kept.length ? { ...rest, checkpoints: kept } : rest
+    }),
+  }
+}
+
 export function newLine(speakerSlotId: string): DialogueLine {
   return { id: createId('line'), speakerSlotId, en: '', zh: '' }
 }
