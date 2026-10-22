@@ -46,8 +46,8 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           '可 2–4 人演出（角色配置切換演出人數）：3 人時店員 B 的台詞由店員 A 說；2 人時再把顧客 B 的台詞併給顧客 A。',
         ],
         checkpoints: [
-          { id: 'step1_cp1', title: '顏色理解', question: 'Which color does Customer A want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 },
-          { id: 'step1_cp2', kind: 'truefalse', title: '是非判斷', question: 'Customer B wants a red T-shirt.', options: ['True', 'False'], answerIndex: 0 },
+          { id: 'step1_cp1', title: '顏色理解', question: 'Which color does {customer} want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 },
+          { id: 'step1_cp2', kind: 'truefalse', title: '是非判斷', question: '{customer2} wants a red T-shirt.', options: ['True', 'False'], answerIndex: 0 },
         ],
       },
       {
@@ -113,7 +113,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           '本段總額設定為 33 元：藍色 T 恤折扣後 18 元，加上紅色 T 恤 15 元。',
         ],
         checkpoints: [
-          { id: 'step3_cp1', title: '付款理解', question: 'How does Customer A want to pay?', options: ['Cash', 'Card', 'Mobile payment'], answerIndex: 1 },
+          { id: 'step3_cp1', title: '付款理解', question: 'How does {customer} want to pay?', options: ['Cash', 'Card', 'Mobile payment'], answerIndex: 1 },
         ],
       },
     ],

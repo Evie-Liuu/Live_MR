@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   checkpointOptions, optionMark, recordAnswer, setPollStatus, startPoll, toScreenPoll, toStudentPoll,
+  hasDuplicateOptions, resolveCastText, resolveCheckpoint,
 } from './checkpointPoll.ts'
 import { isLevelA1A2OrAbove } from '../types/lessonPlan.ts'
 import type { AudienceCheckpoint } from '../types/dialogueTask.ts'
@@ -82,5 +83,37 @@ describe('只顯示選項', () => {
     const student = toStudentPoll(startPoll(choice, 's1', 'p1', true))
     expect(student.question).toBe(choice.question)
     expect(student.options).toEqual(choice.options)
+  })
+})
+
+describe('題目角色代號', () => {
+  const base = {
+    slotLabels: { cashier: '店員A', customer: '顧客A', staff: '店員B', customer2: '顧客B' },
+    slotAssignments: { customer: 'stu-1', customer2: 'stu-2' },
+    names: { 'stu-1': 'Amy', 'stu-2': 'Ben' },
+  }
+  const cp: AudienceCheckpoint = {
+    id: 'c', title: 't', question: 'Who wants red, {customer} or {customer2}?',
+    options: ['{customer}', '{customer2}'], answerIndex: 1, followUp: 'Ask {staff}.',
+  }
+
+  it('換成演出者名字，沒指派時用角色名稱，非角色代號保留', () => {
+    const r = resolveCheckpoint(cp, { ...base, merge: {} })
+    expect(r.question).toBe('Who wants red, Amy or Ben?')
+    expect(r.options).toEqual(['Amy', 'Ben'])
+    expect(r.followUp).toBe('Ask 店員B.')
+    expect(resolveCastText('{unknown} {customer}', { ...base, merge: {} })).toBe('{unknown} Amy')
+    expect(hasDuplicateOptions(r)).toBe(false)
+  })
+
+  it('併角時換成接手角色的演出者', () => {
+    const r = resolveCheckpoint(cp, { ...base, merge: { customer2: 'customer', staff: 'cashier' } })
+    expect(r.question).toBe('Who wants red, Amy or Amy?')
+    expect(r.followUp).toBe('Ask 店員A.')
+    expect(hasDuplicateOptions(r)).toBe(true)
+  })
+
+  it('是非題不檢查選項重複', () => {
+    expect(hasDuplicateOptions({ ...cp, kind: 'truefalse', options: ['x', 'x'] })).toBe(false)
   })
 })

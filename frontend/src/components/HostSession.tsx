@@ -43,7 +43,7 @@ import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import CheckpointHostPanel from './CheckpointHostPanel.tsx';
 import {
-  BIGSCREEN_CHECKPOINT_STORAGE_KEY, defaultShowQuestionText, loadHostPoll, recordAnswer, saveHostPoll, setPollStatus, startPoll,
+  BIGSCREEN_CHECKPOINT_STORAGE_KEY, type CheckpointCast, defaultShowQuestionText, loadHostPoll, recordAnswer, saveHostPoll, setPollStatus, startPoll,
   toggleQuestionText, toScreenPoll, toStudentPoll,
   type CheckpointPoll,
 } from '../utils/checkpointPoll.ts';
@@ -2206,6 +2206,20 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const castOptions = useMemo(() => (lesson ? castChoices(lesson.record.task) : []), [lesson]);
   const castFull = castOptions[castOptions.length - 1]?.size;
   const activeCastSize = lesson?.castSize ?? castFull;
+  /** 台下互動題目的角色代號（{customer2}）發布時換成演出者名字，依目前演出人數併角 */
+  const checkpointCast = useMemo<CheckpointCast>(() => {
+    const names: Record<string, string> = {};
+    if (teacherIdentity) names[teacherIdentity] = teacherName || 'Teacher';
+    for (const { participant: p } of participants.values()) {
+      if (!p.identity.startsWith('host-')) names[p.identity] = p.name || p.identity;
+    }
+    return {
+      slotLabels: Object.fromEntries((currentScenePreset.slots ?? []).map(s => [s.id, s.label])),
+      merge: castOptions.find(c => c.size === activeCastSize)?.merge ?? {},
+      slotAssignments,
+      names,
+    };
+  }, [teacherIdentity, teacherName, participants, currentScenePreset.slots, castOptions, activeCastSize, slotAssignments]);
   const castSlots = useMemo(
     () => (currentScenePreset.slots ?? []).filter(slot => !lesson || castLines.has(slot.id)),
     [currentScenePreset.slots, lesson, castLines],
@@ -2738,6 +2752,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   level={lesson.record.task.level}
                   poll={checkpointPoll}
                   studentIds={studentIds}
+                  cast={checkpointCast}
                   onPublish={publishCheckpoint}
                   onToggleQuestionText={toggleCheckpointQuestionText}
                   onClose={closeCheckpoint}

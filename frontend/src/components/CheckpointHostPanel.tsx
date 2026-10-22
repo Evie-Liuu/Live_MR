@@ -1,7 +1,7 @@
 import type { AudienceCheckpoint, DialogueStep } from '../types/dialogueTask.ts';
 import {
-  checkpointKind, checkpointOptions, defaultShowQuestionText, optionLabel, optionMark, pollCounts,
-  type CheckpointPoll,
+  checkpointKind, checkpointOptions, defaultShowQuestionText, hasDuplicateOptions, optionLabel, optionMark, pollCounts,
+  resolveCheckpoint, type CheckpointCast, type CheckpointPoll,
 } from '../utils/checkpointPoll.ts';
 import './CheckpointHostPanel.css';
 
@@ -14,6 +14,8 @@ interface CheckpointHostPanelProps {
   studentIds: string[];
   /** 任務程度：決定發布後大屏與學生裝置預設是否顯示題目文字（A1-A2 以上預設只顯示選項代號） */
   level?: string;
+  /** 題目裡的角色代號換成演出者名字用（發布的是代換後的題目） */
+  cast: CheckpointCast;
   onPublish: (stepId: string, checkpoint: AudienceCheckpoint) => void;
   /** 發布後切換大屏與學生裝置是否顯示題目文字 */
   onToggleQuestionText: () => void;
@@ -28,11 +30,11 @@ interface CheckpointHostPanelProps {
  * 大屏與學生裝置預設依程度決定是否顯示題目文字（A1-A2 以上只顯示 A、B… 或 O / X），發布後可切換。
  */
 export default function CheckpointHostPanel({
-  steps, currentIndex, poll, studentIds, level, onPublish, onToggleQuestionText, onClose, onReveal, onEnd,
+  steps, currentIndex, poll, studentIds, level, cast, onPublish, onToggleQuestionText, onClose, onReveal, onEnd,
 }: CheckpointHostPanelProps) {
   // 只列出當下正在演出步驟的台下互動
   const candidates = currentIndex >= 0 && currentIndex < steps.length
-    ? (steps[currentIndex].checkpoints ?? []).map(cp => ({ step: steps[currentIndex], index: currentIndex, cp }))
+    ? (steps[currentIndex].checkpoints ?? []).map(raw => ({ step: steps[currentIndex], index: currentIndex, cp: resolveCheckpoint(raw, cast) }))
     : [];
 
   if (!poll && candidates.length === 0) return null;
@@ -115,6 +117,9 @@ export default function CheckpointHostPanel({
             <span className="cph-item-text">
               <span className="cph-item-kind">{checkpointKind(cp) === 'truefalse' ? '是非' : '選擇'}・{cp.title}</span>
               <span className="cph-item-q">{cp.question}</span>
+              {hasDuplicateOptions(cp) && (
+                <span className="cph-item-warn">目前演出人數下選項重複（同一人演兩個角色），建議改問其他題</span>
+              )}
             </span>
             <button
               type="button"

@@ -25,7 +25,10 @@ export interface AudienceCheckpoint {
   kind?: 'choice' | 'truefalse'
   /** 互動類型，例如「聽力理解」「價格理解」 */
   title: string
-  /** 英文題目 */
+  /**
+   * 英文題目。提到角色時寫成角色代號（例如 `{customer2}`），發布時換成演出者名字，
+   * 少人數演出併角時自動換成接手的人；選項與延伸追問也可以用。
+   */
   question: string
   /** 選項（2–6 個，不含 A. B. 前綴） */
   options: string[]

@@ -181,3 +181,48 @@ export function saveHostPoll(poll: CheckpointPoll | null): void {
     else sessionStorage.removeItem(HOST_CHECKPOINT_STORAGE_KEY);
   } catch { /* quota / disabled storage */ }
 }
+
+/**
+ * 題目裡的角色代號：`{slotId}`（例如 `{customer2}`）發布時換成演出者名字。
+ * - 依目前演出人數的併角規則：被併掉的角色換成接手它台詞的角色的演出者。
+ * - 還沒指派演出者時用角色名稱（例如「顧客B」）。
+ * - 不是場景角色的 `{...}` 保持原樣。
+ */
+export interface CheckpointCast {
+  /** 場景角色 id → 角色名稱 */
+  slotLabels: Record<string, string>;
+  /** 目前演出人數的併角規則（被併掉的角色 → 接手的角色） */
+  merge: Record<string, string>;
+  /** 角色 id → 演出者 identity */
+  slotAssignments: Record<string, string>;
+  /** 演出者 identity → 名字 */
+  names: Record<string, string>;
+}
+
+const SLOT_TOKEN = /\{([A-Za-z0-9_-]+)\}/g;
+
+export function resolveCastText(text: string, cast: CheckpointCast): string {
+  return text.replace(SLOT_TOKEN, (token, raw: string) => {
+    if (!(raw in cast.slotLabels)) return token;
+    const slotId = cast.merge[raw] ?? raw;
+    const identity = cast.slotAssignments[slotId];
+    return (identity && cast.names[identity]) || cast.slotLabels[slotId] || token;
+  });
+}
+
+/** 發布用：題目、選項、延伸追問的角色代號換成演出者名字 */
+export function resolveCheckpoint(cp: AudienceCheckpoint, cast: CheckpointCast): AudienceCheckpoint {
+  return {
+    ...cp,
+    question: resolveCastText(cp.question, cast),
+    options: cp.options.map(o => resolveCastText(o, cast)),
+    ...(cp.followUp !== undefined ? { followUp: resolveCastText(cp.followUp, cast) } : {}),
+  };
+}
+
+/** 代換後選項重複（例如少人數演出時兩個角色由同一人演）：選擇題無法作答，發布前提醒老師 */
+export function hasDuplicateOptions(cp: AudienceCheckpoint): boolean {
+  if (checkpointKind(cp) === 'truefalse') return false;
+  const seen = cp.options.map(o => o.trim().toLowerCase());
+  return new Set(seen).size !== seen.length;
+}

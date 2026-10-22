@@ -262,3 +262,10 @@
   line-height: 1.2;
   /* white-space: nowrap; */
 }
+
+/* 代換角色名字後選項重複的提醒 */
+.cph-item-warn {
+  font-size: 12px;
+  font-weight: 700;
+  color: #C05621;
+}
