@@ -351,9 +351,15 @@
   }
 }
 /* 角色扮演人數：自動 / 2 人 / 3 人… */
+.ag-cast > legend.ag-label {
+  float: left;
+  width: 100%;
+}
+
 .ag-cast-options {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 8px;
 }
 

@@ -185,7 +185,8 @@
 }
 
 .cpo--no-text .cpo-label--tf {
-  min-width: 60px;
+  /* min-width: 60px; */
+  text-align: center;
   font-size: 32px;
   font-weight: 900;
   color: #136B6D;
