@@ -1,0 +1,231 @@
+/* 導師任務卡：逐句演練控制（與 .cph 台下互動同一套卡片樣式） */
+.stp {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #fff;
+  border: 3px solid #F76E12;
+  color: #482607;
+  text-align: left;
+  cursor: default;
+}
+
+.stp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 900;
+}
+
+.stp-title {
+  flex: 1;
+  min-width: 0;
+  color: #C05621;
+}
+
+.stp-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a6a4a;
+}
+
+.stp-state {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #fff;
+  background: #F76E12;
+}
+
+.stp-state--paused { background: #8a8a8a; }
+.stp-state--stepEnd { background: #00A99D; }
+
+.stp-lines {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.stp .stp-line {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 5px 8px 5px 10px;
+  border: none;
+  border-left: 4px solid var(--role-color);
+  border-radius: 8px;
+  background: #FAFAFA;
+  color: #482607;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stp .stp-line:hover { background: #FFF6EE; }
+
+.stp .stp-line.is-current {
+  background: #FFF1E6;
+  box-shadow: inset 0 0 0 2px var(--role-color);
+}
+
+.stp .stp-line.is-done { opacity: 0.5; }
+
+.stp-line-who {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--role-color);
+}
+
+.stp-line-en {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stp-speaker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.stp-speaker-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--role-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stp-speaker-status {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: #6b6b6b;
+}
+
+.stp-speaker.is-warn .stp-speaker-status { color: #D64545; }
+
+.stp-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #BDBDBD;
+}
+
+.stp-dot--online,
+.stp-dot--teacher { background: #95CC4D; }
+.stp-dot--speaking { background: #2E7D32; animation: stp-pulse 0.8s ease-in-out infinite alternate; }
+.stp-dot--offline,
+.stp-dot--unassigned { background: #D64545; }
+
+@keyframes stp-pulse {
+  from { transform: scale(0.8); opacity: 0.6; }
+  to { transform: scale(1.3); opacity: 1; }
+}
+
+.stp-note {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #C05621;
+}
+
+.stp-transcript {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: #F3F4F4;
+  font-size: 13px;
+  font-style: italic;
+  color: #482607;
+}
+
+.stp-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.stp .stp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  border: 2px solid #F76E12;
+  border-radius: 999px;
+  padding: 4px 12px;
+  background: #fff;
+  color: #C05621;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stp .stp-btn .material-symbols-outlined { font-size: 18px; }
+
+.stp .stp-btn--primary {
+  background: #F76E12;
+  color: #fff;
+}
+
+.stp .stp-btn--ghost {
+  border-color: #CFCFCF;
+  color: #6b6b6b;
+}
+
+.stp .stp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stp .stp-start {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.stp .stp-next { flex: 1 1 0; }
+
+.stp .stp-actions .stp-btn--primary:only-child,
+.stp .stp-actions .stp-btn--ghost + .stp-btn--primary { flex: 1 1 0; }
+
+.stp .stp-icon-btn {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid #E0E0E0;
+  border-radius: 50%;
+  background: #fff;
+  color: #482607;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.stp .stp-icon-btn .material-symbols-outlined {
+  display: block;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.stp .stp-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

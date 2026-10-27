@@ -8213,6 +8213,45 @@ button:disabled {
   letter-spacing: 0.04em;
 }
 
+/* 逐句演練：目前發言者與即時逐字稿 */
+.bs-turn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  max-width: 60vw;
+}
+
+.bs-turn-who {
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: var(--turn-color, #F76E12);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.bs-turn.is-paused .bs-turn-who { background: #8a8a8a; }
+
+.bs-turn-count {
+  font-size: 18px;
+  font-weight: 800;
+  color: #8a6a4a;
+}
+
+.bs-turn-text {
+  flex-basis: 100%;
+  font-size: 24px;
+  font-weight: 800;
+  color: #482607;
+}
+
+.bs-turn-text--live {
+  font-style: italic;
+  color: #6b5a4a;
+}
+
 .bs-lesson-purpose {
   padding: 3px 14px;
   border-radius: 999px;

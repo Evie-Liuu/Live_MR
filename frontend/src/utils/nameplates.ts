@@ -18,6 +18,8 @@ export interface NameplateInfo {
   active: boolean;
   /** 正在說話（LiveKit 偵測到聲音） */
   speaking: boolean;
+  /** 逐句演練中輪到這個人說 */
+  turn?: boolean;
 }
 
 /** 角色代表色（依場景 slot 順序）；白字在上面也清楚 */
@@ -29,8 +31,10 @@ export function buildNameplates(opts: {
   participantNames: ReadonlyMap<string, string>;
   lesson: Pick<LessonScreenState, 'phase' | 'allDone' | 'roles'> | null;
   speaking: ReadonlySet<string>;
+  /** 逐句演練目前的發言者 */
+  turnIdentity?: string | null;
 }): Record<string, NameplateInfo> {
-  const { slots, slotAssignments, participantNames, lesson, speaking } = opts;
+  const { slots, slotAssignments, participantNames, lesson, speaking, turnIdentity } = opts;
   const nameOf = (id: string) => participantNames.get(id) || (id.startsWith('host-') ? '老師' : id);
   // 任務中才依步驟判斷誰有台詞；任務前／後、未上課、已完成時全部正常顯示
   const stepRoles = lesson && lesson.phase === 'during' && !lesson.allDone ? lesson.roles : null;
@@ -44,6 +48,7 @@ export function buildNameplates(opts: {
       color: ROLE_COLORS[i % ROLE_COLORS.length],
       active: !stepRoles || stepRoles.includes(slot.label),
       speaking: speaking.has(id),
+      ...(turnIdentity && turnIdentity === id ? { turn: true } : {}),
     };
   });
   // 沒有角色 slot 的場景：只顯示名字

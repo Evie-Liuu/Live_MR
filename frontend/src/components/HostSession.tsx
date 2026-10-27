@@ -17,6 +17,7 @@ import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 // import PerformanceMonitor from './PerformanceMonitor.tsx';
 import {
   LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, MIC_AUDIO_OPTIONS, MAX_POSE_PUBLISHERS, POSE_PUBLISHERS_RESEND_MS,
+  SCRIPT_TURN_RESEND_MS, TURN_TRANSCRIPT_THROTTLE_MS,
 } from '../config/constants.ts';
 import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
@@ -42,6 +43,11 @@ import ConfirmationModal from './ConfirmationModal.tsx';
 import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import CheckpointHostPanel from './CheckpointHostPanel.tsx';
+import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.tsx';
+import {
+  advanceTurn, backTurn, jumpTurn, resolveTurn, restartTurnIfActive, setTurnPaused, startTurn, stepCastLines,
+  BIGSCREEN_TURN_STORAGE_KEY, type ScriptTurn, type ScriptTurnState, type TurnCast,
+} from '../utils/scriptTurn.ts';
 import {
   BIGSCREEN_CHECKPOINT_STORAGE_KEY, type CheckpointCast, defaultShowQuestionText, loadHostPoll, recordAnswer, saveHostPoll, setPollStatus, startPoll,
   toggleQuestionText, toScreenPoll, toStudentPoll,
@@ -566,6 +572,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // ─── 導師任務管理：上課用的對話任務（我的任務）與目前步驟 ─────────────
   const [lesson, setLesson] = useState<HostLessonState | null>(loadHostLesson);
   const lessonAllDone = lesson ? isLessonDone(lesson) : false;
+  // 逐句演練：目前這一輪（由 lesson.turn 推導，見下方 scriptTurn）；data 事件用 ref 讀
+  const scriptTurnRef = useRef<ScriptTurn | null>(null);
+  /** 發言者的即時逐字稿（seq 對應目前這一輪） */
+  const [turnTranscript, setTurnTranscript] = useState<{ seq: number; text: string } | null>(null);
+  /** 結束演練後保留最後的 seq，重新開始時接著加，舊的「說完了」不會誤觸 */
+  const lastTurnSeqRef = useRef(0);
 
   // ─── 台下互動點：發布到學生裝置作答，大屏顯示統計（狀態只存在教師端）──────────
   const [checkpointPoll, setCheckpointPoll] = useState<CheckpointPoll | null>(loadHostPoll);
@@ -1104,6 +1116,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
   // transcript 更新時：空白鍵模式 → 立即送出；按鈕模式 → 3 秒倒數後送出
   useEffect(() => {
+    // 逐句演練中老師演角色的收音只用來顯示逐字稿，不送 AI
+    if (scriptTurnRef.current) return;
     // 新 transcript 進來 → 失效舊 cache（即使 transcript 太短也要清，避免殘留）
     if (cachedTranscriptRef.current !== null && cachedTranscriptRef.current !== sttTranscript.trim()) {
       cachedRepliesRef.current = null;
@@ -1613,13 +1627,13 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       const next = { ...prev };
       delete next.castSize;
       if (size !== full) next.castSize = size;
-      return next;
+      return restartTurnIfActive(next);
     });
   }, []);
   /** 手動切換任務前 / 任務中 / 任務後 */
   const changeLessonPhase = useCallback((phase: LessonPhase) => {
     if (checkpointPoll) return;
-    setLesson(prev => (prev && prev.phase !== phase ? setLessonPhase(prev, phase) : prev));
+    setLesson(prev => (prev && prev.phase !== phase ? restartTurnIfActive(setLessonPhase(prev, phase)) : prev));
   }, [checkpointPoll]);
   /** 任務前 / 任務後：點選要在大螢幕聚焦的提問 */
   const focusLessonQuestion = useCallback((index: number) => {
@@ -1629,7 +1643,11 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   /** 左側步驟點擊：依序完成（點目前步驟 = 完成，點已完成步驟 = 取消） */
   const toggleLessonStep = useCallback((index: number) => {
     if (checkpointPoll) return;
-    setLesson(prev => (prev ? { ...prev, doneCount: toggleStepDone(prev, index) } : prev));
+    setLesson(prev => {
+      if (!prev) return prev;
+      const doneCount = toggleStepDone(prev, index);
+      return doneCount === prev.doneCount ? prev : restartTurnIfActive({ ...prev, doneCount });
+    });
   }, [checkpointPoll]);
   /** 橫幅的上一步 / 下一步：取消最後完成的步驟 / 完成目前步驟 */
   // const shiftLessonDone = useCallback((delta: number) => {
@@ -1640,7 +1658,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   // }, []);
 
   const resetAllLessons = useCallback(() => {
-    setLesson(prev => (prev ? { ...prev, doneCount: 0 } : prev));
+    setLesson(prev => (prev ? restartTurnIfActive({ ...prev, doneCount: 0 }) : prev));
   }, []);
 
   const endLesson = useCallback(() => { setLesson(null); setCheckpointPoll(null); }, []);
@@ -1845,6 +1863,22 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
           if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
             if (parsed.type === 'checkpoint-answer') {
               setCheckpointPoll(prev => (prev ? recordAnswer(prev, participant.identity, parsed) : prev));
+              return;
+            }
+            if (parsed.type === 'turn-done') {
+              // 只接受目前發言者、目前這一輪的回報；重複按、重送、過期的都忽略
+              const t = scriptTurnRef.current;
+              const seq = parsed.seq;
+              if (t && t.status === 'running' && t.seq === seq && t.speaker.identity === participant.identity) {
+                setLesson(prev => (prev?.turn && prev.turn.seq === seq ? { ...prev, turn: advanceTurn(prev, prev.turn) } : prev));
+              }
+              return;
+            }
+            if (parsed.type === 'turn-transcript') {
+              const t = scriptTurnRef.current;
+              if (t && t.seq === parsed.seq && t.speaker.identity === participant.identity && typeof parsed.text === 'string') {
+                setTurnTranscript({ seq: t.seq, text: parsed.text.slice(-300) });
+              }
               return;
             }
             if (parsed.type === 'student-done') {
@@ -2220,6 +2254,133 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       names,
     };
   }, [teacherIdentity, teacherName, participants, currentScenePreset.slots, castOptions, activeCastSize, slotAssignments]);
+  // ── 逐句演練：推導這一輪並廣播給學生與大屏 ──────────────────────────────
+  const turnCast = useMemo<TurnCast>(() => ({
+    slots: currentScenePreset.slots ?? [],
+    slotAssignments,
+    names: checkpointCast.names,
+  }), [currentScenePreset.slots, slotAssignments, checkpointCast.names]);
+  const scriptTurn = useMemo(
+    () => (lesson?.turn && lesson.phase === 'during' && !lessonAllDone ? resolveTurn(lesson, lesson.turn, turnCast) : null),
+    [lesson, lessonAllDone, turnCast],
+  );
+  const scriptLines = useMemo(() => (lesson ? stepCastLines(lesson, turnCast) : []), [lesson, turnCast]);
+  // 同一句演到一半換了演出者（重新指派角色）：seq + 1，讓舊發言者的「說完了」失效
+  const turnSpeakerId = scriptTurn?.speaker.identity ?? null;
+  const turnSpeakerRef = useRef<{ seq: number; id: string | null } | null>(null);
+  useEffect(() => {
+    const prev = turnSpeakerRef.current;
+    const seq = scriptTurn?.seq;
+    turnSpeakerRef.current = seq === undefined ? null : { seq, id: turnSpeakerId };
+    if (!prev || seq === undefined || prev.seq !== seq || prev.id === turnSpeakerId) return;
+    setLesson(p => (p?.turn && p.turn.seq === seq ? { ...p, turn: { ...p.turn, seq: seq + 1 } } : p));
+  }, [scriptTurn?.seq, turnSpeakerId]);
+  const sendScriptTurn = useCallback(() => {
+    const room = roomRef.current;
+    if (!room || room.state !== 'connected') return;
+    try {
+      const bytes = new TextEncoder().encode(JSON.stringify({ type: 'script-turn', turn: scriptTurnRef.current }));
+      void room.localParticipant.publishData(bytes, { reliable: true }).catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
+  }, []);
+  const scriptTurnKey = scriptTurn ? JSON.stringify(scriptTurn) : '';
+  useEffect(() => {
+    scriptTurnRef.current = scriptTurn;
+    if (scriptTurn) lastTurnSeqRef.current = scriptTurn.seq;
+    try {
+      if (scriptTurn) sessionStorage.setItem(BIGSCREEN_TURN_STORAGE_KEY, JSON.stringify(scriptTurn));
+      else sessionStorage.removeItem(BIGSCREEN_TURN_STORAGE_KEY);
+    } catch { /* ignore */ }
+    channelRef.current?.postMessage({ type: 'script-turn', scriptTurn } satisfies BigScreenMsg);
+    if (!connectedRoom) return;
+    sendScriptTurn();
+    if (!scriptTurn) return;
+    const timer = window.setInterval(() => sendScriptTurn(), SCRIPT_TURN_RESEND_MS);
+    return () => window.clearInterval(timer);
+    // scriptTurnKey 代表 scriptTurn 的內容；物件本身每次重新推導都會變
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectedRoom, scriptTurnKey, sendScriptTurn]);
+  // 換句後清掉上一句的逐字稿
+  const scriptTurnSeq = scriptTurn?.seq;
+  useEffect(() => { setTurnTranscript(null); }, [scriptTurnSeq]);
+  const liveTurnTranscript = turnTranscript && turnTranscript.seq === scriptTurnSeq ? turnTranscript.text : '';
+  useEffect(() => {
+    channelRef.current?.postMessage({ type: 'turn-transcript', turnTranscript: liveTurnTranscript } satisfies BigScreenMsg);
+  }, [liveTurnTranscript]);
+
+  // 老師演角色：用老師端語音辨識產生逐字稿並送給學生（不送 AI）
+  const teacherTurn = !!scriptTurn && scriptTurn.status === 'running' && !!teacherIdentity
+    && scriptTurn.speaker.identity === teacherIdentity;
+  const scriptSttRef = useRef(false);
+  useEffect(() => {
+    if (!sttSupported) return;
+    if (teacherTurn && !scriptSttRef.current && !sttRecordingRef.current && interactionPhaseRef.current === 'idle') {
+      scriptSttRef.current = true;
+      startRec();
+    } else if (!teacherTurn && scriptSttRef.current) {
+      scriptSttRef.current = false;
+      stopRec(() => clearTranscript());
+    }
+  }, [teacherTurn, sttSupported, startRec, stopRec, clearTranscript]);
+  const teacherTurnText = teacherTurn ? [sttTranscript, sttInterim].filter(Boolean).join(' ') : '';
+  useEffect(() => {
+    if (!teacherTurn || scriptTurnSeq === undefined) return;
+    setTurnTranscript({ seq: scriptTurnSeq, text: teacherTurnText.slice(-300) });
+  }, [teacherTurn, teacherTurnText, scriptTurnSeq]);
+  // 老師的逐字稿節流後送給學生（學生的逐字稿由發言者 iPad 直接送給全體）
+  const transcriptSentAtRef = useRef(0);
+  useEffect(() => {
+    if (!teacherTurn || scriptTurnSeq === undefined) return;
+    const send = () => {
+      transcriptSentAtRef.current = Date.now();
+      const room = roomRef.current;
+      if (!room || room.state !== 'connected') return;
+      try {
+        const bytes = new TextEncoder().encode(JSON.stringify({
+          type: 'turn-transcript', seq: scriptTurnSeq, text: teacherTurnText.slice(-300), final: false,
+        }));
+        void room.localParticipant.publishData(bytes, { reliable: false }).catch(() => { /* ignore */ });
+      } catch { /* ignore */ }
+    };
+    const wait = TURN_TRANSCRIPT_THROTTLE_MS - (Date.now() - transcriptSentAtRef.current);
+    if (wait <= 0) { send(); return; }
+    const timer = window.setTimeout(send, wait);
+    return () => window.clearTimeout(timer);
+  }, [teacherTurn, teacherTurnText, scriptTurnSeq]);
+
+  const speakerStatus: SpeakerStatus = !scriptTurn?.speaker.identity ? 'unassigned'
+    : scriptTurn.speaker.identity === teacherIdentity ? 'teacher'
+      : !participants.has(scriptTurn.speaker.identity) ? 'offline'
+        : speakingSet.has(scriptTurn.speaker.identity) ? 'speaking' : 'online';
+  const scriptBlockedReason = !lesson ? null
+    : lesson.phase !== 'during' ? '切到「任務中」才能開始'
+      : lessonAllDone ? '所有步驟已完成'
+        : interactionPhase !== 'idle' ? 'AI 互動進行中，結束後才能開始'
+          : checkpointPoll ? '台下互動題進行中'
+            : null;
+  const updateTurn = useCallback((fn: (l: HostLessonState, t: ScriptTurnState) => ScriptTurnState) => {
+    setLesson(prev => (prev?.turn ? { ...prev, turn: fn(prev, prev.turn) } : prev));
+  }, []);
+  const startScriptTurn = useCallback(() => {
+    setLesson(prev => (prev ? { ...prev, turn: startTurn(prev, prev.turn ?? { lineIndex: 0, seq: lastTurnSeqRef.current, status: 'running' }) } : prev));
+  }, []);
+  const endScriptTurn = useCallback(() => {
+    setLesson(prev => {
+      if (!prev?.turn) return prev;
+      const next = { ...prev };
+      delete next.turn;
+      return next;
+    });
+  }, []);
+  /** 本步結束：完成這一步，下一步從第一句開始 */
+  const nextStepScriptTurn = useCallback(() => {
+    setLesson(prev => (prev?.turn ? restartTurnIfActive({ ...prev, doneCount: clampDoneCount(prev, prev.doneCount + 1) }) : prev));
+  }, []);
+  // 台下互動題發布時演練自動暫停（學生畫面讓給作答）
+  useEffect(() => {
+    if (checkpointPoll && lesson?.turn?.status === 'running') updateTurn((_l, t) => setTurnPaused(t, true));
+  }, [checkpointPoll, lesson?.turn?.status, updateTurn]);
+
   const castSlots = useMemo(
     () => (currentScenePreset.slots ?? []).filter(slot => !lesson || castLines.has(slot.id)),
     [currentScenePreset.slots, lesson, castLines],
@@ -2746,6 +2907,21 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   })}
                   {/* {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>} */}
                 </div>
+                <ScriptTurnHostPanel
+                  turn={scriptTurn}
+                  lines={scriptLines}
+                  speakerStatus={speakerStatus}
+                  transcript={liveTurnTranscript}
+                  blockedReason={scriptBlockedReason}
+                  isLastStep={lesson.doneCount >= lesson.record.task.steps.length - 1}
+                  onStart={startScriptTurn}
+                  onPrev={() => updateTurn(backTurn)}
+                  onNext={() => updateTurn(advanceTurn)}
+                  onTogglePause={() => updateTurn((_l, t) => setTurnPaused(t, t.status !== 'paused'))}
+                  onJump={i => updateTurn((l, t) => jumpTurn(l, t, i))}
+                  onNextStep={nextStepScriptTurn}
+                  onEnd={endScriptTurn}
+                />
                 <CheckpointHostPanel
                   steps={lesson.record.task.steps}
                   currentIndex={currentStepIndex(lesson)}
@@ -3151,8 +3327,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                         {interactionPhase === 'idle' && (
                           <button
                             className={`hs-ai-start-btn phase-${interactionPhase}`}
-                            disabled={!sttSupported || !hasConstraint || aiBusy || bigScreenEditing}
-                            title={bigScreenEditing ? '大屏編輯模式中，無法開始互動' : undefined}
+                            disabled={!sttSupported || !hasConstraint || aiBusy || bigScreenEditing || !!lesson?.turn}
+                            title={bigScreenEditing ? '大屏編輯模式中，無法開始互動' : lesson?.turn ? '逐句演練中，結束演練後才能開始互動' : undefined}
                             onClick={startInteraction}
                           >
                             <span className="material-symbols-outlined">smart_toy</span>

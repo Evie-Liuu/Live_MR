@@ -50,3 +50,14 @@
   transform: translate(-50%, -100%) scale(1.12);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85), 0 0 22px 6px var(--plate-color, #00A99D);
 }
+
+/* 逐句演練輪到他：主題色底、放大，即使還沒開口也看得出輪到誰 */
+.bs-nameplate.is-turn {
+  opacity: 1;
+  transform: translate(-50%, -100%) scale(1.12);
+  background: var(--plate-color, #00A99D);
+}
+
+.bs-nameplate.is-turn .bs-nameplate-name {
+  color: #fff;
+}

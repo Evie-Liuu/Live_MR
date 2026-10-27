@@ -28,7 +28,7 @@ export default function AvatarNameplates({ sinkRef, plates }: AvatarNameplatesPr
         return (
           <div
             key={id}
-            className={`bs-nameplate${info.active ? '' : ' is-idle'}${info.speaking ? ' is-speaking' : ''}`}
+            className={`bs-nameplate${info.active ? '' : ' is-idle'}${info.speaking ? ' is-speaking' : ''}${info.turn ? ' is-turn' : ''}`}
             style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, ['--plate-color' as string]: info.color }}
           >
             {info.role && <span className="bs-nameplate-role">{info.role}</span>}

@@ -1,0 +1,268 @@
+/* 逐句演練：學生 iPad 的發言／聆聽畫面（疊在鏡頭畫面上，台下互動題在更上層） */
+.sto {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  color: #fff;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  text-align: center;
+  animation: sto-fade-in 0.3s ease-out;
+}
+
+@keyframes sto-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.sto-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 820px;
+  min-height: 0;
+}
+
+/* ── 發言狀態：角色主題色 ───────────────────────────── */
+.sto--speaking {
+  background: linear-gradient(160deg, var(--turn-color), color-mix(in srgb, var(--turn-color) 85%, #000));
+}
+
+.sto-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 820px;
+}
+
+.sto-role-pill {
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--turn-color);
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.sto-count {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.sto-your-turn {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.9);
+  animation: sto-pop 0.6s ease-out;
+}
+
+@keyframes sto-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.sto-line-en {
+  font-size: clamp(26px, 4.6vw, 40px);
+  font-weight: 900;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sto-line-zh {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sto-mic {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin-top: 8px;
+}
+
+.sto-mic-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  transition: transform 0.15s ease-out;
+}
+
+.sto-mic.is-live .sto-mic-ring {
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.15);
+}
+
+.sto-mic-icon {
+  position: relative;
+  font-size: 36px;
+  color: #fff;
+}
+
+.sto-own-transcript {
+  max-width: 100%;
+  font-size: 18px;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.sto .sto-done-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: min(420px, 100%);
+  height: 64px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--turn-color);
+  font-size: 22px;
+  font-weight: 900;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.sto .sto-done-btn .material-symbols-outlined { font-size: 26px; }
+
+.sto .sto-done-btn.is-sent {
+  opacity: 0.75;
+  cursor: default;
+}
+
+/* ── 聆聽狀態：深灰半透明，底下的鏡頭畫面模糊可見 ───────────── */
+.sto--listening {
+  background: rgba(18, 20, 26, 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.sto-muted {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sto-muted .material-symbols-outlined { font-size: 18px; }
+
+.sto-listening {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  font-size: clamp(24px, 4vw, 34px);
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sto-speaker {
+  color: color-mix(in srgb, var(--turn-color) 70%, #fff);
+  font-weight: 900;
+}
+
+/* 對方出聲時三條跳動，沒聲音時是三個點 */
+.sto-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+}
+
+.sto-wave i {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--turn-color) 70%, #fff);
+}
+
+.sto-wave.is-live i { animation: sto-wave 0.9s ease-in-out infinite; }
+.sto-wave.is-live i:nth-child(2) { animation-delay: 0.15s; }
+.sto-wave.is-live i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes sto-wave {
+  0%, 100% { height: 6px; }
+  50% { height: 26px; }
+}
+
+.sto-speaker-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.sto-transcript {
+  max-width: 100%;
+  margin-top: 10px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #fff;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sto-transcript--script { color: rgba(255, 255, 255, 0.75); }
+
+.sto-transcript-tag {
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 13px;
+  font-weight: 800;
+  vertical-align: 3px;
+}
+
+.sto-next {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(820px, 100%);
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: var(--next-color);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  animation: sto-fade-in 0.3s ease-out;
+}
+
+.sto-next-label {
+  font-size: 15px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.sto-next-line {
+  font-size: 20px;
+  font-weight: 800;
+}

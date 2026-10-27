@@ -9,6 +9,7 @@
 import { applyCastMerge, castChoices, type DialogueTask, type DialogueTaskRecord } from '../types/dialogueTask.ts';
 import type { CefrLevel } from '../types/lessonPlan.ts';
 import { phaseContent, type LessonPhase } from '../config/lessonPhases.ts';
+import type { ScriptTurnState } from './scriptTurn.ts';
 
 /** 教師端的上課狀態（存在 sessionStorage，重整後還原） */
 export interface HostLessonState {
@@ -23,6 +24,8 @@ export interface HostLessonState {
   questionIndex: number;
   /** 演出人數（任務有併角方案時可選）；未設定＝完整人數 */
   castSize?: number;
+  /** 逐句輪流演練（見 utils/scriptTurn.ts）；沒有＝沒在演練 */
+  turn?: ScriptTurnState;
 }
 
 /** 送到大螢幕的課程狀態 */
@@ -170,7 +173,15 @@ export function loadHostLesson(): HostLessonState | null {
     const phase: LessonPhase = parsed.phase === 'pre' || parsed.phase === 'post' ? parsed.phase : 'during';
     const questionIndex = typeof parsed.questionIndex === 'number' ? parsed.questionIndex : 0;
     const castSize = typeof parsed.castSize === 'number' ? parsed.castSize : undefined;
-    return { record: parsed.record, doneCount, showLines: !!parsed.showLines, phase, questionIndex, ...(castSize !== undefined ? { castSize } : {}) };
+    const t = parsed.turn;
+    const turn = t && typeof t.lineIndex === 'number' && typeof t.seq === 'number' && ['running', 'paused', 'stepEnd'].includes(t.status)
+      ? { lineIndex: t.lineIndex, seq: t.seq, status: t.status }
+      : undefined;
+    return {
+      record: parsed.record, doneCount, showLines: !!parsed.showLines, phase, questionIndex,
+      ...(castSize !== undefined ? { castSize } : {}),
+      ...(turn ? { turn } : {}),
+    };
   } catch {
     return null;
   }

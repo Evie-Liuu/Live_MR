@@ -18,6 +18,7 @@ import { BIGSCREEN_CHECKPOINT_STORAGE_KEY, type ScreenPoll } from '../utils/chec
 import CheckpointScreenOverlay from './CheckpointScreenOverlay.tsx';
 import AvatarNameplates from './AvatarNameplates.tsx';
 import { buildNameplates, type AvatarAnchors } from '../utils/nameplates.ts';
+import { BIGSCREEN_TURN_STORAGE_KEY, type ScriptTurn } from '../utils/scriptTurn.ts';
 import { phaseMeta } from '../config/lessonPhases.ts';
 
 export interface TaskEntry {
@@ -34,7 +35,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'script-turn' | 'turn-transcript';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -51,6 +52,10 @@ export interface BigScreenMsg {
   sessionId?: string;
   /** For 'lesson-change': 導師任務管理的目前步驟情境（null = 未上課） */
   lesson?: LessonScreenState | null;
+  /** For 'script-turn': 逐句演練目前這一輪（null = 沒在演練） */
+  scriptTurn?: ScriptTurn | null;
+  /** For 'turn-transcript': 發言者的即時逐字稿（空字串 = 清除） */
+  turnTranscript?: string;
   /** For 'checkpoint-change': 台下互動點的作答統計（null = 沒有進行中的互動點） */
   checkpoint?: ScreenPoll | null;
   /** For 'hint-change': 是否啟用提示欄 */
@@ -457,6 +462,11 @@ export default function BigScreen() {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintLevel') ?? 'null'); } catch { return null; }
   });
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
+  // 逐句演練：目前這一輪與發言者的即時逐字稿（由 HostSession 'script-turn' / 'turn-transcript' 驅動）
+  const [scriptTurn, setScriptTurn] = useState<ScriptTurn | null>(() => {
+    try { return JSON.parse(sessionStorage.getItem(BIGSCREEN_TURN_STORAGE_KEY) ?? 'null'); } catch { return null; }
+  });
+  const [turnTranscript, setTurnTranscript] = useState('');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
@@ -723,7 +733,8 @@ export default function BigScreen() {
     participantNames,
     lesson,
     speaking: speakingIdentities,
-  }), [sceneId, slotAssignments, participantNames, lesson, speakingIdentities]);
+    turnIdentity: scriptTurn?.status === 'running' ? scriptTurn.speaker.identity : null,
+  }), [sceneId, slotAssignments, participantNames, lesson, speakingIdentities, scriptTurn]);
 
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
@@ -2265,6 +2276,11 @@ export default function BigScreen() {
       } else if (msg.type === 'checkpoint-change') {
         // 教師端已寫入 sessionStorage（大屏重開時讀取），這裡只更新畫面
         setCheckpoint(msg.checkpoint ?? null);
+      } else if (msg.type === 'script-turn') {
+        // 教師端已寫入 sessionStorage（大屏重開時讀取），這裡只更新畫面
+        setScriptTurn(msg.scriptTurn ?? null);
+      } else if (msg.type === 'turn-transcript') {
+        setTurnTranscript(msg.turnTranscript ?? '');
       } else if (msg.type === 'lesson-change') {
         const next = msg.lesson ?? null;
         setLesson(next);
@@ -2634,6 +2650,19 @@ export default function BigScreen() {
                   {lesson.stepTitle}
                   {/* {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>} */}
                 </div>
+                {scriptTurn && scriptTurn.status !== 'stepEnd' && !lesson.allDone && (
+                  <div className={`bs-turn${scriptTurn.status === 'paused' ? ' is-paused' : ''}`} style={{ ['--turn-color' as string]: scriptTurn.speaker.color }}>
+                    <span className="bs-turn-who">
+                      {scriptTurn.status === 'paused' ? '暫停中' : `${scriptTurn.speaker.label}・${scriptTurn.speaker.name}`}
+                    </span>
+                    <span className="bs-turn-count">{scriptTurn.lineIndex + 1}/{scriptTurn.lineCount}</span>
+                    {scriptTurn.status === 'running' && (
+                      lesson.lines
+                        ? <span className="bs-turn-text">{scriptTurn.line.en}</span>
+                        : turnTranscript && <span className="bs-turn-text bs-turn-text--live">{turnTranscript}</span>
+                    )}
+                  </div>
+                )}
                 {/* {!lesson.allDone && lesson.roles.length > 0 && (
                   <div className="bs-lesson-roles">
                     {lesson.roles.map((r, i) => (

@@ -8,6 +8,8 @@ import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
 import { formatRoomId } from '../utils/qrRoomId.ts';
 import CheckpointStudentSheet from './CheckpointStudentSheet.tsx';
+import ScriptTurnOverlay from './ScriptTurnOverlay.tsx';
+import { useScriptTurnStudent } from '../hooks/useScriptTurnStudent.ts';
 import type { StudentPoll } from '../utils/checkpointPoll.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import { buildStudentExtendPrompt } from '../config/aiAssistant.ts';
@@ -89,6 +91,13 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     setCheckpointChoice({ pollId: checkpoint.pollId, choice });
     sendCheckpointAnswer(checkpoint.pollId, choice);
   }, [checkpoint, sendCheckpointAnswer]);
+  // 逐句演練：輪到自己是發言畫面，其他時候是聆聽畫面（聆聽時麥克風靜音）
+  const [myIdentity, setMyIdentity] = useState<string | null>(null);
+  /** LiveKit 偵測到在出聲的人與音量（含自己） */
+  const [activeSpeakers, setActiveSpeakers] = useState<Map<string, number>>(new Map());
+  const scriptTurn = useScriptTurnStudent(roomRef, myIdentity);
+  const scriptTurnDataRef = useRef(scriptTurn.handleData);
+  useEffect(() => { scriptTurnDataRef.current = scriptTurn.handleData; }, [scriptTurn.handleData]);
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
   const [interactionPhase, setInteractionPhase] = useState<
     'idle' | 'teacher' | 'generating' | 'student'
@@ -255,6 +264,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     room.on(RoomEvent.Connected, () => {
       if (isMounted) {
         setConnected(true);
+        setMyIdentity(room.localParticipant.identity);
         setConnectionError(null);
         // NOTE: do NOT setRetryCount(0) here — retryCount is a useEffect dep,
         // resetting it would trigger cleanup (room.disconnect) on a live connection.
@@ -301,8 +311,20 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       }
     });
 
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
+      if (isMounted) setActiveSpeakers(new Map(speakers.map(sp => [sp.identity, sp.audioLevel])));
+    });
+
     room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
-      if (!participant?.identity.startsWith('host-')) return;
+      if (!participant) return;
+      // 逐句演練：這一輪來自老師；即時逐字稿來自目前發言者（可能是學生）
+      if (payload.length > 0 && payload[0] === 0x7B) {
+        try {
+          const msg = JSON.parse(new TextDecoder().decode(payload));
+          if (msg && typeof msg === 'object' && isMounted && scriptTurnDataRef.current(msg, participant.identity)) return;
+        } catch { /* 交給下方處理 */ }
+      }
+      if (!participant.identity.startsWith('host-')) return;
       try {
         const msg = JSON.parse(new TextDecoder().decode(payload)) as {
           type?: string;
@@ -637,6 +659,21 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           <span className="material-symbols-outlined">logout</span>
         </button>
       </div>
+
+      {/* 逐句演練：台下互動題發布時讓位給作答畫面 */}
+      {connected && !checkpoint && (
+        <ScriptTurnOverlay
+          turn={scriptTurn.turn}
+          role={scriptTurn.role}
+          transcript={scriptTurn.transcript}
+          sttEnabled={scriptTurn.sttEnabled}
+          speakerTalking={!!scriptTurn.turn?.speaker.identity && activeSpeakers.has(scriptTurn.turn.speaker.identity)}
+          myLevel={myIdentity ? activeSpeakers.get(myIdentity) ?? 0 : 0}
+          doneSent={scriptTurn.doneSent}
+          onDone={scriptTurn.sendDone}
+          isNext={!!myIdentity && scriptTurn.turn?.next?.identity === myIdentity && scriptTurn.turn.speaker.identity !== myIdentity}
+        />
+      )}
 
       {connected && checkpoint && (
         <CheckpointStudentSheet
