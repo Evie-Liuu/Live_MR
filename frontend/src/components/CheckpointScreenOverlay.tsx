@@ -32,8 +32,8 @@ export default function CheckpointScreenOverlay({ poll }: { poll: ScreenPoll }) 
               <span className="cpo-mark">{optionMark(poll.kind, i)}</span>
               {showText ? (
                 <span className="cpo-label">{optionLabel(poll.kind, opt, i)}</span>
-              ) : poll.kind === 'truefalse' ? (
-                <span className="cpo-label cpo-label--tf">{i === 0 ? '是' : '非'}</span>
+              // ) : poll.kind === 'truefalse' ? (
+                // <span className="cpo-label cpo-label--tf">{i === 0 ? '是' : '非'}</span>
               ) : null}
               {revealed && (
                 <>
