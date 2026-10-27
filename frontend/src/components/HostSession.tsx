@@ -17,7 +17,7 @@ import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 // import PerformanceMonitor from './PerformanceMonitor.tsx';
 import {
   LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, MIC_AUDIO_OPTIONS, MAX_POSE_PUBLISHERS, POSE_PUBLISHERS_RESEND_MS,
-  SCRIPT_TURN_RESEND_MS, TURN_TRANSCRIPT_THROTTLE_MS,
+  SCRIPT_TURN_RESEND_MS,
 } from '../config/constants.ts';
 import { createPoseDecodePool } from '../utils/poseCodec.ts';
 import type { PoseDecodePool } from '../utils/poseCodec.ts';
@@ -2308,45 +2308,46 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     channelRef.current?.postMessage({ type: 'turn-transcript', turnTranscript: liveTurnTranscript } satisfies BigScreenMsg);
   }, [liveTurnTranscript]);
 
-  // 老師演角色：用老師端語音辨識產生逐字稿並送給學生（不送 AI）
-  const teacherTurn = !!scriptTurn && scriptTurn.status === 'running' && !!teacherIdentity
-    && scriptTurn.speaker.identity === teacherIdentity;
-  const scriptSttRef = useRef(false);
-  useEffect(() => {
-    if (!sttSupported) return;
-    if (teacherTurn && !scriptSttRef.current && !sttRecordingRef.current && interactionPhaseRef.current === 'idle') {
-      scriptSttRef.current = true;
-      startRec();
-    } else if (!teacherTurn && scriptSttRef.current) {
-      scriptSttRef.current = false;
-      stopRec(() => clearTranscript());
-    }
-  }, [teacherTurn, sttSupported, startRec, stopRec, clearTranscript]);
-  const teacherTurnText = teacherTurn ? [sttTranscript, sttInterim].filter(Boolean).join(' ') : '';
-  useEffect(() => {
-    if (!teacherTurn || scriptTurnSeq === undefined) return;
-    setTurnTranscript({ seq: scriptTurnSeq, text: teacherTurnText.slice(-300) });
-  }, [teacherTurn, teacherTurnText, scriptTurnSeq]);
-  // 老師的逐字稿節流後送給學生（學生的逐字稿由發言者 iPad 直接送給全體）
-  const transcriptSentAtRef = useRef(0);
-  useEffect(() => {
-    if (!teacherTurn || scriptTurnSeq === undefined) return;
-    const send = () => {
-      transcriptSentAtRef.current = Date.now();
-      const room = roomRef.current;
-      if (!room || room.state !== 'connected') return;
-      try {
-        const bytes = new TextEncoder().encode(JSON.stringify({
-          type: 'turn-transcript', seq: scriptTurnSeq, text: teacherTurnText.slice(-300), final: false,
-        }));
-        void room.localParticipant.publishData(bytes, { reliable: false }).catch(() => { /* ignore */ });
-      } catch { /* ignore */ }
-    };
-    const wait = TURN_TRANSCRIPT_THROTTLE_MS - (Date.now() - transcriptSentAtRef.current);
-    if (wait <= 0) { send(); return; }
-    const timer = window.setTimeout(send, wait);
-    return () => window.clearTimeout(timer);
-  }, [teacherTurn, teacherTurnText, scriptTurnSeq]);
+  // 老師演角色時的逐字稿：先隱藏（老師電腦語音辨識 → 送給學生與大屏）。恢復時取消註解，並加回 TURN_TRANSCRIPT_THROTTLE_MS 匯入。
+  // // 老師演角色：用老師端語音辨識產生逐字稿並送給學生（不送 AI）
+  // const teacherTurn = !!scriptTurn && scriptTurn.status === 'running' && !!teacherIdentity
+  //   && scriptTurn.speaker.identity === teacherIdentity;
+  // const scriptSttRef = useRef(false);
+  // useEffect(() => {
+  //   if (!sttSupported) return;
+  //   if (teacherTurn && !scriptSttRef.current && !sttRecordingRef.current && interactionPhaseRef.current === 'idle') {
+  //     scriptSttRef.current = true;
+  //     startRec();
+  //   } else if (!teacherTurn && scriptSttRef.current) {
+  //     scriptSttRef.current = false;
+  //     stopRec(() => clearTranscript());
+  //   }
+  // }, [teacherTurn, sttSupported, startRec, stopRec, clearTranscript]);
+  // const teacherTurnText = teacherTurn ? [sttTranscript, sttInterim].filter(Boolean).join(' ') : '';
+  // useEffect(() => {
+  //   if (!teacherTurn || scriptTurnSeq === undefined) return;
+  //   setTurnTranscript({ seq: scriptTurnSeq, text: teacherTurnText.slice(-300) });
+  // }, [teacherTurn, teacherTurnText, scriptTurnSeq]);
+  // // 老師的逐字稿節流後送給學生（學生的逐字稿由發言者 iPad 直接送給全體）
+  // const transcriptSentAtRef = useRef(0);
+  // useEffect(() => {
+  //   if (!teacherTurn || scriptTurnSeq === undefined) return;
+  //   const send = () => {
+  //     transcriptSentAtRef.current = Date.now();
+  //     const room = roomRef.current;
+  //     if (!room || room.state !== 'connected') return;
+  //     try {
+  //       const bytes = new TextEncoder().encode(JSON.stringify({
+  //         type: 'turn-transcript', seq: scriptTurnSeq, text: teacherTurnText.slice(-300), final: false,
+  //       }));
+  //       void room.localParticipant.publishData(bytes, { reliable: false }).catch(() => { /* ignore */ });
+  //     } catch { /* ignore */ }
+  //   };
+  //   const wait = TURN_TRANSCRIPT_THROTTLE_MS - (Date.now() - transcriptSentAtRef.current);
+  //   if (wait <= 0) { send(); return; }
+  //   const timer = window.setTimeout(send, wait);
+  //   return () => window.clearTimeout(timer);
+  // }, [teacherTurn, teacherTurnText, scriptTurnSeq]);
 
   const speakerStatus: SpeakerStatus = !scriptTurn?.speaker.identity ? 'unassigned'
     : scriptTurn.speaker.identity === teacherIdentity ? 'teacher'
