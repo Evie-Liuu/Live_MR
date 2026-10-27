@@ -12,20 +12,30 @@ interface AiGenerateModalProps {
   onClose: () => void;
 }
 
-const GENERATING_STEPS = ['分析主題與教學目標', '設計對話流程', '撰寫中英台詞', '整理語法說明與教學注意點'];
+const GENERATING_STEPS = ['分析主題與教學目標', '分配角色與設計對話流程', '撰寫中英台詞', '整理語法說明與教學注意點', '設計台下互動題'];
 const STEP_INTERVAL_MS = 4000;
 /** AI 生成的任務固定為 5 分鐘（與 backend/src/ai/dialogueTaskPrompts.ts 一致），老師不可更改 */
 const DURATION_MIN = 5;
 const MAX_TOPIC_LEN = 200;
 const MAX_GOAL_LEN = 300;
 
-const SCENE_OPTIONS = THEMES.flatMap(t => t.scenes.map(s => ({ id: s.id, label: `${t.label}／${s.label}` })));
+const SCENE_OPTIONS = THEMES.flatMap(t => t.scenes.map(s => ({
+  id: s.id,
+  label: `${t.label}／${s.label}`,
+  slots: (s.slots ?? []).map(sl => sl.label),
+})));
 
 export default function AiGenerateModal({ onGenerated, onClose }: AiGenerateModalProps) {
   const [sceneId, setSceneId] = useState<string>(SCENE_OPTIONS[0]?.id ?? '');
   const [topic, setTopic] = useState('');
   const [teachingGoal, setTeachingGoal] = useState('');
   const [level, setLevel] = useState<CefrLevel>('A1');
+  /** 角色扮演人數；null = 交給 AI 依主題決定 */
+  const [castSize, setCastSize] = useState<number | null>(null);
+  const sceneSlots = SCENE_OPTIONS.find(o => o.id === sceneId)?.slots ?? [];
+  // 換到角色較少的場景時，超過的人數視為自動
+  const effectiveCastSize = castSize !== null && castSize <= sceneSlots.length ? castSize : null;
+  const castChoices = Array.from({ length: Math.max(0, sceneSlots.length - 1) }, (_, i) => i + 2);
   const [generating, setGenerating] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +70,7 @@ export default function AiGenerateModal({ onGenerated, onClose }: AiGenerateModa
       const task = await generateDialogueTask({
         sceneContext, topic: trimmed, level,
         ...(teachingGoal.trim() ? { teachingGoal: teachingGoal.trim() } : {}),
+        ...(effectiveCastSize !== null ? { castSize: effectiveCastSize } : {}),
       });
       onGenerated(task);
     } catch (err) {
@@ -116,6 +127,33 @@ export default function AiGenerateModal({ onGenerated, onClose }: AiGenerateModa
                 onChange={e => setTopic(e.target.value)}
               />
             </label>
+
+            {castChoices.length > 0 && (
+              <fieldset className="ag-field ag-cast">
+                <legend className="ag-label">角色扮演人數<span className="ag-optional">選填</span></legend>
+                <div className="ag-cast-options" role="radiogroup" aria-label="角色扮演人數">
+                  {[null, ...castChoices].map(n => (
+                    <button
+                      key={n ?? 'auto'}
+                      type="button"
+                      role="radio"
+                      aria-checked={effectiveCastSize === n}
+                      className={`ag-cast-option${effectiveCastSize === n ? ' is-selected' : ''}`}
+                      onClick={() => setCastSize(n)}
+                    >
+                      {n === null ? '自動' : `${n} 人`}
+                    </button>
+                  ))}
+                </div>
+                <span className="ag-cast-hint">
+                  {effectiveCastSize === null
+                    ? `依主題從場景角色（${sceneSlots.join('、')}）中挑選；3 人以上會附少人數的併角方式`
+                    : effectiveCastSize >= 3
+                      ? `從場景角色中挑 ${effectiveCastSize} 個演出，並附少人數的併角方式，上課可切換演出人數`
+                      : `從場景角色中挑 ${effectiveCastSize} 個演出`}
+                </span>
+              </fieldset>
+            )}
 
             <label className="ag-field">
               <span className="ag-label">教學目標<span className="ag-optional">選填</span></span>

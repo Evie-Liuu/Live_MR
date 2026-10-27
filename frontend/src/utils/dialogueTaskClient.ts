@@ -26,7 +26,8 @@ export async function createDialogueTask(
 
 /** AI 生成對話任務草稿（不存檔，交給任務編輯器讓老師確認後再儲存） */
 export async function generateDialogueTask(
-  req: { sceneContext: SceneContext; topic: string; level: CefrLevel; teachingGoal?: string },
+  /** castSize：角色扮演人數（2 ~ 場景角色數）；未提供時由 AI 依主題決定 */
+  req: { sceneContext: SceneContext; topic: string; level: CefrLevel; teachingGoal?: string; castSize?: number },
 ): Promise<DialogueTask> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)

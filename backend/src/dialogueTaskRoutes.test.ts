@@ -192,6 +192,17 @@ describe('POST /api/dialogue-tasks/generate', () => {
     expect((await post({ ...body, level: 'B1' })).status).toBe(400)
     expect((await post({ ...body, teachingGoal: 'x'.repeat(301) })).status).toBe(400)
     expect((await post({ ...body, sceneContext: { ...sceneContext, slots: [] } })).status).toBe(400)
+    // 角色扮演人數：2 ~ 場景角色數
+    expect((await post({ ...body, castSize: 1 })).status).toBe(400)
+    expect((await post({ ...body, castSize: 3 })).status).toBe(400)
+    expect((await post({ ...body, castSize: '2' })).status).toBe(400)
+  })
+
+  it('passes the cast size to the generator', async () => {
+    const generate = vi.fn(async (_req: unknown, _opts: unknown) => sampleTask())
+    const app = createApp({ repo: null, generate })
+    expect((await request(app).post('/api/dialogue-tasks/generate').send({ ...body, castSize: 2 })).status).toBe(200)
+    expect(generate.mock.calls[0][0]).toMatchObject({ castSize: 2 })
   })
 
   it('returns 502 when generation fails or produces an unsavable task', async () => {

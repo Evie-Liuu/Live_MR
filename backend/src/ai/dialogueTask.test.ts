@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { GeminiCallOptions, GeminiCallResult } from './client.js'
 import type { GeminiCaller } from './lessonPlan.js'
 import type { SceneContext } from '../lessonPlanTypes.js'
-import { generateDialogueTask, validateDialogueDraft } from './dialogueTask.js'
+import { castOptionsFromMerges, generateDialogueTask, validateDialogueDraft } from './dialogueTask.js'
 import { DIALOGUE_TASK_DURATION_MIN, buildDialogueTaskPrompt, buildDialogueTaskSchema } from './dialogueTaskPrompts.js'
 
 const ctx: SceneContext = {
@@ -136,11 +136,85 @@ describe('buildDialogueTaskPrompt', () => {
 
   it('schema requires every field the editor needs', () => {
     const schema = buildDialogueTaskSchema(SLOTS) as { required: string[]; properties: { steps: { items: { required: string[] } } } }
-    expect(schema.required).toEqual(['title', 'tags', 'steps'])
-    expect(schema.properties.steps.items.required).toEqual(['title', 'purpose', 'lines', 'grammarPoints', 'grammarNote', 'teachingNotes'])
+    expect(schema.required).toEqual(['title', 'tags', 'steps', 'castMerges'])
+    expect(schema.properties.steps.items.required).toEqual(['title', 'purpose', 'lines', 'grammarPoints', 'grammarNote', 'teachingNotes', 'checkpoints'])
     const line = (schema as unknown as { properties: { steps: { items: { properties: { lines: { items: { required: string[]; properties: { gesture: { enum: string[] } } } } } } } } })
       .properties.steps.items.properties.lines.items
     expect(line.required).toContain('gesture')
     expect(line.properties.gesture.enum).toEqual(['wave', 'nod', 'bow', 'point', 'handOver', 'thumbsUp', 'happy', 'none'])
+  })
+})
+
+describe('台下互動題', () => {
+  const cps = [
+    { kind: 'choice', title: '顏色理解', question: 'Which color does {customer} want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1, followUp: '' },
+    { kind: 'truefalse', title: '是非判斷', question: '{cashier} is happy.', options: ['Yes', 'No', 'Maybe'], answerIndex: 0, followUp: 'Why?' },
+    { kind: 'choice', title: '壞題', question: 'Who?', options: ['A', 'A', 'B'], answerIndex: 0 },
+    { kind: 'choice', title: '未知角色', question: 'What does {robot} say?', options: ['Hi', 'Bye'], answerIndex: 0 },
+    { kind: 'choice', title: '答案超出', question: 'What?', options: ['Hi', 'Bye'], answerIndex: 2 },
+  ]
+
+  it('keeps valid checkpoints with ids, forces True/False and drops bad ones', async () => {
+    const { call, calls } = fakeCaller([{ ...goodDraft, steps: [{ ...step('招呼'), checkpoints: cps }, step('報價'), step('結帳')] }])
+    const task = await generateDialogueTask(req, { call })
+    expect(calls).toHaveLength(1)
+    expect(task.steps[0].checkpoints).toEqual([
+      { id: 'ai_s1_cp1', title: '顏色理解', question: 'Which color does {customer} want?', options: ['Red', 'Blue', 'Yellow'], answerIndex: 1 },
+      { id: 'ai_s1_cp2', kind: 'truefalse', title: '是非判斷', question: '{cashier} is happy.', options: ['True', 'False'], answerIndex: 0, followUp: 'Why?' },
+    ])
+    expect(task.steps[1]).not.toHaveProperty('checkpoints')
+  })
+
+  it('asks for checkpoints with role tokens in the prompt', () => {
+    const { systemInstruction } = buildDialogueTaskPrompt('購物', 'A1', ctx)
+    expect(systemInstruction).toContain('"checkpoints"')
+    expect(systemInstruction).toContain('{customer}')
+  })
+})
+
+describe('角色扮演人數', () => {
+  const ctx4: SceneContext = {
+    ...ctx,
+    slots: [{ id: 'cashier', label: '店員A' }, { id: 'customer', label: '顧客A' }, { id: 'staff', label: '店員B' }, { id: 'customer2', label: '顧客B' }],
+  }
+  const four = ['cashier', 'customer', 'staff', 'customer2']
+  const step4 = (title: string) => ({
+    ...step(title),
+    lines: four.map((speaker, i) => ({ speaker, en: `Line ${i + 1}.`, zh: `第 ${i + 1} 句。` })),
+  })
+  const draft4 = { title: '結伴購物', steps: [step4('a'), step4('b'), step4('c')] }
+
+  it('retries when the draft does not use exactly the requested number of roles', async () => {
+    const { call, calls } = fakeCaller([goodDraft, draft4])
+    const task = await generateDialogueTask({ ...req, sceneContext: ctx4, castSize: 4 }, { call })
+    expect(calls).toHaveLength(2)
+    expect(task.steps).toHaveLength(3)
+    expect(String(calls[0].systemInstruction)).toContain('EXACTLY 4 speaking roles')
+  })
+
+  it('turns ordered merges into cast options and notes them for the teacher', async () => {
+    const castMerges = [{ from: 'staff', to: 'cashier' }, { from: 'customer2', to: 'customer' }]
+    const { call } = fakeCaller([{ ...draft4, castMerges }])
+    const task = await generateDialogueTask({ ...req, sceneContext: ctx4 }, { call })
+    expect(task.castOptions).toEqual([
+      { merge: { staff: 'cashier' } },
+      { merge: { staff: 'cashier', customer2: 'customer' } },
+    ])
+    expect(task.steps[0].teachingNotes.at(-1)).toBe('可 2–4 人演出（角色配置切換演出人數）：3 人時店員B的台詞由店員A說；2 人時顧客B的台詞由顧客A說。')
+  })
+
+  it('stops at the first invalid merge', () => {
+    expect(castOptionsFromMerges([{ from: 'staff', to: 'cashier' }, { from: 'cashier', to: 'customer' }], four))
+      .toEqual([{ merge: { staff: 'cashier' } }])
+    expect(castOptionsFromMerges([{ from: 'staff', to: 'staff' }], four)).toEqual([])
+    expect(castOptionsFromMerges([{ from: 'robot', to: 'cashier' }], four)).toEqual([])
+    // 只剩 2 人就不再併
+    expect(castOptionsFromMerges([{ from: 'customer', to: 'cashier' }], ['cashier', 'customer'])).toEqual([])
+  })
+
+  it('allows more lines per step for larger casts', () => {
+    const eight = { ...step4('a'), lines: [...step4('a').lines, ...step4('a').lines] }
+    expect(() => validateDialogueDraft({ title: 'x', steps: [eight, eight, eight] }, four)).not.toThrow()
+    expect(() => validateDialogueDraft({ title: 'x', steps: [eight, eight, eight] }, SLOTS)).toThrow('lines')
   })
 })

@@ -123,7 +123,7 @@ export function createDialogueTaskRouter(deps: DialogueTaskRouteDeps): Router {
 
   // AI 生成對話任務：只回傳草稿不存檔（前端開編輯器讓老師確認後再存），所以不需要資料庫
   router.post('/generate', async (req: Request, res: Response) => {
-    const body = req.body as { sceneContext?: unknown; topic?: unknown; level?: unknown; teachingGoal?: unknown }
+    const body = req.body as { sceneContext?: unknown; topic?: unknown; level?: unknown; teachingGoal?: unknown; castSize?: unknown }
     if (typeof body.topic !== 'string' || !body.topic.trim() || body.topic.length > MAX_TOPIC_LEN) {
       res.status(400).json({ error: `topic is required (max ${MAX_TOPIC_LEN} chars)` }); return
     }
@@ -134,13 +134,20 @@ export function createDialogueTaskRouter(deps: DialogueTaskRouteDeps): Router {
     if (!isSceneContext(body.sceneContext) || body.sceneContext.slots.length === 0) {
       res.status(400).json({ error: 'sceneContext is malformed' }); return
     }
+    // 角色扮演人數（選填）：2 ~ 場景角色數
+    const maxCast = body.sceneContext.slots.length
+    if (body.castSize !== undefined &&
+      !(typeof body.castSize === 'number' && Number.isInteger(body.castSize) && body.castSize >= 2 && body.castSize <= maxCast)) {
+      res.status(400).json({ error: `castSize must be an integer from 2 to ${maxCast}` }); return
+    }
+    const castSize = body.castSize as number | undefined
     const teachingGoal = typeof body.teachingGoal === 'string' && body.teachingGoal.trim() ? body.teachingGoal.trim() : undefined
 
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
       const draft = await generate(
-        { topic: body.topic.trim(), level: body.level as CefrLevel, sceneContext: body.sceneContext, teachingGoal },
+        { topic: body.topic.trim(), level: body.level as CefrLevel, sceneContext: body.sceneContext, teachingGoal, castSize },
         { signal: controller.signal },
       )
       // 再用儲存時的驗證跑一次，確保老師按儲存一定存得進去
