@@ -137,7 +137,7 @@ export default function CheckpointHostPanel({
       </div>
       <ul className="cph-list">
         {step && candidates.map(({ raw, cp, ai }) => (
-          <li key={`${step.id}-${cp.id}`} className="cph-item">
+          <li key={`${step.id}-${cp.id}`} className={`cph-item${ai ? ' cph-item--ai' : ''}`}>
             <span className={`cph-item-step${ai ? ' cph-item-step--ai' : ''}`}>{ai ? 'AI' : '?'}</span>
             <span className="cph-item-text">
               <span className="cph-item-kind">{checkpointKind(cp) === 'truefalse' ? '是非' : '選擇'}・{cp.title}</span>
@@ -145,7 +145,7 @@ export default function CheckpointHostPanel({
               {ai && (
                 <span className="cph-item-opts">
                   {checkpointOptions(cp).map((o, i) => (
-                    <span key={i} className={i === cp.answerIndex ? 'is-answer' : ''}>{optionMark(checkpointKind(cp), i)} {optionLabel(checkpointKind(cp), o, i)}</span>
+                    <span key={i} className={i === cp.answerIndex ? 'is-answer' : ''}>{optionMark(checkpointKind(cp), i)}. {optionLabel(checkpointKind(cp), o, i)}</span>
                   ))}
                 </span>
               )}

@@ -287,8 +287,19 @@
 
 .cph-item-opts .is-answer { color: #00897B; }
 
+/* AI 題：存入任務／移除放在卡片右上角，發布按鈕移到右下 */
+.cph-item--ai {
+  position: relative;
+  align-items: flex-end;
+  min-height: 58px;
+}
+
+.cph-item--ai .cph-item-step { align-self: center; }
+
 .cph-item-tools {
-  flex-shrink: 0;
+  position: absolute;
+  top: -2px;
+  right: 0;
   display: flex;
   gap: 2px;
 }
@@ -296,8 +307,8 @@
 .cph .cph-icon-btn {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
   border-radius: 50%;
