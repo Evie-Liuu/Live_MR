@@ -10,6 +10,7 @@ import { applyCastMerge, castChoices, type DialogueTask, type DialogueTaskRecord
 import type { CefrLevel } from '../types/lessonPlan.ts';
 import { phaseContent, type LessonPhase } from '../config/lessonPhases.ts';
 import type { ScriptTurnState } from './scriptTurn.ts';
+import type { TurnHintMode } from './turnHints.ts';
 
 /** 教師端的上課狀態（存在 sessionStorage，重整後還原） */
 export interface HostLessonState {
@@ -26,6 +27,8 @@ export interface HostLessonState {
   castSize?: number;
   /** 逐句輪流演練（見 utils/scriptTurn.ts）；沒有＝沒在演練 */
   turn?: ScriptTurnState;
+  /** 逐句演練的台詞提示；未設定＝分級提示 */
+  turnHintMode?: TurnHintMode;
 }
 
 /** 送到大螢幕的課程狀態 */
@@ -181,6 +184,7 @@ export function loadHostLesson(): HostLessonState | null {
       record: parsed.record, doneCount, showLines: !!parsed.showLines, phase, questionIndex,
       ...(castSize !== undefined ? { castSize } : {}),
       ...(turn ? { turn } : {}),
+      ...(parsed.turnHintMode === 'full' ? { turnHintMode: 'full' as const } : {}),
     };
   } catch {
     return null;

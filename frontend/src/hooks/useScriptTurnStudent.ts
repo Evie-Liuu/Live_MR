@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { Track, type Room } from 'livekit-client';
 import { SCRIPT_TURN_STALE_MS, TURN_TRANSCRIPT_THROTTLE_MS } from '../config/constants.ts';
 import { turnRoleOf, type ScriptTurn, type TurnRole } from '../utils/scriptTurn.ts';
+import { MAX_HINT_LEVEL, nextHintLevel, type HintLevel } from '../utils/turnHints.ts';
 import { turnSttEnabled, useTurnTranscript } from './useTurnTranscript.ts';
 
 /** 「我說完了」沒換句時的重送間隔與次數 */
 const DONE_RETRY_MS = 3000;
 const DONE_MAX_RETRIES = 2;
+/** 分級提示的檢查間隔 */
+const HINT_TICK_MS = 5000;
 
 export interface ScriptTurnStudent {
   turn: ScriptTurn | null;
@@ -18,16 +21,24 @@ export interface ScriptTurnStudent {
   /** 本輪已按過「我說完了」 */
   doneSent: boolean;
   sendDone: () => void;
+  /** 發言時的提示等級（完整台詞模式固定 3） */
+  hintLevel: HintLevel;
   /** 收到 data 訊息：是逐句演練的訊息就處理並回 true */
-  handleData: (msg: { type?: string; turn?: ScriptTurn | null; seq?: number; text?: string }, from: string) => boolean;
+  handleData: (msg: { type?: string; turn?: ScriptTurn | null; seq?: number; text?: string; level?: number }, from: string) => boolean;
 }
 
 /**
  * 學生端逐句演練：收老師的這一輪、聆聽時把麥克風靜音（只錄發言者）、
  * 「我說完了」回報與重送、發言時送出自己的即時逐字稿。
  * 老師超過 SCRIPT_TURN_STALE_MS 沒重送（斷線）就回到一般畫面並恢復麥克風。
+ * 分級提示：輪到自己時依沉默時間自動升級（selfTalking 來自 LiveKit ActiveSpeakers），老師也可以手動加一級；
+ * 目前等級回報給老師。
  */
-export function useScriptTurnStudent(roomRef: RefObject<Room | null>, identity: string | null): ScriptTurnStudent {
+export function useScriptTurnStudent(
+  roomRef: RefObject<Room | null>,
+  identity: string | null,
+  selfTalking: boolean,
+): ScriptTurnStudent {
   const [turn, setTurn] = useState<ScriptTurn | null>(null);
   const turnRef = useRef(turn);
   useEffect(() => { turnRef.current = turn; }, [turn]);
@@ -38,6 +49,30 @@ export function useScriptTurnStudent(roomRef: RefObject<Room | null>, identity: 
   const [sttEnabled] = useState(turnSttEnabled);
 
   const role = turnRoleOf(turn, identity);
+  const speakingSeq = role === 'speaking' && turn ? turn.seq : null;
+  const tiered = turn?.hintMode !== 'full';
+  const [hint, setHint] = useState<{ seq: number; level: HintLevel; by: 'auto' | 'teacher' } | null>(null);
+  const hintLevel: HintLevel = !tiered ? MAX_HINT_LEVEL : hint && hint.seq === speakingSeq ? hint.level : 0;
+  const hintLevelRef = useRef(hintLevel);
+  useEffect(() => { hintLevelRef.current = hintLevel; }, [hintLevel]);
+  /** 本輪升到目前等級的時間、最後出聲的時間（0＝還沒開口） */
+  const levelAtRef = useRef(0);
+  const lastVoiceAtRef = useRef(0);
+  const selfTalkingRef = useRef(selfTalking);
+  useEffect(() => {
+    selfTalkingRef.current = selfTalking;
+    if (selfTalking && speakingSeq !== null) lastVoiceAtRef.current = Date.now();
+  }, [selfTalking, speakingSeq]);
+  useEffect(() => {
+    levelAtRef.current = Date.now();
+    lastVoiceAtRef.current = 0;
+  }, [speakingSeq]);
+  const raiseHint = useCallback((seq: number, level: HintLevel, by: 'auto' | 'teacher') => {
+    if (level <= hintLevelRef.current) return;
+    hintLevelRef.current = level;
+    levelAtRef.current = Date.now();
+    setHint({ seq, level, by });
+  }, []);
 
   const handleData = useCallback<ScriptTurnStudent['handleData']>((msg, from) => {
     if (msg.type === 'script-turn') {
@@ -45,6 +80,14 @@ export function useScriptTurnStudent(roomRef: RefObject<Room | null>, identity: 
       hostRef.current = from;
       receivedAtRef.current = Date.now();
       setTurn(msg.turn ?? null);
+      return true;
+    }
+    if (msg.type === 'turn-hint') {
+      // 老師手動加提示（只送給發言者）
+      const t = turnRef.current;
+      if (from.startsWith('host-') && t && msg.seq === t.seq && typeof msg.level === 'number') {
+        raiseHint(t.seq, Math.min(MAX_HINT_LEVEL, Math.max(0, Math.round(msg.level))) as HintLevel, 'teacher');
+      }
       return true;
     }
     if (msg.type === 'turn-transcript') {
@@ -55,7 +98,7 @@ export function useScriptTurnStudent(roomRef: RefObject<Room | null>, identity: 
       return true;
     }
     return false;
-  }, []);
+  }, [raiseHint]);
 
   // 老師斷線保險：太久沒收到就回到一般畫面
   useEffect(() => {
@@ -108,6 +151,27 @@ export function useScriptTurnStudent(roomRef: RefObject<Room | null>, identity: 
     send(0);
   }, [publish]);
 
+  // 分級提示：沒開口 4 秒、開口後停住 2.5 秒就升一級；按了「我說完了」就停
+  const doneSentNow = doneSeq !== null && doneSeq === speakingSeq;
+  useEffect(() => {
+    if (speakingSeq === null || !tiered || doneSentNow) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      if (selfTalkingRef.current) lastVoiceAtRef.current = now;
+      const level = hintLevelRef.current;
+      const next = nextHintLevel({ level, levelAt: levelAtRef.current, lastVoiceAt: lastVoiceAtRef.current, now });
+      if (next !== level) raiseHint(speakingSeq, next, 'auto');
+    }, HINT_TICK_MS);
+    return () => window.clearInterval(timer);
+  }, [speakingSeq, tiered, doneSentNow, raiseHint]);
+
+  // 目前提示等級回報給老師（輪到自己時、每次升級時）
+  const hintBy = hint && hint.seq === speakingSeq ? hint.by : 'auto';
+  useEffect(() => {
+    if (speakingSeq === null) return;
+    publish({ type: 'turn-hint-level', seq: speakingSeq, level: hintLevel, by: hintBy }, true, hostRef.current ? [hostRef.current] : undefined);
+  }, [speakingSeq, hintLevel, hintBy, publish]);
+
   // 發言時送出自己的即時逐字稿（節流；說完一段時一定送）
   const sentAtRef = useRef(0);
   const pendingRef = useRef<number | null>(null);
@@ -135,6 +199,7 @@ export function useScriptTurnStudent(roomRef: RefObject<Room | null>, identity: 
     sttEnabled,
     doneSent: doneSeq !== null && doneSeq === turn?.seq,
     sendDone,
+    hintLevel,
     handleData,
   };
 }

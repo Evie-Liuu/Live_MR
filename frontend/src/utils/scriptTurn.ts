@@ -7,6 +7,7 @@
  */
 import type { DialogueLine } from '../types/dialogueTask.ts';
 import { ROLE_COLORS } from './nameplates.ts';
+import type { TurnHintMode } from './turnHints.ts';
 import { currentStepIndex, isLessonDone, lessonTask, type HostLessonState } from './lessonSession.ts';
 
 /** 大屏重開時讀取目前這一輪 */
@@ -43,6 +44,8 @@ export interface ScriptTurn {
   line: { en: string; zh: string };
   /** 下一句的英文（給下一位先準備） */
   nextLine: string | null;
+  /** 發言者畫面的台詞提示方式 */
+  hintMode: TurnHintMode;
 }
 
 export interface TurnCast {
@@ -133,6 +136,7 @@ export function resolveTurn(lesson: HostLessonState, turn: ScriptTurnState, cast
     next: nextLine ? person(nextLine.speakerSlotId, cast) : null,
     line: { en: line.en, zh: line.zh },
     nextLine: nextLine?.en ?? null,
+    hintMode: lesson.turnHintMode ?? 'tiered',
   };
 }
 

@@ -95,7 +95,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [myIdentity, setMyIdentity] = useState<string | null>(null);
   /** LiveKit 偵測到在出聲的人與音量（含自己） */
   const [activeSpeakers, setActiveSpeakers] = useState<Map<string, number>>(new Map());
-  const scriptTurn = useScriptTurnStudent(roomRef, myIdentity);
+  const scriptTurn = useScriptTurnStudent(roomRef, myIdentity, !!myIdentity && activeSpeakers.has(myIdentity));
   const scriptTurnDataRef = useRef(scriptTurn.handleData);
   useEffect(() => { scriptTurnDataRef.current = scriptTurn.handleData; }, [scriptTurn.handleData]);
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
@@ -670,6 +670,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           speakerTalking={!!scriptTurn.turn?.speaker.identity && activeSpeakers.has(scriptTurn.turn.speaker.identity)}
           myLevel={myIdentity ? activeSpeakers.get(myIdentity) ?? 0 : 0}
           doneSent={scriptTurn.doneSent}
+          hintLevel={scriptTurn.hintLevel}
           onDone={scriptTurn.sendDone}
           isNext={!!myIdentity && scriptTurn.turn?.next?.identity === myIdentity && scriptTurn.turn.speaker.identity !== myIdentity}
         />

@@ -45,6 +45,7 @@ import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import CheckpointHostPanel from './CheckpointHostPanel.tsx';
 import AiAssistantPanel, { type InteractionPhase } from './AiAssistantPanel.tsx';
 import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.tsx';
+import { MAX_HINT_LEVEL, type HintLevel as TurnHintLevel, type TurnHintMode } from '../utils/turnHints.ts';
 import {
   advanceTurn, backTurn, jumpTurn, resolveTurn, restartTurnIfActive, setTurnPaused, startTurn, stepCastLines,
   BIGSCREEN_TURN_STORAGE_KEY, type ScriptTurn, type ScriptTurnState, type TurnCast,
@@ -575,6 +576,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const scriptTurnRef = useRef<ScriptTurn | null>(null);
   /** 發言者的即時逐字稿（seq 對應目前這一輪） */
   const [turnTranscript, setTurnTranscript] = useState<{ seq: number; text: string } | null>(null);
+  /** 發言者 iPad 回報的提示等級（seq 對應目前這一輪） */
+  const [turnHint, setTurnHint] = useState<{ seq: number; level: TurnHintLevel; by: 'auto' | 'teacher' } | null>(null);
   /** 結束演練後保留最後的 seq，重新開始時接著加，舊的「說完了」不會誤觸 */
   const lastTurnSeqRef = useRef(0);
 
@@ -1873,6 +1876,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
               }
               return;
             }
+            if (parsed.type === 'turn-hint-level') {
+              const t = scriptTurnRef.current;
+              const level = parsed.level;
+              if (t && t.seq === parsed.seq && t.speaker.identity === participant.identity
+                && typeof level === 'number' && level >= 0 && level <= MAX_HINT_LEVEL) {
+                setTurnHint({ seq: t.seq, level: Math.round(level) as TurnHintLevel, by: parsed.by === 'teacher' ? 'teacher' : 'auto' });
+              }
+              return;
+            }
             if (parsed.type === 'turn-transcript') {
               const t = scriptTurnRef.current;
               if (t && t.seq === parsed.seq && t.speaker.identity === participant.identity && typeof parsed.text === 'string') {
@@ -2303,6 +2315,30 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const scriptTurnSeq = scriptTurn?.seq;
   useEffect(() => { setTurnTranscript(null); }, [scriptTurnSeq]);
   const liveTurnTranscript = turnTranscript && turnTranscript.seq === scriptTurnSeq ? turnTranscript.text : '';
+  const liveTurnHint = turnHint && turnHint.seq === scriptTurnSeq ? turnHint : null;
+  /** 老師手動多給一級提示（只送給發言者） */
+  const giveTurnHint = useCallback(() => {
+    const t = scriptTurnRef.current;
+    const room = roomRef.current;
+    if (!t?.speaker.identity || t.status !== 'running' || !room || room.state !== 'connected') return;
+    const current = turnHint && turnHint.seq === t.seq ? turnHint.level : 0;
+    if (current >= MAX_HINT_LEVEL) return;
+    const level = (current + 1) as TurnHintLevel;
+    setTurnHint({ seq: t.seq, level, by: 'teacher' });
+    try {
+      const bytes = new TextEncoder().encode(JSON.stringify({ type: 'turn-hint', seq: t.seq, level }));
+      void room.localParticipant.publishData(bytes, { reliable: true, destinationIdentities: [t.speaker.identity] }).catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
+  }, [turnHint]);
+  const setTurnHintMode = useCallback((mode: TurnHintMode) => {
+    setLesson(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      if (mode === 'full') next.turnHintMode = 'full';
+      else delete next.turnHintMode;
+      return next;
+    });
+  }, []);
   useEffect(() => {
     channelRef.current?.postMessage({ type: 'turn-transcript', turnTranscript: liveTurnTranscript } satisfies BigScreenMsg);
   }, [liveTurnTranscript]);
@@ -2912,6 +2948,11 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   lines={scriptLines}
                   speakerStatus={speakerStatus}
                   transcript={liveTurnTranscript}
+                  hintMode={lesson.turnHintMode ?? 'tiered'}
+                  hintLevel={liveTurnHint?.level ?? null}
+                  hintBy={liveTurnHint?.by ?? 'auto'}
+                  onHintModeChange={setTurnHintMode}
+                  onGiveHint={giveTurnHint}
                   blockedReason={scriptBlockedReason}
                   isLastStep={lesson.doneCount >= lesson.record.task.steps.length - 1}
                   onStart={startScriptTurn}
