@@ -3,7 +3,7 @@
   margin-top: 12px;
   padding: 12px;
   border-radius: 16px;
-  background: #fff;
+  background: #FDF1D3;
   border: 3px solid #F76E12;
   color: #482607;
   text-align: left;
@@ -168,7 +168,7 @@
   min-width: 0;
   border: 2px solid #F76E12;
   border-radius: 999px;
-  padding: 4px 12px;
+  padding: 4px 8px;
   background: #fff;
   color: #C05621;
   font-size: 14px;
@@ -182,6 +182,8 @@
 .stp .stp-btn--primary {
   background: #F76E12;
   color: #fff;
+  border: none !important;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.15);
 }
 
 .stp .stp-btn--ghost {
@@ -246,8 +248,8 @@
 }
 
 .stp .stp-mode-btn {
-  padding: 2px 10px;
-  border: 2px solid #E0D6CC;
+  padding: 0px 10px;
+  border: 1px solid #E0D6CC;
   border-radius: 999px;
   background: #fff;
   color: #8a6a4a;

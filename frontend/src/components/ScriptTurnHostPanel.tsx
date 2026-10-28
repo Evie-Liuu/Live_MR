@@ -47,7 +47,7 @@ function HintModeToggle({ mode, onChange, auto, onAutoChange }: {
 }) {
   return (
     <div className="stp-mode" role="group" aria-label="台詞提示">
-      <span className="stp-mode-label">台詞提示</span>
+      <span className="stp-mode-label">💡台詞提示</span>
       {mode === 'tiered' && (
         <label className="stp-auto" title="學生沉默時自動給分級提示；關掉後只由老師點選">
           <input type="checkbox" checked={auto} onChange={e => onAutoChange(e.target.checked)} />
