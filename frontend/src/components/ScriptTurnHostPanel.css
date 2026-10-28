@@ -283,29 +283,43 @@
   list-style: none;
 }
 
-.stp-hint-step {
-  padding: 1px 6px;
+.stp .stp-hint-step {
+  padding: 3px 8px;
+  border: none;
   border-radius: 6px;
   background: #F3F4F4;
   color: #9a9a9a;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
 }
 
-.stp-hint-step.is-on {
+.stp .stp-hint-step:hover { box-shadow: inset 0 0 0 2px #F76E12; }
+
+.stp .stp-hint-step.is-on {
   background: #FFE2CC;
   color: #C05621;
 }
 
-.stp-hint-step.is-current {
+.stp .stp-hint-step.is-current {
   background: #F76E12;
   color: #fff;
 }
 
 .stp-hints-by { color: #6b6b6b; }
 
-.stp .stp-give-hint {
-  margin-left: auto;
-  padding: 2px 10px;
-  font-size: 12px;
+.stp-auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 6px;
+  color: #6b6b6b;
+  cursor: pointer;
 }
 
-.stp .stp-give-hint .material-symbols-outlined { font-size: 16px; }
+.stp-auto input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #F76E12;
+}

@@ -46,6 +46,8 @@ export interface ScriptTurn {
   nextLine: string | null;
   /** 發言者畫面的台詞提示方式 */
   hintMode: TurnHintMode;
+  /** 分級提示依沉默時間自動升級；false＝只由老師手動給 */
+  hintAuto: boolean;
 }
 
 export interface TurnCast {
@@ -137,6 +139,7 @@ export function resolveTurn(lesson: HostLessonState, turn: ScriptTurnState, cast
     line: { en: line.en, zh: line.zh },
     nextLine: nextLine?.en ?? null,
     hintMode: lesson.turnHintMode ?? 'tiered',
+    hintAuto: lesson.turnHintAuto === true,
   };
 }
 

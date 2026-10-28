@@ -1,5 +1,5 @@
 import type { ScriptTurn, TurnPerson } from '../utils/scriptTurn.ts';
-import { HINT_LABELS, MAX_HINT_LEVEL, type HintLevel, type TurnHintMode } from '../utils/turnHints.ts';
+import { HINT_LABELS, type HintLevel, type TurnHintMode } from '../utils/turnHints.ts';
 import './ScriptTurnHostPanel.css';
 
 /** 發言者目前的狀態（老師端提示要不要代讀或略過） */
@@ -19,8 +19,11 @@ interface ScriptTurnHostPanelProps {
   /** 目前等級是自動升的還是老師給的 */
   hintBy: 'auto' | 'teacher';
   onHintModeChange: (mode: TurnHintMode) => void;
-  /** 多給一級提示 */
-  onGiveHint: () => void;
+  /** 分級提示依沉默時間自動升級 */
+  hintAuto: boolean;
+  onHintAutoChange: (auto: boolean) => void;
+  /** 指定發言者的提示等級 */
+  onGiveHint: (level: HintLevel) => void;
   /** 不能開始的原因（互動進行中、題目發布中…）；null＝可以開始 */
   blockedReason: string | null;
   isLastStep: boolean;
@@ -36,10 +39,21 @@ interface ScriptTurnHostPanelProps {
 const HINT_STEPS: HintLevel[] = [0, 1, 2, 3];
 
 /** 台詞提示方式：分級（沉默時一級一級給）或一開始就顯示完整台詞 */
-function HintModeToggle({ mode, onChange }: { mode: TurnHintMode; onChange: (mode: TurnHintMode) => void }) {
+function HintModeToggle({ mode, onChange, auto, onAutoChange }: {
+  mode: TurnHintMode;
+  onChange: (mode: TurnHintMode) => void;
+  auto: boolean;
+  onAutoChange: (auto: boolean) => void;
+}) {
   return (
     <div className="stp-mode" role="group" aria-label="台詞提示">
       <span className="stp-mode-label">台詞提示</span>
+      {mode === 'tiered' && (
+        <label className="stp-auto" title="學生沉默時自動給分級提示；關掉後只由老師點選">
+          <input type="checkbox" checked={auto} onChange={e => onAutoChange(e.target.checked)} />
+          自動
+        </label>
+      )}
       <button type="button" className={`stp-mode-btn${mode === 'tiered' ? ' is-on' : ''}`} aria-pressed={mode === 'tiered'} onClick={() => onChange('tiered')}>
         分級
       </button>
@@ -73,7 +87,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
           <span className="stp-title">逐句演練</span>
           <span className="stp-hint">{lines.length} 句</span>
         </div>
-        <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} />
+        <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} auto={props.hintAuto} onAutoChange={props.onHintAutoChange} />
         <button
           type="button"
           className="stp-btn stp-btn--primary stp-start"
@@ -103,7 +117,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
           {stepEnd ? '本步結束' : paused ? '暫停中' : `第 ${turn.lineIndex + 1} / ${turn.lineCount} 句`}
         </span>
       </div>
-      <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} />
+      <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} auto={props.hintAuto} onAutoChange={props.onHintAutoChange} />
 
       <ol className="stp-lines">
         {lines.map((l, i) => {
@@ -141,27 +155,21 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
       {!stepEnd && !paused && studentSpeaking && props.hintMode === 'tiered' && (
         <div className="stp-hints">
           <span className="stp-hints-label">提示</span>
-          <ol className="stp-hint-steps" aria-label={props.hintLevel === null ? '等待學生回報' : `目前提示：${HINT_LABELS[props.hintLevel]}`}>
+          <div className="stp-hint-steps" role="group" aria-label={props.hintLevel === null ? '等待學生回報' : `目前提示：${HINT_LABELS[props.hintLevel]}`}>
             {HINT_STEPS.map(l => (
-              <li
+              <button
+                type="button"
                 key={l}
                 className={`stp-hint-step${props.hintLevel !== null && l <= props.hintLevel ? ' is-on' : ''}${l === props.hintLevel ? ' is-current' : ''}`}
+                aria-pressed={l === props.hintLevel}
+                onClick={() => props.onGiveHint(l)}
+                title={`學生畫面切到「${HINT_LABELS[l]}」`}
               >
                 {HINT_LABELS[l]}
-              </li>
+              </button>
             ))}
-          </ol>
+          </div>
           {props.hintBy === 'teacher' && <span className="stp-hints-by">老師給</span>}
-          <button
-            type="button"
-            className="stp-btn stp-btn--ghost stp-give-hint"
-            onClick={props.onGiveHint}
-            disabled={(props.hintLevel ?? 0) >= MAX_HINT_LEVEL}
-            title="多給一級提示"
-          >
-            <span className="material-symbols-outlined" aria-hidden="true">lightbulb</span>
-            給提示
-          </button>
         </div>
       )}
       {!stepEnd && transcript && <div className="stp-transcript">“{transcript}”</div>}

@@ -17,9 +17,9 @@ export const HINT_LABELS: Record<HintLevel, string> = { 0: '意思', 1: '開頭'
 export type TurnHintMode = 'tiered' | 'full';
 
 /** 還沒開口：沉默這麼久升一級 */
-export const HINT_SILENCE_MS = 4000;
+export const HINT_SILENCE_MS = 6000;
 /** 開口後停住：停這麼久升一級 */
-export const HINT_PAUSE_MS = 2500;
+export const HINT_PAUSE_MS = 4000;
 
 const STOPWORDS = new Set([
   'a', 'an', 'the', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'my', 'your', 'his', 'her', 'its', 'our', 'their',

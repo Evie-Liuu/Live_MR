@@ -29,6 +29,8 @@ export interface HostLessonState {
   turn?: ScriptTurnState;
   /** 逐句演練的台詞提示；未設定＝分級提示 */
   turnHintMode?: TurnHintMode;
+  /** 分級提示是否依沉默時間自動升級；未設定＝不自動（老師手動點選） */
+  turnHintAuto?: boolean;
 }
 
 /** 送到大螢幕的課程狀態 */
@@ -185,6 +187,7 @@ export function loadHostLesson(): HostLessonState | null {
       ...(castSize !== undefined ? { castSize } : {}),
       ...(turn ? { turn } : {}),
       ...(parsed.turnHintMode === 'full' ? { turnHintMode: 'full' as const } : {}),
+      ...(parsed.turnHintAuto === true ? { turnHintAuto: true } : {}),
     };
   } catch {
     return null;

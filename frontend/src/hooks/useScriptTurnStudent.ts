@@ -51,6 +51,7 @@ export function useScriptTurnStudent(
   const role = turnRoleOf(turn, identity);
   const speakingSeq = role === 'speaking' && turn ? turn.seq : null;
   const tiered = turn?.hintMode !== 'full';
+  const hintAuto = turn?.hintAuto === true;
   const [hint, setHint] = useState<{ seq: number; level: HintLevel; by: 'auto' | 'teacher' } | null>(null);
   const hintLevel: HintLevel = !tiered ? MAX_HINT_LEVEL : hint && hint.seq === speakingSeq ? hint.level : 0;
   const hintLevelRef = useRef(hintLevel);
@@ -67,8 +68,9 @@ export function useScriptTurnStudent(
     levelAtRef.current = Date.now();
     lastVoiceAtRef.current = 0;
   }, [speakingSeq]);
+  /** 自動只會往上升；老師指定的等級照設（可以往回收） */
   const raiseHint = useCallback((seq: number, level: HintLevel, by: 'auto' | 'teacher') => {
-    if (level <= hintLevelRef.current) return;
+    if (by === 'auto' ? level <= hintLevelRef.current : level === hintLevelRef.current) return;
     hintLevelRef.current = level;
     levelAtRef.current = Date.now();
     setHint({ seq, level, by });
@@ -83,7 +85,7 @@ export function useScriptTurnStudent(
       return true;
     }
     if (msg.type === 'turn-hint') {
-      // 老師手動加提示（只送給發言者）
+      // 老師手動指定提示等級（只送給發言者）
       const t = turnRef.current;
       if (from.startsWith('host-') && t && msg.seq === t.seq && typeof msg.level === 'number') {
         raiseHint(t.seq, Math.min(MAX_HINT_LEVEL, Math.max(0, Math.round(msg.level))) as HintLevel, 'teacher');
@@ -151,10 +153,10 @@ export function useScriptTurnStudent(
     send(0);
   }, [publish]);
 
-  // 分級提示：沒開口 4 秒、開口後停住 2.5 秒就升一級；按了「我說完了」就停
+  // 自動提示：沒開口 4 秒、開口後停住 2.5 秒就升一級；老師關掉自動或按了「我說完了」就停
   const doneSentNow = doneSeq !== null && doneSeq === speakingSeq;
   useEffect(() => {
-    if (speakingSeq === null || !tiered || doneSentNow) return;
+    if (speakingSeq === null || !tiered || !hintAuto || doneSentNow) return;
     const timer = window.setInterval(() => {
       const now = Date.now();
       if (selfTalkingRef.current) lastVoiceAtRef.current = now;
@@ -163,7 +165,7 @@ export function useScriptTurnStudent(
       if (next !== level) raiseHint(speakingSeq, next, 'auto');
     }, HINT_TICK_MS);
     return () => window.clearInterval(timer);
-  }, [speakingSeq, tiered, doneSentNow, raiseHint]);
+  }, [speakingSeq, tiered, hintAuto, doneSentNow, raiseHint]);
 
   // 目前提示等級回報給老師（輪到自己時、每次升級時）
   const hintBy = hint && hint.seq === speakingSeq ? hint.by : 'auto';

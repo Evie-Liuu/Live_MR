@@ -2316,20 +2316,27 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   useEffect(() => { setTurnTranscript(null); }, [scriptTurnSeq]);
   const liveTurnTranscript = turnTranscript && turnTranscript.seq === scriptTurnSeq ? turnTranscript.text : '';
   const liveTurnHint = turnHint && turnHint.seq === scriptTurnSeq ? turnHint : null;
-  /** 老師手動多給一級提示（只送給發言者） */
-  const giveTurnHint = useCallback(() => {
+  /** 老師手動指定發言者的提示等級（只送給發言者） */
+  const giveTurnHint = useCallback((level: TurnHintLevel) => {
     const t = scriptTurnRef.current;
     const room = roomRef.current;
     if (!t?.speaker.identity || t.status !== 'running' || !room || room.state !== 'connected') return;
-    const current = turnHint && turnHint.seq === t.seq ? turnHint.level : 0;
-    if (current >= MAX_HINT_LEVEL) return;
-    const level = (current + 1) as TurnHintLevel;
+    if (level < 0 || level > MAX_HINT_LEVEL) return;
     setTurnHint({ seq: t.seq, level, by: 'teacher' });
     try {
       const bytes = new TextEncoder().encode(JSON.stringify({ type: 'turn-hint', seq: t.seq, level }));
       void room.localParticipant.publishData(bytes, { reliable: true, destinationIdentities: [t.speaker.identity] }).catch(() => { /* ignore */ });
     } catch { /* ignore */ }
-  }, [turnHint]);
+  }, []);
+  const setTurnHintAuto = useCallback((auto: boolean) => {
+    setLesson(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      if (auto) next.turnHintAuto = true;
+      else delete next.turnHintAuto;
+      return next;
+    });
+  }, []);
   const setTurnHintMode = useCallback((mode: TurnHintMode) => {
     setLesson(prev => {
       if (!prev) return prev;
@@ -2952,6 +2959,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   hintLevel={liveTurnHint?.level ?? null}
                   hintBy={liveTurnHint?.by ?? 'auto'}
                   onHintModeChange={setTurnHintMode}
+                  hintAuto={lesson.turnHintAuto === true}
+                  onHintAutoChange={setTurnHintAuto}
                   onGiveHint={giveTurnHint}
                   blockedReason={scriptBlockedReason}
                   isLastStep={lesson.doneCount >= lesson.record.task.steps.length - 1}
