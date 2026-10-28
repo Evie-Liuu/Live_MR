@@ -269,3 +269,95 @@
   font-weight: 700;
   color: #C05621;
 }
+
+/* AI 依劇本出題 */
+.cph-item-step--ai {
+  background: #7C5CDB;
+  font-size: 10px;
+}
+
+.cph-item-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b6b6b;
+}
+
+.cph-item-opts .is-answer { color: #00897B; }
+
+.cph-item-tools {
+  flex-shrink: 0;
+  display: flex;
+  gap: 2px;
+}
+
+.cph .cph-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #8a6a4a;
+  cursor: pointer;
+}
+
+.cph .cph-icon-btn:hover:not(:disabled) { background: #F3F4F4; }
+.cph .cph-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.cph .cph-icon-btn .material-symbols-outlined { font-size: 18px; }
+
+.cph-ai {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed #E0D6CC;
+}
+
+.cph-ai-kinds {
+  display: flex;
+  gap: 2px;
+}
+
+.cph .cph-ai-kind {
+  padding: 2px 8px;
+  border: 1px solid #E0D6CC;
+  border-radius: 999px;
+  background: #fff;
+  color: #8a6a4a;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cph .cph-ai-kind.is-active {
+  border-color: #7C5CDB;
+  background: #F1ECFF;
+  color: #5B3DB8;
+}
+
+.cph .cph-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 12px;
+  border-color: #7C5CDB;
+  color: #5B3DB8;
+  font-size: 13px;
+}
+
+.cph .cph-ai-btn:disabled { opacity: 0.6; cursor: wait; }
+.cph .cph-ai-btn .material-symbols-outlined { font-size: 16px; }
+
+.cph-ai-error {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #D64545;
+}

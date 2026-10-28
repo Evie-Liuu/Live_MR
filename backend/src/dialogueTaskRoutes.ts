@@ -4,6 +4,7 @@ import type { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from './lessonPlanTypes.js'
 import { isSceneContext } from './lessonPlanRoutes.js'
 import { generateDialogueTask } from './ai/dialogueTask.js'
+import { MAX_GENERATED_CHECKPOINTS, generateCheckpoints, type CheckpointKindRequest, type CheckpointRequest } from './ai/checkpoints.js'
 import {
   isGestureId, normalizeTags, MAX_CHECKPOINTS_PER_STEP, MIN_CHECKPOINT_OPTIONS, MAX_CHECKPOINT_OPTIONS,
   MAX_CAST_OPTIONS, MAX_CAST_MERGES, type AudienceCheckpoint, type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource,
@@ -13,6 +14,7 @@ export interface DialogueTaskRouteDeps {
   /** null 表示資料庫開啟失敗，所有端點回 503 */
   repo: DialogueTaskRepo | null
   generate?: typeof generateDialogueTask
+  generateCheckpoints?: typeof generateCheckpoints
   timeoutMs?: number
 }
 
@@ -116,6 +118,47 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
   }
 }
 
+const CHECKPOINT_KINDS: CheckpointKindRequest[] = ['choice', 'truefalse', 'mixed']
+
+/** AI 出題的請求檢查；不合格回錯誤訊息 */
+export function parseCheckpointRequest(v: unknown): CheckpointRequest | string {
+  const b = v as {
+    level?: unknown; roles?: unknown; step?: { title?: unknown; purpose?: unknown; lines?: unknown }
+    avoid?: unknown; kind?: unknown; count?: unknown
+  } | null
+  if (!b || !CEFR_LEVELS.includes(b.level as CefrLevel)) return `level must be one of ${CEFR_LEVELS.join(', ')}`
+  if (!Array.isArray(b.roles) || b.roles.length === 0 || b.roles.length > MAX_LIST_ITEMS) return 'roles is malformed'
+  const roles: { id: string; label: string }[] = []
+  for (const r of b.roles as { id?: unknown; label?: unknown }[]) {
+    if (!r || !isText(r.id, MAX_ID_LEN) || !/^[A-Za-z0-9_-]+$/.test(r.id) || !isText(r.label, MAX_TITLE_LEN)) return 'roles is malformed'
+    roles.push({ id: r.id, label: r.label.trim() })
+  }
+  const step = b.step
+  if (!step || !isText(step.title, MAX_TITLE_LEN)) return 'step.title is required'
+  if (step.purpose !== undefined && typeof step.purpose !== 'string') return 'step.purpose must be a string'
+  if (!Array.isArray(step.lines) || step.lines.length === 0 || step.lines.length > MAX_LINES_PER_STEP) return 'step.lines is malformed'
+  const lines: { speaker: string; en: string; zh: string }[] = []
+  for (const l of step.lines as { speaker?: unknown; en?: unknown; zh?: unknown }[]) {
+    if (!l || typeof l.speaker !== 'string' || !roles.some(r => r.id === l.speaker)) return 'step.lines has an unknown speaker'
+    if (typeof l.en !== 'string' || l.en.length > MAX_TEXT_LEN || typeof l.zh !== 'string' || l.zh.length > MAX_TEXT_LEN) return 'step.lines is malformed'
+    if (l.en.trim()) lines.push({ speaker: l.speaker, en: l.en.trim(), zh: l.zh.trim() })
+  }
+  if (lines.length === 0) return 'step has no lines'
+  const avoid = b.avoid === undefined ? [] : b.avoid
+  if (!Array.isArray(avoid) || avoid.length > MAX_LIST_ITEMS || !avoid.every(q => isText(q))) return 'avoid is malformed'
+  const kind = b.kind === undefined ? 'mixed' : b.kind
+  if (!CHECKPOINT_KINDS.includes(kind as CheckpointKindRequest)) return `kind must be one of ${CHECKPOINT_KINDS.join(', ')}`
+  const count = b.count === undefined ? 2 : b.count
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > MAX_GENERATED_CHECKPOINTS) {
+    return `count must be an integer from 1 to ${MAX_GENERATED_CHECKPOINTS}`
+  }
+  return {
+    level: b.level as CefrLevel, roles,
+    step: { title: step.title.trim(), purpose: typeof step.purpose === 'string' ? step.purpose.trim() : '', lines },
+    avoid: (avoid as string[]).map(q => q.trim()), kind: kind as CheckpointKindRequest, count,
+  }
+}
+
 export function createDialogueTaskRouter(deps: DialogueTaskRouteDeps): Router {
   const router = Router()
   const generate = deps.generate ?? generateDialogueTask
@@ -158,6 +201,25 @@ export function createDialogueTaskRouter(deps: DialogueTaskRouteDeps): Router {
       const msg = err instanceof Error ? err.message : String(err)
       console.error('[dialogue-tasks/generate] error:', msg)
       if (controller.signal.aborted) { res.status(504).json({ error: 'Dialogue task generation timed out' }); return }
+      res.status(msg.includes('GEMINI_API_KEY') ? 500 : 502).json({ error: msg })
+    } finally {
+      clearTimeout(timer)
+    }
+  })
+
+  // AI 依劇本某一步產生台下互動題：只回傳題目不存檔（課堂上由老師決定要不要發布）
+  router.post('/checkpoints/generate', async (req: Request, res: Response) => {
+    const parsed = parseCheckpointRequest(req.body)
+    if (typeof parsed === 'string') { res.status(400).json({ error: parsed }); return }
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const checkpoints = await (deps.generateCheckpoints ?? generateCheckpoints)(parsed, { signal: controller.signal })
+      res.json({ checkpoints })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[dialogue-tasks/checkpoints/generate] error:', msg)
+      if (controller.signal.aborted) { res.status(504).json({ error: 'Checkpoint generation timed out' }); return }
       res.status(msg.includes('GEMINI_API_KEY') ? 500 : 502).json({ error: msg })
     } finally {
       clearTimeout(timer)

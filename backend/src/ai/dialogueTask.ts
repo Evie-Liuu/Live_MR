@@ -18,7 +18,7 @@ export interface DialogueTaskRequest {
   castSize?: number
 }
 
-type RawCheckpoint = Omit<AudienceCheckpoint, 'id'>
+export type RawCheckpoint = Omit<AudienceCheckpoint, 'id'>
 interface RawLine { speaker: string; en: string; zh: string; gesture?: GestureId }
 interface RawStep {
   title: string
@@ -63,7 +63,9 @@ const SLOT_TOKEN = /\{([A-Za-z0-9_-]+)\}/g
  * 台下互動題是加分項：不合格的題目直接略過，不讓整份重試。
  * 是非題選項固定 True / False；題目裡的角色代號必須是有台詞的角色。
  */
-function cleanCheckpoints(v: unknown, speakers: string[]): RawCheckpoint[] {
+export function cleanCheckpoints(
+  v: unknown, speakers: string[], max = Math.min(CHECKPOINTS_PER_STEP_RANGE.max, MAX_CHECKPOINTS_PER_STEP),
+): RawCheckpoint[] {
   if (!Array.isArray(v)) return []
   const out: RawCheckpoint[] = []
   for (const c of v as Partial<RawCheckpoint & { followUp: unknown }>[]) {
@@ -84,7 +86,7 @@ function cleanCheckpoints(v: unknown, speakers: string[]): RawCheckpoint[] {
       ...(isText(c.followUp) ? { followUp: c.followUp.trim() } : {}),
     })
   }
-  return out.slice(0, Math.min(CHECKPOINTS_PER_STEP_RANGE.max, MAX_CHECKPOINTS_PER_STEP))
+  return out.slice(0, max)
 }
 
 /**

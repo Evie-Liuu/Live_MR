@@ -220,3 +220,37 @@ describe('POST /api/dialogue-tasks/generate', () => {
     expect((await request(app).post('/api/dialogue-tasks/generate').send(body)).status).toBe(504)
   })
 })
+
+describe('POST /api/dialogue-tasks/checkpoints/generate', () => {
+  const body = {
+    level: 'A1',
+    roles: [{ id: 'cashier', label: '店員' }, { id: 'customer', label: '顧客' }],
+    step: { title: '報價', purpose: '價格查詢', lines: [{ speaker: 'customer', en: 'How much is it?', zh: '多少錢？' }, { speaker: 'cashier', en: ' ', zh: '' }] },
+  }
+  const sample = [{ id: 'ai_cp_1', title: '價格理解', question: 'How much is it?', options: ['1', '2'], answerIndex: 0 }]
+
+  it('回傳題目、不需要資料庫，預設混合題型 2 題並略過空白台詞', async () => {
+    const generateCheckpoints = vi.fn(async (_req: unknown, _opts: unknown) => sample)
+    const app = createApp({ repo: null, generateCheckpoints })
+    const res = await request(app).post('/api/dialogue-tasks/checkpoints/generate').send(body)
+    expect(res.status).toBe(200)
+    expect(res.body.checkpoints).toEqual(sample)
+    expect(generateCheckpoints.mock.calls[0][0]).toMatchObject({ kind: 'mixed', count: 2, avoid: [], step: { lines: [{ speaker: 'customer' }] } })
+  })
+
+  it('檢查請求內容', async () => {
+    const app = createApp({ repo: null, generateCheckpoints: vi.fn() })
+    const post = (b: object) => request(app).post('/api/dialogue-tasks/checkpoints/generate').send(b)
+    expect((await post({ ...body, level: 'C2' })).status).toBe(400)
+    expect((await post({ ...body, roles: [] })).status).toBe(400)
+    expect((await post({ ...body, step: { title: '報價', lines: [{ speaker: 'boss', en: 'Hi', zh: '' }] } })).status).toBe(400)
+    expect((await post({ ...body, step: { title: '報價', lines: [{ speaker: 'cashier', en: ' ', zh: '' }] } })).status).toBe(400)
+    expect((await post({ ...body, kind: 'essay' })).status).toBe(400)
+    expect((await post({ ...body, count: 9 })).status).toBe(400)
+  })
+
+  it('AI 失敗回 502', async () => {
+    const app = createApp({ repo: null, generateCheckpoints: vi.fn(async () => { throw new Error('[ai/checkpoints] boom') }) })
+    expect((await request(app).post('/api/dialogue-tasks/checkpoints/generate').send(body)).status).toBe(502)
+  })
+})

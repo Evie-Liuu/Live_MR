@@ -42,7 +42,7 @@ import SceneOccludersPanel from './SceneOccludersPanel.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 import TaskBankDrawer from './TaskBankDrawer.tsx';
 import LessonTaskDrawer from './LessonTaskDrawer.tsx';
-import CheckpointHostPanel from './CheckpointHostPanel.tsx';
+import CheckpointHostPanel, { type AiCheckpointKind } from './CheckpointHostPanel.tsx';
 import AiAssistantPanel, { type InteractionPhase } from './AiAssistantPanel.tsx';
 import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.tsx';
 import { MAX_HINT_LEVEL, type HintLevel as TurnHintLevel, type TurnHintMode } from '../utils/turnHints.ts';
@@ -55,7 +55,7 @@ import {
   toggleQuestionText, toScreenPoll, toStudentPoll,
   type CheckpointPoll,
 } from '../utils/checkpointPoll.ts';
-import { getDialogueTask } from '../utils/dialogueTaskClient.ts';
+import { generateCheckpoints, getDialogueTask, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
 import { castChoices, createId, type AudienceCheckpoint, type DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
   BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
@@ -1676,6 +1676,72 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const revealCheckpoint = useCallback(() => setCheckpointPoll(prev => (prev ? setPollStatus(prev, 'revealed') : prev)), []);
   const endCheckpoint = useCallback(() => setCheckpointPoll(null), []);
 
+  // AI 依劇本目前步驟出題：題目先放在這堂課（lesson.aiCheckpoints），老師可發布、存入任務或移除
+  const [aiCpGenerating, setAiCpGenerating] = useState(false);
+  const [aiCpError, setAiCpError] = useState<string | null>(null);
+  const [aiCpSavingId, setAiCpSavingId] = useState<string | null>(null);
+  const generateStepCheckpoints = useCallback(async (kind: AiCheckpointKind) => {
+    if (!lesson) return;
+    const step = lesson.record.task.steps[currentStepIndex(lesson)];
+    if (!step) return;
+    const lines = step.lines.filter(l => l.en.trim());
+    const sceneSlots = (SCENE_PRESETS[selectedSceneId] || SCENE_PRESETS[DEFAULT_SCENE_ID]).slots;
+    const slotLabel = (id: string) => sceneSlots?.find(sl => sl.id === id)?.label ?? id;
+    const roles = [...new Set(lines.map(l => l.speakerSlotId))].map(id => ({ id, label: slotLabel(id) }));
+    const existing = [...(step.checkpoints ?? []), ...(lesson.aiCheckpoints?.[step.id] ?? [])];
+    const recordId = lesson.record.id;
+    setAiCpGenerating(true);
+    setAiCpError(null);
+    try {
+      const list = await generateCheckpoints({
+        level: lesson.record.task.level,
+        roles,
+        step: { title: step.title, purpose: step.purpose, lines: lines.map(l => ({ speaker: l.speakerSlotId, en: l.en, zh: l.zh })) },
+        avoid: existing.map(c => c.question).slice(0, 20),
+        kind,
+        count: 2,
+      });
+      setLesson(prev => {
+        if (!prev || prev.record.id !== recordId) return prev;
+        return { ...prev, aiCheckpoints: { ...prev.aiCheckpoints, [step.id]: [...(prev.aiCheckpoints?.[step.id] ?? []), ...list] } };
+      });
+    } catch (err) {
+      setAiCpError(`AI 出題失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setAiCpGenerating(false);
+    }
+  }, [lesson, selectedSceneId]);
+  const removeAiCheckpoint = useCallback((stepId: string, checkpointId: string) => {
+    setLesson(prev => {
+      const list = prev?.aiCheckpoints?.[stepId];
+      if (!prev || !list) return prev;
+      return { ...prev, aiCheckpoints: { ...prev.aiCheckpoints, [stepId]: list.filter(c => c.id !== checkpointId) } };
+    });
+  }, []);
+  /** 存入任務：加到該步驟的台下互動題並更新任務，下次上課也能用 */
+  const saveAiCheckpoint = useCallback(async (stepId: string, checkpoint: AudienceCheckpoint) => {
+    if (!lesson) return;
+    const { record } = lesson;
+    const task = {
+      ...record.task,
+      steps: record.task.steps.map(st => (st.id === stepId ? { ...st, checkpoints: [...(st.checkpoints ?? []), checkpoint] } : st)),
+    };
+    setAiCpSavingId(checkpoint.id);
+    setAiCpError(null);
+    try {
+      const updated = await updateDialogueTask(record.id, task);
+      setLesson(prev => {
+        if (!prev || prev.record.id !== updated.id) return prev;
+        const list = prev.aiCheckpoints?.[stepId] ?? [];
+        return { ...prev, record: updated, aiCheckpoints: { ...prev.aiCheckpoints, [stepId]: list.filter(c => c.id !== checkpoint.id) } };
+      });
+    } catch (err) {
+      setAiCpError(`存入任務失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setAiCpSavingId(null);
+    }
+  }, [lesson]);
+
   // ── 上課中進入備課中心：以覆蓋層開啟，HostSession 不卸載，課堂、連線與大屏保持進行 ──
   /** null = 未開啟；taskId 有值時直接編輯該任務 */
   const [prepTarget, setPrepTarget] = useState<{ taskId?: string } | null>(null);
@@ -2997,6 +3063,13 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   onClose={closeCheckpoint}
                   onReveal={revealCheckpoint}
                   onEnd={endCheckpoint}
+                  aiCheckpoints={lesson.aiCheckpoints?.[lesson.record.task.steps[currentStepIndex(lesson)]?.id ?? ''] ?? []}
+                  aiGenerating={aiCpGenerating}
+                  aiError={aiCpError}
+                  onGenerate={kind => { void generateStepCheckpoints(kind); }}
+                  aiSavingId={aiCpSavingId}
+                  onSaveAi={(stepId, cp) => { void saveAiCheckpoint(stepId, cp); }}
+                  onRemoveAi={removeAiCheckpoint}
                 />
                 <div className="hs-task-reset" onClick={(e) => { e.stopPropagation(); resetAllLessons(); }}>↺ 重置全部</div>
                 </>
@@ -3026,7 +3099,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                       ? (teacherName ? teacherName : '老師')
                       : studentList.find(info => info.participant.identity === assigned)?.participant.name || assigned
                   ) : '─';
-                  const lines = castLines.get(slot.id);
+                  // const lines = castLines.get(slot.id);
                   return (
                     <div
                       key={slot.id}

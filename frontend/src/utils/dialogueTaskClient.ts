@@ -1,4 +1,4 @@
-import type { DialogueTask, DialogueTaskRecord, DialogueTaskSummary } from '../types/dialogueTask.ts'
+import type { AudienceCheckpoint, DialogueTask, DialogueTaskRecord, DialogueTaskSummary } from '../types/dialogueTask.ts'
 import type { CefrLevel, SceneContext } from '../types/lessonPlan.ts'
 
 const BASE = '/api/dialogue-tasks'
@@ -40,6 +40,33 @@ export async function generateDialogueTask(
     })
     if (!res.ok) throw new Error(await readError(res))
     return ((await res.json()) as { task: DialogueTask }).task
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** AI 依劇本某一步的台詞產生台下互動題（不存檔） */
+export async function generateCheckpoints(req: {
+  level: CefrLevel
+  /** 這一步有台詞的角色 */
+  roles: { id: string; label: string }[]
+  step: { title: string; purpose: string; lines: { speaker: string; en: string; zh: string }[] }
+  /** 已有的題目，避免重複 */
+  avoid: string[]
+  kind: 'choice' | 'truefalse' | 'mixed'
+  count: number
+}): Promise<AudienceCheckpoint[]> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
+  try {
+    const res = await fetch(`${BASE}/checkpoints/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(await readError(res))
+    return ((await res.json()) as { checkpoints: AudienceCheckpoint[] }).checkpoints
   } finally {
     clearTimeout(timer)
   }

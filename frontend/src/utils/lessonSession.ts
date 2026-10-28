@@ -6,7 +6,7 @@
  * 一堂課分三階段（任務前 / 任務中 / 任務後），由老師手動切換；
  * 任務前、任務後一次聚焦一題提問（questionIndex），大螢幕只顯示該題。
  */
-import { applyCastMerge, castChoices, type DialogueTask, type DialogueTaskRecord } from '../types/dialogueTask.ts';
+import { applyCastMerge, castChoices, type AudienceCheckpoint, type DialogueTask, type DialogueTaskRecord } from '../types/dialogueTask.ts';
 import type { CefrLevel } from '../types/lessonPlan.ts';
 import { phaseContent, type LessonPhase } from '../config/lessonPhases.ts';
 import type { ScriptTurnState } from './scriptTurn.ts';
@@ -31,6 +31,8 @@ export interface HostLessonState {
   turnHintMode?: TurnHintMode;
   /** 分級提示是否依沉默時間自動升級；未設定＝不自動（老師手動點選） */
   turnHintAuto?: boolean;
+  /** AI 出的台下互動題（步驟 id → 題目），只在這堂課用；老師按「存入任務」才寫回任務 */
+  aiCheckpoints?: Record<string, AudienceCheckpoint[]>;
 }
 
 /** 送到大螢幕的課程狀態 */
@@ -166,6 +168,12 @@ function phaseScreen(lesson: HostLessonState): Partial<LessonScreenState> {
   };
 }
 
+function isCheckpointMap(v: unknown): v is Record<string, AudienceCheckpoint[]> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
+  return Object.values(v).every(list => Array.isArray(list) && list.every(c =>
+    c && typeof c.id === 'string' && typeof c.question === 'string' && Array.isArray(c.options) && typeof c.answerIndex === 'number'));
+}
+
 export function loadHostLesson(): HostLessonState | null {
   try {
     const raw = sessionStorage.getItem(HOST_LESSON_STORAGE_KEY);
@@ -188,6 +196,7 @@ export function loadHostLesson(): HostLessonState | null {
       ...(turn ? { turn } : {}),
       ...(parsed.turnHintMode === 'full' ? { turnHintMode: 'full' as const } : {}),
       ...(parsed.turnHintAuto === true ? { turnHintAuto: true } : {}),
+      ...(isCheckpointMap(parsed.aiCheckpoints) ? { aiCheckpoints: parsed.aiCheckpoints } : {}),
     };
   } catch {
     return null;

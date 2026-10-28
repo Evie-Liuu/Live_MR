@@ -1,4 +1,5 @@
-import type { AudienceCheckpoint, DialogueStep } from '../types/dialogueTask.ts';
+import { useState } from 'react';
+import { MAX_CHECKPOINTS_PER_STEP, type AudienceCheckpoint, type DialogueStep } from '../types/dialogueTask.ts';
 import {
   checkpointKind, checkpointOptions, defaultShowQuestionText, hasDuplicateOptions, optionLabel, optionMark, pollCounts,
   resolveCheckpoint, type CheckpointCast, type CheckpointPoll,
@@ -22,7 +23,23 @@ interface CheckpointHostPanelProps {
   onClose: () => void;
   onReveal: () => void;
   onEnd: () => void;
+  /** AI 為目前步驟出的題（只在這堂課用） */
+  aiCheckpoints: AudienceCheckpoint[];
+  aiGenerating: boolean;
+  aiError: string | null;
+  onGenerate: (kind: AiCheckpointKind) => void;
+  /** 存入任務中的題目 id；null＝沒有在存 */
+  aiSavingId: string | null;
+  onSaveAi: (stepId: string, checkpoint: AudienceCheckpoint) => void;
+  onRemoveAi: (stepId: string, checkpointId: string) => void;
 }
+
+export type AiCheckpointKind = 'mixed' | 'choice' | 'truefalse';
+const AI_KINDS: { value: AiCheckpointKind; label: string }[] = [
+  { value: 'mixed', label: '混合' },
+  { value: 'choice', label: '選擇' },
+  { value: 'truefalse', label: '是非' },
+];
 
 /**
  * 導師任務卡（任務中）的台下互動控制：
@@ -31,13 +48,21 @@ interface CheckpointHostPanelProps {
  */
 export default function CheckpointHostPanel({
   steps, currentIndex, poll, studentIds, level, cast, onPublish, onToggleQuestionText, onClose, onReveal, onEnd,
+  aiCheckpoints, aiGenerating, aiError, onGenerate, aiSavingId, onSaveAi, onRemoveAi,
 }: CheckpointHostPanelProps) {
-  // 只列出當下正在演出步驟的台下互動
-  const candidates = currentIndex >= 0 && currentIndex < steps.length
-    ? (steps[currentIndex].checkpoints ?? []).map(raw => ({ step: steps[currentIndex], index: currentIndex, cp: resolveCheckpoint(raw, cast) }))
+  const [aiKind, setAiKind] = useState<AiCheckpointKind>('mixed');
+  // 只列出當下正在演出步驟的台下互動（任務裡的題目＋AI 出的題）
+  const step = currentIndex >= 0 && currentIndex < steps.length ? steps[currentIndex] : undefined;
+  const candidates = step
+    ? [
+      ...(step.checkpoints ?? []).map(raw => ({ raw, cp: resolveCheckpoint(raw, cast), ai: false })),
+      ...aiCheckpoints.map(raw => ({ raw, cp: resolveCheckpoint(raw, cast), ai: true })),
+    ]
     : [];
+  const canGenerate = !!step && step.lines.some(l => l.en.trim());
+  const canSave = (step?.checkpoints?.length ?? 0) < MAX_CHECKPOINTS_PER_STEP;
 
-  if (!poll && candidates.length === 0) return null;
+  if (!poll && candidates.length === 0 && !canGenerate) return null;
 
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -111,16 +136,40 @@ export default function CheckpointHostPanel({
         <span className="cph-default-hint">發布後{defaultShowQuestionText(level) ? '顯示題目文字' : '只顯示選項'}</span>
       </div>
       <ul className="cph-list">
-        {candidates.map(({ step, cp }) => (
+        {step && candidates.map(({ raw, cp, ai }) => (
           <li key={`${step.id}-${cp.id}`} className="cph-item">
-            <span className="cph-item-step">?</span>
+            <span className={`cph-item-step${ai ? ' cph-item-step--ai' : ''}`}>{ai ? 'AI' : '?'}</span>
             <span className="cph-item-text">
               <span className="cph-item-kind">{checkpointKind(cp) === 'truefalse' ? '是非' : '選擇'}・{cp.title}</span>
               <span className="cph-item-q">{cp.question}</span>
+              {ai && (
+                <span className="cph-item-opts">
+                  {checkpointOptions(cp).map((o, i) => (
+                    <span key={i} className={i === cp.answerIndex ? 'is-answer' : ''}>{optionMark(checkpointKind(cp), i)} {optionLabel(checkpointKind(cp), o, i)}</span>
+                  ))}
+                </span>
+              )}
               {hasDuplicateOptions(cp) && (
                 <span className="cph-item-warn">目前演出人數下選項重複（同一人演兩個角色），建議改問其他題</span>
               )}
             </span>
+            {ai && (
+              <span className="cph-item-tools">
+                <button
+                  type="button"
+                  className="cph-icon-btn"
+                  onClick={() => onSaveAi(step.id, raw)}
+                  disabled={!canSave || aiSavingId !== null}
+                  title={canSave ? '存入任務（下次上課也能用）' : `每步最多 ${MAX_CHECKPOINTS_PER_STEP} 題，無法再存入`}
+                  aria-label="存入任務"
+                >
+                  <span className="material-symbols-outlined">{aiSavingId === raw.id ? 'hourglass_top' : 'bookmark_add'}</span>
+                </button>
+                <button type="button" className="cph-icon-btn" onClick={() => onRemoveAi(step.id, raw.id)} title="移除這題" aria-label="移除這題">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </span>
+            )}
             <button
               type="button"
               className="cph-btn cph-btn--primary"
@@ -131,6 +180,28 @@ export default function CheckpointHostPanel({
           </li>
         ))}
       </ul>
+      {canGenerate && (
+        <div className="cph-ai">
+          <div className="cph-ai-kinds" role="group" aria-label="AI 出題題型">
+            {AI_KINDS.map(k => (
+              <button
+                key={k.value}
+                type="button"
+                className={`cph-ai-kind${aiKind === k.value ? ' is-active' : ''}`}
+                aria-pressed={aiKind === k.value}
+                onClick={() => setAiKind(k.value)}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="cph-btn cph-ai-btn" onClick={() => onGenerate(aiKind)} disabled={aiGenerating}>
+            <span className="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+            {aiGenerating ? '出題中…' : 'AI 依劇本出題'}
+          </button>
+        </div>
+      )}
+      {aiError && <div className="cph-ai-error">{aiError}</div>}
     </div>
   );
 }
