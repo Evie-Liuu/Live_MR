@@ -18,7 +18,9 @@ import { BIGSCREEN_CHECKPOINT_STORAGE_KEY, type ScreenPoll } from '../utils/chec
 import CheckpointScreenOverlay from './CheckpointScreenOverlay.tsx';
 import AvatarNameplates from './AvatarNameplates.tsx';
 import { buildNameplates, type AvatarAnchors } from '../utils/nameplates.ts';
-import { BIGSCREEN_TURN_STORAGE_KEY, type ScriptTurn } from '../utils/scriptTurn.ts';
+import { BIGSCREEN_TURN_HINT_STORAGE_KEY, BIGSCREEN_TURN_STORAGE_KEY, type ScriptTurn } from '../utils/scriptTurn.ts';
+import { HINT_LABELS, shownHintLevel, type HintLevel as TurnHintLevel } from '../utils/turnHints.ts';
+import TurnHintBody from './TurnHintBody.tsx';
 import { phaseMeta } from '../config/lessonPhases.ts';
 
 export interface TaskEntry {
@@ -35,7 +37,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'script-turn' | 'turn-transcript';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'script-turn' | 'turn-transcript' | 'turn-hint';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -56,6 +58,8 @@ export interface BigScreenMsg {
   scriptTurn?: ScriptTurn | null;
   /** For 'turn-transcript': 發言者的即時逐字稿（空字串 = 清除） */
   turnTranscript?: string;
+  /** For 'turn-hint': 分級提示目前的等級（null = 不顯示提示） */
+  turnHint?: { seq: number; level: TurnHintLevel } | null;
   /** For 'checkpoint-change': 台下互動點的作答統計（null = 沒有進行中的互動點） */
   checkpoint?: ScreenPoll | null;
   /** For 'hint-change': 是否啟用提示欄 */
@@ -467,6 +471,12 @@ export default function BigScreen() {
     try { return JSON.parse(sessionStorage.getItem(BIGSCREEN_TURN_STORAGE_KEY) ?? 'null'); } catch { return null; }
   });
   const [turnTranscript, setTurnTranscript] = useState('');
+  const [turnHint, setTurnHint] = useState<{ seq: number; level: TurnHintLevel } | null>(() => {
+    try {
+      const raw = sessionStorage.getItem(BIGSCREEN_TURN_HINT_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
@@ -2281,6 +2291,8 @@ export default function BigScreen() {
         setScriptTurn(msg.scriptTurn ?? null);
       } else if (msg.type === 'turn-transcript') {
         setTurnTranscript(msg.turnTranscript ?? '');
+      } else if (msg.type === 'turn-hint') {
+        setTurnHint(msg.turnHint ?? null);
       } else if (msg.type === 'lesson-change') {
         const next = msg.lesson ?? null;
         setLesson(next);
@@ -2659,7 +2671,18 @@ export default function BigScreen() {
                     {scriptTurn.status === 'running' && (
                       lesson.lines
                         ? <span className="bs-turn-text">{scriptTurn.line.en}</span>
-                        : turnTranscript && <span className="bs-turn-text bs-turn-text--live">{turnTranscript}</span>
+                        : turnHint && turnHint.seq === scriptTurn.seq ? (
+                          // 分級提示：跟發言者畫面同一級
+                          <div key={turnHint.level} className="bs-th">
+                            <span className="bs-th-tag">
+                              {shownHintLevel(scriptTurn.line, turnHint.level) === 0 ? '用英文說說看' : `提示・${HINT_LABELS[shownHintLevel(scriptTurn.line, turnHint.level)]}`}
+                            </span>
+                            <TurnHintBody line={scriptTurn.line} seq={scriptTurn.seq} level={turnHint.level} classPrefix="bs-th" />
+                          </div>
+                        ) : null
+                    )}
+                    {scriptTurn.status === 'running' && !lesson.lines && turnTranscript && (
+                      <span className="bs-turn-text bs-turn-text--live">{turnTranscript}</span>
                     )}
                   </div>
                 )}

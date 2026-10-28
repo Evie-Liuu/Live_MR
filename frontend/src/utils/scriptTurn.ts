@@ -12,6 +12,8 @@ import { currentStepIndex, isLessonDone, lessonTask, type HostLessonState } from
 
 /** 大屏重開時讀取目前這一輪 */
 export const BIGSCREEN_TURN_STORAGE_KEY = 'bigscreen-script-turn';
+/** 大屏重開時讀取目前的提示等級 */
+export const BIGSCREEN_TURN_HINT_STORAGE_KEY = 'bigscreen-turn-hint';
 
 export interface ScriptTurnState {
   /** 目前步驟內的台詞序號（跳過英文空白的台詞後，0 起算） */

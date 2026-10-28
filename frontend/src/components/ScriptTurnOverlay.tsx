@@ -1,5 +1,6 @@
 import type { ScriptTurn, TurnRole } from '../utils/scriptTurn.ts';
-import { HINT_LABELS, keywords, openingHint, shuffledWords, type HintLevel } from '../utils/turnHints.ts';
+import { HINT_LABELS, shownHintLevel, type HintLevel } from '../utils/turnHints.ts';
+import TurnHintBody from './TurnHintBody.tsx';
 import './ScriptTurnOverlay.css';
 
 interface ScriptTurnOverlayProps {
@@ -31,60 +32,10 @@ function speak(text: string) {
   } catch { /* ignore */ }
 }
 
-/** 發言畫面的台詞區：依提示等級顯示中文＋關鍵字 → 開頭 → 重組字卡 → 完整句子 */
+/** 發言畫面的台詞區：依提示等級顯示，完整時多一個「聽一次」 */
 function TurnHint({ turn, level }: { turn: ScriptTurn; level: HintLevel }) {
-  const { en, zh } = turn.line;
-  const words = keywords(en);
-  // 沒有中文也沒有關鍵字時，第 0 級沒東西可看，直接從開頭提示開始
-  const shown: HintLevel = level === 0 && !zh && words.length === 0 ? 1 : level;
+  const shown = shownHintLevel(turn.line, level);
   const tiered = turn.hintMode !== 'full';
-
-  let body;
-  if (shown === 0) {
-    body = (
-      <>
-        {zh && <div className="sto-hint-zh">{zh}</div>}
-        {words.length > 0 && (
-          <div className="sto-chips">
-            {words.map(w => <span key={w} className="sto-chip">{w}</span>)}
-          </div>
-        )}
-      </>
-    );
-  } else if (shown === 1) {
-    const o = openingHint(en);
-    body = (
-      <>
-        <div className="sto-line-en">
-          {o.shown.join(' ')}
-          {Array.from({ length: o.blanks }, (_, i) => <span key={i} className="sto-blank" aria-hidden="true" />)}
-          {o.mark}
-        </div>
-        {zh && <div className="sto-line-zh">{zh}</div>}
-      </>
-    );
-  } else if (shown === 2) {
-    body = (
-      <>
-        <div className="sto-chips sto-chips--shuffle">
-          {shuffledWords(en, turn.seq).map((w, i) => <span key={i} className="sto-chip">{w}</span>)}
-        </div>
-        {zh && <div className="sto-line-zh">{zh}</div>}
-      </>
-    );
-  } else {
-    body = (
-      <>
-        <div className="sto-line-en">{en}</div>
-        {zh && <div className="sto-line-zh">{zh}</div>}
-        <button type="button" className="sto-listen-btn" onClick={() => speak(en)}>
-          <span className="material-symbols-outlined" aria-hidden="true">volume_up</span>
-          聽一次
-        </button>
-      </>
-    );
-  }
-
   return (
     <div key={shown} className="sto-hint">
       {tiered && (
@@ -92,7 +43,13 @@ function TurnHint({ turn, level }: { turn: ScriptTurn; level: HintLevel }) {
           {shown === 0 ? '用英文說說看' : `提示・${HINT_LABELS[shown]}`}
         </span>
       )}
-      {body}
+      <TurnHintBody line={turn.line} seq={turn.seq} level={shown} classPrefix="sto" />
+      {shown === 3 && (
+        <button type="button" className="sto-listen-btn" onClick={() => speak(turn.line.en)}>
+          <span className="material-symbols-outlined" aria-hidden="true">volume_up</span>
+          聽一次
+        </button>
+      )}
     </div>
   );
 }
@@ -154,14 +111,14 @@ export default function ScriptTurnOverlay(props: ScriptTurnOverlayProps) {
           <span className={`sto-wave${props.speakerTalking ? ' is-live' : ''}`} aria-hidden="true"><i /><i /><i /></span>
         </div>
         <div className="sto-speaker-name">{turn.speaker.name}</div>
-        {transcript ? (
+        {/* {transcript ? (
           <div className="sto-transcript">{transcript}</div>
         ) : (
           <div className="sto-transcript sto-transcript--script">
             <span className="sto-transcript-tag">台詞</span>
             {turn.line.en}
           </div>
-        )}
+        )} */}
       </div>
       {props.isNext && turn.next && (
         <div className="sto-next" style={{ ['--next-color' as string]: turn.next.color }}>

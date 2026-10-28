@@ -8247,6 +8247,80 @@ button:disabled {
   color: #482607;
 }
 
+/* 逐句演練：大屏的分級提示（跟發言者 iPad 同一級） */
+.bs-th {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: bs-th-in 0.3s ease-out;
+}
+
+@keyframes bs-th-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.bs-th-tag {
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: #FFE2CC;
+  color: #C05621;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.bs-th-hint-zh {
+  font-size: 28px;
+  font-weight: 900;
+  color: #482607;
+}
+
+.bs-th-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.bs-th-chip {
+  padding: 4px 14px;
+  border-radius: 10px;
+  border: 2px solid var(--turn-color, #F76E12);
+  background: #fff;
+  color: #482607;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.bs-th-chips--shuffle .bs-th-chip {
+  background: var(--turn-color, #F76E12);
+  color: #fff;
+}
+
+.bs-th-line-en {
+  font-size: 26px;
+  font-weight: 900;
+  color: #482607;
+}
+
+.bs-th-line-zh {
+  font-size: 17px;
+  font-weight: 700;
+  color: #8a6a4a;
+}
+
+.bs-th-blank {
+  display: inline-block;
+  width: 1.5em;
+  height: 0.12em;
+  margin: 0 0.18em;
+  border-radius: 2px;
+  background: #9A5A26;
+  vertical-align: -0.1em;
+}
+
 .bs-turn-text--live {
   font-style: italic;
   color: #6b5a4a;

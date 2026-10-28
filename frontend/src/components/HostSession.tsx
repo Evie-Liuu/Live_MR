@@ -48,7 +48,7 @@ import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.t
 import { MAX_HINT_LEVEL, type HintLevel as TurnHintLevel, type TurnHintMode } from '../utils/turnHints.ts';
 import {
   advanceTurn, backTurn, jumpTurn, resolveTurn, restartTurnIfActive, setTurnPaused, startTurn, stepCastLines,
-  BIGSCREEN_TURN_STORAGE_KEY, type ScriptTurn, type ScriptTurnState, type TurnCast,
+  BIGSCREEN_TURN_STORAGE_KEY, BIGSCREEN_TURN_HINT_STORAGE_KEY, type ScriptTurn, type ScriptTurnState, type TurnCast,
 } from '../utils/scriptTurn.ts';
 import {
   BIGSCREEN_CHECKPOINT_STORAGE_KEY, type CheckpointCast, defaultShowQuestionText, loadHostPoll, recordAnswer, saveHostPoll, setPollStatus, startPoll,
@@ -2316,18 +2316,31 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   useEffect(() => { setTurnTranscript(null); }, [scriptTurnSeq]);
   const liveTurnTranscript = turnTranscript && turnTranscript.seq === scriptTurnSeq ? turnTranscript.text : '';
   const liveTurnHint = turnHint && turnHint.seq === scriptTurnSeq ? turnHint : null;
-  /** 老師手動指定發言者的提示等級（只送給發言者） */
+  /**
+   * 老師手動指定提示等級：大屏跟著顯示；發言者是學生時也送到他的 iPad
+   * （老師演出、角色未指派或學生離線時只顯示在大屏）。
+   */
   const giveTurnHint = useCallback((level: TurnHintLevel) => {
     const t = scriptTurnRef.current;
-    const room = roomRef.current;
-    if (!t?.speaker.identity || t.status !== 'running' || !room || room.state !== 'connected') return;
-    if (level < 0 || level > MAX_HINT_LEVEL) return;
+    if (!t || t.status !== 'running' || level < 0 || level > MAX_HINT_LEVEL) return;
     setTurnHint({ seq: t.seq, level, by: 'teacher' });
+    const room = roomRef.current;
+    if (!t.speaker.identity || t.speaker.identity === teacherIdentity || !room || room.state !== 'connected') return;
     try {
       const bytes = new TextEncoder().encode(JSON.stringify({ type: 'turn-hint', seq: t.seq, level }));
       void room.localParticipant.publishData(bytes, { reliable: true, destinationIdentities: [t.speaker.identity] }).catch(() => { /* ignore */ });
     } catch { /* ignore */ }
-  }, []);
+  }, [teacherIdentity]);
+  // 大屏的提示等級：分級提示時跟著發言者（學生 iPad 回報或老師指定），還沒有就是第 0 級；完整台詞模式不送
+  const bigScreenHintLevel = scriptTurn?.status === 'running' && scriptTurn.hintMode === 'tiered' ? liveTurnHint?.level ?? 0 : null;
+  useEffect(() => {
+    const turnHintScreen = bigScreenHintLevel === null || scriptTurnSeq === undefined ? null : { seq: scriptTurnSeq, level: bigScreenHintLevel };
+    try {
+      if (turnHintScreen) sessionStorage.setItem(BIGSCREEN_TURN_HINT_STORAGE_KEY, JSON.stringify(turnHintScreen));
+      else sessionStorage.removeItem(BIGSCREEN_TURN_HINT_STORAGE_KEY);
+    } catch { /* ignore */ }
+    channelRef.current?.postMessage({ type: 'turn-hint', turnHint: turnHintScreen } satisfies BigScreenMsg);
+  }, [bigScreenHintLevel, scriptTurnSeq]);
   const setTurnHintAuto = useCallback((auto: boolean) => {
     setLesson(prev => {
       if (!prev) return prev;
@@ -2956,7 +2969,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                   speakerStatus={speakerStatus}
                   transcript={liveTurnTranscript}
                   hintMode={lesson.turnHintMode ?? 'tiered'}
-                  hintLevel={liveTurnHint?.level ?? null}
+                  hintLevel={liveTurnHint?.level ?? (speakerStatus === 'speaking' || speakerStatus === 'online' ? null : 0)}
                   hintBy={liveTurnHint?.by ?? 'auto'}
                   onHintModeChange={setTurnHintMode}
                   hintAuto={lesson.turnHintAuto === true}
@@ -3023,7 +3036,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
                       <span className="hs-slot-dot" />
                       <span className="hs-slot-label">
                         {slot.icon} {slot.label}
-                        {lines !== undefined && <span className="hs-slot-lines">{lines} 句</span>}
+                        {/* {lines !== undefined && <span className="hs-slot-lines">{lines} 句</span>} */}
                       </span>
                       <span className="hs-slot-assigned">{assignedParticipant}</span>
                     </div>

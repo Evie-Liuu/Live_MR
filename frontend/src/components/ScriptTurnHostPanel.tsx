@@ -14,7 +14,7 @@ interface ScriptTurnHostPanelProps {
   /** 發言者的即時逐字稿 */
   transcript: string;
   hintMode: TurnHintMode;
-  /** 發言者 iPad 回報的提示等級；null＝還沒收到 */
+  /** 目前提示等級（學生演出時由 iPad 回報）；null＝還沒收到 */
   hintLevel: HintLevel | null;
   /** 目前等級是自動升的還是老師給的 */
   hintBy: 'auto' | 'teacher';
@@ -106,7 +106,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
   const stepEnd = turn.status === 'stepEnd';
   const paused = turn.status === 'paused';
   const warn = speakerStatus === 'offline' || speakerStatus === 'unassigned';
-  // 學生演出時才有 iPad 提示
+  // 學生演出時提示送到 iPad 和大屏；老師演出、未指派、離線時只顯示在大屏
   const studentSpeaking = speakerStatus === 'speaking' || speakerStatus === 'online';
 
   return (
@@ -152,9 +152,9 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
           {speakerStatus === 'unassigned' ? `${turn.speaker.label}還沒指派，可由老師代讀後按下一句，或直接略過。` : `${turn.speaker.name}離線中，可由老師代讀或略過。`}
         </div>
       )}
-      {!stepEnd && !paused && studentSpeaking && props.hintMode === 'tiered' && (
+      {!stepEnd && !paused && props.hintMode === 'tiered' && (
         <div className="stp-hints">
-          <span className="stp-hints-label">提示</span>
+          <span className="stp-hints-label">{studentSpeaking ? '提示' : '大屏提示'}</span>
           <div className="stp-hint-steps" role="group" aria-label={props.hintLevel === null ? '等待學生回報' : `目前提示：${HINT_LABELS[props.hintLevel]}`}>
             {HINT_STEPS.map(l => (
               <button

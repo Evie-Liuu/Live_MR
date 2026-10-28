@@ -95,6 +95,11 @@ export function shuffledWords(en: string, seed: number): string[] {
   return out;
 }
 
+/** 沒有中文也沒有關鍵字時，第 0 級沒東西可看，直接從開頭提示開始 */
+export function shownHintLevel(line: { en: string; zh: string }, level: HintLevel): HintLevel {
+  return level === 0 && !line.zh && keywords(line.en).length === 0 ? 1 : level;
+}
+
 export interface HintTiming {
   level: HintLevel;
   /** 升到目前這一級的時間（輪到自己時算第 0 級的開始） */

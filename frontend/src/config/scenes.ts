@@ -33,7 +33,7 @@ export const THEMES: ThemeConfig[] = [
         slots: [
           {
             id: 'cashier',
-            label: '店員A',
+            label: 'Staff A',
             icon: '🏪',
             position: [2.0, 1.0, -1.5],
             rotation: [0, -Math.PI / 4, 0],
@@ -41,7 +41,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'customer',
-            label: '顧客A',
+            label: 'Customer A',
             icon: '🛍️',
             position: [-1.4, 0.5, -1.5],
             rotation: [0, Math.PI / 4, 0],
@@ -49,7 +49,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'staff',
-            label: '店員B',
+            label: 'Staff B',
             icon: '🏪',
             position: [-0.5, 1.0, -3],
             rotation: [0, -Math.PI / 8, 0],
@@ -57,7 +57,7 @@ export const THEMES: ThemeConfig[] = [
           },
           {
             id: 'customer2',
-            label: '顧客B',
+            label: 'Customer B',
             icon: '🛍️',
             position: [-2.4, 0.5, -1.5],
             rotation: [0, Math.PI / 4, 0],
