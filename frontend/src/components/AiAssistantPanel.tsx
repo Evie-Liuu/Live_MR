@@ -82,7 +82,7 @@ export default function AiAssistantPanel(props: AiAssistantPanelProps) {
           <button
             className={`hs-ai-start-btn phase-${interactionPhase}`}
             disabled={!sttSupported || !hasConstraint || aiBusy || bigScreenEditing || scriptActive}
-            title={bigScreenEditing ? '大屏編輯模式中，無法開始互動' : scriptActive ? '逐句演練中，結束演練後才能開始互動' : undefined}
+            title={bigScreenEditing ? '大屏編輯模式中，無法開始互動' : scriptActive ? '登台展演中，結束展演後才能開始互動' : undefined}
             onClick={onStartInteraction}
           >
             <span className="material-symbols-outlined">smart_toy</span>

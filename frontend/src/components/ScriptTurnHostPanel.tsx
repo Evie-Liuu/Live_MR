@@ -84,7 +84,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
     return (
       <div className="stp" onClick={stop}>
         <div className="stp-head">
-          <span className="stp-title">逐句演練</span>
+          <span className="stp-title">登台展演</span>
           <span className="stp-hint">{lines.length} 句</span>
         </div>
         <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} auto={props.hintAuto} onAutoChange={props.onHintAutoChange} />
@@ -96,7 +96,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
           title={blockedReason ?? undefined}
         >
           <span className="material-symbols-outlined" aria-hidden="true">record_voice_over</span>
-          開始逐句演練
+          角色就位
         </button>
         {blockedReason && <div className="stp-note">{blockedReason}</div>}
       </div>
@@ -112,7 +112,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
   return (
     <div className="stp" onClick={stop}>
       <div className="stp-head">
-        <span className="stp-title">逐句演練</span>
+        <span className="stp-title">登台展演</span>
         <span className={`stp-state stp-state--${turn.status}`}>
           {stepEnd ? '本步結束' : paused ? '暫停中' : `第 ${turn.lineIndex + 1} / ${turn.lineCount} 句`}
         </span>
@@ -178,7 +178,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
         <div className="stp-actions">
           <button type="button" className="stp-btn stp-btn--ghost" onClick={props.onPrev}>重演最後一句</button>
           <button type="button" className="stp-btn stp-btn--primary" onClick={isLastStep ? props.onEnd : props.onNextStep}>
-            {isLastStep ? '完成演練' : '完成並進入下一步'}
+            {isLastStep ? '完成展演' : '完成並進入下一步'}
           </button>
         </div>
       ) : (
