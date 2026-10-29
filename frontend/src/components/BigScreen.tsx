@@ -750,7 +750,8 @@ export default function BigScreen() {
     participantNames,
     lesson,
     speaking: speakingIdentities,
-    turnIdentity: scriptTurn?.status === 'running' ? scriptTurn.speaker.identity : null,
+    // 沒在演練＝undefined（不限制收音效果）；演練中但暫停／步驟講完＝null
+    turnIdentity: !scriptTurn ? undefined : scriptTurn.status === 'running' ? scriptTurn.speaker.identity : null,
     ...(staticStage ? { rolesOnlyPrefix: PLACEHOLDER_PREFIX } : {}),
   }), [sceneId, slotAssignments, participantNames, lesson, speakingIdentities, scriptTurn, staticStage]);
 

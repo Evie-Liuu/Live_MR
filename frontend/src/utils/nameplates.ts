@@ -31,7 +31,9 @@ export function buildNameplates(opts: {
   participantNames: ReadonlyMap<string, string>;
   lesson: Pick<LessonScreenState, 'phase' | 'allDone' | 'roles'> | null;
   speaking: ReadonlySet<string>;
-  /** 逐句演練目前的發言者 */
+  /**
+   * 逐句演練目前的發言者：undefined＝沒在演練；null＝演練中但沒人發言（暫停、步驟講完、角色未指派）
+   */
   turnIdentity?: string | null;
   /**
    * 任務前階段：已指派的角色以靜態模型展示（key 為 `${rolesOnlyPrefix}${slotId}`），
@@ -58,7 +60,8 @@ export function buildNameplates(opts: {
       name: nameOf(id),
       color: ROLE_COLORS[i % ROLE_COLORS.length],
       active: !stepRoles || stepRoles.includes(slot.label),
-      speaking: speaking.has(id),
+      // 逐句演練中只有發言者有收音效果（老師或其他人的聲音不讓名牌發光；暫停時沒人發光）
+      speaking: speaking.has(id) && (turnIdentity === undefined || turnIdentity === id),
       ...(turnIdentity && turnIdentity === id ? { turn: true } : {}),
     };
   });

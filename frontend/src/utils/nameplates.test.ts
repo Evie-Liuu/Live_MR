@@ -28,6 +28,16 @@ describe('buildNameplates', () => {
     expect(buildNameplates({ ...base, lesson: { ...lesson, allDone: true } })['host-1'].active).toBe(true)
   })
 
+  it('逐句演練中只有發言者的名牌有收音效果', () => {
+    const plates = buildNameplates({ ...base, speaking: new Set(['host-1', 'amy']), turnIdentity: 'amy' })
+    expect(plates.amy).toMatchObject({ speaking: true, turn: true })
+    expect(plates['host-1'].speaking).toBe(false)
+    // 暫停／步驟講完：演練中但沒人發言
+    const paused = buildNameplates({ ...base, speaking: new Set(['host-1', 'amy']), turnIdentity: null })
+    expect(paused.amy.speaking).toBe(false)
+    expect(paused['host-1'].speaking).toBe(false)
+  })
+
   it('任務前靜態展示：以 placeholder id 為 key，只顯示角色名稱', () => {
     const plates = buildNameplates({ ...base, rolesOnlyPrefix: '__placeholder__:' })
     expect(Object.keys(plates)).toEqual(['__placeholder__:cashier', '__placeholder__:customer'])

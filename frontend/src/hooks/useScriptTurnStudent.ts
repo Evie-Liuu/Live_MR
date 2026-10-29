@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { Track, type Room } from 'livekit-client';
+import { RoomEvent, Track, type Room } from 'livekit-client';
 import { SCRIPT_TURN_STALE_MS, TURN_TRANSCRIPT_THROTTLE_MS } from '../config/constants.ts';
 import { turnRoleOf, type ScriptTurn, type TurnRole } from '../utils/scriptTurn.ts';
 import { MAX_HINT_LEVEL, nextHintLevel, type HintLevel } from '../utils/turnHints.ts';
@@ -111,19 +111,29 @@ export function useScriptTurnStudent(
     return () => window.clearInterval(timer);
   }, [turn]);
 
-  // 只錄發言者：聆聽時把麥克風靜音（保留發布，換回發言時立即恢復）
+  // 只錄發言者：演練進行中（含暫停、步驟講完）不是發言者就把麥克風靜音
+  // （保留發布，換回發言或演練結束時立即恢復）。
+  // 麥克風晚於輪到聆聽才發布（剛連上、斷線重連）時也要補靜音，所以同時監聽本地發布事件。
   const mutedByTurnRef = useRef(false);
+  const muteMic = !!turn && role !== 'speaking';
   useEffect(() => {
-    const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
-    if (!pub) return;
-    if (role === 'listening' && !pub.isMuted) {
-      mutedByTurnRef.current = true;
-      void pub.mute().catch(() => { /* ignore */ });
-    } else if (role !== 'listening' && mutedByTurnRef.current) {
-      mutedByTurnRef.current = false;
-      void pub.unmute().catch(() => { /* ignore */ });
-    }
-  }, [role, roomRef]);
+    const room = roomRef.current;
+    const apply = () => {
+      const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (!pub) return;
+      if (muteMic && !pub.isMuted) {
+        mutedByTurnRef.current = true;
+        void pub.mute().catch(() => { /* ignore */ });
+      } else if (!muteMic && mutedByTurnRef.current) {
+        mutedByTurnRef.current = false;
+        void pub.unmute().catch(() => { /* ignore */ });
+      }
+    };
+    apply();
+    if (!room) return;
+    room.on(RoomEvent.LocalTrackPublished, apply);
+    return () => { room.off(RoomEvent.LocalTrackPublished, apply); };
+  }, [muteMic, roomRef]);
   useEffect(() => () => {
     if (!mutedByTurnRef.current) return;
     const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
