@@ -119,7 +119,7 @@ const NAMEPLATE_HEAD_OFFSET = 0.44;
 const SPEAKER_BADGE_HEAD_OFFSET = 0.72;
 
 /** 編輯模式 placeholder avatar identity 命名空間前綴。 */
-const PLACEHOLDER_PREFIX = '__placeholder__:';
+export const PLACEHOLDER_PREFIX = '__placeholder__:';
 /** placeholder 沒有 pose driver，直接用 slot.position.y 會懸浮：腳貼地的高度 */
 const PLACEHOLDER_Y = -0.5;
 
@@ -170,7 +170,7 @@ interface UseBigScreenSceneOptions {
    */
   onSpeakerAnchors?: (anchors: Record<string, { x: number; y: number }>) => void;
   /**
-   * 角色名牌用：每 ~100ms 回呼所有可見角色模型（不含編輯模式 placeholder）的頭頂 UV 座標；
+   * 角色名牌用：每 ~100ms 回呼所有可見角色模型（含 placeholder，key 為 `__placeholder__:<slotId>`）的頭頂 UV 座標；
    * 位置沒變時不回呼，避免大屏無謂重新渲染。
    */
   onAvatarAnchors?: (anchors: Record<string, { x: number; y: number }>) => void;
@@ -181,11 +181,12 @@ interface UseBigScreenSceneOptions {
    */
   occluderInstances?: SceneOccluderInstance[];
   /**
-   * 編輯模式專用:列表中每個 slot 用 defaultVrmId spawn 一個 idle avatar。
+   * 不受姿勢驅動的靜態角色:列表中每個 slot spawn 一個 idle avatar(模型用 vrmUrl,沒給則用 defaultVrmId)。
+   * 用於編輯模式(未指派的角色)與任務前階段(已指派的角色先靜態展示)。
    * Identity 自動以 `__placeholder__:<slotId>` 命名,避免與真實 participant 衝突。
-   * 退出編輯模式(此 prop 變空)時批次 remove。
+   * 從列表移除(或 vrmUrl 改變)時 remove。
    */
-  editorPlaceholderSlots?: import('../types/vrm').SceneSlot[];
+  editorPlaceholderSlots?: (import('../types/vrm').SceneSlot & { vrmUrl?: string })[];
   /** 隱藏的 group id 集合(只記錄 hidden = true 的;缺項 = 顯示)。 */
   hiddenGroups?: Record<string, true>;
   /** 編輯模式 — 為 true 時建立 TransformControls 並接事件;false 釋放。 */
@@ -269,6 +270,8 @@ export function useBigScreenScene(
   useEffect(() => { hiddenGroupsRef.current = hiddenGroups ?? {}; }, [hiddenGroups]);
 
   const placeholderIdentitiesRef = useRef<Set<string>>(new Set());
+  /** placeholder 目前載入的模型網址；換模型時重新生成 */
+  const placeholderUrlsRef = useRef<Map<string, string>>(new Map());
 
   // Scene init readiness signal — set true after sceneRef.current = scene,
   // cleared on scene teardown. Used by effects that depend on the scene existing
@@ -371,13 +374,16 @@ export function useBigScreenScene(
   useEffect(() => {
     if (!sceneReady) return;
     const slots = editorPlaceholderSlots ?? [];
-    const wantIds = new Set(slots.map(s => `${PLACEHOLDER_PREFIX}${s.id}`));
+    const urlOf = (slot: (typeof slots)[number]) =>
+      slot.vrmUrl ?? (VRM_SOURCES[slot.defaultVrmId ?? DEFAULT_VRM_SOURCE_ID] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+    const wantUrls = new Map(slots.map(s => [`${PLACEHOLDER_PREFIX}${s.id}`, urlOf(s)]));
 
-    // Remove placeholders no longer expected
+    // Remove placeholders no longer expected (or whose model changed)
     for (const id of placeholderIdentitiesRef.current) {
-      if (!wantIds.has(id)) {
+      if (wantUrls.get(id) !== placeholderUrlsRef.current.get(id)) {
         removeAvatar(id);
         placeholderIdentitiesRef.current.delete(id);
+        placeholderUrlsRef.current.delete(id);
       }
     }
 
@@ -385,8 +391,7 @@ export function useBigScreenScene(
     for (const slot of slots) {
       const id = `${PLACEHOLDER_PREFIX}${slot.id}`;
       if (placeholderIdentitiesRef.current.has(id)) continue;
-      const vrmId = slot.defaultVrmId ?? DEFAULT_VRM_SOURCE_ID;
-      const vrmUrl = (VRM_SOURCES[vrmId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const vrmUrl = urlOf(slot);
       // slot.position.y 在真實參與者流程中會被 pose 拉回地面;placeholder 沒有 pose
       // driver,直接用會懸浮。把 y 壓到 0(腳貼地),x/z 沿用 slot 定義。
       const spawnOverride = {
@@ -409,8 +414,10 @@ export function useBigScreenScene(
         .catch((err) => {
           console.warn('[BigScreenScene] placeholder spawn failed:', err);
           placeholderIdentitiesRef.current.delete(id);
+          placeholderUrlsRef.current.delete(id);
         });
       placeholderIdentitiesRef.current.add(id);
+      placeholderUrlsRef.current.set(id, vrmUrl);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorPlaceholderSlots, sceneReady]);
@@ -998,7 +1005,8 @@ export function useBigScreenScene(
           lastAvatarAnchorAtRef.current = timestamp;
           const next: Record<string, { x: number; y: number }> = {};
           for (const [id, slot] of avatarsRef.current) {
-            if (id.startsWith('__placeholder__:') || !slot.vrm.scene.visible) continue;
+            // placeholder 也回報（任務前階段的靜態角色要顯示名牌；編輯模式不畫名牌）
+            if (!slot.vrm.scene.visible) continue;
             const head = slot.vrm.humanoid?.getNormalizedBoneNode('head');
             if (!head) continue;
             head.getWorldPosition(_headWorld);
@@ -1090,6 +1098,7 @@ export function useBigScreenScene(
       // Placeholder identities already removed by the avatarsRef.current loop above;
       // just clear the tracking set so the placeholder effect doesn't try to re-remove.
       placeholderIdentitiesRef.current.clear();
+      placeholderUrlsRef.current.clear();
       heldByIdentityRef.current.clear();
       avgPoseIntervalsRef.current = {};
       scene.remove(shadowFloor);
@@ -1334,14 +1343,21 @@ export function useBigScreenScene(
 
   const removeAvatar = useCallback(
     (identity: string) => {
+      // Invalidate any in-flight load so it discards itself on resolve —
+      // 也要處理「還在載入、尚未進場」的情況，否則載入完成後模型會冒出來
+      const loading = loadingRef.current.delete(identity);
+      loadGenRef.current.delete(identity);
       const slot = avatarsRef.current.get(identity);
-      if (!slot) return;
+      if (!slot) {
+        if (loading) {
+          slotPinnedRef.current.delete(identity);
+          spawnOverridesRef.current.delete(identity);
+        }
+        return;
+      }
       sceneRef.current?.remove(slot.vrm.scene);
       VRMUtils.deepDispose(slot.vrm.scene);
       avatarsRef.current.delete(identity);
-      loadingRef.current.delete(identity);
-      // Invalidate any in-flight load so it discards itself on resolve
-      loadGenRef.current.delete(identity);
       orderRef.current = orderRef.current.filter((id) => id !== identity);
       vrmUrlOverridesRef.current.delete(identity);
       slotPinnedRef.current.delete(identity);

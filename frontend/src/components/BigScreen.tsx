@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { useBigScreenScene } from '../hooks/useBigScreenScene.ts';
+import { useBigScreenScene, PLACEHOLDER_PREFIX } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
 import { useBigScreenEditor } from '../hooks/useBigScreenEditor';
 import BigScreenEditorOverlay, { ConfirmModal } from './BigScreenEditorOverlay';
@@ -414,6 +414,12 @@ export default function BigScreen() {
   const [lesson, setLesson] = useState<LessonScreenState | null>(() => {
     try { return JSON.parse(sessionStorage.getItem(BIGSCREEN_LESSON_STORAGE_KEY) ?? 'null'); } catch { return null; }
   });
+  // 任務前階段：已指派的角色用靜態模型展示（不套用姿勢），名牌只顯示虛擬角色名稱
+  const staticStage = !editMode && lesson?.phase === 'pre';
+  const staticStageRef = useRef(staticStage);
+  staticStageRef.current = staticStage;
+  /** 收到 vrm-identity-change 時遞增，讓靜態角色換成新模型 */
+  const [liveVrmTick, setLiveVrmTick] = useState(0);
 
   const [hintEnabled, setHintEnabled] = useState<boolean>(() => {
     try { return JSON.parse(sessionStorage.getItem('bigscreen-hintEnabled') ?? 'false'); } catch { return false; }
@@ -613,7 +619,8 @@ export default function BigScreen() {
       const slotIdentities = new Set<string>(
         Object.values(JSON.parse(sessionStorage.getItem('bigscreen-slotAssignments') || '{}') as Record<string, string>),
       );
-      expected = Object.keys(snapshot).filter((id) => !isSlotted || slotIdentities.has(id));
+      // 任務前階段不套用姿勢（角色改由靜態模型展示），不用等快照裡的模型
+      expected = staticStage ? [] : Object.keys(snapshot).filter((id) => !isSlotted || slotIdentities.has(id));
       hasBgImage = preset?.backgroundType === 'image' && !!preset?.backgroundValue;
     } catch { /* ignore — boot overlay will just be quick */ }
     bootPlanRef.current = {
@@ -744,7 +751,8 @@ export default function BigScreen() {
     lesson,
     speaking: speakingIdentities,
     turnIdentity: scriptTurn?.status === 'running' ? scriptTurn.speaker.identity : null,
-  }), [sceneId, slotAssignments, participantNames, lesson, speakingIdentities, scriptTurn]);
+    ...(staticStage ? { rolesOnlyPrefix: PLACEHOLDER_PREFIX } : {}),
+  }), [sceneId, slotAssignments, participantNames, lesson, speakingIdentities, scriptTurn, staticStage]);
 
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
@@ -761,10 +769,24 @@ export default function BigScreen() {
   const effectiveHiddenGroups = editMode ? editor.state.draft.groupHidden : groupHidden;
 
   const placeholderSlots = useMemo(() => {
-    if (!editMode) return [];
     const preset = SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID];
-    return (preset.slots ?? []).filter(s => !slotAssignments[s.id]);
-  }, [editMode, sceneId, slotAssignments]);
+    // 編輯模式：未指派的角色
+    if (editMode) return (preset.slots ?? []).filter(s => !slotAssignments[s.id]);
+    if (!staticStage) return [];
+    // 任務前：已指派的角色，模型與演出者上台後相同
+    void liveVrmTick;
+    let roles: Record<string, string> = {};
+    let liveUrls: Record<string, string> = {};
+    try {
+      roles = JSON.parse(sessionStorage.getItem('bigscreen-studentRoles') || '{}');
+      liveUrls = JSON.parse(sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}');
+    } catch { /* ignore */ }
+    const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
+    const fallbackUrl = (VRM_SOURCES[vrmSourceId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+    return (preset.slots ?? [])
+      .filter(s => slotAssignments[s.id])
+      .map(s => ({ ...s, vrmUrl: resolveVrmUrl(slotAssignments[s.id], liveUrls, roles, teacherVrmId) ?? fallbackUrl }));
+  }, [editMode, staticStage, sceneId, slotAssignments, vrmSourceId, liveVrmTick]);
 
   const [gizmoHandle, setGizmoHandle] = useState<GizmoHandle | null>(null);
   const [occluderRoots, setOccluderRoots] = useState<ReadonlyMap<string, Object3D>>(new Map());
@@ -803,6 +825,25 @@ export default function BigScreen() {
   });
   const removeAvatarRef = useRef(removeAvatar);
   removeAvatarRef.current = removeAvatar;
+
+  // 進入任務前階段：移除已在台上的真實模型（改由靜態角色展示）；
+  // 離開後學生的下一筆姿勢資料會在角色位置重新載入
+  useEffect(() => {
+    if (!staticStage) return;
+    let roles: Record<string, string> = {};
+    let liveUrls: Record<string, string> = {};
+    try {
+      roles = JSON.parse(sessionStorage.getItem('bigscreen-studentRoles') || '{}');
+      liveUrls = JSON.parse(sessionStorage.getItem('bigscreen-liveVrmUrls') || '{}');
+    } catch { /* ignore */ }
+    const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
+    for (const identity of Object.values(slotAssignments)) {
+      removeAvatar(identity);
+      // removeAvatar 會清掉這個人的模型設定；先記回去，任務開始重新載入時才是同一個模型
+      const vrmUrl = resolveVrmUrl(identity, liveUrls, roles, teacherVrmId);
+      if (vrmUrl) setVrmOverride(identity, vrmUrl);
+    }
+  }, [staticStage, slotAssignments, removeAvatar, setVrmOverride]);
   const applyPoseRef = useRef(applyPose);
   applyPoseRef.current = applyPose;
   const swapAvatarRef = useRef(swapAvatar);
@@ -2064,6 +2105,7 @@ export default function BigScreen() {
       //    For avatars the boot overlay is waiting on, mark the unit done once the
       //    underlying VRM load settles (resolve OR reject — we just want it off the bar).
       const expected = bootPlanRef.current?.expectedAvatars;
+      if (staticStageRef.current) return; // 任務前：靜態展示，不套用快照姿勢
       for (const [identity, poseData] of Object.entries(snapshot)) {
         const p = applyPose(identity, poseData);
         if (expected?.has(identity)) {
@@ -2160,7 +2202,8 @@ export default function BigScreen() {
           participantNamesRef.current.set(msg.identity, msg.identity);
           setParticipantNames(new Map(participantNamesRef.current));
         }
-        applyPoseRef.current(msg.identity, msg.poseData);
+        // 任務前：角色靜態展示，不更新姿態
+        if (!staticStageRef.current) applyPoseRef.current(msg.identity, msg.poseData);
         poseCountRef.current++;
       } else if (msg.type === 'leave' && msg.identity) {
         removeAvatarRef.current(msg.identity);
@@ -2218,10 +2261,11 @@ export default function BigScreen() {
           if (displaced && displaced !== identity && ![...slotAssignmentsRef.current.values()].includes(displaced)) {
             removeAvatarRef.current(displaced);
           }
-          // Immediately load avatar at slot position (before next pose frame)
+          // Immediately load avatar at slot position (before next pose frame)；
+          // 任務前由靜態角色展示，不載入真實模型
           const preset = SCENE_PRESETS[sceneIdRef.current];
           const sceneSlot = preset?.slots?.find(s => s.id === msg.slotId);
-          if (sceneSlot) {
+          if (sceneSlot && !staticStageRef.current) {
             const teacherVrmId = sessionStorage.getItem('bigscreen-teacherVrmSourceId');
             const roles: Record<string, string> = JSON.parse(
               sessionStorage.getItem('bigscreen-studentRoles') || '{}',
@@ -2271,7 +2315,10 @@ export default function BigScreen() {
         setVrmSourceId(msg.vrmSourceId);
         sessionStorage.setItem('bigscreen-vrmSourceId', msg.vrmSourceId);
       } else if (msg.type === 'vrm-identity-change' && msg.identity && msg.vrmUrl) {
-        swapAvatarRef.current(msg.identity, msg.vrmUrl);
+        // 任務前：真實模型不上台（由靜態角色展示），只記下模型，之後載入時使用；
+        // 直接 swap 會立刻載入真實模型，跟靜態角色重疊
+        if (staticStageRef.current) setVrmOverrideRef.current(msg.identity, msg.vrmUrl);
+        else swapAvatarRef.current(msg.identity, msg.vrmUrl);
         // Persist to BigScreen's own sessionStorage (per-window — HostSession's
         // writes don't propagate here) so a refresh restores the live role.
         try {
@@ -2279,6 +2326,7 @@ export default function BigScreen() {
           live[msg.identity] = msg.vrmUrl;
           sessionStorage.setItem('bigscreen-liveVrmUrls', JSON.stringify(live));
         } catch {/* ignore */ }
+        setLiveVrmTick(t => t + 1);
       } else if (msg.type === 'task-change') {
         const tasks = msg.tasks ?? [];
         setActiveTasks(tasks);

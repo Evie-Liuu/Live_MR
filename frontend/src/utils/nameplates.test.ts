@@ -28,6 +28,12 @@ describe('buildNameplates', () => {
     expect(buildNameplates({ ...base, lesson: { ...lesson, allDone: true } })['host-1'].active).toBe(true)
   })
 
+  it('任務前靜態展示：以 placeholder id 為 key，只顯示角色名稱', () => {
+    const plates = buildNameplates({ ...base, rolesOnlyPrefix: '__placeholder__:' })
+    expect(Object.keys(plates)).toEqual(['__placeholder__:cashier', '__placeholder__:customer'])
+    expect(plates['__placeholder__:customer']).toEqual({ role: '顧客A', name: '', color: ROLE_COLORS[1], active: true, speaking: false })
+  })
+
   it('scenes without slots show names only', () => {
     const plates = buildNameplates({ ...base, slots: [] })
     expect(plates).toEqual({ amy: { name: '王小明', color: ROLE_COLORS[0], active: true, speaking: false } })

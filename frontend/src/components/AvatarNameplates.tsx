@@ -32,7 +32,7 @@ export default function AvatarNameplates({ sinkRef, plates }: AvatarNameplatesPr
             style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, ['--plate-color' as string]: info.color }}
           >
             {info.role && <span className="bs-nameplate-role">{info.role}</span>}
-            <span className="bs-nameplate-name">{info.name}</span>
+            {info.name && <span className="bs-nameplate-name">{info.name}</span>}
           </div>
         );
       })}
