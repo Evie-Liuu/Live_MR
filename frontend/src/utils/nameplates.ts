@@ -70,3 +70,76 @@ export function buildNameplates(opts: {
   }
   return plates;
 }
+
+// ─── 名牌避讓 ──────────────────────────────────────────────────────────────
+
+export interface PlateBox {
+  id: string;
+  /** 錨點（頭頂）x，像素 */
+  x: number;
+  /** 錨點 y（名牌底邊），像素 */
+  y: number;
+  w: number;
+  h: number;
+}
+
+export type PlateOffsets = Record<string, { dx: number; dy: number }>;
+
+/**
+ * 角色站得近時名牌會疊在一起：先左右推開（每邊最多移 maxShift），
+ * 推到上限仍重疊的，錨點較高（y 較小）的那個往上疊一層。最後夾在畫面內。
+ */
+export function layoutNameplates(
+  boxes: readonly PlateBox[],
+  width: number,
+  opts: { gap?: number; margin?: number; maxShift?: number } = {},
+): PlateOffsets {
+  const gap = opts.gap ?? 8;
+  const margin = opts.margin ?? 8;
+  const items = boxes.map(b => ({ ...b, cx: b.x, by: b.y }));
+  const maxShift = (b: PlateBox) => opts.maxShift ?? b.w * 0.75;
+  const vOverlap = (a: typeof items[number], b: typeof items[number]) =>
+    a.by - a.h < b.by && b.by - b.h < a.by;
+  const hOverlap = (a: typeof items[number], b: typeof items[number]) =>
+    (a.w + b.w) / 2 + gap - Math.abs(a.cx - b.cx);
+
+  // ① 左右推開：依 x 排序，相鄰重疊的各退一半，多跑幾輪讓連鎖重疊也散開
+  items.sort((a, b) => a.x - b.x || a.id.localeCompare(b.id));
+  for (let round = 0; round < 8; round++) {
+    let moved = false;
+    for (let i = 0; i < items.length - 1; i++) {
+      const a = items[i];
+      const b = items[i + 1];
+      if (!vOverlap(a, b)) continue;
+      const over = hOverlap(a, b);
+      if (over <= 0.5) continue;
+      const pushA = Math.min(over / 2, Math.max(0, maxShift(a) - (a.x - a.cx)));
+      const pushB = Math.min(over / 2, Math.max(0, maxShift(b) - (b.cx - b.x)));
+      if (pushA + pushB < 0.5) continue;
+      a.cx -= pushA;
+      b.cx += pushB;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+
+  // ② 仍重疊：錨點較高者往上疊（由下往上處理，疊過的也會跟後面的比）
+  const byHeight = [...items].sort((a, b) => b.y - a.y || a.id.localeCompare(b.id));
+  for (let i = 0; i < byHeight.length; i++) {
+    const cur = byHeight[i];
+    for (let j = 0; j < i; j++) {
+      const below = byHeight[j];
+      if (vOverlap(cur, below) && hOverlap(cur, below) > 0.5) cur.by = below.by - below.h - gap / 2;
+    }
+  }
+
+  // ③ 夾在畫面內
+  const out: PlateOffsets = {};
+  for (const it of items) {
+    const half = it.w / 2;
+    const cx = width > it.w + margin * 2 ? Math.min(Math.max(it.cx, half + margin), width - half - margin) : it.cx;
+    const by = Math.max(it.by, it.h + margin);
+    out[it.id] = { dx: Math.round(cx - it.x), dy: Math.round(by - it.y) };
+  }
+  return out;
+}

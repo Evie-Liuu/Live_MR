@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ROLE_COLORS, buildNameplates } from './nameplates.ts'
+import { ROLE_COLORS, buildNameplates, layoutNameplates } from './nameplates.ts'
 
 const slots = [{ id: 'cashier', label: '店員A' }, { id: 'customer', label: '顧客A' }, { id: 'staff', label: '店員B' }]
 const base = {
@@ -37,5 +37,30 @@ describe('buildNameplates', () => {
   it('scenes without slots show names only', () => {
     const plates = buildNameplates({ ...base, slots: [] })
     expect(plates).toEqual({ amy: { name: '王小明', color: ROLE_COLORS[0], active: true, speaking: false } })
+  })
+})
+
+describe('layoutNameplates', () => {
+  const box = (id: string, x: number, y = 300, w = 100, h = 30) => ({ id, x, y, w, h })
+
+  it('不重疊時不移動', () => {
+    expect(layoutNameplates([box('a', 100), box('b', 400)], 1000)).toEqual({ a: { dx: 0, dy: 0 }, b: { dx: 0, dy: 0 } })
+  })
+
+  it('靠近時左右各退一半', () => {
+    const o = layoutNameplates([box('a', 480), box('b', 520)], 1000)
+    // 需要中心距離 100 + 8，原本 40：各退 34
+    expect(o).toEqual({ a: { dx: -34, dy: 0 }, b: { dx: 34, dy: 0 } })
+  })
+
+  it('幾乎同位置、推到上限還重疊：錨點較高的往上疊', () => {
+    const o = layoutNameplates([box('a', 500, 300), box('b', 502, 290)], 1000, { maxShift: 10 })
+    expect(o.a.dy).toBe(0)
+    expect(o.b.dy).toBeLessThanOrEqual(-(30 + 4 - 10))
+  })
+
+  it('不會被推出畫面', () => {
+    const o = layoutNameplates([box('a', 20), box('b', 40)], 1000)
+    expect(20 + o.a.dx - 50).toBeGreaterThanOrEqual(8)
   })
 })
