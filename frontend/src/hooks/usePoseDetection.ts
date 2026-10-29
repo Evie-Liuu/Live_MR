@@ -12,6 +12,7 @@ const FACE_MODEL_PATH = '/mediapipe-models/face_landmarker.task';
 const HAND_MODEL_PATH = '/mediapipe-models/hand_landmarker.task';
 import { encodePoseFrame } from '../utils/poseCodec';
 import { LandmarkSmoother } from '../utils/oneEuroFilter';
+import { handSides } from '../utils/handSides';
 
 /** Minimum interval between detections (~30 fps) */
 const DETECT_INTERVAL_MS = 33;
@@ -271,27 +272,25 @@ export function usePoseDetection(
                     try {
                       const handResult = handRef.current.detectForVideo(video, now);
                       if (handResult.landmarks && handResult.landmarks.length > 0) {
+                        const sides = handSides(
+                          handResult.landmarks,
+                          handResult.handedness?.map(h => h?.[0]?.categoryName ?? '') ?? [],
+                          landmarks,
+                        );
                         for (let hi = 0; hi < handResult.landmarks.length; hi++) {
-                          // handResult.handedness[hi][0].categoryName is 'Left' or 'Right'
-                          // (MediaPipe returns the hand as seen from the camera, mirror of person)
-                          const label = handResult.handedness?.[hi]?.[0]?.categoryName ?? ''
-                          // MediaPipe 'Left' = camera left = person's Right hand, and vice versa
-                          // We store as person's perspective to match solveHand() expectations
-                          if (label === 'Left' || label === 'Right') {
-                            const handBuf = label === 'Left' ? rightHandBuf : leftHandBuf;
-                            const hl = handResult.landmarks[hi];
-                            for (let i = 0; i < hl.length; i++) {
-                              handBuf[i].x = hl[i].x;
-                              handBuf[i].y = hl[i].y;
-                              handBuf[i].z = hl[i].z;
-                              handBuf[i].visibility = 1;
-                            }
-                            if (label === 'Left') {
-                              frame.rightHandLandmarks = handBuf;  // camera Left = person Right
-                            } else {
-                              frame.leftHandLandmarks = handBuf;   // camera Right = person Left
-                            }
+                          const side = sides[hi];
+                          if (!side) continue;
+                          // 以本人的左右存（person's perspective），solveHand() 與道具抓取都依此
+                          const handBuf = side === 'right' ? rightHandBuf : leftHandBuf;
+                          const hl = handResult.landmarks[hi];
+                          for (let i = 0; i < hl.length; i++) {
+                            handBuf[i].x = hl[i].x;
+                            handBuf[i].y = hl[i].y;
+                            handBuf[i].z = hl[i].z;
+                            handBuf[i].visibility = 1;
                           }
+                          if (side === 'right') frame.rightHandLandmarks = handBuf;
+                          else frame.leftHandLandmarks = handBuf;
                         }
                       }
                     } catch {

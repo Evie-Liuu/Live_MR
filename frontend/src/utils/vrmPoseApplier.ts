@@ -10,10 +10,11 @@
  * Hand solving: uses a built-in gesture-based solver (Open / Fist) instead of
  * Kalidokit Hand.solve, to eliminate per-finger jitter.
  *
- * Mirror note: Live_MR uses visual mirroring (camera-flip), so Left/Right
- * are already swapped at the VRM bone level.
- *   MediaPipe "Left" hand (person left) → VRM 'rightHand' etc.
- *   MediaPipe "Right" hand (person right) → VRM 'leftHand' etc.
+ * Mirror note: Live_MR uses visual mirroring（照鏡子）, so 本人的左右 maps to
+ * the opposite VRM side (the avatar faces the audience).
+ *   person's left hand  (frame.leftHandLandmarks)  → VRM 'rightHand' etc.
+ *   person's right hand (frame.rightHandLandmarks) → VRM 'leftHand' etc.
+ * Hand sides are resolved geometrically in utils/handSides.ts.
  */
 import * as THREE from 'three';
 import { solveWithKalidokit, BONE_ROTATION_LIMITS, clampAngle, type BoneRotation } from './kalidokitSolver';
@@ -386,7 +387,8 @@ export function applyPoseToVrm(
     // Always apply Hips translation so the avatar stays grounded,
     // regardless of lowerBodyEnabled.
     if (boneName === 'hips' && hipsPosition) {
-      const mirrorX = mirror ? -1 : 1;
+      // 鏡像：本人往畫面右移，面向觀眾的角色也往畫面右移
+      const mirrorX = mirror ? 1 : -1;
       bone.position.x = THREE.MathUtils.lerp(bone.position.x, mirrorX * hipsPosition.x * 0.1, t);
       bone.position.y = THREE.MathUtils.lerp(bone.position.y, hipsPosition.y, t);
       bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z * 0.1, t);
@@ -440,10 +442,11 @@ export function applyPoseToVrm(
         const hx = clampAngle(faceRig.head.x, HL.x);
         const hy = clampAngle(faceRig.head.y, HL.y);
         const hz = clampAngle(faceRig.head.z, HL.z);
-        // For visual mirroring, swap Y and Z rotation signs
-        const rotX = mirror ? -hx : hx;
-        const rotY = mirror ? -hy : hy;
-        const rotZ = mirror ? -hz : hz;
+        // 低頭／抬頭（X）兩種模式都要反號；鏡像時轉頭（Y）、歪頭（Z）保持 Kalidokit 的方向，
+        // 同側模式則再反號（等於對矢狀面反射一次），跟 solver 的身體處理一致。
+        const rotX = -hx;
+        const rotY = mirror ? hy : -hy;
+        const rotZ = mirror ? hz : -hz;
         _euler.set(rotX, rotY, rotZ, 'XYZ');
         _targetQuat.setFromEuler(_euler);
         head.quaternion.slerp(_targetQuat, t);
@@ -452,8 +455,9 @@ export function applyPoseToVrm(
       // Expressions
       const em = vrm.expressionManager;
       if (em) {
-        const eyeL = mirror ? faceRig.eye.r : faceRig.eye.l;
-        const eyeR = mirror ? faceRig.eye.l : faceRig.eye.r;
+        // Kalidokit 的 l/r 是畫面上的左右（同手臂）：鏡像直接對應，同側才對調
+        const eyeL = mirror ? faceRig.eye.l : faceRig.eye.r;
+        const eyeR = mirror ? faceRig.eye.r : faceRig.eye.l;
 
         // VRM blink: 0=open, 1=closed. Kalidokit eye: 0=closed, 1=open
         // Prefer split blink only when at least one side has actual morph binds.
