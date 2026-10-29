@@ -3,12 +3,14 @@
  * 點選後右側預覽課程內容（流程、步驟、句型、台詞），確認後按「開始課程」載入到 HostSession 左側側欄。
  */
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { DialogueTaskRecord, DialogueTaskSummary } from '../types/dialogueTask.ts';
 import { stepTimings } from '../types/dialogueTask.ts';
 import { getDialogueTask, listDialogueTasks, dialogueTaskErrorText } from '../utils/dialogueTaskClient.ts';
 import { CEFR_LEVELS, levelLabel, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import { THEMES } from '../config/scenes.ts';
 import { LESSON_PHASES, phaseContent } from '../config/lessonPhases.ts';
+import ScriptSimulator from './ScriptSimulator.tsx';
 import './LessonTaskDrawer.css';
 
 interface LessonTaskDrawerProps {
@@ -282,6 +284,9 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
   const lineCount = task.steps.reduce((n, s) => n + s.lines.length, 0);
   const pre = phaseContent(task, 'pre');
   const post = phaseContent(task, 'post');
+  /** 模擬播放從第幾步開始；null＝沒在播 */
+  const [simStep, setSimStep] = useState<number | null>(null);
+  const canSimulate = lineCount > 0;
 
   return (
     <div className="ltd-preview">
@@ -304,11 +309,18 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
             )}
             <p className="ltd-hero-updated">最後更新：{new Date(record.updatedAt).toLocaleDateString()}</p>
           </div>
-          {onEdit && (
-            <button type="button" className="ltd-edit" onClick={onEdit} title="到備課中心編輯此任務，課堂會保持進行">
-              <span className="material-symbols-outlined" aria-hidden="true">edit</span>編輯任務
-            </button>
-          )}
+          <div className="ltd-hero-actions">
+            {canSimulate && (
+              <button type="button" className="ltd-edit ltd-sim" onClick={() => setSimStep(0)} title="用 3D 場景與語音預覽整段對話">
+                <span className="material-symbols-outlined" aria-hidden="true">smart_display</span>模擬播放
+              </button>
+            )}
+            {onEdit && (
+              <button type="button" className="ltd-edit" onClick={onEdit} title="到備課中心編輯此任務，課堂會保持進行">
+                <span className="material-symbols-outlined" aria-hidden="true">edit</span>編輯任務
+              </button>
+            )}
+          </div>
         </header>
 
         {roles.length > 0 && (
@@ -355,6 +367,17 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
                     <span className="ltd-step-title">{step.title || '未命名步驟'}</span>
                     {step.purpose && <span className="ltd-step-purpose">{step.purpose}</span>}
                     <span className="ltd-step-count">{step.lines.length} 句</span>
+                    {step.lines.length > 0 && (
+                      <button
+                        type="button"
+                        className="ltd-step-play"
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); setSimStep(si); }}
+                        title="從這個步驟模擬播放"
+                        aria-label={`從步驟 ${si + 1} 模擬播放`}
+                      >
+                        <span className="material-symbols-outlined" aria-hidden="true">play_circle</span>
+                      </button>
+                    )}
                     <span className="ltd-step-chevron material-symbols-outlined" aria-hidden="true">expand_more</span>
                   </summary>
                   <ul className="ltd-lines">
@@ -405,6 +428,12 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
           </>
         )}
       </footer>
+
+      {/* 抽屜有 transform，fixed 定位會被困在抽屜內，所以掛到 body */}
+      {simStep !== null && createPortal(
+        <ScriptSimulator task={task} startStepIndex={simStep} onClose={() => setSimStep(null)} />,
+        document.body,
+      )}
     </div>
   );
 }

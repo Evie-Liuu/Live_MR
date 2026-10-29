@@ -855,6 +855,55 @@ details[open]>.ltd-step-head .ltd-step-chevron {
   font-size: 18px;
 }
 
+/* 標題右側：模擬播放＋編輯任務 */
+.ltd-hero-actions {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.ltd-hero-actions .ltd-edit {
+  margin-left: 0;
+  justify-content: center;
+}
+
+.ltd-sim {
+  border-color: #BFE7E2;
+  color: #00796B;
+}
+
+.ltd-sim:hover {
+  border-color: #2BB5A8;
+  background: #EAF8F6;
+}
+
+/* 步驟列上的「從這步播放」 */
+.ltd-step .ltd-step-play {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #2BB5A8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ltd-step .ltd-step-play:hover {
+  background: #E6F6F4;
+}
+
+.ltd-step .ltd-step-play .material-symbols-outlined {
+  font-size: 22px;
+}
+
 .ltd-item-tag--topic {
   background: #E6F6F4;
   color: #00695F;
