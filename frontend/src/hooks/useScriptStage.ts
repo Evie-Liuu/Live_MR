@@ -70,7 +70,12 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const speakerRef = useRef<string | null>(null);
-  const setSpeaker = useCallback((slotId: string | null) => { speakerRef.current = slotId; }, []);
+  /** 最後一個說話的角色：句與句之間（speaker＝null）視線維持朝向他，等下一位開口才轉 */
+  const lastSpeakerRef = useRef<string | null>(null);
+  const setSpeaker = useCallback((slotId: string | null) => {
+    speakerRef.current = slotId;
+    if (slotId) lastSpeakerRef.current = slotId;
+  }, []);
   const avatarsRef = useRef<StageAvatar[]>([]);
   const libraryRef = useRef<Map<GestureId, VRMAnimation> | null>(null);
   const playGesture = useCallback((slotId: string, gestureId: GestureId) => {
@@ -166,7 +171,8 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
         if (!disposed) setError('角色模型載入失敗');
       });
 
-    // 渲染迴圈：說話者看向其他角色的中心，聽者看向說話者
+    // 渲染迴圈：說話者看向其他角色的中心，聽者看向說話者；
+    // 講完不復原，視線停在原處，等下一位說話者開口才轉向
     const timer = new THREE.Timer();
     const headPos = new THREE.Vector3();
     const listenerCenter = new THREE.Vector3();
@@ -180,20 +186,22 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       const physicsDelta = Math.min(rawDelta, 0.1);
       const elapsed = timer.getElapsed();
       const speaker = avatars.find(a => a.slotId === speakerRef.current) ?? null;
-      const speakerHead = speaker ? speaker.animator.headWorldPosition(new THREE.Vector3()) : null;
+      // 視線焦點：正在說話的人；沒人說話時沿用最後一位說話者
+      const focus = speaker ?? avatars.find(a => a.slotId === lastSpeakerRef.current) ?? null;
+      const focusHead = focus ? focus.animator.headWorldPosition(new THREE.Vector3()) : null;
 
       for (const a of avatars) {
         const speaking = a === speaker;
         let lookTarget: THREE.Vector3 | null = null;
-        if (speaking) {
+        if (a === focus) {
           const others = avatars.filter(o => o !== a);
           if (others.length) {
             listenerCenter.set(0, 0, 0);
             for (const o of others) listenerCenter.add(o.animator.headWorldPosition(headPos));
             lookTarget = listenerCenter.divideScalar(others.length).clone();
           }
-        } else if (speakerHead) {
-          lookTarget = speakerHead;
+        } else if (focusHead) {
+          lookTarget = focusHead;
         }
         a.animator.update(rawDelta, elapsed, { speaking, lookTarget });
         a.vrm.update(physicsDelta);
