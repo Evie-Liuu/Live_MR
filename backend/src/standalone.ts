@@ -126,6 +126,21 @@ async function main(): Promise<void> {
       },
     }),
   )
+  // MediaPipe 模型與 WASM（約 53 MB）：檔名不帶 hash，但只在升級套件時更換。
+  // 走下方的 no-cache 又關掉 ETag/Last-Modified 時，瀏覽器無從比對，每次進課堂都重新下載；
+  // 這裡改給 7 天快取，學生第二次上台起直接用本機快取。
+  for (const dir of ['mediapipe-models', 'mediapipe-wasm']) {
+    app.use(
+      `/${dir}`,
+      express.static(path.join(FRONTEND_DIST, dir), {
+        etag: false,
+        lastModified: false,
+        setHeaders(res) {
+          res.setHeader('Cache-Control', 'public, max-age=604800')
+        },
+      }),
+    )
+  }
   app.use(
     express.static(FRONTEND_DIST, {
       etag: false,

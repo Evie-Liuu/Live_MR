@@ -7,7 +7,13 @@ import type { PoseLandmark, PoseFrame, FaceBlendshapes } from '../types/vrm';
 export type { PoseFrame };
 
 const WASM_PATH = '/mediapipe-wasm';
-const POSE_MODEL_PATH = '/mediapipe-models/pose_landmarker_heavy.task';
+/**
+ * 身體模型：預設 full（9 MB，iPad 上載入與推論都比 heavy 快）；
+ * 網址加 `?poseModel=heavy` 可切回 heavy（30 MB）比較精準度。
+ */
+const POSE_MODEL = typeof location !== 'undefined' && new URLSearchParams(location.search).get('poseModel') === 'heavy'
+  ? 'heavy' : 'full';
+const POSE_MODEL_PATH = `/mediapipe-models/pose_landmarker_${POSE_MODEL}.task`;
 const FACE_MODEL_PATH = '/mediapipe-models/face_landmarker.task';
 const HAND_MODEL_PATH = '/mediapipe-models/hand_landmarker.task';
 import { encodePoseFrame } from '../utils/poseCodec';
@@ -71,6 +77,9 @@ export function usePoseDetection(
     let cancelled = false;
 
     const init = async () => {
+      // 計時：模型就緒、第一次偵測到人（console 篩選 [PoseDetection] 可看）
+      const t0 = performance.now();
+      let firstLandmarksLogged = false;
       try {
         const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
         const commonOptions = {
@@ -100,62 +109,52 @@ export function usePoseDetection(
 
         if (cancelled) { poseLandmarker.close(); return; }
         poseRef.current = poseLandmarker;
+        console.info(`[PoseDetection] ${POSE_MODEL} model ready in ${Math.round(performance.now() - t0)} ms`);
 
-        // ── Init FaceLandmarker ──
-        let faceLandmarker: FaceLandmarker | null = null;
-        try {
-          faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-            baseOptions: { modelAssetPath: FACE_MODEL_PATH, delegate: 'GPU' },
+        // ── Face / Hand：不擋姿態偵測，背景同時載入（約 11 MB），載好才開始用 ──
+        // 原本三個模型依序載完才開始偵測，學生要等全部下載完才看得到骨架。
+        const createFace = async (): Promise<FaceLandmarker | null> => {
+          const opts = (delegate: 'GPU' | 'CPU') => ({
+            baseOptions: { modelAssetPath: FACE_MODEL_PATH, delegate },
             ...commonOptions,
             numFaces: 1,
             outputFaceBlendshapes: true,
             outputFacialTransformationMatrixes: false,
           });
-        } catch {
-          console.warn('[FaceDetection] GPU delegate failed, falling back to CPU');
           try {
-            faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-              baseOptions: { modelAssetPath: FACE_MODEL_PATH, delegate: 'CPU' },
-              ...commonOptions,
-              numFaces: 1,
-              outputFaceBlendshapes: true,
-              outputFacialTransformationMatrixes: false,
-            });
-          } catch (err) {
-            console.error('[FaceDetection] Failed to initialize FaceLandmarker:', err);
+            return await FaceLandmarker.createFromOptions(vision, opts('GPU'));
+          } catch {
+            console.warn('[FaceDetection] GPU delegate failed, falling back to CPU');
+            try {
+              return await FaceLandmarker.createFromOptions(vision, opts('CPU'));
+            } catch (err) {
+              console.error('[FaceDetection] Failed to initialize FaceLandmarker:', err);
+              return null;
+            }
           }
-        }
-
-        if (cancelled) { faceLandmarker?.close(); poseLandmarker.close(); return; }
-        faceRef.current = faceLandmarker;
-
-        // ── Init HandLandmarker ──
-        let handLandmarker: HandLandmarker | null = null;
-        try {
-          handLandmarker = await HandLandmarker.createFromOptions(vision, {
-            baseOptions: { modelAssetPath: HAND_MODEL_PATH, delegate: 'GPU' },
-            runningMode: 'VIDEO',
+        };
+        const createHand = async (): Promise<HandLandmarker | null> => {
+          const opts = (delegate: 'GPU' | 'CPU') => ({
+            baseOptions: { modelAssetPath: HAND_MODEL_PATH, delegate },
+            runningMode: 'VIDEO' as const,
             numHands: 2,
             minHandDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5,
           });
-        } catch {
-          console.warn('[HandDetection] GPU delegate failed, falling back to CPU');
           try {
-            handLandmarker = await HandLandmarker.createFromOptions(vision, {
-              baseOptions: { modelAssetPath: HAND_MODEL_PATH, delegate: 'CPU' },
-              runningMode: 'VIDEO',
-              numHands: 2,
-              minHandDetectionConfidence: 0.5,
-              minTrackingConfidence: 0.5,
-            });
-          } catch (err) {
-            console.error('[HandDetection] Failed to initialize HandLandmarker:', err);
+            return await HandLandmarker.createFromOptions(vision, opts('GPU'));
+          } catch {
+            console.warn('[HandDetection] GPU delegate failed, falling back to CPU');
+            try {
+              return await HandLandmarker.createFromOptions(vision, opts('CPU'));
+            } catch (err) {
+              console.error('[HandDetection] Failed to initialize HandLandmarker:', err);
+              return null;
+            }
           }
-        }
-
-        if (cancelled) { handLandmarker?.close(); faceLandmarker?.close(); poseLandmarker.close(); return; }
-        handRef.current = handLandmarker;
+        };
+        void createFace().then(f => { if (cancelled) f?.close(); else faceRef.current = f; });
+        void createHand().then(h => { if (cancelled) h?.close(); else handRef.current = h; });
 
         // ── Pre-allocated landmark buffers (avoid per-frame object creation) ──
         const landmarksBuf: PoseLandmark[] =
@@ -197,6 +196,10 @@ export function usePoseDetection(
                 const result = pose.detectForVideo(video, now);
 
                 if (result.landmarks && result.landmarks.length > 0) {
+                  if (!firstLandmarksLogged) {
+                    firstLandmarksLogged = true;
+                    console.info(`[PoseDetection] first landmarks after ${Math.round(performance.now() - t0)} ms`);
+                  }
                   let worldLandmarks: PoseLandmark[];
                   if (result.worldLandmarks && result.worldLandmarks.length > 0) {
                     const wl = result.worldLandmarks[0];
@@ -326,6 +329,9 @@ export function usePoseDetection(
       poseRef.current?.close();
       faceRef.current?.close();
       handRef.current?.close();
+      poseRef.current = null;
+      faceRef.current = null;
+      handRef.current = null;
     };
   }, [videoRef, armed]); // onPublish, onLandmarksUpdate, faceEnabled, handEnabled, active intentionally excluded — updated via refs
 }

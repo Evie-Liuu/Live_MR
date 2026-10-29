@@ -317,7 +317,7 @@ Theme（主題，如「服飾店」）
 | LiveKit（core） | WebRTC 媒體 / data channel | `LIVEKIT_API_KEY` / `_SECRET` / `_URL`（內外網不同，見 dev-setup） |
 | Google Gemini | AI 教學提示 | `GEMINI_API_KEY`、`GEMINI_MODEL`（逗號分隔的 fallback 清單） |
 | Web Speech API | 瀏覽器端 STT | 僅 Chrome 等支援；不支援時 `useSpeechRecording` 降級為 no-op |
-| MediaPipe 模型 | 本機動捕（heavy pose / face / hand `.task`） | 前端 `public/mediapipe-models`、WASM `public/mediapipe-wasm` |
+| MediaPipe 模型 | 本機動捕（full pose〔預設，`?poseModel=heavy` 切回 heavy〕/ face / hand `.task`） | 前端 `public/mediapipe-models`、WASM `public/mediapipe-wasm` |
 | VRM 模型 | 角色外觀 | `assets/models/role_static/*.vrm` + `config/vrmSources.ts` |
 | Node `selfsigned` 套件 | 本機/區網開發環境下之 HTTPS 憑證自動化產生（`backend/src/launcher/certs.ts`），取代 mkcert/openssl | `data/certs/`（相機 API 必需） |
 
