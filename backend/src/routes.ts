@@ -9,6 +9,7 @@ import { mergeRecording } from './merge.js'
 import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai/hints.js'
 import { createLessonPlanRouter, type LessonPlanRouteDeps } from './lessonPlanRoutes.js'
 import { createDialogueTaskRouter, type DialogueTaskRouteDeps } from './dialogueTaskRoutes.js'
+import { authenticateTestAccount, loadTestAccounts, testAccountsEnabled } from './testAccounts.js'
 
 const recordingsDir = process.env.RECORDINGS_DIR
   ? path.resolve(process.env.RECORDINGS_DIR)
@@ -631,6 +632,24 @@ export function createRouter(
       }
     },
   )
+
+  // POST /api/test-auth/login — 本地測試帳號（ENABLE_TEST_ACCOUNTS=1 才有），回傳格式同 SDGs 登入
+  router.post('/test-auth/login', (req: Request, res: Response) => {
+    if (!testAccountsEnabled()) { res.status(404).json({ error: 'Test accounts disabled' }); return }
+    const { username, password } = (req.body ?? {}) as { username?: unknown; password?: unknown }
+    if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
+      res.status(400).json({ error: 'username and password required' })
+      return
+    }
+    try {
+      const user = authenticateTestAccount(loadTestAccounts(process.env.TEST_ACCOUNTS_FILE!), username, password)
+      if (!user) { res.status(401).json({ error: '帳號或密碼錯誤' }); return }
+      res.json({ user })
+    } catch (err: any) {
+      console.error('[test-auth] failed to read accounts:', err?.message ?? String(err))
+      res.status(500).json({ error: 'Test accounts file unreadable' })
+    }
+  })
 
   // POST /api/sdgs/auth/login — Proxy to SDGs Journey auth API (solves CORS when accessed via LAN IPs)
   router.post('/sdgs/auth/login', async (req: Request, res: Response) => {

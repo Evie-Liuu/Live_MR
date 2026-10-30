@@ -95,6 +95,18 @@ node scripts/fetch-portable-node.mjs
 
 若要設定 `GEMINI_API_KEY`（AI 助理功能需要）或覆寫 LiveKit 金鑰，編輯 `dist-launcher/LiveMR/launcher.env`（`node scripts/build-launcher.mjs` 每次都會產生這個範本檔），寫法與 `.env` 相同（`KEY=value`）。
 
+### 本地測試帳號（壓測、演練用）
+
+不經 Firebase／SDGs 後端，由本機伺服器直接驗證，登入後是學生身分。登入畫面帳號欄輸入不含 `@` 的帳號（如 `stu01`）就會走這條路。
+
+```bash
+cd backend
+npx tsx scripts/create-test-accounts.mts --password <密碼>              # 開發：產生 data/test-accounts.json
+npx tsx scripts/create-test-accounts.mts --password <密碼> --out ../dist-launcher/LiveMR/data/test-accounts.json  # 打包版
+```
+
+再在 `.env`（開發）或 `launcher.env`（打包版）加上 `ENABLE_TEST_ACCOUNTS=1`，重新啟動。帳號 `stu01`～`stu29`、顯示名稱 `S01`～`S29`（`--count` 可改數量），檔案只存密碼雜湊。沒設 `ENABLE_TEST_ACCOUNTS=1` 時這條登入 API 回 404，正式上課前記得移除。
+
 ---
 
 ## 第二層：架構說明

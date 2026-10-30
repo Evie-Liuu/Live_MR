@@ -27,6 +27,8 @@ export interface AuthUser {
   full_name?: string;
   role: UserRole;
   institution_id?: number | string;
+  /** 本地測試帳號（不經 Firebase），見 backend/src/testAccounts.ts */
+  test_account?: boolean;
   [key: string]: unknown;
 }
 
@@ -58,6 +60,24 @@ async function backendLogin(idToken: string): Promise<AuthUser> {
     const text = await res.text().catch(() => '');
     throw new Error(`後端登入失敗 (${res.status})${text ? ': ' + text : ''}`);
   }
+  const data = await res.json() as { user: AuthUser };
+  return data.user;
+}
+
+/** 帳號欄沒有 @ 的當成本地測試帳號（stu01 這類） */
+export function isTestAccountId(id: string): boolean {
+  return !!id.trim() && !id.includes('@');
+}
+
+async function testAccountLogin(username: string, password: string): Promise<AuthUser> {
+  const res = await fetch('/api/test-auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: username.trim(), password }),
+  });
+  if (res.status === 401) throw new Error('帳號或密碼錯誤');
+  if (res.status === 404) throw new Error('伺服器未啟用測試帳號，請改用電郵登入');
+  if (!res.ok) throw new Error(`登入失敗 (${res.status})`);
   const data = await res.json() as { user: AuthUser };
   return data.user;
 }
@@ -109,11 +129,26 @@ function ensureFirebaseListener() {
       // 有 Firebase session 但無本地資料 → 待 loginWithEmailAndPassword 完成後再更新
       setAuthState((prev) => ({ ...prev, isLoading: false }));
     } else {
+      // 測試帳號本來就沒有 Firebase session：保留
+      const testUser = readStoredUser();
+      if (testUser?.test_account) {
+        setAuthState({ isAuthenticated: true, user: testUser, isLoading: false });
+        return;
+      }
       // 無 Firebase session → 清除狀態
       localStorage.removeItem('user_data');
       setAuthState({ isAuthenticated: false, user: null, isLoading: false });
     }
   });
+}
+
+function readStoredUser(): AuthUser | null {
+  try {
+    const raw = localStorage.getItem('user_data');
+    return raw ? JSON.parse(raw) as AuthUser : null;
+  } catch {
+    return null;
+  }
 }
 
 function subscribeAuth(listener: () => void) {
@@ -173,6 +208,25 @@ export function useAuth() {
     [],
   );
 
+  /** 本地測試帳號登入：本機伺服器驗證，不經 Firebase／SDGs 後端 */
+  const loginWithTestAccount = useCallback(
+    async (username: string, password: string): Promise<LoginResult> => {
+      localStorage.removeItem('user_data');
+      setAuthState({ isAuthenticated: false, user: null, isLoading: false });
+      try {
+        // 先登出 Firebase，免得之前的老師 session 在重新整理時蓋過測試帳號
+        await signOut(auth).catch(() => {});
+        const user = await testAccountLogin(username, password);
+        localStorage.setItem('user_data', JSON.stringify(user));
+        setAuthState({ isAuthenticated: true, user, isLoading: false });
+        return { success: true, user };
+      } catch (err) {
+        return { success: false, message: (err as Error).message };
+      }
+    },
+    [],
+  );
+
   /** 登出（同 auth.js 的 logout）：流程見 performLogout */
   const logout = useCallback(async () => {
     await performLogout({
@@ -187,6 +241,7 @@ export function useAuth() {
   return {
     ...authState,
     loginWithEmailAndPassword,
+    loginWithTestAccount,
     logout,
     // 便利的 role 判斷
     isTeacher: authState.user?.role === 'teacher',

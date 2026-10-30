@@ -29,6 +29,8 @@ const store = new RoomStore()
 const recordingStore = new RecordingStore()
 const roomAdmin = new RoomAdminService()
 
+process.env.TEST_ACCOUNTS_FILE ||= path.resolve(process.cwd(), '../data/test-accounts.json')
+
 const dbPath = process.env.LIVEMR_DB_PATH || path.resolve(process.cwd(), '../data/livemr.sqlite')
 let lessonPlanRepo: LessonPlanRepo | null = null
 let dialogueTaskRepo: DialogueTaskRepo | null = null

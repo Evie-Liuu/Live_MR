@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import loginIllustration from '../assets/login_page.webp';
 import type { AuthUser } from '../hooks/useAuth.ts';
-import { useAuth } from '../hooks/useAuth.ts';
+import { isTestAccountId, useAuth } from '../hooks/useAuth.ts';
 import { secureStorageManager } from '../utils/secureStorageManager.ts';
 import './LoginScreen.css';
 
@@ -10,7 +10,7 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
-  const { loginWithEmailAndPassword } = useAuth();
+  const { loginWithEmailAndPassword, loginWithTestAccount } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,7 +57,11 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     setLoading(true);
     setError('');
     try {
-      const { success, user, message } = await loginWithEmailAndPassword(email, password);
+      // 沒有 @（stu01 這類）走本地測試帳號
+      console.log(isTestAccountId(email));
+      
+      const login = isTestAccountId(email) ? loginWithTestAccount : loginWithEmailAndPassword;
+      const { success, user, message } = await login(email, password);
 
       if (success) {
         if (rememberMe) {
@@ -101,8 +105,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 <span className="material-symbols-outlined input-icon">mail</span>
               </div>
               <input
-                type="email"
-                placeholder="電郵地址"
+                type="text"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                autoComplete="username"
+                placeholder="電郵地址或帳號"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}

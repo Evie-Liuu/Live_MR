@@ -37,6 +37,8 @@ const FRONTEND_DIST = path.join(APP_DIR, 'frontend-dist')
 
 const envPath = path.join(ROOT_DIR, 'launcher.env')
 if (fs.existsSync(envPath)) dotenv.config({ path: envPath })
+// 本地測試帳號清單（ENABLE_TEST_ACCOUNTS=1 才會用到），相對路徑以 LiveMR/ 為準
+process.env.TEST_ACCOUNTS_FILE = path.resolve(ROOT_DIR, process.env.TEST_ACCOUNTS_FILE || path.join('data', 'test-accounts.json'))
 
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'devkey'
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'devsecret1234567890devsecret1234567890'
@@ -190,6 +192,9 @@ async function main(): Promise<void> {
     console.log(`\nLiveMR 已啟動：${url}\n（第一次連線瀏覽器會跳「不安全連線」警告，屬正常現象，按「進階」→「繼續」即可）\n`)
     if (!process.env.GEMINI_API_KEY) {
       console.warn('提醒：尚未設定 GEMINI_API_KEY，AI 助理功能將無法使用。請編輯 launcher.env 後重新啟動。')
+    }
+    if (process.env.ENABLE_TEST_ACCOUNTS === '1') {
+      console.warn(`提醒：已啟用本地測試帳號（${process.env.TEST_ACCOUNTS_FILE}），正式上課前請從 launcher.env 移除 ENABLE_TEST_ACCOUNTS。`)
     }
     // spawn（argv 陣列）而非 exec（shell 字串），即使 url 目前只由本機偵測到的
     // IP/port 組成、並非外部可控輸入，仍避免任何字串經過 shell 解析的注入風險。

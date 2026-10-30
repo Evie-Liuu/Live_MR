@@ -49,7 +49,7 @@ describe('LoginScreen 記住我', () => {
     })
     await flush()
 
-    const email = container.querySelector<HTMLInputElement>('input[type="email"]')!
+    const email = container.querySelector<HTMLInputElement>('input[autocomplete="username"]')!
     const password = container.querySelector<HTMLInputElement>('input[placeholder="密碼"]')!
     const remember = container.querySelector<HTMLInputElement>('input[type="checkbox"]')!
     expect(email.value).toBe('teacher@example.com')
@@ -64,7 +64,7 @@ describe('LoginScreen 記住我', () => {
       root.render(<StrictMode><LoginScreen onLoginSuccess={() => {}} /></StrictMode>)
     })
     await flush()
-    expect(container.querySelector<HTMLInputElement>('input[type="email"]')!.value).toBe('')
+    expect(container.querySelector<HTMLInputElement>('input[autocomplete="username"]')!.value).toBe('')
     expect(store.clears).toBe(0)
   })
 
