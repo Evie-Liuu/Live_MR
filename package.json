@@ -2,8 +2,13 @@
   "name": "live-mr-tooling",
   "private": true,
   "type": "module",
+  "scripts": {
+    "load-test": "node scripts/load-test/students.mjs",
+    "load-test:mic": "node scripts/load-test/mic-fail.mjs"
+  },
   "devDependencies": {
     "esbuild": "^0.24.0",
+    "playwright-core": "^1.56.1",
     "tsx": "^4.23.1"
   }
 }

@@ -10,3 +10,4 @@
 解壓縮 `LiveMR` 資料夾，雙擊其中的 `LiveMR.bat` 即可啟動，免安裝 Docker / Git / OpenSSL 等其他軟體。啟動後終端機會顯示區網網址（例如 `https://192.168.0.145`）並自動開啟瀏覽器，學生與大屏可用同一個網址、於同一個 Wi-Fi 下加入。
 
 開發環境設定（前後端本機啟動、跨裝置測試）見 [`docs/dev-setup.md`](./docs/dev-setup.md)。
+多人連線壓力測試（腳本與真機分批流程）見 [`docs/load-test.md`](./docs/load-test.md)。

@@ -57,3 +57,6 @@ backend/scripts/out/
 
 # Playwright MCP logs / snapshots
 .playwright-mcp/
+
+# 壓力測試結果
+load-test-*.json
