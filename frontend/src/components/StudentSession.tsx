@@ -7,6 +7,7 @@ import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import { LIVEKIT_URL, MIC_AUDIO_OPTIONS } from '../config/constants.ts';
 import { formatRoomId } from '../utils/qrRoomId.ts';
+import { micErrorText, retryMic } from '../utils/micEnable.ts';
 import CheckpointStudentSheet from './CheckpointStudentSheet.tsx';
 import ScriptTurnOverlay from './ScriptTurnOverlay.tsx';
 import { useScriptTurnStudent } from '../hooks/useScriptTurnStudent.ts';
@@ -64,6 +65,9 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const isMobile = isMobileDevice();
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  /** 麥克風自動重試後仍啟動失敗的提示；null＝正常或還在試 */
+  const [micError, setMicError] = useState<string | null>(null);
+  const [micRetrying, setMicRetrying] = useState(false);
   const [kicked, setKicked] = useState(false);
   const [hostLeft, setHostLeft] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -75,6 +79,21 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const hostGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const HOST_GRACE_PERIOD_MS = 10000;
   const activeRecordingSessionRef = useRef<string | null>(null);
+
+  /** 開麥克風，失敗自動重試；仍失敗就顯示提示（老師聽不到，輪到說話時才發現就太晚了） */
+  const enableMic = useCallback(async (room: Room, alive: () => boolean = () => true) => {
+    setMicRetrying(true);
+    try {
+      await retryMic(() => room.localParticipant.setMicrophoneEnabled(true, MIC_AUDIO_OPTIONS), undefined,
+        () => alive() && roomRef.current === room);
+      if (alive()) setMicError(null);
+    } catch (e) {
+      console.error('Failed to enable microphone:', e);
+      if (alive() && roomRef.current === room) setMicError(micErrorText(e));
+    } finally {
+      if (alive()) setMicRetrying(false);
+    }
+  }, []);
 
   /** 送出台下互動點的作答（只送給老師） */
   const sendCheckpointAnswer = useCallback((pollId: string, choice: number) => {
@@ -405,12 +424,13 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           await room.localParticipant.publishTrack(stream.getVideoTracks()[0].clone(), {
             source: Track.Source.Camera,
           });
-          await room.localParticipant.setMicrophoneEnabled(true, MIC_AUDIO_OPTIONS);
         } catch (e) {
           if (isMounted) {
-            console.error("Failed to enable camera/microphone:", e);
+            console.error("Failed to enable camera:", e);
           }
         }
+        // 麥克風跟鏡頭分開：鏡頭失敗也照樣開麥克風
+        if (isMounted) await enableMic(room, () => isMounted);
       })
       .catch((e) => {
         if (!isMounted) return;
@@ -450,7 +470,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
       room.disconnect();
     };
     // sendCheckpointAnswer 是穩定的 useCallback，不會造成重新連線
-  }, [token, retryCount, sendCheckpointAnswer]);
+  }, [token, retryCount, sendCheckpointAnswer, enableMic]);
 
   // Publish metadata whenever faceEnabled changes (or on connect)
   // useEffect(() => {
@@ -682,6 +702,22 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           choice={checkpointChoice?.pollId === checkpoint.pollId ? checkpointChoice.choice : null}
           onChoose={chooseCheckpoint}
         />
+      )}
+
+      {/* 麥克風啟動失敗：老師聽不到，給學生重試 */}
+      {connected && micError && (
+        <div className="ss-mic-alert" role="alert">
+          <span className="material-symbols-outlined" aria-hidden="true">mic_off</span>
+          <span className="ss-mic-alert-text">{micError}</span>
+          <button
+            type="button"
+            className="ss-mic-alert-btn"
+            disabled={micRetrying}
+            onClick={() => { if (roomRef.current) void enableMic(roomRef.current); }}
+          >
+            {micRetrying ? '重試中…' : '重試'}
+          </button>
+        </div>
       )}
 
       {/* 連線中重試提示 */}

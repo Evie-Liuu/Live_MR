@@ -1152,6 +1152,49 @@ button:disabled {
 }
 
 /* ===== Connection Error Overlay ===== */
+/* 學生麥克風啟動失敗提示 */
+.ss-mic-alert {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px 10px 16px;
+  border-radius: 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ss-mic-alert-text {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.ss-mic-alert .ss-mic-alert-btn {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ss-mic-alert .ss-mic-alert-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .connection-error-overlay {
   position: fixed;
   inset: 0;
