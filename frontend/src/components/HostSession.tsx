@@ -95,6 +95,8 @@ interface HostSessionProps {
   livekitToken: string;
   hostToken: string;
   planId?: string;
+  /** 老師首頁選的「我的任務」：進教室後自動載入 */
+  taskId?: string;
 }
 
 interface ParticipantInfo {
@@ -298,7 +300,7 @@ function SceneBackgroundControls({
 }
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function HostSession({ roomId, livekitToken, hostToken, planId }: HostSessionProps) {
+export default function HostSession({ roomId, livekitToken, hostToken, planId, taskId }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
   // true once the local camera track has been attached (LiveKit setCameraEnabled resolved)
@@ -1666,6 +1668,21 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   }, []);
 
   const endLesson = useCallback(() => { setLesson(null); setCheckpointPoll(null); }, []);
+  // 首頁選定的任務：進教室後切到任務場景並自動開始課程（只在掛載時載入一次）
+  useEffect(() => {
+    if (!taskId) return;
+    let cancelled = false;
+    getDialogueTask(taskId)
+      .then(rec => {
+        if (cancelled) return;
+        if (!SCENE_PRESETS[rec.task.sceneId]) { setLessonPlanNotice('此任務的場景已移除，請改從任務抽屜選擇'); return; }
+        if (rec.task.sceneId !== selectedSceneId) handleSceneChange(rec.task.sceneId);
+        startLesson(rec);
+      })
+      .catch(() => { if (!cancelled) setLessonPlanNotice('任務載入失敗，請改從任務抽屜選擇'); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId]);
 
   /** 台下互動點：發布 / 結束作答 / 公布答案 / 結束 */
   // 大屏與學生裝置是否顯示題目文字：依任務程度給預設（A1-A2 以上只顯示選項代號），發布後可切換

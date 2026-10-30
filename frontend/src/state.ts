@@ -5,8 +5,8 @@ export type AppState =
   | { screen: 'select-role' }
   | { screen: 'teacher-home' }
   | { screen: 'lesson-prep' }
-  | { screen: 'host-lobby'; roomId: string; hostToken: string; livekitToken: string; planId?: string }
-  | { screen: 'host-session'; roomId: string; hostToken: string; livekitToken: string; planId?: string }
+  | { screen: 'host-lobby'; roomId: string; hostToken: string; livekitToken: string; planId?: string; taskId?: string }
+  | { screen: 'host-session'; roomId: string; hostToken: string; livekitToken: string; planId?: string; taskId?: string }
   /** roomId / error：自動加入失敗時預填房號並顯示原因，學生不必重新輸入 */
   | { screen: 'student-home'; roomId?: string; error?: string }
   | { screen: 'student-joining'; roomId: string }

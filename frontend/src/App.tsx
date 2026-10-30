@@ -17,6 +17,7 @@ const StudentHome = lazy(() => import('./components/StudentHome.tsx'));
 const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
 const StudentSession = lazy(() => import('./components/StudentSession.tsx'));
 const TeacherHome = lazy(() => import('./components/TeacherHome.tsx'));
+import type { StartSelection } from './components/TeacherHome.tsx';
 const LessonPrep = lazy(() => import('./components/LessonPrep.tsx'));
 
 function AppSpinner() {
@@ -87,10 +88,10 @@ function App() {
   const hasAutoRoutedRef = useRef(false);
 
   // Handle host room creation
-  const handleHost = async (planId?: string) => {
+  const handleHost = async (selection: StartSelection = {}) => {
     try {
       const { roomId, hostToken, livekitToken } = await createRoom();
-      setState({ screen: 'host-session', roomId, hostToken, livekitToken, ...(planId ? { planId } : {}) });
+      setState({ screen: 'host-session', roomId, hostToken, livekitToken, ...selection });
     } catch (err) {
       setState({ screen: 'error', message: String(err) });
     }
@@ -195,7 +196,7 @@ function App() {
             teacherName={user ? displayNameOf(user) : '老師'}
             teacherUid={user ? teacherUidOf(user) : 'unknown'}
             onPrep={() => setState({ screen: 'lesson-prep' })}
-            onStart={(planId) => { void handleHost(planId); }}
+            onStart={(selection) => { void handleHost(selection); }}
             onLogout={() => { void logout(); setState({ screen: 'select-role' }); }}
           />
         );
@@ -222,6 +223,7 @@ function App() {
                 hostToken: state.hostToken,
                 livekitToken,
                 planId: state.planId,
+                taskId: state.taskId,
               })
             }
             onExit={() => setState({ screen: 'select-role' })}
@@ -235,6 +237,7 @@ function App() {
             livekitToken={state.livekitToken}
             hostToken={state.hostToken}
             planId={state.planId}
+            taskId={state.taskId}
           />
         );
 
