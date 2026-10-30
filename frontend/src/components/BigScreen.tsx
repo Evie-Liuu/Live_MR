@@ -13,7 +13,7 @@ import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel, TaskHint } from '../config/taskHints.ts';
 import type { AIHintPayload } from '../config/aiAssistant.ts';
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
-import { BIGSCREEN_LESSON_STORAGE_KEY, type LessonScreenState } from '../utils/lessonSession.ts';
+import { BIGSCREEN_LESSON_STORAGE_KEY, BIGSCREEN_NAMES_STORAGE_KEY, type LessonScreenState } from '../utils/lessonSession.ts';
 import { BIGSCREEN_CHECKPOINT_STORAGE_KEY, type ScreenPoll } from '../utils/checkpointPoll.ts';
 import CheckpointScreenOverlay from './CheckpointScreenOverlay.tsx';
 import AvatarNameplates from './AvatarNameplates.tsx';
@@ -37,7 +37,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'script-turn' | 'turn-transcript' | 'turn-hint';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'script-turn' | 'turn-transcript' | 'turn-hint' | 'participant-names';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -76,6 +76,8 @@ export interface BigScreenMsg {
   cameraBgDeviceId?: string;
   /** For 'bg-type-override': 覆蓋場景背景類型；'default' 表示用場景原設定 */
   bgTypeOverride?: BackgroundTypeOverride;
+  /** For 'participant-names': identity → 顯示名稱（帳號 full_name，含老師） */
+  participantNames?: Record<string, string>;
   /** For 'speaking': 目前正在說話的 participant identity 清單 */
   speakingIdentities?: string[];
   /** For 'interaction-phase': 目前互動腳本相位（'idle' 表示未互動） */
@@ -489,6 +491,10 @@ export default function BigScreen() {
 
   // 正在說話的 identity 集合（由 HostSession 'speaking' 訊息驅動）
   const [speakingIdentities, setSpeakingIdentities] = useState<Set<string>>(new Set());
+  /** 老師端送來的顯示名稱（帳號 full_name），名牌用 */
+  const [displayNames, setDisplayNames] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(sessionStorage.getItem(BIGSCREEN_NAMES_STORAGE_KEY) || '{}'); } catch { return {}; }
+  });
 
   // 互動相位（'idle' | 'teacher' | 'generating' | 'student'）
   const [interactionPhase, setInteractionPhase] = useState<string>(() => {
@@ -748,12 +754,13 @@ export default function BigScreen() {
     slots: (SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID]).slots ?? [],
     slotAssignments,
     participantNames,
+    displayNames,
     lesson,
     speaking: speakingIdentities,
     // 沒在演練＝undefined（不限制收音效果）；演練中但暫停／步驟講完＝null
     turnIdentity: !scriptTurn ? undefined : scriptTurn.status === 'running' ? scriptTurn.speaker.identity : null,
     ...(staticStage ? { rolesOnlyPrefix: PLACEHOLDER_PREFIX } : {}),
-  }), [sceneId, slotAssignments, participantNames, lesson, speakingIdentities, scriptTurn, staticStage]);
+  }), [sceneId, slotAssignments, participantNames, displayNames, lesson, speakingIdentities, scriptTurn, staticStage]);
 
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
@@ -2408,6 +2415,10 @@ export default function BigScreen() {
           if (v === 'default') localStorage.removeItem('bigscreen-bgTypeOverride');
           else localStorage.setItem('bigscreen-bgTypeOverride', v);
         } catch {/* ignore */ }
+      } else if (msg.type === 'participant-names') {
+        const names = msg.participantNames ?? {};
+        setDisplayNames(names);
+        try { sessionStorage.setItem(BIGSCREEN_NAMES_STORAGE_KEY, JSON.stringify(names)); } catch {/* ignore */ }
       } else if (msg.type === 'speaking') {
         setSpeakingIdentities(new Set(msg.speakingIdentities ?? []));
       } else if (msg.type === 'interaction-phase') {

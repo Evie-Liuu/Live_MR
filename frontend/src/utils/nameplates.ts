@@ -29,6 +29,8 @@ export function buildNameplates(opts: {
   slots: readonly Pick<SceneSlot, 'id' | 'label'>[];
   slotAssignments: Record<string, string>;
   participantNames: ReadonlyMap<string, string>;
+  /** 老師端送來的顯示名稱（identity → 帳號 full_name，含老師自己）；優先於 participantNames */
+  displayNames?: Readonly<Record<string, string>>;
   lesson: Pick<LessonScreenState, 'phase' | 'allDone' | 'roles'> | null;
   speaking: ReadonlySet<string>;
   /**
@@ -41,8 +43,9 @@ export function buildNameplates(opts: {
    */
   rolesOnlyPrefix?: string;
 }): Record<string, NameplateInfo> {
-  const { slots, slotAssignments, participantNames, lesson, speaking, turnIdentity, rolesOnlyPrefix } = opts;
-  const nameOf = (id: string) => participantNames.get(id) || (id.startsWith('host-') ? '老師' : id);
+  const { slots, slotAssignments, participantNames, displayNames, lesson, speaking, turnIdentity, rolesOnlyPrefix } = opts;
+  const nameOf = (id: string) =>
+    displayNames?.[id] || participantNames.get(id) || (id.startsWith('host-') ? '老師' : id);
   // 任務中才依步驟判斷誰有台詞；任務前／後、未上課、已完成時全部正常顯示
   const stepRoles = lesson && lesson.phase === 'during' && !lesson.allDone ? lesson.roles : null;
   const plates: Record<string, NameplateInfo> = {};

@@ -64,6 +64,8 @@ export interface LessonScreenState {
 
 export const HOST_LESSON_STORAGE_KEY = 'host-lesson';
 export const BIGSCREEN_LESSON_STORAGE_KEY = 'bigscreen-lesson';
+/** 大屏名牌用的顯示名稱（identity → 帳號 full_name） */
+export const BIGSCREEN_NAMES_STORAGE_KEY = 'bigscreen-participantNames';
 
 function stepCount(lesson: HostLessonState): number {
   return lesson.record.task.steps.length;

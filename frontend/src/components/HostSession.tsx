@@ -58,7 +58,7 @@ import {
 import { generateCheckpoints, getDialogueTask, updateDialogueTask } from '../utils/dialogueTaskClient.ts';
 import { castChoices, createId, type AudienceCheckpoint, type DialogueTaskRecord } from '../types/dialogueTask.ts';
 import {
-  BIGSCREEN_LESSON_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
+  BIGSCREEN_LESSON_STORAGE_KEY, BIGSCREEN_NAMES_STORAGE_KEY, clampDoneCount, currentStepIndex, isLessonDone, loadHostLesson, saveHostLesson,
   lessonTask, setLessonPhase, setQuestionIndex, taskCast, toggleStepDone, toLessonScreen,
   type HostLessonState,
 } from '../utils/lessonSession.ts';
@@ -444,6 +444,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
   const bigScreenWindowRef = useRef<Window | null>(null);
   // BroadcastChannel to push pose data to big screen
   const channelRef = useRef<BroadcastChannel | null>(null);
+  /** 大屏名牌用的顯示名稱（identity → 帳號 full_name），見 participant-names */
+  const participantNamesRef = useRef<Record<string, string>>({});
 
   const handleApiEvent = useCallback((event: ApiRoomEvent) => {
     if (event.type === 'join-request') {
@@ -2189,6 +2191,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
     }
     ch.postMessage({ type: 'camera-bg-device', cameraBgDeviceId } satisfies BigScreenMsg);
     ch.postMessage({ type: 'bg-type-override', bgTypeOverride } satisfies BigScreenMsg);
+    ch.postMessage({ type: 'participant-names', participantNames: participantNamesRef.current } satisfies BigScreenMsg);
   }, [selectedSceneId, selectedTasks, slotAssignments, connectedRoom, teacherVrmSourceId, studentRoles, hintEnabled, hintLevel, cameraBgDeviceId, bgTypeOverride, lesson]);
 
   const toggleBigScreenPreview = useCallback(() => {
@@ -2282,7 +2285,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
 
   // All participants for slot assignment dropdown (teacher + students)
   const teacherIdentity = connectedRoom?.localParticipant.identity;
-  const teacherName = connectedRoom?.localParticipant.name;
+  // 帳號 full_name 優先：localParticipant.setName 是非同步的，改名不會觸發重新渲染
+  const teacherName = user?.full_name || connectedRoom?.localParticipant.name;
   /** 可指派的人員（老師在最前面） */
   const assignableParticipants = [
     ...(teacherIdentity ? [{ identity: teacherIdentity, name: teacherName ? `${teacherName} (老師)` : '老師' }] : []),
@@ -2331,6 +2335,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId }:
       names,
     };
   }, [teacherIdentity, teacherName, participants, currentScenePreset.slots, castOptions, activeCastSize, slotAssignments]);
+  // 大屏名牌用帳號 full_name（老師與學生）；同步給新開的大屏見 syncBigScreenState
+  useEffect(() => {
+    participantNamesRef.current = checkpointCast.names;
+    try { sessionStorage.setItem(BIGSCREEN_NAMES_STORAGE_KEY, JSON.stringify(checkpointCast.names)); } catch {/* ignore */ }
+    channelRef.current?.postMessage({ type: 'participant-names', participantNames: checkpointCast.names } satisfies BigScreenMsg);
+  }, [checkpointCast.names]);
   // ── 逐句演練：推導這一輪並廣播給學生與大屏 ──────────────────────────────
   const turnCast = useMemo<TurnCast>(() => ({
     slots: currentScenePreset.slots ?? [],

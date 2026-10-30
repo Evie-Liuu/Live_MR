@@ -327,9 +327,9 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
           <div className="ltd-section">
             <h4 className="ltd-section-title">角色</h4>
             <div className="ltd-roles">
-              {roles.map((r, i) => (
+              {roles.map((r) => (
                 <span key={r.id} className="ltd-role-wrap">
-                  {i > 0 && <span className="ltd-role-arrow" aria-hidden="true">⇄</span>}
+                  {/* {i > 0 && <span className="ltd-role-arrow" aria-hidden="true">⇄</span>} */}
                   <span className="ltd-role"><span aria-hidden="true">{r.icon}</span>{r.label}</span>
                 </span>
               ))}

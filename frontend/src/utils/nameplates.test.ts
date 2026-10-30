@@ -18,6 +18,14 @@ describe('buildNameplates', () => {
     expect(plates.amy).toMatchObject({ role: '顧客A', name: '王小明', color: ROLE_COLORS[1] })
   })
 
+  it('prefers display names (account full_name) sent by the host, including the teacher', () => {
+    const plates = buildNameplates({ ...base, displayNames: { 'host-1': '林老師', amy: 'Amy Wang' } })
+    expect(plates['host-1'].name).toBe('林老師')
+    expect(plates.amy.name).toBe('Amy Wang')
+    // 名單裡沒有的照舊
+    expect(buildNameplates({ ...base, displayNames: { amy: 'Amy Wang' } })['host-1'].name).toBe('老師')
+  })
+
   it('dims roles without lines in the current step while the task is running', () => {
     const lesson = { phase: 'during' as const, allDone: false, roles: ['顧客A'] }
     const plates = buildNameplates({ ...base, lesson, speaking: new Set(['amy']) })

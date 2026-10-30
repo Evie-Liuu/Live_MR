@@ -290,7 +290,7 @@ function App() {
             roomId={state.roomId}
             token={state.token}
             name={state.name}
-            onExit={() => setState({ screen: 'select-role' })}
+            onExit={() => setState({ screen: 'student-home' })}
           />
         );
 
