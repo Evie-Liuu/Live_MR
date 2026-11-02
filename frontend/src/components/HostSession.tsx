@@ -34,6 +34,7 @@ import { generateHints, toFriendlyError, warmupGemini, type TokenUsage } from '.
 import { useSpeechRecording } from '../hooks/useSpeechRecording.ts';
 import { useTurnAudioRecorder, type TurnAudio } from '../hooks/useTurnAudioRecorder';
 import { useRecording } from '../hooks/useRecording.ts';
+import { useVideoGridLayout } from '../hooks/useVideoGridLayout.ts';
 import RecordingPanel from './RecordingPanel.tsx';
 import { subscribeToRoomEvents, approveRequest, rejectRequest, removeParticipant } from '../api.ts';
 import type { RoomEvent as ApiRoomEvent } from '../api.ts';
@@ -2283,6 +2284,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     .filter((p) => !p.participant.identity.startsWith('host-'))
     .sort((a, b) => byName(a.participant.name || a.participant.identity, b.participant.name || b.participant.identity));
 
+  // 影像區：老師＋學生依人數平均分配（大屏預覽時維持精簡列）
+  const { gridRef: videoGridRef, gridStyle: videoGridStyle } = useVideoGridLayout((connectedRoom ? 1 : 0) + studentList.length, !showBigScreenPreview);
+
   // 台下互動點 → 大屏：各選項人數、已作答 / 在線人數（公布後才含正確答案）
   const studentIdsKey = studentList.map(s => s.participant.identity).sort().join('|');
   const studentIds = useMemo(() => (studentIdsKey ? studentIdsKey.split('|') : []), [studentIdsKey]);
@@ -3317,7 +3321,7 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
               )}
 
               {/* Video grid */}
-              <div className={`hs-grid ${showBigScreenPreview ? 'hs-grid--with-preview' : ''}`}>
+              <div ref={videoGridRef} className={`hs-grid ${showBigScreenPreview ? 'hs-grid--with-preview' : ''}`} style={videoGridStyle}>
 
                 {/* ── Teacher card ── */}
                 {connectedRoom && (() => {

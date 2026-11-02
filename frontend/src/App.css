@@ -4721,7 +4721,8 @@ button:disabled {
   position: relative;
   /* width: 480px; */
   /* aspect-ratio: 4 / 3; */
-  max-height: 450px;
+  /* 高度由 .hs-grid 依人數平均分配（useVideoGridLayout） */
+  min-height: 0;
   border-radius: 16px;
   overflow: hidden;
   background: #fff;
@@ -5052,6 +5053,11 @@ button:disabled {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   overflow-y: auto;
   margin: 0;
+}
+
+/* 精簡列沒有依人數分配，維持原本的卡片高度上限 */
+.hs-grid--with-preview .hs-video-card {
+  max-height: 450px;
 }
 
 /* .hs-grid--with-preview .hs-video-card {
