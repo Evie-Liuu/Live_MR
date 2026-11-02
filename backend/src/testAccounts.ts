@@ -8,10 +8,12 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
  * 密碼只存 scrypt 雜湊。用 backend/scripts/create-test-accounts.mjs 產生。
  */
 
+export type TestAccountRole = 'student' | 'teacher'
+
 export interface TestAccount {
   username: string
   displayName: string
-  role: 'student'
+  role: TestAccountRole
   /** scrypt$<salt hex>$<hash hex> */
   passwordHash: string
 }
@@ -19,7 +21,7 @@ export interface TestAccount {
 export interface TestAccountUser {
   uid: string
   full_name: string
-  role: 'student'
+  role: TestAccountRole
   test_account: true
 }
 
@@ -52,5 +54,6 @@ export function authenticateTestAccount(
 ): TestAccountUser | null {
   const account = accounts.find(a => a.username.toLowerCase() === username.trim().toLowerCase())
   if (!account || !verifyPassword(password, account.passwordHash)) return null
-  return { uid: account.username, full_name: account.displayName, role: 'student', test_account: true }
+  const role: TestAccountRole = account.role === 'teacher' ? 'teacher' : 'student'
+  return { uid: account.username, full_name: account.displayName, role, test_account: true }
 }

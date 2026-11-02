@@ -10,6 +10,7 @@ import { authenticateTestAccount, hashPassword, verifyPassword, type TestAccount
 
 const accounts: TestAccount[] = [
   { username: 'stu01', displayName: 'S01', role: 'student', passwordHash: hashPassword('EngTest123!') },
+  { username: 'tea01', displayName: 'T01', role: 'teacher', passwordHash: hashPassword('EngTest123!') },
 ]
 
 describe('testAccounts', () => {
@@ -26,6 +27,7 @@ describe('testAccounts', () => {
       .toEqual({ uid: 'stu01', full_name: 'S01', role: 'student', test_account: true })
     expect(authenticateTestAccount(accounts, 'stu01', 'wrong')).toBeNull()
     expect(authenticateTestAccount(accounts, 'stu02', 'EngTest123!')).toBeNull()
+    expect(authenticateTestAccount(accounts, 'tea01', 'EngTest123!')).toMatchObject({ full_name: 'T01', role: 'teacher' })
   })
 })
 

@@ -97,7 +97,7 @@ node scripts/fetch-portable-node.mjs
 
 ### 本地測試帳號（壓測、演練用）
 
-不經 Firebase／SDGs 後端，由本機伺服器直接驗證，登入後是學生身分。登入畫面帳號欄輸入不含 `@` 的帳號（如 `stu01`）就會走這條路。
+不經 Firebase／SDGs 後端，由本機伺服器直接驗證，登入後是學生身分（加 `--teachers 1` 另產生老師帳號 `tea01`，顯示名稱 `T01`）。登入畫面帳號欄輸入不含 `@` 的帳號（如 `stu01`）就會走這條路。
 
 ```bash
 cd backend
