@@ -4288,8 +4288,6 @@ button:disabled {
 
 /* 任務卡內：步驟列與階段 tab 灰暗 */
 .hs-sidebar.is-poll-active .hs-task-preview-row,
-.hs-sidebar.is-poll-active .hs-step-dot,
-.hs-sidebar.is-poll-active .hs-step-reset,
 .hs-sidebar.is-poll-active .hs-lesson-phase,
 .hs-sidebar.is-poll-active .hs-lesson-question,
 .hs-sidebar.is-poll-active .hs-task-reset {
@@ -8068,77 +8066,6 @@ button:disabled {
   text-align: left;
 }
 
-/* 任務步驟：一排編號 */
-.hs-step-strip {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.hs-step-dot {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 3px solid #95CC4D;
-  border-radius: 50%;
-  background: #fff;
-  color: #482607;
-  font: 900 14px/1 'Nunito', sans-serif;
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.hs-step-dot.is-done {
-  opacity: 1;
-  background: #95CC4D;
-  color: #fff;
-  cursor: pointer;
-}
-
-.hs-step-dot.is-current {
-  opacity: 1;
-  border-color: #F76E12;
-  background: #FFF1E6;
-  color: #C05621;
-  cursor: pointer;
-  box-shadow: 0 0 0 3px rgba(247, 110, 18, 0.2);
-}
-
-.hs-step-reset-wrap {
-  margin-left: auto;
-}
-
-.hs-step-reset {
-  padding: 2px 8px;
-  border: 1px solid #E0D6CC;
-  border-radius: 999px;
-  background: #fff;
-  color: #8a6a4a;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.hs-step-reset:hover {
-  border-color: #D64545;
-  color: #D64545;
-}
-
-.hs-step-current {
-  font-size: 15px;
-  font-weight: 800;
-  color: #482607;
-  line-height: 1.35;
-}
-
-.hs-step-current-num {
-  margin-right: 6px;
-  color: #C05621;
-}
-
 .hs-lesson-preview-title {
   display: block;
   /* margin-bottom: 6px; */
@@ -8159,8 +8086,9 @@ button:disabled {
 .hs-lesson-banner {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   padding: 10px 14px;
   border-radius: 14px;
   background: #FFF6EC;
@@ -8252,6 +8180,121 @@ button:disabled {
   background: #EBFBEE;
   border-color: rgba(0, 169, 157, 0.45);
 }
+
+/* 課程流程列：任務前 → 任務中（步驟編號）→ 任務後 */
+.hs-lesson-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hs-flow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hs-flow-phase {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* 階段之間的箭頭 */
+.hs-flow-phase + .hs-flow-phase::before {
+  content: '';
+  position: absolute;
+  left: -13px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid #C9B8A6;
+  border-right: 2px solid #C9B8A6;
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.hs-flow-phase-btn {
+  padding: 3px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #8a6a4a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hs-flow-phase-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.8); }
+
+.hs-flow-phase.is-active .hs-flow-phase-btn { color: #fff; }
+.hs-flow-phase--pre.is-active { background: #2B9ED8; }
+.hs-flow-phase--during.is-active { background: #76A23D; }
+.hs-flow-phase--post.is-active { background: #8E5BD6; }
+
+.hs-flow-phase-btn:disabled,
+.hs-flow-step:disabled,
+.hs-flow-reset:disabled { cursor: not-allowed; }
+
+.hs-flow-steps {
+  display: flex;
+  gap: 4px;
+  padding-right: 2px;
+}
+
+.hs-flow-step {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font: 900 13px/1 'Nunito', sans-serif;
+  cursor: pointer;
+}
+
+.hs-flow-step:disabled:not(.is-done):not(.is-current) { opacity: 0.6; }
+.hs-flow-step.is-done { background: rgba(255, 255, 255, 0.9); color: #4F7A1F; }
+.hs-flow-step.is-current { background: #F76E12; box-shadow: 0 0 0 2px #fff; }
+
+.hs-flow-step:focus-visible,
+.hs-flow-phase-btn:focus-visible,
+.hs-flow-reset:focus-visible {
+  outline: 2px solid #C05621;
+  outline-offset: 2px;
+}
+
+.hs-flow-reset {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid #E0D6CC;
+  border-radius: 50%;
+  background: #fff;
+  color: #8a6a4a;
+  cursor: pointer;
+}
+
+.hs-flow-reset .material-symbols-outlined { font-size: 18px; }
+.hs-flow-reset:hover:not(:disabled) { border-color: #D64545; color: #D64545; }
+.hs-flow-reset:disabled { opacity: 0.4; }
 
 .hs-lesson-lines-btn.is-on {
   background: #00A99D;

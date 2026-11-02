@@ -2983,21 +2983,6 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
             {lesson ? (
               <div className="hs-task-preview hs-lesson-steps">
                 <span className="hs-lesson-preview-title">{lesson.record.task.title}</span>
-                <div className="hs-lesson-phases" role="tablist" aria-label="課程階段">
-                  {LESSON_PHASES.map(p => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={lesson.phase === p.id}
-                      className={`hs-lesson-phase ${lesson.phase === p.id ? 'is-active' : ''}`}
-                      title={p.sub}
-                      onClick={e => { e.stopPropagation(); changeLessonPhase(p.id); }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
                 {lesson.phase !== 'during' && lessonPhaseContent ? (
                   <div className="hs-lesson-phase-body">
                     <div className="hs-lesson-phase-sub">{phaseMeta(lesson.phase).sub}</div>
@@ -3036,48 +3021,6 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
                     style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
                   />
                 </div>
-                {/* 步驟改成一排編號，只展開目前這一步的目的，節省側欄高度 */}
-                <div className="hs-step-strip" role="list" aria-label="任務步驟">
-                  {lesson.record.task.steps.map((step, idx) => {
-                    const done = idx < lesson.doneCount;
-                    const current = idx === lesson.doneCount;
-                    return (
-                      <button
-                        key={step.id}
-                        type="button"
-                        role="listitem"
-                        className={`hs-step-dot ${done ? 'is-done' : current ? 'is-current' : ''}`}
-                        disabled={!done && !current}
-                        title={`${idx + 1}. ${step.purpose || step.title || ''}
-${done ? '點擊取消完成' : current ? '點擊標記此階段完成' : '請依序完成前面的步驟'}`}
-                        aria-label={`第 ${idx + 1} 步${done ? '（已完成）' : current ? '（進行中）' : ''}`}
-                        onClick={e => { e.stopPropagation(); toggleLessonStep(idx); }}
-                      >
-                        {done ? '✓' : idx + 1}
-                      </button>
-                    );
-                  })}
-                  <span className="hs-step-reset-wrap">
-                    <button
-                      type="button"
-                      className="hs-step-reset"
-                      title="所有步驟回到未完成"
-                      onClick={e => { e.stopPropagation(); resetAllLessons(); }}
-                    >
-                      ↺ 重置
-                    </button>
-                  </span>
-                </div>
-                {(() => {
-                  const step = lesson.record.task.steps[lesson.doneCount];
-                  return (
-                    <div className="hs-step-current">
-                      {step
-                        ? <><span className="hs-step-current-num">步驟 {lesson.doneCount + 1}</span>{step.purpose || step.title || '未命名步驟'}</>
-                        : <span className="hs-step-current-num">✓ 所有步驟完成</span>}
-                    </div>
-                  );
-                })()}
                 <ScriptTurnHostPanel
                   turn={scriptTurn}
                   lines={scriptLines}
@@ -3214,15 +3157,67 @@ ${done ? '點擊取消完成' : current ? '點擊標記此階段完成' : '請�
           {/* Lesson banner：導師任務管理的目前步驟 */}
           {lesson && lessonStep && (
             <div className={`hs-lesson-banner ${lessonDone ? 'hs-lesson-banner--done' : ''}`}>
-              <div className="hs-task-banner-bar">
-                <div
-                  className="hs-task-banner-fill"
-                  style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
-                />
-              </div>
-              <div className="hs-lesson-banner-text">
+              {/* 第一列：任務名稱＋課程流程（任務前 → 任務中的各步驟 → 任務後） */}
+              <div className="hs-lesson-bar-row">
                 <span className="hs-lesson-banner-task" title={lesson.record.task.title}>{lesson.record.task.title}</span>
-                <span className={`hs-lesson-banner-phase hs-lesson-banner-phase--${lesson.phase}`}>{phaseMeta(lesson.phase).label}</span>
+                <ol className="hs-flow" aria-label="課程階段">
+                  {LESSON_PHASES.map(p => {
+                    const active = lesson.phase === p.id;
+                    const steps = lesson.record.task.steps;
+                    return (
+                      <li key={p.id} className={`hs-flow-phase hs-flow-phase--${p.id}${active ? ' is-active' : ''}`}>
+                        <button
+                          type="button"
+                          className="hs-flow-phase-btn"
+                          aria-pressed={active}
+                          disabled={!!checkpointPoll}
+                          title={p.sub}
+                          onClick={() => changeLessonPhase(p.id)}
+                        >
+                          {p.label}
+                        </button>
+                        {p.id === 'during' && active && (
+                          <span className="hs-flow-steps" role="list" aria-label="任務步驟">
+                            {steps.map((step, idx) => {
+                              const done = idx < lesson.doneCount;
+                              const current = idx === lesson.doneCount;
+                              return (
+                                <button
+                                  key={step.id}
+                                  type="button"
+                                  role="listitem"
+                                  className={`hs-flow-step${done ? ' is-done' : current ? ' is-current' : ''}`}
+                                  disabled={!!checkpointPoll || (!done && !current)}
+                                  title={`${idx + 1}. ${step.title || step.purpose || ''}
+${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請依序完成前面的步驟'}`}
+                                  aria-label={`第 ${idx + 1} 步${done ? '（已完成）' : current ? '（進行中）' : ''}`}
+                                  onClick={() => toggleLessonStep(idx)}
+                                >
+                                  {done ? '✓' : idx + 1}
+                                </button>
+                              );
+                            })}
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+                {lesson.phase === 'during' && (
+                  <button
+                    type="button"
+                    className="hs-flow-reset"
+                    disabled={!!checkpointPoll || lesson.doneCount === 0}
+                    title="所有步驟回到未完成"
+                    aria-label="重置步驟"
+                    onClick={resetAllLessons}
+                  >
+                    <span className="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+                  </button>
+                )}
+              </div>
+              {/* 第二列：目前的步驟或提問 */}
+              <div className="hs-lesson-banner-text">
                 {lesson.phase !== 'during' ? (
                   lessonQuestion && (
                     <>
