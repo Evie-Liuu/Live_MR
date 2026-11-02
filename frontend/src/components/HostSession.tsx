@@ -299,6 +299,9 @@ function SceneBackgroundControls({
   );
 }
 
+/** 右側 AI 助理面板是否顯示（目前不使用） */
+const SHOW_RIGHT_PANEL = false;
+
 const nameCollator = new Intl.Collator('zh-Hant', { numeric: true, sensitivity: 'base' });
 const byName = (a: string, b: string) => nameCollator.compare(a, b);
 
@@ -3044,48 +3047,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
                     style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
                   />
                 </div>
-                <ScriptTurnHostPanel
-                  turn={scriptTurn}
-                  lines={scriptLines}
-                  speakerStatus={speakerStatus}
-                  transcript={liveTurnTranscript}
-                  hintMode={lesson.turnHintMode ?? 'tiered'}
-                  hintLevel={liveTurnHint?.level ?? (speakerStatus === 'speaking' || speakerStatus === 'online' ? null : 0)}
-                  hintBy={liveTurnHint?.by ?? 'auto'}
-                  onHintModeChange={setTurnHintMode}
-                  hintAuto={lesson.turnHintAuto === true}
-                  onHintAutoChange={setTurnHintAuto}
-                  onGiveHint={giveTurnHint}
-                  blockedReason={scriptBlockedReason}
-                  isLastStep={lesson.doneCount >= lesson.record.task.steps.length - 1}
-                  onStart={startScriptTurn}
-                  onPrev={() => updateTurn(backTurn)}
-                  onNext={() => updateTurn(advanceTurn)}
-                  onTogglePause={() => updateTurn((_l, t) => setTurnPaused(t, t.status !== 'paused'))}
-                  onJump={i => updateTurn((l, t) => jumpTurn(l, t, i))}
-                  onNextStep={nextStepScriptTurn}
-                  onEnd={endScriptTurn}
-                />
-                <CheckpointHostPanel
-                  steps={lesson.record.task.steps}
-                  currentIndex={currentStepIndex(lesson)}
-                  level={lesson.record.task.level}
-                  poll={checkpointPoll}
-                  studentIds={studentIds}
-                  cast={checkpointCast}
-                  onPublish={publishCheckpoint}
-                  onToggleQuestionText={toggleCheckpointQuestionText}
-                  onClose={closeCheckpoint}
-                  onReveal={revealCheckpoint}
-                  onEnd={endCheckpoint}
-                  aiCheckpoints={lesson.aiCheckpoints?.[lesson.record.task.steps[currentStepIndex(lesson)]?.id ?? ''] ?? []}
-                  aiGenerating={aiCpGenerating}
-                  aiError={aiCpError}
-                  onGenerate={kind => { void generateStepCheckpoints(kind); }}
-                  aiSavingId={aiCpSavingId}
-                  onSaveAi={(stepId, cp) => { void saveAiCheckpoint(stepId, cp); }}
-                  onRemoveAi={removeAiCheckpoint}
-                />
+                <div className="hs-lesson-console-note">
+                  <span className="material-symbols-outlined" aria-hidden="true">east</span>
+                  登台展演與台下互動在畫面右側
+                </div>
                 </>
                 )}
               </div>
@@ -3407,7 +3372,56 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
               </div>
             </div>
 
-            {(() => {
+            {/* 任務中：右側展演控制（登台展演＋台下互動），控制鈕在影像旁 */}
+            {lesson && lesson.phase === 'during' && (
+              <aside className="hs-stage-console" aria-label="展演控制">
+                <ScriptTurnHostPanel
+                  turn={scriptTurn}
+                  lines={scriptLines}
+                  speakerStatus={speakerStatus}
+                  transcript={liveTurnTranscript}
+                  hintMode={lesson.turnHintMode ?? 'tiered'}
+                  hintLevel={liveTurnHint?.level ?? (speakerStatus === 'speaking' || speakerStatus === 'online' ? null : 0)}
+                  hintBy={liveTurnHint?.by ?? 'auto'}
+                  onHintModeChange={setTurnHintMode}
+                  hintAuto={lesson.turnHintAuto === true}
+                  onHintAutoChange={setTurnHintAuto}
+                  onGiveHint={giveTurnHint}
+                  blockedReason={scriptBlockedReason}
+                  isLastStep={lesson.doneCount >= lesson.record.task.steps.length - 1}
+                  onStart={startScriptTurn}
+                  onPrev={() => updateTurn(backTurn)}
+                  onNext={() => updateTurn(advanceTurn)}
+                  onTogglePause={() => updateTurn((_l, t) => setTurnPaused(t, t.status !== 'paused'))}
+                  onJump={i => updateTurn((l, t) => jumpTurn(l, t, i))}
+                  onNextStep={nextStepScriptTurn}
+                  onEnd={endScriptTurn}
+                />
+                <CheckpointHostPanel
+                  steps={lesson.record.task.steps}
+                  currentIndex={currentStepIndex(lesson)}
+                  level={lesson.record.task.level}
+                  poll={checkpointPoll}
+                  studentIds={studentIds}
+                  cast={checkpointCast}
+                  onPublish={publishCheckpoint}
+                  onToggleQuestionText={toggleCheckpointQuestionText}
+                  onClose={closeCheckpoint}
+                  onReveal={revealCheckpoint}
+                  onEnd={endCheckpoint}
+                  aiCheckpoints={lesson.aiCheckpoints?.[lesson.record.task.steps[currentStepIndex(lesson)]?.id ?? ''] ?? []}
+                  aiGenerating={aiCpGenerating}
+                  aiError={aiCpError}
+                  onGenerate={kind => { void generateStepCheckpoints(kind); }}
+                  aiSavingId={aiCpSavingId}
+                  onSaveAi={(stepId, cp) => { void saveAiCheckpoint(stepId, cp); }}
+                  onRemoveAi={removeAiCheckpoint}
+                />
+              </aside>
+            )}
+
+            {/* 右側 AI 助理／任務提示：目前不使用，先隱藏（SHOW_RIGHT_PANEL 改 true 即恢復） */}
+            {SHOW_RIGHT_PANEL && (() => {
               const currentTask = selectedTasks.find(t => !t.completed);
               const hint = currentTask ? resolveTaskHint(currentTask.id, lessonPlan?.plan) : undefined;
               const renderLevelContent = (lv: HintLevel) => {
