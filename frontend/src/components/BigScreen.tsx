@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useBigScreenScene, PLACEHOLDER_PREFIX } from '../hooks/useBigScreenScene.ts';
-import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes.ts';
+import { SCENE_PRESETS, DEFAULT_SCENE_ID, propForTask } from '../config/scenes.ts';
 import { useBigScreenEditor } from '../hooks/useBigScreenEditor';
 import BigScreenEditorOverlay, { ConfirmModal } from './BigScreenEditorOverlay';
 import type { GizmoHandle } from '../utils/editorGizmo';
@@ -805,7 +805,7 @@ export default function BigScreen() {
     sceneId,
     vrmSourceId,
     slotAssignments,
-    currentTaskId: turnProp?.id ?? currentTaskId,
+    currentPropId: turnProp?.id ?? propForTask(sceneId, currentTaskId),
     propGrabberIdentity: turnProp ? scriptTurn?.speaker.identity ?? null : undefined,
     onStats: undefined, // showStats ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),

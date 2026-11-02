@@ -128,6 +128,8 @@ export interface PropConfig {
 
 /** Task-associated prop: pre-loaded at scene start, placed at world-space coords */
 export interface TaskPropConfig {
+  /** 進行到這個任務時可以拿起此道具（任務清單的 task id）；未設定就只能由台詞指定 */
+  taskId?: string;
   /** 任務編輯器顯示的名稱；有名稱的道具才能指定給台詞 */
   label?: string;
   url: string;
@@ -144,14 +146,14 @@ export interface ScenePropSystem {
   policy?: 'auto-swap' | 'accumulate' | 'manual';
   /** Always-visible props loaded with the scene */
   staticProps?: PropConfig[];
-  /** Task prop registry: task ID → prop config (all pre-loaded, all visible) */
+  /** Task prop registry: 道具 id → prop config (all pre-loaded, all visible) */
   taskProps?: Record<string, TaskPropConfig>;
 }
 
 /** 群組成員引用（指向場景內既存的 slot / staticProp / taskProp） */
 export interface GroupMemberRef {
   kind: 'slot' | 'staticProp' | 'taskProp';
-  /** 對應 slot.id / staticProp.id / taskProp 的 task id（map key） */
+  /** 對應 slot.id / staticProp.id / taskProp 的道具 id（map key） */
   id: string;
 }
 

@@ -177,11 +177,11 @@ export const THEMES: ThemeConfig[] = [
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
-            'ask_price_1': { label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'ask_price_2': { label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'ask_price_3': { label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'ask_price_4': { label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'ask_price_5': { label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'tshirt_blue': { taskId: 'ask_price_1', label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'dress_red': { taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'pants_jeans': { taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
             'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], scale: 0.9 },
           },
@@ -204,11 +204,11 @@ export const THEMES: ThemeConfig[] = [
               { kind: 'slot', id: 'customer' },
               { kind: 'slot', id: 'customer2' },
               { kind: 'staticProp', id: 'rack' },
-              { kind: 'taskProp', id: 'ask_price_1' },
-              { kind: 'taskProp', id: 'ask_price_2' },
-              { kind: 'taskProp', id: 'ask_price_3' },
-              { kind: 'taskProp', id: 'ask_price_4' },
-              { kind: 'taskProp', id: 'ask_price_5' },
+              { kind: 'taskProp', id: 'tshirt_blue' },
+              { kind: 'taskProp', id: 'jacket_black' },
+              { kind: 'taskProp', id: 'dress_red' },
+              { kind: 'taskProp', id: 'shirt_white' },
+              { kind: 'taskProp', id: 'pants_jeans' },
             ],
           },
         ],
@@ -336,6 +336,13 @@ export const SCENE_PRESETS: Record<string, SceneConfig> = buildScenePresets();
 
 /** Default scene used on first load (first scene of first theme) */
 export const DEFAULT_SCENE_ID: string = THEMES[0].scenes[0].id;
+
+/** 這個任務對應的道具 id（TaskPropConfig.taskId）；沒有對應就回傳 undefined */
+export function propForTask(sceneId: string, taskId: string | undefined): string | undefined {
+  if (!taskId) return undefined;
+  return Object.entries(SCENE_PRESETS[sceneId]?.propSystem?.taskProps ?? {})
+    .find(([, cfg]) => cfg.taskId === taskId)?.[0];
+}
 
 /** 場景內可指定給台詞、讓發言者握拳拿起的道具 */
 export function grabbableProps(sceneId: string): { id: string; label: string }[] {

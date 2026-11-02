@@ -80,7 +80,7 @@ interface AvatarSlot {
     lastTaskId: string | undefined;
     /**
      * Task ID of the prop currently being lerped back to displayPos after a
-     * task switch (may differ from lastTaskId / currentTaskId).
+     * task switch (may differ from lastTaskId / currentPropId).
      */
     returningTaskId: string | undefined;
     /** performance.now() when hand landmarks were last seen (grace period) */
@@ -140,10 +140,10 @@ interface UseBigScreenSceneOptions {
   vrmSourceId?: string;
   /** Slot assignments from HostSession: slotId → participant identity */
   slotAssignments?: Record<string, string>;
-  /** Currently active task ID — tracked for Phase 2 interaction triggers */
-  currentTaskId?: string;
+  /** 目前可以拿起的道具 id（taskProps 的 key） */
+  currentPropId?: string;
   /**
-   * 只有這位可以拿起 currentTaskId 的道具（逐句演練的發言者）；null＝目前沒有人可以拿；
+   * 只有這位可以拿起 currentPropId 的道具（逐句演練的發言者）；null＝目前沒有人可以拿；
    * undefined＝不限制，誰都可以拿。
    */
   propGrabberIdentity?: string | null;
@@ -211,7 +211,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, propGrabberIdentity, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -477,9 +477,9 @@ export function useBigScreenScene(
     if (!cfg?.heldRotation) return;
     rotatePropToward(prop, effectiveDisplayRotRef.current.get(taskId) ?? cfg.rotation ?? [0, 0, 0], t);
   }, []);
-  /** Tracks the active task ID for Phase 2 interaction use */
-  const currentTaskIdRef = useRef<string | undefined>(undefined);
-  currentTaskIdRef.current = currentTaskId;
+  /** Tracks the active prop ID for interaction use */
+  const currentPropIdRef = useRef<string | undefined>(undefined);
+  currentPropIdRef.current = currentPropId;
   const propGrabberIdentityRef = useRef(propGrabberIdentity);
   propGrabberIdentityRef.current = propGrabberIdentity;
 
@@ -625,7 +625,7 @@ export function useBigScreenScene(
           if (!obj) continue;
           let isHeld = false;
           for (const slot of avatarsRef.current.values()) {
-            if (slot.interaction.propState === 'held' && currentTaskIdRef.current === m.id) {
+            if (slot.interaction.propState === 'held' && currentPropIdRef.current === m.id) {
               isHeld = true; break;
             }
           }
@@ -791,7 +791,7 @@ export function useBigScreenScene(
 
         // ── Prop interaction state machine ────────────────────────────────────
         {
-          const taskId = currentTaskIdRef.current;
+          const taskId = currentPropIdRef.current;
           const prop = taskId ? taskPropPoolRef.current.get(taskId) : undefined;
           const ia = slot.interaction;
 
