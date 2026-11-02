@@ -286,6 +286,8 @@ export interface PoseApplyState {
   rightHandBones: Record<string, BoneRotation>;
   /** performance.now() of the last kalidokit solve – feeds the solver's velocity gate (0 = never) */
   lastSolveAt: number;
+  /** 自然眼動（不跟偵測同步）：眨眼開始時間、下次眨眼時間、目前與下一個視線（秒為 performance.now()/1000） */
+  idleEyes: { blinkStart: number; nextBlinkAt: number; nextGazeAt: number; gazeYaw: number; gazePitch: number };
 }
 
 export function createPoseApplyState(): PoseApplyState {
@@ -304,6 +306,7 @@ export function createPoseApplyState(): PoseApplyState {
     leftHandBones,
     rightHandBones,
     lastSolveAt: 0,
+    idleEyes: { blinkStart: -1, nextBlinkAt: 0, nextGazeAt: 0, gazeYaw: 0, gazePitch: 0 },
   };
 }
 
@@ -455,25 +458,26 @@ export function applyPoseToVrm(
       // Expressions
       const em = vrm.expressionManager;
       if (em) {
-        // Kalidokit 的 l/r 是畫面上的左右（同手臂）：鏡像直接對應，同側才對調
-        const eyeL = mirror ? faceRig.eye.l : faceRig.eye.r;
-        const eyeR = mirror ? faceRig.eye.r : faceRig.eye.l;
+        // 眼睛改由 applyIdleEyes 自然眨眼、轉動，不再跟偵測同步（保留原本做法備查）
+        // // Kalidokit 的 l/r 是畫面上的左右（同手臂）：鏡像直接對應，同側才對調
+        // const eyeL = mirror ? faceRig.eye.l : faceRig.eye.r;
+        // const eyeR = mirror ? faceRig.eye.r : faceRig.eye.l;
 
-        // VRM blink: 0=open, 1=closed. Kalidokit eye: 0=closed, 1=open
-        // Prefer split blink only when at least one side has actual morph binds.
-        // Some models (e.g. Women_Clerk.vrm) declare blinkLeft/blinkRight as empty
-        // shells and bind the actual morph data to the unified 'blink' expression.
-        const exprBlinkL = em.getExpression('blinkLeft');
-        const exprBlinkR = em.getExpression('blinkRight');
-        const hasSplitBinds = (exprBlinkL?.binds.length ?? 0) > 0 || (exprBlinkR?.binds.length ?? 0) > 0;
-        if (hasSplitBinds) {
-          em.setValue('blinkLeft', THREE.MathUtils.lerp(em.getValue('blinkLeft') ?? 0, 1 - eyeL, t));
-          em.setValue('blinkRight', THREE.MathUtils.lerp(em.getValue('blinkRight') ?? 0, 1 - eyeR, t));
-        } else {
-          // Fall back to unified blink
-          const blinkVal = 1 - (eyeL + eyeR) / 2;
-          em.setValue('blink', THREE.MathUtils.lerp(em.getValue('blink') ?? 0, blinkVal, t));
-        }
+        // // VRM blink: 0=open, 1=closed. Kalidokit eye: 0=closed, 1=open
+        // // Prefer split blink only when at least one side has actual morph binds.
+        // // Some models (e.g. Women_Clerk.vrm) declare blinkLeft/blinkRight as empty
+        // // shells and bind the actual morph data to the unified 'blink' expression.
+        // const exprBlinkL = em.getExpression('blinkLeft');
+        // const exprBlinkR = em.getExpression('blinkRight');
+        // const hasSplitBinds = (exprBlinkL?.binds.length ?? 0) > 0 || (exprBlinkR?.binds.length ?? 0) > 0;
+        // if (hasSplitBinds) {
+        //   em.setValue('blinkLeft', THREE.MathUtils.lerp(em.getValue('blinkLeft') ?? 0, 1 - eyeL, t));
+        //   em.setValue('blinkRight', THREE.MathUtils.lerp(em.getValue('blinkRight') ?? 0, 1 - eyeR, t));
+        // } else {
+        //   // Fall back to unified blink
+        //   const blinkVal = 1 - (eyeL + eyeR) / 2;
+        //   em.setValue('blink', THREE.MathUtils.lerp(em.getValue('blink') ?? 0, blinkVal, t));
+        // }
 
         em.setValue('aa', THREE.MathUtils.lerp(em.getValue('aa') ?? 0, faceRig.mouth.shape.A, t));
         em.setValue('ee', THREE.MathUtils.lerp(em.getValue('ee') ?? 0, faceRig.mouth.shape.E, t));
@@ -483,9 +487,62 @@ export function applyPoseToVrm(
       }
     }
   }
+
+  // ── Eyes：自然眨眼與小幅視線移動（不偵測同步）──────────────────────────────
+  applyIdleEyes(vrm, state.idleEyes);
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
+
+const BLINK_SECONDS = 0.15;
+
+/**
+ * 角色自己的眼動：每 2～6 秒眨一次眼，每 1.5～4 秒換一次視線（左右 ±8°、上下 ±4°），
+ * 跟學生臉部偵測無關，避免辨識雜訊造成眼睛抖動或半閉。
+ */
+function applyIdleEyes(vrm: VRM, eyes: PoseApplyState['idleEyes']): void {
+  const now = performance.now() / 1000;
+  if (eyes.nextBlinkAt === 0) {
+    eyes.nextBlinkAt = now + 1 + Math.random() * 3;
+    eyes.nextGazeAt = now + Math.random() * 2;
+  }
+
+  const em = vrm.expressionManager;
+  if (em) {
+    if (eyes.blinkStart < 0 && now >= eyes.nextBlinkAt) eyes.blinkStart = now;
+    let blink = 0;
+    if (eyes.blinkStart >= 0) {
+      const k = (now - eyes.blinkStart) / BLINK_SECONDS;
+      if (k >= 1) {
+        eyes.blinkStart = -1;
+        eyes.nextBlinkAt = now + 2 + Math.random() * 4;
+      } else {
+        blink = Math.sin(k * Math.PI);
+      }
+    }
+    // 有些模型只把 morph 綁在 blink，有些只綁在 blinkLeft/Right
+    if ((em.getExpression('blink')?.binds.length ?? 0) > 0) {
+      em.setValue('blink', blink);
+    } else {
+      em.setValue('blinkLeft', blink);
+      em.setValue('blinkRight', blink);
+    }
+  }
+
+  const lookAt = vrm.lookAt;
+  if (lookAt && !lookAt.target) {
+    if (now >= eyes.nextGazeAt) {
+      // 大多時候看前方，偶爾瞄向旁邊
+      const center = Math.random() < 0.5;
+      eyes.gazeYaw = center ? 0 : (Math.random() * 2 - 1) * 8;
+      eyes.gazePitch = center ? 0 : (Math.random() * 2 - 1) * 4;
+      eyes.nextGazeAt = now + 1.5 + Math.random() * 2.5;
+    }
+    // 眼球轉動很快（約 0.1 秒到位）
+    lookAt.yaw = THREE.MathUtils.lerp(lookAt.yaw, eyes.gazeYaw, 0.35);
+    lookAt.pitch = THREE.MathUtils.lerp(lookAt.pitch, eyes.gazePitch, 0.35);
+  }
+}
 
 /**
  * Apply pre-solved hand bone quaternions directly to the VRM humanoid.
