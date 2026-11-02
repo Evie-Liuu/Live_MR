@@ -6,6 +6,8 @@ import type { VRM } from '@pixiv/three-vrm';
 const _bonePos = new THREE.Vector3();   // used by attachPropToHand
 const _ndcPos = new THREE.Vector3();   // used by projectToUV
 const _offsetVec = new THREE.Vector3();
+const _targetEuler = new THREE.Euler();
+const _targetQuat = new THREE.Quaternion();
 
 // ---------------------------------------------------------------------------
 // Fresnel rim-glow shader patch
@@ -185,6 +187,17 @@ export function attachPropToHand(
     // Approaching from hanger — lerp for a smooth pick-up feel.
     group.position.lerp(_bonePos, 0.3);
   }
+}
+
+/** 每幀把道具朝目標角度轉一點（t 為 0~1 的插值比例） */
+export function rotatePropToward(
+  group: THREE.Group,
+  rotation: [number, number, number],
+  t: number,
+): void {
+  _targetEuler.set(...rotation);
+  _targetQuat.setFromEuler(_targetEuler);
+  group.quaternion.slerp(_targetQuat, Math.min(1, t));
 }
 
 /**

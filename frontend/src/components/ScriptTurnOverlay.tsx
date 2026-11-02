@@ -80,6 +80,7 @@ export default function ScriptTurnOverlay(props: ScriptTurnOverlayProps) {
         <div className="sto-center">
           <div id="sto-speak-title" className="sto-your-turn">輪到你了</div>
           <TurnHint turn={turn} level={props.hintLevel} />
+          {turn.prop && <div className="sto-prop-cue">✊ 舉起手握拳，拿起{turn.prop.label}</div>}
           <div className={`sto-mic${props.speakerTalking ? ' is-live' : ''}`} aria-hidden="true">
             <span className="sto-mic-ring" style={{ transform: `scale(${scale})` }} />
             <span className="material-symbols-outlined sto-mic-icon">mic</span>

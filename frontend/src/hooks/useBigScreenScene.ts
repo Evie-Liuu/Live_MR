@@ -46,6 +46,7 @@ import {
   projectToUV,
   attachPropToHand,
   returnPropToDisplay,
+  rotatePropToward,
 } from '../utils/propInteraction';
 import {
   detectFist,
@@ -141,6 +142,11 @@ interface UseBigScreenSceneOptions {
   slotAssignments?: Record<string, string>;
   /** Currently active task ID — tracked for Phase 2 interaction triggers */
   currentTaskId?: string;
+  /**
+   * 只有這位可以拿起 currentTaskId 的道具（逐句演練的發言者）；null＝目前沒有人可以拿；
+   * undefined＝不限制，誰都可以拿。
+   */
+  propGrabberIdentity?: string | null;
   /** Called once per frame with renderer stats. Only passed when stats panel is visible. */
   onStats?: (s: StatsSnapshot) => void;
   /**
@@ -205,7 +211,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentTaskId, propGrabberIdentity, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -463,9 +469,19 @@ export function useBigScreenScene(
 
   /** 套用群組變換後的 taskProp displayPos：taskId → final pos。 */
   const effectiveDisplayPosRef = useRef<Map<string, Vec3>>(new Map());
+  /** 套用群組變換後的 taskProp 擺放角度：taskId → final rot。 */
+  const effectiveDisplayRotRef = useRef<Map<string, Vec3>>(new Map());
+  /** 有 heldRotation 的道具放回時轉回擺放角度（t=1 直接到位）。 */
+  const restorePropRotation = useCallback((prop: THREE.Group, taskId: string, t: number) => {
+    const cfg = presetRef.current.propSystem?.taskProps?.[taskId];
+    if (!cfg?.heldRotation) return;
+    rotatePropToward(prop, effectiveDisplayRotRef.current.get(taskId) ?? cfg.rotation ?? [0, 0, 0], t);
+  }, []);
   /** Tracks the active task ID for Phase 2 interaction use */
   const currentTaskIdRef = useRef<string | undefined>(undefined);
   currentTaskIdRef.current = currentTaskId;
+  const propGrabberIdentityRef = useRef(propGrabberIdentity);
+  propGrabberIdentityRef.current = propGrabberIdentity;
 
   const onStatsRef = useRef<((s: StatsSnapshot) => void) | undefined>(undefined);
   onStatsRef.current = onStats;
@@ -602,6 +618,7 @@ export function useBigScreenScene(
           if (!base) continue;
           const finalT = applyGroupTransform(base, pivot, t);
           effectiveDisplayPosRef.current.set(m.id, finalT.pos);
+          effectiveDisplayRotRef.current.set(m.id, finalT.rot);
 
           // 只有 displayed 狀態才直接寫 prop.position；held/returning 由 RAF loop 處理
           const obj = resolveMemberObject(m);
@@ -822,6 +839,7 @@ export function useBigScreenScene(
             if (returningProp && dp) {
               _displayPosVec.set(...dp);
               const arrived = returnPropToDisplay(returningProp, _displayPosVec, delta);
+              restorePropRotation(returningProp, ia.returningTaskId, arrived ? 1 : delta * 8);
               if (arrived) {
                 ia.propState = 'displayed';
                 ia.returningTaskId = undefined;
@@ -835,6 +853,10 @@ export function useBigScreenScene(
           }
 
           if (!taskId || !prop) continue; // no prop for this task — skip
+
+          // 限定發言者時，其他人不能拿也不觸發發亮；已經拿著的人照常跟手、放下
+          const grabber = propGrabberIdentityRef.current;
+          if (ia.propState === 'displayed' && grabber !== undefined && grabber !== identity) continue;
 
           // ── Hand landmarks from last known frame ───────────────────────────
           const frame = slot.lastFrame;
@@ -858,6 +880,7 @@ export function useBigScreenScene(
               const effective = effectiveDisplayPosRef.current.get(taskId);
               const dp = effective ?? dpCfg;
               if (dp) prop.position.copy(_displayPosVec.set(...dp));
+              restorePropRotation(prop, taskId, 1);
             }
 
             // console.log(heldBy);
@@ -915,6 +938,8 @@ export function useBigScreenScene(
 
             // 剛抓取時 (inCooldown) held=false 以產生平滑飛向手部的 lerp 動畫
             attachPropToHand(prop, slot.vrm, ia.lockHand, !inCooldown);
+            const heldRotation = presetRef.current.propSystem?.taskProps?.[taskId]?.heldRotation;
+            if (heldRotation) rotatePropToward(prop, heldRotation, delta * 8);
 
             if (!hLandmarks || hLandmarks.length < 21) {
               // Grace period: 500 ms before forcing a release on landmark loss
@@ -945,6 +970,7 @@ export function useBigScreenScene(
             if (dp) {
               _displayPosVec.set(...dp);
               const arrived = returnPropToDisplay(prop, _displayPosVec, delta);
+              restorePropRotation(prop, taskId, arrived ? 1 : delta * 8);
               if (arrived) {
                 ia.propState = 'displayed';
               }

@@ -32,6 +32,19 @@ const cast: TurnCast = {
 };
 
 describe('scriptTurn', () => {
+  it('帶出這句的道具；場景沒有的道具視為沒有', () => {
+    const withProp = (prop: string): HostLessonState => {
+      const [step, ...rest] = record.task.steps;
+      const [first, ...others] = step.lines;
+      return lesson({ record: { ...record, task: { ...record.task, steps: [{ ...step, lines: [{ ...first, prop }, ...others] }, ...rest] } } });
+    };
+    const l = withProp('tshirt_red');
+    expect(resolveTurn(l, startTurn(l), cast)?.prop).toEqual({ id: 'tshirt_red', label: '紅色 T 恤' });
+    const missing = withProp('no_such_prop');
+    expect(resolveTurn(missing, startTurn(missing), cast)?.prop).toBeNull();
+    expect(resolveTurn(lesson(), startTurn(lesson()), cast)?.prop).toBeNull();
+  });
+
   it('跳過英文空白的台詞', () => {
     expect(stepLines(lesson()).map(l => l.id)).toEqual(['a', 'c', 'd']);
   });

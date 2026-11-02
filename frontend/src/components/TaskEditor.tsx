@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { THEMES } from '../config/scenes.ts';
+import { THEMES, grabbableProps } from '../config/scenes.ts';
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
   MAX_CAST_OPTIONS, MAX_CHECKPOINTS_PER_STEP, MAX_CHECKPOINT_OPTIONS, MAX_TAGS, MAX_TAG_LEN, MIN_CHECKPOINT_OPTIONS,
@@ -82,6 +82,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
 
   const scene = SCENES.find(s => s.id === task.sceneId);
   const slots = useMemo(() => scene?.slots ?? [], [scene]);
+  const sceneProps = useMemo(() => grabbableProps(task.sceneId), [task.sceneId]);
   const activeIndex = Math.max(0, task.steps.findIndex(s => s.id === activeStepId));
   const step: DialogueStep | undefined = task.steps[activeIndex];
   const timings = useMemo(() => stepTimings(step?.lines ?? []), [step]);
@@ -241,14 +242,19 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
 
   const changeScene = (sceneId: string) => {
     const nextSlots = SCENES.find(s => s.id === sceneId)?.slots ?? [];
-    // 換場景時，舊角色對不上的台詞改指派給新場景的第一個角色；併角規則的角色 id 也對不上，一併清掉
+    const nextProps = grabbableProps(sceneId);
+    // 換場景時，舊角色對不上的台詞改指派給新場景的第一個角色；併角規則的角色 id 也對不上，一併清掉；新場景沒有的道具也清掉
     edit(t => {
       const next: DialogueTask = {
         ...t,
         sceneId,
         steps: t.steps.map(s => ({
           ...s,
-          lines: s.lines.map(l => (nextSlots.some(sl => sl.id === l.speakerSlotId) ? l : { ...l, speakerSlotId: nextSlots[0]?.id ?? '' })),
+          lines: s.lines.map(l => ({
+            ...l,
+            speakerSlotId: nextSlots.some(sl => sl.id === l.speakerSlotId) ? l.speakerSlotId : nextSlots[0]?.id ?? '',
+            prop: nextProps.some(p => p.id === l.prop) ? l.prop : undefined,
+          })),
         })),
       };
       delete next.castOptions;
@@ -461,6 +467,18 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                                 <option value="">無動作</option>
                                 {GESTURES.map(g => <option key={g.id} value={g.id}>{g.icon} {g.label}</option>)}
                               </select>
+                              {sceneProps.length > 0 && (
+                                <select
+                                  className={`te-gesture${line.prop ? ' has-gesture' : ''}`}
+                                  value={line.prop ?? ''}
+                                  aria-label="道具互動"
+                                  title="上課輪到這句時，發言者舉手握拳就能拿起這個道具，張開手放下（模擬播放不會顯示）"
+                                  onChange={e => editLine(line.id, { prop: e.target.value || undefined })}
+                                >
+                                  <option value="">無道具</option>
+                                  {sceneProps.map(p => <option key={p.id} value={p.id}>✊ 拿起{p.label}</option>)}
+                                </select>
+                              )}
                               <span className="te-line-tools">
                                 <button className="te-mini-btn" onClick={() => moveLine(i, -1)} disabled={i === 0} aria-label="上移台詞">
                                   <span className="material-symbols-outlined">arrow_upward</span>

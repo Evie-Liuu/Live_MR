@@ -799,11 +799,14 @@ export default function BigScreen() {
   const [gizmoHandle, setGizmoHandle] = useState<GizmoHandle | null>(null);
   const [occluderRoots, setOccluderRoots] = useState<ReadonlyMap<string, Object3D>>(new Map());
 
+  // 逐句演練：這句有指定道具時，只有發言者能握拳拿起
+  const turnProp = scriptTurn?.status === 'running' ? scriptTurn.prop ?? null : null;
   const { applyPose, removeAvatar, swapAvatar, setVrmOverride, ensureAvatar } = useBigScreenScene(canvasRef, {
     sceneId,
     vrmSourceId,
     slotAssignments,
-    currentTaskId,
+    currentTaskId: turnProp?.id ?? currentTaskId,
+    propGrabberIdentity: turnProp ? scriptTurn?.speaker.identity ?? null : undefined,
     onStats: undefined, // showStats ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,

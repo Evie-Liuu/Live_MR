@@ -143,6 +143,18 @@ describe('dialogue task routes', () => {
     expect(res.body.task.steps[0].lines[1]).not.toHaveProperty('gesture')
   })
 
+  it('keeps valid prop ids and drops malformed ones', async () => {
+    const task = sampleTask()
+    task.steps[0].lines = [
+      { ...task.steps[0].lines[0], prop: 'tshirt_red' },
+      { ...task.steps[0].lines[1], prop: '<bad id>' },
+    ]
+    const res = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task })
+    expect(res.status).toBe(201)
+    expect(res.body.task.steps[0].lines[0].prop).toBe('tshirt_red')
+    expect(res.body.task.steps[0].lines[1]).not.toHaveProperty('prop')
+  })
+
   it('converts legacy levels (A2 / B1) to the new level bands', async () => {
     const a2 = await request(app).post('/api/dialogue-tasks').send({ teacherUid: 't1', task: { ...sampleTask(), level: 'A2' } })
     expect(a2.body.task.level).toBe('A1-A2')

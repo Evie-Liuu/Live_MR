@@ -6,6 +6,7 @@
  * 英文空白的台詞跳過。seq 每次換句、換發言者都 +1，學生回報「說完了」時帶回，用來丟掉過期回報。
  */
 import type { DialogueLine } from '../types/dialogueTask.ts';
+import { grabbableProps } from '../config/scenes.ts';
 import { ROLE_COLORS } from './nameplates.ts';
 import type { TurnHintMode } from './turnHints.ts';
 import { currentStepIndex, isLessonDone, lessonTask, type HostLessonState } from './lessonSession.ts';
@@ -44,6 +45,8 @@ export interface ScriptTurn {
   /** 下一句的發言者；本步最後一句時為 null */
   next: TurnPerson | null;
   line: { en: string; zh: string };
+  /** 這句發言者可握拳拿起的道具；沒有或場景找不到時為 null */
+  prop: { id: string; label: string } | null;
   /** 下一句的英文（給下一位先準備） */
   nextLine: string | null;
   /** 發言者畫面的台詞提示方式 */
@@ -139,6 +142,7 @@ export function resolveTurn(lesson: HostLessonState, turn: ScriptTurnState, cast
     speaker: person(line.speakerSlotId, cast),
     next: nextLine ? person(nextLine.speakerSlotId, cast) : null,
     line: { en: line.en, zh: line.zh },
+    prop: grabbableProps(lessonTask(lesson).sceneId).find(p => p.id === line.prop) ?? null,
     nextLine: nextLine?.en ?? null,
     hintMode: lesson.turnHintMode ?? 'tiered',
     hintAuto: lesson.turnHintAuto === true,

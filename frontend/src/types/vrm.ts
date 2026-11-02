@@ -128,9 +128,13 @@ export interface PropConfig {
 
 /** Task-associated prop: pre-loaded at scene start, placed at world-space coords */
 export interface TaskPropConfig {
+  /** 任務編輯器顯示的名稱；有名稱的道具才能指定給台詞 */
+  label?: string;
   url: string;
   displayPos: [x: number, y: number, z: number];
   rotation?: [x: number, y: number, z: number];
+  /** 拿在手上時轉成這個角度（例如平放櫃檯的衣服，拿起來改成垂掛）；放回時轉回 rotation。未設定就不轉 */
+  heldRotation?: [x: number, y: number, z: number];
   scale?: number;
 }
 

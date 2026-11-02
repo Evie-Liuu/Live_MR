@@ -12,11 +12,18 @@ export interface DialogueLine {
   zh: string
   /** 說這句時角色做的動作（選填） */
   gesture?: GestureId
+  /** 輪到這句時發言者可握拳拿起的道具（前端場景 taskProps 的 id） */
+  prop?: string
 }
 
 /** 動作庫 id，與前端 frontend/src/config/gestures.ts 一致 */
 export const GESTURE_IDS = ['wave', 'nod', 'bow', 'point', 'handOver', 'thumbsUp', 'happy'] as const
 export type GestureId = typeof GESTURE_IDS[number]
+
+/** 道具 id 由前端場景設定決定，後端只檢查格式；場景沒有這個道具時上課會直接略過 */
+export function isPropId(v: unknown): v is string {
+  return typeof v === 'string' && /^[\w-]{1,64}$/.test(v)
+}
 
 export function isGestureId(v: unknown): v is GestureId {
   return typeof v === 'string' && (GESTURE_IDS as readonly string[]).includes(v)

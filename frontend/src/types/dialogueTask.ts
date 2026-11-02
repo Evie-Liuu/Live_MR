@@ -13,6 +13,8 @@ export interface DialogueLine {
   zh: string
   /** 說這句時角色做的動作（選填，見 config/gestures.ts） */
   gesture?: GestureId
+  /** 輪到這句時發言者可握拳拿起的道具（場景 taskProps 的 id，見 config/scenes.ts） */
+  prop?: string
 }
 
 /**

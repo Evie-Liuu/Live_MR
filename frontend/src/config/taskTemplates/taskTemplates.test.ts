@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { THEMES } from '../scenes.ts';
+import { THEMES, grabbableProps } from '../scenes.ts';
 import { CEFR_LEVELS } from '../../types/lessonPlan.ts';
 import { isGestureId } from '../gestures.ts';
 import {
@@ -61,6 +61,13 @@ describe('內建任務模板', () => {
     it('動作都在動作庫裡', () => {
       for (const line of tpl.task.steps.flatMap(s => s.lines)) {
         if (line.gesture !== undefined) expect(isGestureId(line.gesture), `${line.id} 的動作 ${line.gesture} 不在動作庫`).toBe(true);
+      }
+    });
+
+    it('台詞指定的道具都存在於場景', () => {
+      const ids = grabbableProps(tpl.task.sceneId).map(p => p.id);
+      for (const line of tpl.task.steps.flatMap(s => s.lines)) {
+        if (line.prop !== undefined) expect(ids, `${line.id} 的道具 ${line.prop} 不在場景`).toContain(line.prop);
       }
     });
 

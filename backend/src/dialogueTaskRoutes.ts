@@ -6,7 +6,7 @@ import { isSceneContext } from './lessonPlanRoutes.js'
 import { generateDialogueTask } from './ai/dialogueTask.js'
 import { MAX_GENERATED_CHECKPOINTS, generateCheckpoints, type CheckpointKindRequest, type CheckpointRequest } from './ai/checkpoints.js'
 import {
-  isGestureId, normalizeTags, MAX_CHECKPOINTS_PER_STEP, MIN_CHECKPOINT_OPTIONS, MAX_CHECKPOINT_OPTIONS,
+  isGestureId, isPropId, normalizeTags, MAX_CHECKPOINTS_PER_STEP, MIN_CHECKPOINT_OPTIONS, MAX_CHECKPOINT_OPTIONS,
   MAX_CAST_OPTIONS, MAX_CAST_MERGES, type AudienceCheckpoint, type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type TemplateSource,
 } from './dialogueTaskTypes.js'
 
@@ -102,6 +102,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
       lines: s.lines.map(l => ({
         id: l.id, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh,
         ...(isGestureId(l.gesture) ? { gesture: l.gesture } : {}),
+        ...(isPropId(l.prop) ? { prop: l.prop } : {}),
       })),
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
       ...(s.checkpoints?.length ? {

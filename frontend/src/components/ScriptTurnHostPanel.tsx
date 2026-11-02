@@ -129,6 +129,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
             <span className="stp-speaker-status">{STATUS_TEXT[speakerStatus]}</span>
           </div>
           <div className="stp-now-en">{current.en}</div>
+          {turn.prop && <div className="stp-prop-cue">✊ 握拳拿起{turn.prop.label}</div>}
           {transcript && <div className="stp-transcript">“{transcript}”</div>}
         </div>
       )}

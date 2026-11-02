@@ -395,3 +395,11 @@
   margin: 0;
   accent-color: #F76E12;
 }
+
+/* 這句要拿起的道具 */
+.stp-prop-cue {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5B3FD6;
+}
