@@ -3036,26 +3036,48 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
                     style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
                   />
                 </div>
-                <div className="hs-task-preview-list">
+                {/* 步驟改成一排編號，只展開目前這一步的目的，節省側欄高度 */}
+                <div className="hs-step-strip" role="list" aria-label="任務步驟">
                   {lesson.record.task.steps.map((step, idx) => {
                     const done = idx < lesson.doneCount;
                     const current = idx === lesson.doneCount;
                     return (
-                      <label
+                      <button
                         key={step.id}
-                        className={`hs-task-preview-row ${done ? 'completed' : current ? 'current' : ''}`}
-                        title={done ? '點擊取消完成' : current ? '點擊標記此階段完成' : '請依序完成前面的步驟'}
-                        onClick={e => { e.stopPropagation(); e.preventDefault(); toggleLessonStep(idx); }}
+                        type="button"
+                        role="listitem"
+                        className={`hs-step-dot ${done ? 'is-done' : current ? 'is-current' : ''}`}
+                        disabled={!done && !current}
+                        title={`${idx + 1}. ${step.purpose || step.title || ''}
+${done ? '點擊取消完成' : current ? '點擊標記此階段完成' : '請依序完成前面的步驟'}`}
+                        aria-label={`第 ${idx + 1} 步${done ? '（已完成）' : current ? '（進行中）' : ''}`}
+                        onClick={e => { e.stopPropagation(); toggleLessonStep(idx); }}
                       >
-                        <input type="checkbox" checked={done} disabled={!done && !current} readOnly onClick={e => e.stopPropagation()} />
-                        <span>{idx + 1}. </span>
-                        <span>{step.purpose ? `${step.purpose}` : ''}</span>
-                        {/* <span>{idx + 1}. {step.title || '未命名步驟'}{step.purpose ? `（${step.purpose}）` : ''}</span> */}
-                      </label>
+                        {done ? '✓' : idx + 1}
+                      </button>
                     );
                   })}
-                  {/* {lessonDone && <div className="hs-lesson-done">✓ 所有步驟完成</div>} */}
+                  <span className="hs-step-reset-wrap">
+                    <button
+                      type="button"
+                      className="hs-step-reset"
+                      title="所有步驟回到未完成"
+                      onClick={e => { e.stopPropagation(); resetAllLessons(); }}
+                    >
+                      ↺ 重置
+                    </button>
+                  </span>
                 </div>
+                {(() => {
+                  const step = lesson.record.task.steps[lesson.doneCount];
+                  return (
+                    <div className="hs-step-current">
+                      {step
+                        ? <><span className="hs-step-current-num">步驟 {lesson.doneCount + 1}</span>{step.purpose || step.title || '未命名步驟'}</>
+                        : <span className="hs-step-current-num">✓ 所有步驟完成</span>}
+                    </div>
+                  );
+                })()}
                 <ScriptTurnHostPanel
                   turn={scriptTurn}
                   lines={scriptLines}
@@ -3098,7 +3120,6 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
                   onSaveAi={(stepId, cp) => { void saveAiCheckpoint(stepId, cp); }}
                   onRemoveAi={removeAiCheckpoint}
                 />
-                <div className="hs-task-reset" onClick={(e) => { e.stopPropagation(); resetAllLessons(); }}>↺ 重置全部</div>
                 </>
                 )}
               </div>

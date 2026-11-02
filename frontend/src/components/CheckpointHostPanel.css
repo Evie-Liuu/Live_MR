@@ -324,6 +324,7 @@
 .cph-ai {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   margin-top: 10px;
   padding-top: 8px;
@@ -336,6 +337,7 @@
 }
 
 .cph .cph-ai-kind {
+  white-space: nowrap;
   padding: 2px 8px;
   border: 1px solid #E0D6CC;
   border-radius: 999px;
@@ -371,4 +373,27 @@
   font-size: 12px;
   font-weight: 700;
   color: #D64545;
+}
+
+/* 收合時只留一行標題 */
+.cph .cph-toggle {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cph.is-collapsed {
+  padding: 8px 12px;
+}
+
+.cph-chevron {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #136B6D;
 }

@@ -43,7 +43,7 @@
 
 .stp-lines {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -91,13 +91,74 @@
   white-space: nowrap;
 }
 
+/* 目前這一句：完整顯示，不截斷 */
+.stp-now {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border-left: 5px solid var(--role-color);
+  background: #fff;
+  box-shadow: inset 0 0 0 2px var(--role-color);
+}
+
+.stp-now.is-warn { box-shadow: inset 0 0 0 2px #D64545; }
+
+.stp-now-en {
+  margin-top: 4px;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .stp-speaker {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
   font-size: 14px;
   font-weight: 800;
+}
+
+/* 下一句預覽 */
+.stp-next-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a6a4a;
+}
+
+.stp-next-label { flex-shrink: 0; }
+
+.stp-next-who {
+  flex-shrink: 0;
+  font-weight: 800;
+  color: var(--role-color);
+}
+
+.stp-next-en {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 全部台詞（收合） */
+.stp-all {
+  margin-top: 8px;
+}
+
+.stp-all > summary {
+  font-size: 12px;
+  font-weight: 800;
+  color: #8a6a4a;
+  cursor: pointer;
+}
+
+.stp-all[open] .stp-line-en {
+  white-space: normal;
 }
 
 .stp-speaker-name {
@@ -145,6 +206,7 @@
 
 .stp-transcript {
   margin-top: 6px;
+  overflow-wrap: anywhere;
   padding: 6px 8px;
   border-radius: 8px;
   background: #F3F4F4;
@@ -153,11 +215,19 @@
   color: #482607;
 }
 
+/* 控制鈕固定在側欄底部，捲動時也按得到 */
 .stp-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 10px;
+  margin: 10px -12px -12px;
+  padding: 10px 12px 12px;
+  border-radius: 0 0 13px 13px;
+  background: #FDF1D3;
+  box-shadow: 0 -6px 10px -8px rgba(72, 38, 7, 0.35);
 }
 
 .stp .stp-btn {

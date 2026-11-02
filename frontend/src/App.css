@@ -4288,6 +4288,8 @@ button:disabled {
 
 /* 任務卡內：步驟列與階段 tab 灰暗 */
 .hs-sidebar.is-poll-active .hs-task-preview-row,
+.hs-sidebar.is-poll-active .hs-step-dot,
+.hs-sidebar.is-poll-active .hs-step-reset,
 .hs-sidebar.is-poll-active .hs-lesson-phase,
 .hs-sidebar.is-poll-active .hs-lesson-question,
 .hs-sidebar.is-poll-active .hs-task-reset {
@@ -8064,6 +8066,77 @@ button:disabled {
 
 .hs-lesson-steps {
   text-align: left;
+}
+
+/* 任務步驟：一排編號 */
+.hs-step-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hs-step-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 3px solid #95CC4D;
+  border-radius: 50%;
+  background: #fff;
+  color: #482607;
+  font: 900 14px/1 'Nunito', sans-serif;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hs-step-dot.is-done {
+  opacity: 1;
+  background: #95CC4D;
+  color: #fff;
+  cursor: pointer;
+}
+
+.hs-step-dot.is-current {
+  opacity: 1;
+  border-color: #F76E12;
+  background: #FFF1E6;
+  color: #C05621;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px rgba(247, 110, 18, 0.2);
+}
+
+.hs-step-reset-wrap {
+  margin-left: auto;
+}
+
+.hs-step-reset {
+  padding: 2px 8px;
+  border: 1px solid #E0D6CC;
+  border-radius: 999px;
+  background: #fff;
+  color: #8a6a4a;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hs-step-reset:hover {
+  border-color: #D64545;
+  color: #D64545;
+}
+
+.hs-step-current {
+  font-size: 15px;
+  font-weight: 800;
+  color: #482607;
+  line-height: 1.35;
+}
+
+.hs-step-current-num {
+  margin-right: 6px;
+  color: #C05621;
 }
 
 .hs-lesson-preview-title {

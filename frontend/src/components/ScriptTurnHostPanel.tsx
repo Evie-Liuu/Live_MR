@@ -108,6 +108,8 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
   const warn = speakerStatus === 'offline' || speakerStatus === 'unassigned';
   // 學生演出時提示送到 iPad 和大屏；老師演出、未指派、離線時只顯示在大屏
   const studentSpeaking = speakerStatus === 'speaking' || speakerStatus === 'online';
+  const current = lines[turn.lineIndex];
+  const upNext = lines[turn.lineIndex + 1];
 
   return (
     <div className="stp" onClick={stop}>
@@ -119,32 +121,15 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
       </div>
       <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} auto={props.hintAuto} onAutoChange={props.onHintAutoChange} />
 
-      <ol className="stp-lines">
-        {lines.map((l, i) => {
-          const isCurrent = i === turn.lineIndex && !stepEnd;
-          const isDone = i < turn.lineIndex || stepEnd;
-          return (
-            <li key={l.id}>
-              <button
-                type="button"
-                className={`stp-line${isCurrent ? ' is-current' : ''}${isDone ? ' is-done' : ''}`}
-                style={{ ['--role-color' as string]: l.speaker.color }}
-                onClick={() => props.onJump(i)}
-                title="跳到這一句"
-              >
-                <span className="stp-line-who">{l.speaker.label}・{l.speaker.name}</span>
-                <span className="stp-line-en">{l.en}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-
-      {!stepEnd && (
-        <div className={`stp-speaker${warn ? ' is-warn' : ''}`} style={{ ['--role-color' as string]: turn.speaker.color }}>
-          <span className={`stp-dot stp-dot--${speakerStatus}`} aria-hidden="true" />
-          <span className="stp-speaker-name">{turn.speaker.label}・{turn.speaker.name}</span>
-          <span className="stp-speaker-status">{STATUS_TEXT[speakerStatus]}</span>
+      {!stepEnd && current && (
+        <div className={`stp-now${warn ? ' is-warn' : ''}`} style={{ ['--role-color' as string]: turn.speaker.color }}>
+          <div className="stp-speaker">
+            <span className={`stp-dot stp-dot--${speakerStatus}`} aria-hidden="true" />
+            <span className="stp-speaker-name">{turn.speaker.label}・{turn.speaker.name}</span>
+            <span className="stp-speaker-status">{STATUS_TEXT[speakerStatus]}</span>
+          </div>
+          <div className="stp-now-en">{current.en}</div>
+          {transcript && <div className="stp-transcript">“{transcript}”</div>}
         </div>
       )}
       {!stepEnd && warn && (
@@ -172,7 +157,38 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
           {props.hintBy === 'teacher' && <span className="stp-hints-by">老師給</span>}
         </div>
       )}
-      {!stepEnd && transcript && <div className="stp-transcript">“{transcript}”</div>}
+      {!stepEnd && upNext && (
+        <div className="stp-next-line" style={{ ['--role-color' as string]: upNext.speaker.color }}>
+          <span className="stp-next-label">下一句</span>
+          <span className="stp-next-who">{upNext.speaker.label}</span>
+          <span className="stp-next-en">{upNext.en}</span>
+        </div>
+      )}
+
+      {/* 全部台詞平常收合，要跳句再展開 */}
+      <details className="stp-all">
+        <summary>全部台詞（{lines.length} 句）・點一句可跳過去</summary>
+        <ol className="stp-lines">
+          {lines.map((l, i) => {
+            const isCurrent = i === turn.lineIndex && !stepEnd;
+            const isDone = i < turn.lineIndex || stepEnd;
+            return (
+              <li key={l.id}>
+                <button
+                  type="button"
+                  className={`stp-line${isCurrent ? ' is-current' : ''}${isDone ? ' is-done' : ''}`}
+                  style={{ ['--role-color' as string]: l.speaker.color }}
+                  onClick={() => props.onJump(i)}
+                  title="跳到這一句"
+                >
+                  <span className="stp-line-who">{l.speaker.label}・{l.speaker.name}</span>
+                  <span className="stp-line-en">{l.en}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </details>
 
       {stepEnd ? (
         <div className="stp-actions">

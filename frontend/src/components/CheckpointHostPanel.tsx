@@ -51,6 +51,8 @@ export default function CheckpointHostPanel({
   aiCheckpoints, aiGenerating, aiError, onGenerate, aiSavingId, onSaveAi, onRemoveAi,
 }: CheckpointHostPanelProps) {
   const [aiKind, setAiKind] = useState<AiCheckpointKind>('mixed');
+  // 沒有題目發布時收成一行，要出題再展開
+  const [expanded, setExpanded] = useState(false);
   // 只列出當下正在演出步驟的台下互動（任務裡的題目＋AI 出的題）
   const step = currentIndex >= 0 && currentIndex < steps.length ? steps[currentIndex] : undefined;
   const candidates = step
@@ -130,11 +132,16 @@ export default function CheckpointHostPanel({
   }
 
   return (
-    <div className="cph" onClick={stop}>
-      <div className="cph-head">
+    <div className={`cph${expanded ? '' : ' is-collapsed'}`} onClick={stop}>
+      <button type="button" className="cph-head cph-toggle" aria-expanded={expanded} onClick={() => setExpanded(v => !v)}>
         <span className="cph-title">台下互動</span>
-        <span className="cph-default-hint">發布後{defaultShowQuestionText(level) ? '顯示題目文字' : '只顯示選項'}</span>
-      </div>
+        <span className="cph-default-hint">
+          {candidates.length > 0 ? `${candidates.length} 題可發布` : 'AI 出題'}
+          {expanded && `・發布後${defaultShowQuestionText(level) ? '顯示題目文字' : '只顯示選項'}`}
+        </span>
+        <span className="material-symbols-outlined cph-chevron" aria-hidden="true">{expanded ? 'expand_less' : 'expand_more'}</span>
+      </button>
+      {expanded && (<>
       <ul className="cph-list">
         {step && candidates.map(({ raw, cp, ai }) => (
           <li key={`${step.id}-${cp.id}`} className={`cph-item${ai ? ' cph-item--ai' : ''}`}>
@@ -201,6 +208,7 @@ export default function CheckpointHostPanel({
           </button>
         </div>
       )}
+      </>)}
       {aiError && <div className="cph-ai-error">{aiError}</div>}
     </div>
   );
