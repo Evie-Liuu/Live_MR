@@ -299,6 +299,9 @@ function SceneBackgroundControls({
   );
 }
 
+const nameCollator = new Intl.Collator('zh-Hant', { numeric: true, sensitivity: 'base' });
+const byName = (a: string, b: string) => nameCollator.compare(a, b);
+
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function HostSession({ roomId, livekitToken, hostToken, planId, taskId }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
@@ -335,6 +338,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   const prevCurrentTaskIdRef = useRef<string | undefined>(undefined);
 
   // ─── AI 助理 state ───────────────────────────────────────────────────────
+  /** 右側面板手動展開／收合；只在同一個登台展演狀態內有效，切換狀態後回到預設（展演中收合） */
+  const [rightPanelPref, setRightPanelPref] = useState<{ scriptActive: boolean; collapsed: boolean } | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<'task-hints' | 'ai-assistant'>(
     () => {
       const v = sessionStorage.getItem('bigscreen-rightPanelTab');
@@ -478,6 +483,17 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     } catch {
       // ignore
     }
+  };
+
+  /** 一次核准所有待審核學生 */
+  const [approvingAll, setApprovingAll] = useState(false);
+  const handleApproveAll = async () => {
+    const ids = pending.map(s => s.requestId);
+    setApprovingAll(true);
+    const results = await Promise.allSettled(ids.map(id => approveRequest(roomId, id, hostToken)));
+    const ok = new Set(ids.filter((_, i) => results[i].status === 'fulfilled'));
+    setPending(prev => prev.filter(s => !ok.has(s.requestId)));
+    setApprovingAll(false);
   };
 
   const handleReject = async (requestId: string) => {
@@ -2259,9 +2275,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   }, [connectedRoom, teacherVrmSourceId]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
-  const studentList = Array.from(participants.values()).filter(
-    (p) => !p.participant.identity.startsWith('host-'),
-  );
+  // 依顯示名稱自然排序（S2 在 S10 前），名單、下拉、影像格順序一致
+  const studentList = Array.from(participants.values())
+    .filter((p) => !p.participant.identity.startsWith('host-'))
+    .sort((a, b) => byName(a.participant.name || a.participant.identity, b.participant.name || b.participant.identity));
 
   // 台下互動點 → 大屏：各選項人數、已作答 / 在線人數（公布後才含正確答案）
   const studentIdsKey = studentList.map(s => s.participant.identity).sort().join('|');
@@ -2530,6 +2547,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     if (checkpointPoll && lesson?.turn?.status === 'running') updateTurn((_l, t) => setTurnPaused(t, true));
   }, [checkpointPoll, lesson?.turn?.status, updateTurn]);
 
+  const slotOrder = (currentScenePreset.slots ?? []).map(slot => slot.id);
+  const slotRank = (identity: string) => {
+    const slotId = identityToSlotId[identity];
+    const i = slotId ? slotOrder.indexOf(slotId) : -1;
+    return i < 0 ? slotOrder.length : i;
+  };
   const castSlots = useMemo(
     () => (currentScenePreset.slots ?? []).filter(slot => !lesson || castLines.has(slot.id)),
     [currentScenePreset.slots, lesson, castLines],
@@ -3354,8 +3377,8 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                   );
                 })()}
 
-                {/* ── Student tiles ── */}
-                {studentList.map((info) => {
+                {/* ── Student tiles：有角色的依角色順序排前面，其餘依名字 ── */}
+                {[...studentList].sort((a, b) => slotRank(a.participant.identity) - slotRank(b.participant.identity)).map((info) => {
                   const currentVrmId = studentRoles[info.participant.identity] ?? selectedVrmSourceId;
                   const assignedSlotId = identityToSlotId[info.participant.identity];
                   const assignedSlot = assignedSlotId
@@ -3402,8 +3425,32 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
               const hasConstraint = !!sceneConstraint;
               const tooShort = !sttTranscript || sttTranscript.trim().length < 3;
               const canTrigger = sttSupported && !sttRecording && !tooShort && hasConstraint;
+              const scriptActive = !!lesson?.turn;
+              const collapsed = rightPanelPref && rightPanelPref.scriptActive === scriptActive ? rightPanelPref.collapsed : scriptActive;
+              if (collapsed) {
+                return (
+                  <button
+                    type="button"
+                    className="hs-right-panel-rail"
+                    onClick={() => setRightPanelPref({ scriptActive, collapsed: false })}
+                    title="展開 AI 助理"
+                  >
+                    <span className="material-symbols-outlined" aria-hidden="true">left_panel_open</span>
+                    <span className="hs-right-panel-rail-label">{rightPanelTab === 'task-hints' && hintEnabled ? '任務提示' : 'AI 助理'}</span>
+                  </button>
+                );
+              }
               return (
                 <div className="hs-right-panel">
+                  <button
+                    type="button"
+                    className="hs-right-panel-collapse"
+                    onClick={() => setRightPanelPref({ scriptActive, collapsed: true })}
+                    title="收合，讓影像區變寬"
+                    aria-label="收合右側面板"
+                  >
+                    <span className="material-symbols-outlined" aria-hidden="true">right_panel_close</span>
+                  </button>
                   <div className="hs-right-panel-tabs">
                     {hintEnabled && (
                       <button
@@ -3579,6 +3626,11 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
           <div className="pending-section-header">
             <span>待審核學生</span>
             <span className="pending-section-count">({pending.length})</span>
+            {pending.length > 1 && (
+              <button type="button" className="pending-btn pending-btn-allow pending-allow-all" onClick={handleApproveAll} disabled={approvingAll}>
+                {approvingAll ? '核准中…' : `全部允許（${pending.length}）`}
+              </button>
+            )}
           </div>
 
           {pending.length === 0 && (
@@ -3587,7 +3639,7 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
             </div>
           )}
 
-          {pending.map((s) => (
+          {[...pending].sort((a, b) => byName(a.name, b.name)).map((s) => (
             <div key={s.requestId} className="pending-student-card">
               <div className="pending-avatar-container">
                 <span className="material-symbols-outlined pending-avatar-icon">person</span>

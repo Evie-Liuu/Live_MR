@@ -4705,7 +4705,8 @@ button:disabled {
   min-height: 0;
   display: grid;
   /* grid-template-columns: repeat(auto-fill, 480px); */
-  grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr));
+  /* 學生多時排成多欄，不要一人一列往下堆 */
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
 
   justify-content: start;
   margin-top: 10px;
@@ -5376,6 +5377,8 @@ button:disabled {
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
   margin-top: 24px;
   margin-bottom: 16px;
   font-size: 18px;
@@ -5467,6 +5470,51 @@ button:disabled {
 
 .pending-btn-reject {
   background: var(--primary);
+}
+
+.pending-btn.pending-allow-all {
+  margin-left: 12px;
+  padding: 6px 16px;
+}
+
+.pending-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* 待審核卡片精簡：名字與按鈕同一列，30 人也看得完 */
+.panel-drawer-body .pending-student-card {
+  align-items: center;
+  padding: 10px 14px;
+  margin: 0 16px 8px;
+  border-radius: 14px;
+}
+
+.panel-drawer-body .pending-avatar-container {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.panel-drawer-body .pending-avatar-icon { font-size: 28px; }
+
+.panel-drawer-body .pending-student-info {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0;
+}
+
+.panel-drawer-body .pending-student-name {
+  margin: 0;
+  font-size: 18px;
+}
+
+.panel-drawer-body .pending-card-actions { gap: 8px; }
+
+.panel-drawer-body .pending-card-actions .pending-btn {
+  min-width: 64px;
+  padding: 6px 14px;
 }
 
 .pending-btn:active {
@@ -6256,6 +6304,7 @@ button:disabled {
    HostSession — 右側 Tab 容器
    ──────────────────────────────────────────────────────────────────────── */
 .hs-right-panel {
+  position: relative;
   width: 420px;
   flex-shrink: 0;
   display: flex;
@@ -6265,6 +6314,55 @@ button:disabled {
   border-radius: 14px;
   overflow: hidden;
   font-family: 'Nunito', sans-serif;
+}
+
+/* 收合按鈕（右上角）與收合後的窄條 */
+.hs-right-panel-collapse {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(247, 110, 18, 0.3);
+  border-radius: 8px;
+  background: #fff;
+  color: #9A5A26;
+  cursor: pointer;
+}
+
+.hs-right-panel-collapse .material-symbols-outlined { font-size: 20px; }
+
+.hs-right-panel-rail {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 44px;
+  padding: 12px 0;
+  border: 1.5px solid rgba(247, 110, 18, 0.35);
+  border-radius: 14px;
+  background: #fffaf5;
+  color: #9A5A26;
+  font: 800 14px/1.2 'Nunito', sans-serif;
+  cursor: pointer;
+}
+
+.hs-right-panel-rail:hover { background: #FFF1E6; }
+
+.hs-right-panel-rail-label {
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+}
+
+.hs-right-panel-collapse:focus-visible,
+.hs-right-panel-rail:focus-visible {
+  outline: 2px solid #C05621;
+  outline-offset: 2px;
 }
 
 .hs-right-panel-tabs {
