@@ -183,7 +183,8 @@ export const THEMES: ThemeConfig[] = [
             'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'pants_jeans': { taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
-            'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], scale: 0.9 },
+            // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
+            'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
           },
         },
         groups: [

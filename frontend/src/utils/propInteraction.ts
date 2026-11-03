@@ -6,6 +6,7 @@ import type { VRM } from '@pixiv/three-vrm';
 const _bonePos = new THREE.Vector3();   // used by attachPropToHand
 const _ndcPos = new THREE.Vector3();   // used by projectToUV
 const _offsetVec = new THREE.Vector3();
+const _armPos = new THREE.Vector3();
 const _targetEuler = new THREE.Euler();
 const _targetQuat = new THREE.Quaternion();
 
@@ -159,6 +160,7 @@ export function projectToUV(
  *   person 'left'  hand → VRM 'rightHand' bone
  *
  * `offset` shifts the prop from the bone origin (default: slightly in front of palm).
+ * `sideOffset` 往這隻手那一側的身體外側偏移（公尺）；方向取自兩肩連線，角色轉向時也正確。
  *
  * `held` controls the update strategy:
  *   - false (approaching from hanger): lerp(0.3) — smooth pick-up animation.
@@ -169,6 +171,7 @@ export function attachPropToHand(
   vrm: VRM,
   hand: 'left' | 'right',
   held: boolean,
+  sideOffset = 0,
   offset: [number, number, number] = [0, 0.03, 0.15],
 ): void {
   // Mirror: person's right → VRM leftHand; person's left → VRM rightHand
@@ -179,6 +182,21 @@ export function attachPropToHand(
   boneNode.getWorldPosition(_bonePos);
   _offsetVec.set(...offset);
   _bonePos.add(_offsetVec);
+
+  if (sideOffset) {
+    const leftArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+    const rightArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+    if (leftArm && rightArm) {
+      // 兩肩連線只看水平方向，手舉高、身體傾斜時道具才不會跟著上下飄
+      leftArm.getWorldPosition(_armPos);
+      rightArm.getWorldPosition(_offsetVec);
+      _armPos.sub(_offsetVec).setY(0);
+      if (_armPos.lengthSq() > 0) {
+        _armPos.normalize().multiplyScalar(boneName === 'leftHand' ? sideOffset : -sideOffset);
+        _bonePos.add(_armPos);
+      }
+    }
+  }
 
   if (held) {
     // Already gripped — snap directly to avoid per-frame floating.

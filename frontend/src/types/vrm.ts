@@ -137,6 +137,8 @@ export interface TaskPropConfig {
   rotation?: [x: number, y: number, z: number];
   /** 拿在手上時轉成這個角度（例如平放櫃檯的衣服，拿起來改成垂掛）；放回時轉回 rotation。未設定就不轉 */
   heldRotation?: [x: number, y: number, z: number];
+  /** 拿在手上時往身體外側偏移（公尺），避免大件道具擋住臉和身體。未設定就在手的位置 */
+  heldSideOffset?: number;
   scale?: number;
 }
 

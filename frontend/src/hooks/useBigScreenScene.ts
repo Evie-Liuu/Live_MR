@@ -944,9 +944,9 @@ export function useBigScreenScene(
             const inCooldown = now < ia.grabCooldownUntil;
 
             // 剛抓取時 (inCooldown) held=false 以產生平滑飛向手部的 lerp 動畫
-            attachPropToHand(prop, slot.vrm, ia.lockHand, !inCooldown);
-            const heldRotation = presetRef.current.propSystem?.taskProps?.[taskId]?.heldRotation;
-            if (heldRotation) rotatePropToward(prop, heldRotation, delta * 8);
+            const propCfg = presetRef.current.propSystem?.taskProps?.[taskId];
+            attachPropToHand(prop, slot.vrm, ia.lockHand, !inCooldown, propCfg?.heldSideOffset);
+            if (propCfg?.heldRotation) rotatePropToward(prop, propCfg.heldRotation, delta * 8);
 
             if (!hLandmarks || hLandmarks.length < 21) {
               // Grace period: 500 ms before forcing a release on landmark loss
