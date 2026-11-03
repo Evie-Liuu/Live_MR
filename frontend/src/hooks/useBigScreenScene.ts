@@ -1203,7 +1203,8 @@ export function useBigScreenScene(
         if (spawnOverride?.rotation) {
           existing.vrm.scene.rotation.set(...spawnOverride.rotation);
         }
-        applyAllGroupTransforms();
+        // 每筆姿勢都會走到這裡（沒有 spawnOverride），位置沒變就不用重算群組
+        if (spawnOverride) applyAllGroupTransforms();
         return Promise.resolve(existing);
       }
 
@@ -1302,6 +1303,31 @@ export function useBigScreenScene(
     [reposition, vrmSourceId, applyAllGroupTransforms],
   );
 
+  /**
+   * 模型移除前呼叫：把它手上或正在放回的道具直接歸位。
+   * render loop 之後不會再處理這個模型，不歸位的話道具會停在半空，而且其他人拿不了。
+   */
+  const settlePropsOf = useCallback((identity: string, slot: AvatarSlot) => {
+    const taskIds = new Set<string>();
+    for (const [taskId, holder] of heldByIdentityRef.current) {
+      if (holder !== identity) continue;
+      heldByIdentityRef.current.delete(taskId);
+      taskIds.add(taskId);
+    }
+    if (slot.interaction.propState === 'returning') {
+      const taskId = slot.interaction.returningTaskId ?? currentPropIdRef.current;
+      if (taskId) taskIds.add(taskId);
+    }
+    for (const taskId of taskIds) {
+      const prop = taskPropPoolRef.current.get(taskId);
+      const displayPos = effectiveDisplayPosRef.current.get(taskId)
+        ?? presetRef.current.propSystem?.taskProps?.[taskId]?.displayPos;
+      if (!prop || !displayPos) continue;
+      prop.position.set(...displayPos);
+      restorePropRotation(prop, taskId, 1);
+    }
+  }, [restorePropRotation]);
+
   /** Swap the VRM model for a specific identity. Removes old avatar and reloads with new URL. */
   const swapAvatar = useCallback(
     (identity: string, vrmUrl: string) => {
@@ -1317,6 +1343,7 @@ export function useBigScreenScene(
       // Remove the existing avatar from scene (keeps order slot)
       const slot = avatarsRef.current.get(identity);
       if (slot) {
+        settlePropsOf(identity, slot);
         sceneRef.current?.remove(slot.vrm.scene);
         VRMUtils.deepDispose(slot.vrm.scene);
         avatarsRef.current.delete(identity);
@@ -1328,7 +1355,7 @@ export function useBigScreenScene(
         console.warn(`[BigScreenScene] swapAvatar failed for ${identity}:`, err),
       );
     },
-    [ensureAvatar],
+    [ensureAvatar, settlePropsOf],
   );
 
   // ─── Pose application ─────────────────────────────────────────────────────
@@ -1411,6 +1438,7 @@ export function useBigScreenScene(
         }
         return;
       }
+      settlePropsOf(identity, slot);
       sceneRef.current?.remove(slot.vrm.scene);
       VRMUtils.deepDispose(slot.vrm.scene);
       avatarsRef.current.delete(identity);
@@ -1420,7 +1448,7 @@ export function useBigScreenScene(
       spawnOverridesRef.current.delete(identity);
       reposition();
     },
-    [reposition],
+    [reposition, settlePropsOf],
   );
 
   /**

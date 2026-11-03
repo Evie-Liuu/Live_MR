@@ -227,6 +227,7 @@ export function returnPropToDisplay(
   displayPos: THREE.Vector3,
   delta: number,
 ): boolean {
-  group.position.lerp(displayPos, delta * 8);
+  // 低幀率或切回分頁時 delta 很大，不夾住會衝過頭
+  group.position.lerp(displayPos, Math.min(1, delta * 8));
   return group.position.distanceTo(displayPos) < 0.02;
 }

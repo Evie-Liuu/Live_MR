@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import type { VRM } from '@pixiv/three-vrm';
-import { attachPropToHand } from './propInteraction';
+import { attachPropToHand, returnPropToDisplay } from './propInteraction';
 
 /** 面向 +Z 的假角色：左肩在 +X；turn 可把整個角色繞 Y 軸轉 */
 function fakeVrm(turn = 0): VRM {
@@ -45,5 +45,21 @@ describe('attachPropToHand sideOffset', () => {
     const prop = new THREE.Group();
     attachPropToHand(prop, fakeVrm(Math.PI), 'right', true, 0.2, NO_OFFSET);
     expect(prop.position.x).toBeCloseTo(-0.5);
+  });
+});
+
+describe('returnPropToDisplay', () => {
+  it('delta 很大時停在擺放點，不會衝過頭', () => {
+    const prop = new THREE.Group();
+    prop.position.set(1, 0, 0);
+    expect(returnPropToDisplay(prop, new THREE.Vector3(0, 0, 0), 1)).toBe(true);
+    expect(prop.position.x).toBe(0);
+  });
+
+  it('一般幀率時逐步靠近，還沒到就回傳 false', () => {
+    const prop = new THREE.Group();
+    prop.position.set(1, 0, 0);
+    expect(returnPropToDisplay(prop, new THREE.Vector3(0, 0, 0), 1 / 60)).toBe(false);
+    expect(prop.position.x).toBeCloseTo(1 - 8 / 60);
   });
 });
