@@ -55,6 +55,7 @@ import {
   isHandNearProp,
   shouldResetFistTimer,
 } from '../utils/gestureDetector';
+import { isPerfEnabled, perfCount, perfGauge, perfValue } from '../utils/perfRecorder';
 import type { StatsSnapshot } from '../components/StatsPanel';
 
 // ─── Internal avatar slot ────────────────────────────────────────────────────
@@ -104,6 +105,10 @@ const BASE_INTERVAL_MS = 33;
 /** Milliseconds the fist must be held continuously before triggering a grab.
  *  Time-based so behaviour is identical at any render/pose FPS. */
 const GRAB_CONFIRM_MS = 100;
+/** 效能面板的更新間隔 */
+const STATS_INTERVAL_MS = 500;
+/** 超過這麼久沒收到姿勢，面板就顯示中斷 */
+const POSE_STALLED_MS = 2000;
 /** Milliseconds after a grab during which open-hand is ignored (prevents instant release) */
 const GRAB_RELEASE_COOLDOWN_MS = 600;
 
@@ -598,6 +603,7 @@ export function useBigScreenScene(
   }, [hiddenGroups, applyAllGroupVisibility]);
 
   const applyAllGroupTransforms = useCallback(() => {
+    perfCount('groupTransformCalls');
     const preset = presetRef.current;
     const groups = preset.groups ?? [];
     const transforms = groupTransformsRef.current;
@@ -756,11 +762,13 @@ export function useBigScreenScene(
     // Render loop
     let shadowTick = 0;
     let lastRenderAt = 0;
+    let lastStatsAt = 0;
     const animate = (timestamp: number) => {
       rafRef.current = requestAnimationFrame(animate);
       const fpsLimit = renderFpsLimitRef.current;
       if (fpsLimit > 0 && timestamp - lastRenderAt < 1000 / fpsLimit) return;
       lastRenderAt = timestamp;
+      const frameStart = performance.now();
       timerRef.current.update(timestamp);
       const delta = timerRef.current.getDelta();
       elapsedRef.current += delta;
@@ -1070,16 +1078,29 @@ export function useBigScreenScene(
       // Drive composite canvas from inside this loop instead of a second RAF.
       onPostRenderRef?.current?.(timestamp);
 
+      if (isPerfEnabled()) {
+        perfCount('sceneFrames');
+        perfValue('sceneFrameMs', performance.now() - frameStart);
+        perfGauge('drawCalls', renderer.info.render.calls);
+        perfGauge('triangles', renderer.info.render.triangles);
+        perfGauge('geometries', renderer.info.memory.geometries);
+        perfGauge('textures', renderer.info.memory.textures);
+        perfGauge('avatars', avatarsRef.current.size);
+      }
+
       const cb = onStatsRef.current;
-      if (cb) {
+      // 面板不需要每幀更新：每幀 setState 會讓 BigScreen 整個重新渲染，反而干擾量測
+      if (cb && timestamp - lastStatsAt >= STATS_INTERVAL_MS) {
+        lastStatsAt = timestamp;
         const api = avgPoseIntervalsRef.current;
         // Remove keys for identities that have left
         for (const k of Object.keys(api)) {
           if (!avatarsRef.current.has(k)) delete api[k];
         }
-        // Update existing / add new
+        // Update existing / add new（-1＝超過 POSE_STALLED_MS 沒收到，面板顯示中斷）
+        const now = performance.now();
         for (const [id, s] of avatarsRef.current) {
-          api[id] = s.avgPoseIntervalMs;
+          api[id] = s.lastPoseAt > 0 && now - s.lastPoseAt > POSE_STALLED_MS ? -1 : s.avgPoseIntervalMs;
         }
         cb({
           frameMs: delta * 1000,
@@ -1358,6 +1379,7 @@ export function useBigScreenScene(
         // Track inter-pose interval for adaptive lerp
         const now = performance.now();
         const interval = now - slot.lastPoseAt;
+        if (isPerfEnabled() && slot.lastPoseAt > 0) perfValue(`poseGapMs.${identity}`, interval);
         if (slot.lastPoseAt > 0 && interval < 500) {
           // EMA: 10 % new sample – slow adaptation for stability
           slot.avgPoseIntervalMs = slot.avgPoseIntervalMs * 0.9 + interval * 0.1;

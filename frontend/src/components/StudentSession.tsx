@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client';
 import { DisconnectReason } from '@livekit/protocol';
 import { usePoseDetection } from '../hooks/usePoseDetection';
+import { usePerfFollower } from '../hooks/usePerfSampler';
+import { describeDevice, perfCount, perfGauge } from '../utils/perfRecorder';
 import { useLocalAudioRecorder } from '../hooks/useLocalAudioRecorder.ts';
 import type { PoseLandmark } from '../types/vrm';
 import PoseDebugOverlay from './PoseDebugOverlay';
@@ -257,6 +259,27 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
     setLandmarks(lms);
   }, faceEnabled, handEnabled, undefined, poseActive);
 
+  // 效能記錄：跟著教師端開始／停止，5 秒回傳一筆（全班 29 台時訊息量才不會太大）
+  const perfHostRef = useRef<string | null>(null);
+  const onPerfRecordSignal = usePerfFollower(
+    5000,
+    (metrics) => {
+      const room = roomRef.current;
+      const host = perfHostRef.current;
+      if (!room || room.state !== 'connected' || !host) return;
+      const bytes = new TextEncoder().encode(JSON.stringify({ type: 'perf-sample', metrics, device: describeDevice() }));
+      void room.localParticipant.publishData(bytes, { reliable: true, destinationIdentities: [host] }).catch(() => { /* ignore */ });
+    },
+    () => {
+      perfGauge('poseActive', poseActive ? 1 : 0);
+      const quality = roomRef.current?.localParticipant.connectionQuality;
+      if (quality === 'excellent') perfGauge('connectionQuality', 3);
+      else if (quality === 'good') perfGauge('connectionQuality', 2);
+      else if (quality === 'poor') perfGauge('connectionQuality', 1);
+      else if (quality === 'lost') perfGauge('connectionQuality', 0);
+    },
+  );
+
   // 下台時清掉骨架疊圖（偵測已暫停，不會再更新）
   const [prevPoseActive, setPrevPoseActive] = useState(poseActive);
   if (prevPoseActive !== poseActive) {
@@ -336,6 +359,8 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
 
     room.on(RoomEvent.DataReceived, (payload: Uint8Array, participant?: RemoteParticipant) => {
       if (!participant) return;
+      perfCount('dataRx');
+      perfCount('dataRxBytes', payload.length);
       // 逐句演練：這一輪來自老師；即時逐字稿來自目前發言者（可能是學生）
       if (payload.length > 0 && payload[0] === 0x7B) {
         try {
@@ -353,8 +378,12 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           sessionId?: string;
           identities?: string[];
           poll?: StudentPoll | null;
+          active?: boolean;
         };
-        if (msg.type === 'ai-hint') {
+        if (msg.type === 'perf-record') {
+          perfHostRef.current = participant.identity;
+          if (isMounted) onPerfRecordSignal(msg.active === true);
+        } else if (msg.type === 'ai-hint') {
           const p = msg.payload ?? null;
           if (isMounted) {
             setAiHint(p && p.content ? p : null);

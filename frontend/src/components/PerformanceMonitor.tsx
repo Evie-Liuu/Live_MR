@@ -13,6 +13,8 @@ interface PerformanceMonitorProps {
    * state driving this prop is throttled (e.g. updated every 250 ms).
    */
   count?: number;
+  /** 直接顯示這個值（已經算好的速率），不自行計算 */
+  value?: number;
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 }
 
@@ -26,6 +28,7 @@ export default function PerformanceMonitor({
   label = 'FPS',
   trigger,
   count,
+  value,
   position = 'top-left',
 }: PerformanceMonitorProps) {
   const [fps, setFps] = useState(0);
@@ -36,7 +39,7 @@ export default function PerformanceMonitor({
 
   // ── Mode 1: rAF throughput (no trigger / no count) ──
   useEffect(() => {
-    if (trigger !== undefined || count !== undefined) return;
+    if (trigger !== undefined || count !== undefined || value !== undefined) return;
 
     let rafId: number;
     let cancelled = false;
@@ -58,7 +61,7 @@ export default function PerformanceMonitor({
       cancelled = true;
       cancelAnimationFrame(rafId);
     };
-  }, [trigger, count]);
+  }, [trigger, count, value]);
 
   // ── Mode 2: count-based rate (preferred for throttled state) ──
   useEffect(() => {
@@ -104,7 +107,7 @@ export default function PerformanceMonitor({
 
   return (
     <div className="perf-monitor" style={posStyles}>
-      {label}: <span style={{ fontWeight: 'bold' }}>{fps}</span>
+      {label}: <span style={{ fontWeight: 'bold' }}>{value ?? fps}</span>
     </div>
   );
 }

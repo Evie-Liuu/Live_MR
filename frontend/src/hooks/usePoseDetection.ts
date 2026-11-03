@@ -19,6 +19,7 @@ const HAND_MODEL_PATH = '/mediapipe-models/hand_landmarker.task';
 import { encodePoseFrame } from '../utils/poseCodec';
 import { LandmarkSmoother } from '../utils/oneEuroFilter';
 import { handSides } from '../utils/handSides';
+import { perfCount, perfValue } from '../utils/perfRecorder';
 
 /** Minimum interval between detections (~30 fps) */
 const DETECT_INTERVAL_MS = 33;
@@ -194,6 +195,7 @@ export function usePoseDetection(
             if (video && video.readyState >= 2 && pose) {
               try {
                 const result = pose.detectForVideo(video, now);
+                perfValue('poseDetectMs', performance.now() - now);
 
                 if (result.landmarks && result.landmarks.length > 0) {
                   if (!firstLandmarksLogged) {
@@ -242,7 +244,9 @@ export function usePoseDetection(
                   const faceInterval = lowPowerModeRef.current ? 4 : 2;
                   if (faceEnabledRef.current && faceRef.current && tick % faceInterval === 0) {
                     try {
+                      const faceStart = performance.now();
                       const faceResult = faceRef.current.detectForVideo(video, now);
+                      perfValue('faceDetectMs', performance.now() - faceStart);
                       if (
                         faceResult.faceLandmarks &&
                         faceResult.faceLandmarks.length > 0
@@ -273,7 +277,9 @@ export function usePoseDetection(
                   // ── Hand landmarks (when enabled) ──
                   if (handEnabledRef.current && handRef.current && tick % faceInterval === faceInterval / 2) {
                     try {
+                      const handStart = performance.now();
                       const handResult = handRef.current.detectForVideo(video, now);
+                      perfValue('handDetectMs', performance.now() - handStart);
                       if (handResult.landmarks && handResult.landmarks.length > 0) {
                         const sides = handSides(
                           handResult.landmarks,
@@ -304,7 +310,10 @@ export function usePoseDetection(
                   // Always emit landmarks for overlay
                   onLandmarksUpdateRef.current?.(frame.landmarks);
                   // Only publish if callback provided
-                  onPublishRef.current?.(encodePoseFrame(frame));
+                  const encoded = encodePoseFrame(frame);
+                  perfCount('poseSent');
+                  perfCount('poseSentBytes', encoded.length);
+                  onPublishRef.current?.(encoded);
                 }
               } catch {
                 // ignore per-frame errors

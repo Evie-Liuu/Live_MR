@@ -36,11 +36,11 @@ const fmtMs = (n: number) => n.toFixed(1);
 export default function StatsPanel({ data }: StatsPanelProps) {
   const intervalLines = Object.entries(data.avgPoseIntervals)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([id, ms]) => `  ${id.slice(0, 16).padEnd(16)} ${fmtMs(ms)} ms`)
+    .map(([id, ms]) => `  ${id.slice(0, 16).padEnd(16)} ${ms < 0 ? '中斷' : `${fmtMs(ms)} ms`}`)
     .join('\n');
 
   const text = [
-    `[perf] Frame:   ${fmtMs(data.frameMs)} ms`,
+    `[perf] Frame:   ${fmtMs(data.frameMs)} ms (${data.frameMs > 0 ? Math.round(1000 / data.frameMs) : 0} fps)`,
     `       Draw:    ${fmt(data.drawCalls)}`,
     `       Tris:    ${fmt(data.triangles)}`,
     `       Geo:     ${fmt(data.geometries)}   Tex: ${fmt(data.textures)}`,

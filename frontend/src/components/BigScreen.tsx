@@ -7,6 +7,9 @@ import type { GizmoHandle } from '../utils/editorGizmo';
 import type { Object3D } from 'three';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import PerformanceMonitor from './PerformanceMonitor.tsx';
+import StatsPanel, { type StatsSnapshot } from './StatsPanel.tsx';
+import { usePerfFollower } from '../hooks/usePerfSampler.ts';
+import { describeDevice, perfCount, type PerfDevice } from '../utils/perfRecorder.ts';
 import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
 import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
@@ -37,7 +40,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'script-turn' | 'turn-transcript' | 'turn-hint' | 'participant-names';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'perf-record' | 'perf-sample' | 'script-turn' | 'turn-transcript' | 'turn-hint' | 'participant-names';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -54,6 +57,11 @@ export interface BigScreenMsg {
   sessionId?: string;
   /** For 'lesson-change': 導師任務管理的目前步驟情境（null = 未上課） */
   lesson?: LessonScreenState | null;
+  /** For 'perf-record': 教師端效能記錄開始／停止 */
+  active?: boolean;
+  /** For 'perf-sample': 大屏回傳的一筆效能指標與裝置資訊 */
+  metrics?: Record<string, number>;
+  device?: PerfDevice;
   /** For 'script-turn': 逐句演練目前這一輪（null = 沒在演練） */
   scriptTurn?: ScriptTurn | null;
   /** For 'turn-transcript': 發言者的即時逐字稿（空字串 = 清除） */
@@ -554,7 +562,7 @@ export default function BigScreen() {
   const [participantNames, setParticipantNames] = useState<Map<string, string>>(new Map());
 
   const poseCountRef = useRef(0);
-  const [poseUpdateCount, setPoseUpdateCount] = useState(0);
+  const [poseRxFps, setPoseRxFps] = useState(0);
   const [hasRecorded, setHasRecorded] = useState(false);
   // Reactive flag for settlement panel rendering (mediaRecorderRef is a ref, won't trigger re-render)
   const [isActivelyRecording, setIsActivelyRecording] = useState(false);
@@ -598,17 +606,23 @@ export default function BigScreen() {
   const renderFpsRef = useRef(0);
   const [renderFps, setRenderFps] = useState(0);
 
-  // Flush pose count to state every 1 s so PerformanceMonitor count-mode can compute rate.
+  // 每秒算一次收到的姿勢數；資料中斷時要歸零，不能停在最後的值
   useEffect(() => {
+    let last = poseCountRef.current;
     const id = setInterval(() => {
-      setPoseUpdateCount(poseCountRef.current);
+      setPoseRxFps(poseCountRef.current - last);
+      last = poseCountRef.current;
     }, 1000);
     return () => clearInterval(id);
   }, []);
 
   const [showPerformanceMonitor, setShowPerformanceMonitor] = useState(false);
-  // const [showStats, setShowStats] = useState(false);
-  // const [statsData, setStatsData] = useState<StatsSnapshot | null>(null);
+  const [statsData, setStatsData] = useState<StatsSnapshot | null>(null);
+
+  // 效能記錄：跟著教師端開始／停止，每秒回傳一筆
+  const onPerfRecordSignal = usePerfFollower(1000, (metrics) => {
+    channelRef.current?.postMessage({ type: 'perf-sample', metrics, device: describeDevice() } satisfies BigScreenMsg);
+  });
 
   // ─── Boot loading overlay ──────────────────────────────────────────────────
   // Cover the BigScreen with a "場景載入中" overlay (spinner + progress bar)
@@ -807,7 +821,7 @@ export default function BigScreen() {
     slotAssignments,
     currentPropId: turnProp?.id ?? propForTask(sceneId, currentTaskId),
     propGrabberIdentity: turnProp ? scriptTurn?.speaker.identity ?? null : undefined,
-    onStats: undefined, // showStats ? setStatsData : undefined,
+    onStats: showPerformanceMonitor ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,
     isRecording: isActivelyRecording,
@@ -2216,6 +2230,7 @@ export default function BigScreen() {
         // 任務前：角色靜態展示，不更新姿態
         if (!staticStageRef.current) applyPoseRef.current(msg.identity, msg.poseData);
         poseCountRef.current++;
+        perfCount('poseRx');
       } else if (msg.type === 'leave' && msg.identity) {
         removeAvatarRef.current(msg.identity);
         // Remove from slot assignments if they were assigned
@@ -2345,6 +2360,8 @@ export default function BigScreen() {
       } else if (msg.type === 'checkpoint-change') {
         // 教師端已寫入 sessionStorage（大屏重開時讀取），這裡只更新畫面
         setCheckpoint(msg.checkpoint ?? null);
+      } else if (msg.type === 'perf-record') {
+        onPerfRecordSignal(msg.active === true);
       } else if (msg.type === 'script-turn') {
         // 教師端已寫入 sessionStorage（大屏重開時讀取），這裡只更新畫面
         setScriptTurn(msg.scriptTurn ?? null);
@@ -2955,11 +2972,11 @@ export default function BigScreen() {
 
       {showPerformanceMonitor && (
         <>
-          <PerformanceMonitor label="Render FPS" position="top-right" />
-          <PerformanceMonitor label="Pose Rx FPS" count={poseUpdateCount} position="bottom-right" />
+          <PerformanceMonitor label="Browser FPS" position="top-right" />
+          <PerformanceMonitor label="Pose Rx FPS" value={poseRxFps} position="bottom-right" />
         </>
       )}
-      {/* {showStats && statsData && <StatsPanel data={statsData} />} */}
+      {showPerformanceMonitor && statsData && <StatsPanel data={statsData} />}
 
       {/* Boot loading overlay — covers the scene until initial assets are loaded */}
       {bootPhase !== 'hidden' && (

@@ -133,6 +133,20 @@ npm run load-test:mic -- --base https://192.168.1.20
 - [ ] **老師重新整理**：老師端按 F5，學生不應被踢出（10 秒寬限）。
 - [ ] 全程 15 分鐘後再記一次老師電腦 CPU／記憶體，看有沒有持續上升（記憶體洩漏）。
 
+### 效能記錄
+
+教師端按 `Alt+Shift+P` 開始（左下角出現「效能記錄中」），上完點該按鈕或再按一次，會下載 `live-mr-perf-<時間>.json`。平板不用操作，晚進來或重連的也會自動開始。
+
+| 來源 | 取樣間隔 | 主要指標 |
+|---|---|---|
+| `student:<identity>` | 5 秒 | `poseDetectMs`、`poseSent`、`dataRxBytes`、`raf`、`connectionQuality` |
+| `host` | 1 秒（影像 5 秒） | `longTask`、`raf`、`poseRx`、`poseStateUpdates`、`video*`、`participantsWeakConnection` |
+| `bigscreen` | 1 秒 | `sceneFrames`、`sceneFrameMs`、`poseGapMs.<identity>`、`groupTransformCalls`、`drawCalls`、`textures` |
+
+`summary` 是各來源的全程平均與最大值，`events` 是任務進度、進出與連線變差的時間點，`samples` 是完整時間序列。平板和大屏的取樣時間是教師端收到的時間。`longTask` 與 `heapMb` 在 iPad Safari 上不會有資料。
+
+大屏按 `F` 可即時看 FPS、每幀耗時、draw calls 與每位學生的姿勢間隔。
+
 ### 收尾
 
 - [ ] 結果表與觀察貼回議題／會議紀錄。

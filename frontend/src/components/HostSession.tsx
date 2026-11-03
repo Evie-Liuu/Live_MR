@@ -10,6 +10,8 @@ import {
 import StudentTile from './StudentTile.tsx';
 import LocalVideo from './LocalVideo.tsx';
 import { usePoseDetection } from '../hooks/usePoseDetection.ts';
+import { usePerfRecording } from '../hooks/usePerfRecording.ts';
+import { perfCount } from '../utils/perfRecorder.ts';
 import type { BigScreenMsg, TaskEntry, BackgroundTypeOverride } from './BigScreen';
 import type { PoseFrame } from '../types/vrm';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
@@ -310,6 +312,7 @@ const byName = (a: string, b: string) => nameCollator.compare(a, b);
 export default function HostSession({ roomId, livekitToken, hostToken, planId, taskId }: HostSessionProps) {
   const [participants, setParticipants] = useState<Map<string, ParticipantInfo>>(new Map());
   const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
+  const addPerfSampleRef = useRef<(identity: string, msg: { metrics?: unknown; device?: unknown }) => void>(() => {});
   // true once the local camera track has been attached (LiveKit setCameraEnabled resolved)
   const [cameraReady, setCameraReady] = useState(false);
   // true once the hidden <video> has actually rendered a frame — only then is
@@ -1968,6 +1971,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
           const text = new TextDecoder().decode(payload);
           const parsed = JSON.parse(text);
           if (parsed && typeof parsed === 'object' && typeof parsed.type === 'string') {
+            if (parsed.type === 'perf-sample') {
+              addPerfSampleRef.current(participant.identity, parsed);
+              return;
+            }
             if (parsed.type === 'checkpoint-answer') {
               setCheckpointPoll(prev => (prev ? recordAnswer(prev, participant.identity, parsed) : prev));
               return;
@@ -2020,11 +2027,14 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
           studentPoolsRef.current.set(participant.identity, pool);
         }
         const data = pool.decode(payload);
+        perfCount('poseRx');
+        perfCount('poseRxBytes', payload.length);
 
         // If the student's camera is off, skip pose forwarding to preview/BigScreen
         const isCameraOff = muteStateRef.current[participant.identity]?.video === true;
         if (isCameraOff) return;
 
+        perfCount('poseStateUpdates');
         updateParticipant(participant.identity, (info) => ({
           ...info,
           poseData: data,
@@ -2403,6 +2413,11 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     if (!prev || seq === undefined || prev.seq !== seq || prev.id === turnSpeakerId) return;
     setLesson(p => (p?.turn && p.turn.seq === seq ? { ...p, turn: { ...p.turn, seq: seq + 1 } } : p));
   }, [scriptTurn?.seq, turnSpeakerId]);
+  const perfTaskLabel = !lesson ? ''
+    : scriptTurn ? `${lesson.phase} 第 ${scriptTurn.stepIndex + 1} 步第 ${scriptTurn.lineIndex + 1} 句（${scriptTurn.status}）`
+      : lesson.phase;
+  const perf = usePerfRecording(connectedRoom, roomId, perfTaskLabel);
+  useEffect(() => { addPerfSampleRef.current = perf.addStudentSample; }, [perf.addStudentSample]);
   const sendScriptTurn = useCallback(() => {
     const room = roomRef.current;
     if (!room || room.state !== 'connected') return;
@@ -2602,6 +2617,17 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
 
   return (
     <div className="host-session">
+      {(perf.recording || perf.saving) && (
+        <button
+          type="button"
+          onClick={perf.toggle}
+          disabled={perf.saving}
+          title="Alt+Shift+P 開始／停止"
+          style={{ position: 'fixed', left: 12, bottom: 12, zIndex: 9999, padding: '6px 12px', border: 0, borderRadius: 6, background: 'rgba(0,0,0,0.75)', color: '#fff', fontSize: 13, cursor: perf.saving ? 'default' : 'pointer' }}
+        >
+          {perf.saving ? '效能記錄：下載中…' : '● 效能記錄中，點此停止並下載'}
+        </button>
+      )}
       {/* Hidden video for teacher pose detection */}
       <video ref={teacherVideoRef} autoPlay playsInline muted style={{ display: 'none' }} aria-hidden="true" />
 
