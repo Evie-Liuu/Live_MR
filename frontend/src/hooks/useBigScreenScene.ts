@@ -53,6 +53,7 @@ import {
   detectOpenHand,
   isHandRaised,
   isHandNearProp,
+  shouldResetFistTimer,
 } from '../utils/gestureDetector';
 import type { StatsSnapshot } from '../components/StatsPanel';
 
@@ -87,6 +88,8 @@ interface AvatarSlot {
     handLostAt: number;
     /** performance.now() when the first fist frame was detected (0 = not tracking) */
     grabFistFirstAt: number;
+    /** 上次偵測到握拳的時間（手部不是每格都有資料，用來判斷計時要不要歸零） */
+    grabFistLastAt: number;
     /** performance.now() deadline before which open-hand release is ignored */
     grabCooldownUntil: number;
   };
@@ -892,6 +895,7 @@ export function useBigScreenScene(
 
             let grabbedThisFrame = false;
             let fistDetectedThisFrame = false;
+            let handDataThisFrame = false;
             if (cameraRef.current) {
               projectToUV(prop.position, cameraRef.current, slot._propUV);
 
@@ -901,6 +905,7 @@ export function useBigScreenScene(
                 if (!pose || pose.length < 25) continue;
                 // Prevent a second slot from grabbing a prop already held
                 if (heldByIdentityRef.current.has(taskId)) continue;
+                handDataThisFrame = true;
 
                 const wristUV = { x: hLandmarks[0].x, y: hLandmarks[0].y };
                 const fist = detectFist(hLandmarks);
@@ -911,6 +916,7 @@ export function useBigScreenScene(
                   fistDetectedThisFrame = true;
                   const now = performance.now();
                   if (ia.grabFistFirstAt === 0) ia.grabFistFirstAt = now;
+                  ia.grabFistLastAt = now;
                   if (now - ia.grabFistFirstAt >= GRAB_CONFIRM_MS) {
                     ia.propState = 'held';
                     ia.lockHand = hand;
@@ -926,7 +932,8 @@ export function useBigScreenScene(
               }
             }
             // Reset timer when fist breaks — must be held continuously for GRAB_CONFIRM_MS.
-            if (!fistDetectedThisFrame && !grabbedThisFrame) {
+            if (!fistDetectedThisFrame && !grabbedThisFrame
+              && shouldResetFistTimer(handDataThisFrame, performance.now(), ia.grabFistLastAt)) {
               ia.grabFistFirstAt = 0;
             }
 
@@ -1242,6 +1249,7 @@ export function useBigScreenScene(
               returningTaskId: undefined,
               handLostAt: 0,
               grabFistFirstAt: 0,
+              grabFistLastAt: 0,
               grabCooldownUntil: 0,
             },
             _propUV: { x: 0, y: 0 },

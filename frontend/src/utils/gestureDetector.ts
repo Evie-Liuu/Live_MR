@@ -35,6 +35,20 @@ export function detectOpenHand(landmarks: PoseLandmark[]): boolean {
 }
 
 /**
+ * 手部不是每格都偵測（一般每 2 格、省電模式每 4 格才一次），握拳計時不能因為中間沒有手部資料的影格就歸零。
+ * 這段時間內沒資料都算還握著；超過才當作手不見了。
+ */
+export const FIST_HAND_GAP_MS = 400;
+
+/**
+ * 這一格沒偵測到握拳時，握拳計時要不要歸零。
+ * 有手部資料卻不是握拳 → 歸零；沒有手部資料 → 距離上次握拳超過 FIST_HAND_GAP_MS 才歸零。
+ */
+export function shouldResetFistTimer(hasHandData: boolean, now: number, lastFistAt: number): boolean {
+  return hasHandData || now - lastFistAt > FIST_HAND_GAP_MS;
+}
+
+/**
  * Returns true if the hand wrist is above the hip (image-space, y↓).
  * Uses 33-point PoseLandmarker landmarks.
  *   right: wrist=pose[16], hip=pose[24]
