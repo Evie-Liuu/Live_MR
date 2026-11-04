@@ -12,6 +12,7 @@ export interface JoinRequest {
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   token?: string
   createdAt: number
+  approvedAt?: number
   /** 學生最後一次輪詢申請狀態的時間；等待頁每 2 秒輪詢一次，太久沒來代表學生已離開 */
   lastSeenAt: number
 }
@@ -45,6 +46,8 @@ export class RoomStore {
 
   getRoom(roomId: string): Room | undefined { return this.rooms.get(roomId) }
 
+  roomIds(): string[] { return [...this.rooms.keys()] }
+
   validateHost(roomId: string, hostToken: string): boolean {
     const room = this.rooms.get(roomId)
     return room !== undefined && room.hostToken === hostToken
@@ -66,7 +69,15 @@ export class RoomStore {
     if (!req) return undefined
     req.status = 'approved'
     req.token = token
+    req.approvedAt = Date.now()
     return req
+  }
+
+  /** 同名的另一筆申請是否剛核准（學生拿到權杖到連上 LiveKit 之間，還查不到他在房間裡） */
+  hasRecentApproval(roomId: string, name: string, exceptRequestId: string, withinMs: number, now = Date.now()): boolean {
+    return (this.rooms.get(roomId)?.requests ?? []).some(r =>
+      r.requestId !== exceptRequestId && r.name === name && r.status === 'approved'
+      && r.approvedAt !== undefined && now - r.approvedAt < withinMs)
   }
 
   rejectRequest(roomId: string, requestId: string): JoinRequest | undefined {

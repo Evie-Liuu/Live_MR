@@ -49,6 +49,16 @@ export function loadTestAccounts(file: string): TestAccount[] {
   return Array.isArray(list) ? list : []
 }
 
+/** 這個顯示名稱（也是 LiveKit identity）是否屬於測試學生帳號；檔案讀不到時視為不是 */
+export function isTestStudentName(name: string): boolean {
+  if (!testAccountsEnabled()) return false
+  try {
+    return loadTestAccounts(process.env.TEST_ACCOUNTS_FILE!).some(a => a.role !== 'teacher' && a.displayName === name)
+  } catch {
+    return false
+  }
+}
+
 export function authenticateTestAccount(
   accounts: TestAccount[], username: string, password: string,
 ): TestAccountUser | null {

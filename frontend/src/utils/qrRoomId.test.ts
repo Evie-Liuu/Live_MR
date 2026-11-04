@@ -48,6 +48,7 @@ describe('joinErrorText', () => {
   it('explains common join failures in plain language', async () => {
     const { joinErrorText } = await import('./qrRoomId')
     expect(joinErrorText(new Error('joinRequest failed: 404'))).toContain('找不到這個房號')
+    expect(joinErrorText(new Error('joinRequest failed: 409'))).toContain('已在教室中')
     expect(joinErrorText(new TypeError('Failed to fetch'))).toContain('連不上伺服器')
   })
 })

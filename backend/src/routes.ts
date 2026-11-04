@@ -9,7 +9,7 @@ import { mergeRecording } from './merge.js'
 import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai/hints.js'
 import { createLessonPlanRouter, type LessonPlanRouteDeps } from './lessonPlanRoutes.js'
 import { createDialogueTaskRouter, type DialogueTaskRouteDeps } from './dialogueTaskRoutes.js'
-import { authenticateTestAccount, loadTestAccounts, testAccountsEnabled } from './testAccounts.js'
+import { authenticateTestAccount, isTestStudentName, loadTestAccounts, testAccountsEnabled } from './testAccounts.js'
 
 const recordingsDir = process.env.RECORDINGS_DIR
   ? path.resolve(process.env.RECORDINGS_DIR)
@@ -121,6 +121,30 @@ export function createRouter(
     return true
   }
 
+  // 測試帳號已在教室時擋下新的登入和加入：同一個 LiveKit identity 再連一次會把舊連線踢掉
+  const IN_ROOM_CHECK_TIMEOUT_MS = 2000
+  /** 核准後這段時間內，同名申請視為重複（學生還沒連上，查不到他在房間裡） */
+  const APPROVE_CONNECT_WINDOW_MS = 15000
+  const DUPLICATE_LOGIN_MESSAGE = '此帳號已在教室中，請換一個帳號；如果是剛斷線，請等約 30 秒再試'
+
+  /** LiveKit 查不到時回 false：檢查失敗不該擋住上課 */
+  const isInRoom = async (roomId: string, identity: string): Promise<boolean> => {
+    const admin = recording?.roomAdmin
+    if (!admin) return false
+    let timer: NodeJS.Timeout | undefined
+    try {
+      return await Promise.race([
+        admin.isInRoom(roomId, identity),
+        new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(false), IN_ROOM_CHECK_TIMEOUT_MS) }),
+      ])
+    } catch (err: any) {
+      console.warn('[duplicate-login] LiveKit check failed:', err?.message ?? String(err))
+      return false
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   // POST /api/rooms — 建立房間
   router.post('/rooms', async (_req: Request, res: Response) => {
     try {
@@ -136,7 +160,7 @@ export function createRouter(
   })
 
   // POST /api/rooms/:roomId/join
-  router.post('/rooms/:roomId/join', (req: Request, res: Response) => {
+  router.post('/rooms/:roomId/join', async (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
     const { name } = req.body as { name?: string }
 
@@ -148,6 +172,11 @@ export function createRouter(
     const room = store.getRoom(roomId)
     if (!room) {
       res.status(404).json({ error: 'Room not found' })
+      return
+    }
+
+    if (isTestStudentName(name) && await isInRoom(roomId, name)) {
+      res.status(409).json({ error: DUPLICATE_LOGIN_MESSAGE })
       return
     }
 
@@ -205,7 +234,16 @@ export function createRouter(
         return
       }
 
+      const isTestStudent = isTestStudentName(request.name)
+      const alreadyInRoom = isTestStudent && await isInRoom(roomId, request.name)
       const livekitToken = await createToken(roomId, request.name, false)
+      // 剛核准的檢查和核准之間不能有 await，否則「全部核准」時同名申請會同時通過
+      if (alreadyInRoom || (isTestStudent && store.hasRecentApproval(roomId, request.name, requestId, APPROVE_CONNECT_WINDOW_MS))) {
+        store.rejectRequest(roomId, requestId)
+        notifyRoom(roomId, 'request-rejected', { requestId })
+        res.status(409).json({ error: DUPLICATE_LOGIN_MESSAGE })
+        return
+      }
       const approved = store.approveRequest(roomId, requestId, livekitToken)
 
       if (!approved) {
@@ -634,7 +672,7 @@ export function createRouter(
   )
 
   // POST /api/test-auth/login — 本地測試帳號（ENABLE_TEST_ACCOUNTS=1 才有），回傳格式同 SDGs 登入
-  router.post('/test-auth/login', (req: Request, res: Response) => {
+  router.post('/test-auth/login', async (req: Request, res: Response) => {
     if (!testAccountsEnabled()) { res.status(404).json({ error: 'Test accounts disabled' }); return }
     const { username, password } = (req.body ?? {}) as { username?: unknown; password?: unknown }
     if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
@@ -644,6 +682,10 @@ export function createRouter(
     try {
       const user = authenticateTestAccount(loadTestAccounts(process.env.TEST_ACCOUNTS_FILE!), username, password)
       if (!user) { res.status(401).json({ error: '帳號或密碼錯誤' }); return }
+      if (user.role === 'student') {
+        const inRooms = await Promise.all(store.roomIds().map(roomId => isInRoom(roomId, user.full_name)))
+        if (inRooms.includes(true)) { res.status(409).json({ error: DUPLICATE_LOGIN_MESSAGE }); return }
+      }
       res.json({ user })
     } catch (err: any) {
       console.error('[test-auth] failed to read accounts:', err?.message ?? String(err))

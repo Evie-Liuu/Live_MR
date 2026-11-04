@@ -43,6 +43,18 @@ export class RoomAdminService {
     await this.roomService.mutePublishedTrack(roomId, identity, track.sid, muted)
   }
 
+  /** 這個身分目前是否連線在房間裡（房間不存在或人不在都回 false） */
+  async isInRoom(roomId: string, identity: string): Promise<boolean> {
+    try {
+      await this.roomService.getParticipant(roomId, identity)
+      return true
+    } catch (err: any) {
+      const msg = (err?.message ?? String(err)).toLowerCase()
+      if (msg.includes('not_found') || msg.includes('not found') || msg.includes('does not exist')) return false
+      throw err
+    }
+  }
+
   /**
    * Forcibly disconnect a participant from a room. The LiveKit server tears
    * down their connection; the client receives a Disconnected event.

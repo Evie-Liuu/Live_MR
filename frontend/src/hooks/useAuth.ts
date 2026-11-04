@@ -77,6 +77,7 @@ async function testAccountLogin(username: string, password: string): Promise<Aut
   });
   if (res.status === 401) throw new Error('帳號或密碼錯誤');
   if (res.status === 404) throw new Error('伺服器未啟用測試帳號，請改用電郵登入');
+  if (res.status === 409) throw new Error('此帳號已在教室中，請換一個帳號；如果是剛斷線，請等約 30 秒再試');
   if (!res.ok) throw new Error(`登入失敗 (${res.status})`);
   const data = await res.json() as { user: AuthUser };
   return data.user;
