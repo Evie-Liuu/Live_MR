@@ -8474,10 +8474,10 @@ button:disabled {
 .bs-lesson {
   display: flex;
   align-items: stretch;
-  gap: 28px;
+  gap: 32px;
   width: 100%;
   box-sizing: border-box;
-  padding: 24px 32px 16px 28px;
+  padding: 30px 40px 24px 32px;
   border-radius: 44px;
   background: linear-gradient(105deg,
       rgba(255, 244, 230, 0.97) 0%,
@@ -8495,9 +8495,9 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   min-width: 170px;
-  padding-right: 28px;
+  padding-right: 32px;
   border-right: 1.5px solid rgba(122, 78, 45, 0.45);
 }
 
@@ -8511,7 +8511,7 @@ button:disabled {
 /* 浮在卡片上緣的分類標籤（情境對話／暖身觀察／討論回顧） */
 .bs-lesson-tab {
   position: absolute;
-  top: -42px;
+  top: -48px;
   left: 0;
   display: inline-flex;
   align-items: center;
@@ -8539,7 +8539,7 @@ button:disabled {
   grid-template-columns: minmax(420px, 1fr) minmax(0, auto);
   align-content: center;
   align-items: center;
-  column-gap: 24px;
+  column-gap: 40px;
 }
 
 .bs-lesson-head {
@@ -8547,15 +8547,15 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
+  gap: 6px 14px;
 }
 
 .bs-lesson-prompt {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 24px;
-  margin-top: 4px;
+  gap: 40px;
+  margin-top: 12px;
 }
 
 .bs-lesson-task {
@@ -8591,7 +8591,7 @@ button:disabled {
 .bs-turn-text {
   order: 2;
   grid-column: 1;
-  margin-top: 4px;
+  margin-top: 12px;
   font-size: 24px;
   font-weight: 800;
   color: #482607;
@@ -8616,7 +8616,7 @@ button:disabled {
   order: 1;
   grid-column: 1;
   justify-self: start;
-  margin-top: 4px;
+  margin-top: 12px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -8636,7 +8636,7 @@ button:disabled {
 
 .bs-th-hint-zh {
   grid-column: 1;
-  margin-top: 4px;
+  margin-top: 12px;
   font-size: 28px;
   font-weight: 900;
   color: #3D2210;
@@ -8649,7 +8649,7 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 14px;
 }
 
 .bs-th-chip {
@@ -8672,7 +8672,7 @@ button:disabled {
 
 .bs-th-line-en {
   grid-column: 1 / -1;
-  margin-top: 4px;
+  margin-top: 12px;
   font-size: 26px;
   font-weight: 900;
   color: #3D2210;
@@ -8680,6 +8680,7 @@ button:disabled {
 
 .bs-th-line-zh {
   grid-column: 1;
+  margin-top: 8px;
   font-size: 17px;
   font-weight: 700;
   color: #8a6a4a;
@@ -8984,7 +8985,7 @@ button:disabled {
   flex-wrap: wrap;
   justify-content: flex-end;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .bs-lesson-chips-label {
@@ -9002,6 +9003,63 @@ button:disabled {
   font-size: 18px;
   font-weight: 800;
   box-shadow: 0 4px 10px rgba(122, 78, 45, 0.25), inset 0 1px 0 #fff;
+}
+
+/* 小螢幕收緊間距，字卡排得更密，避免字幕列太高蓋到角色的臉 */
+@media (max-width: 1500px) {
+  .bs-lesson {
+    gap: 20px;
+    padding: 26px 28px 16px 24px;
+  }
+
+  .bs-lesson-status {
+    padding-right: 20px;
+  }
+
+  .bs-lesson-tab {
+    top: -44px;
+  }
+
+  .bs-lesson-main {
+    grid-template-columns: minmax(320px, 1fr) minmax(0, auto);
+    column-gap: 24px;
+  }
+
+  .bs-lesson-prompt {
+    gap: 20px;
+    margin-top: 8px;
+  }
+
+  .bs-lesson-question {
+    flex: 1 1 40%;
+    font-size: 24px;
+  }
+
+  .bs-lesson-chips {
+    flex: 0 1 60%;
+    gap: 8px;
+  }
+
+  .bs-lesson-chip {
+    padding: 5px 12px;
+    font-size: 16px;
+  }
+
+  .bs-th-hint-zh,
+  .bs-th-line-en,
+  .bs-th-tag,
+  .bs-turn-text {
+    margin-top: 8px;
+  }
+
+  .bs-th-chips {
+    gap: 8px;
+  }
+
+  .bs-th-chips--shuffle .bs-th-chip {
+    padding: 4px 12px;
+    font-size: 18px;
+  }
 }
 
 /* ── 上課中的備課中心覆蓋層（HostSession 保持掛載，課堂持續進行） ───────── */
