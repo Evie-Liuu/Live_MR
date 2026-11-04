@@ -865,10 +865,12 @@ button:disabled {
   min-height: 0;
 }
 
+/* 影像左右翻轉成照鏡子的樣子，與疊在上面的角色（鏡像驅動）左右一致；只影響顯示，不影響送出的串流 */
 .tile-video-new {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transform: scaleX(-1);
 }
 
 .avatar-canvas-new {

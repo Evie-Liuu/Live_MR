@@ -89,6 +89,7 @@ export default function LocalVideo({ room, poseData, vrmSourceId, slotLabel }: L
             landmarks={[landmarks as never]}
             width={videoSize.width}
             height={videoSize.height}
+            mirrored
           />
         )}
 

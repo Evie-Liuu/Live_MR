@@ -664,7 +664,8 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
             autoPlay
             playsInline
             muted
-            style={{ display: connected ? 'block' : 'none' }}
+            // 前鏡頭像照鏡子；後鏡頭照別的東西，翻轉會讓文字變反。只影響顯示，送出的串流和姿勢偵測不變
+            style={{ display: connected ? 'block' : 'none', transform: facingMode === 'user' ? 'scaleX(-1)' : undefined }}
           />
 
           {(!connected || !videoRef.current?.srcObject) && (
@@ -680,6 +681,7 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
               landmarks={[landmarks]}
               width={videoSize.width}
               height={videoSize.height}
+              mirrored={facingMode === 'user'}
             />
           )}
 

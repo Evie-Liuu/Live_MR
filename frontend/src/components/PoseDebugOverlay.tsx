@@ -12,6 +12,8 @@ interface PoseDebugOverlayProps {
   landmarks: NormalizedLandmark[][];
   width: number;
   height: number;
+  /** 底下的影像有左右翻轉時設為 true，骨架才會對齊 */
+  mirrored?: boolean;
 }
 
 const COLORS = ['#00ff00', '#ff6600', '#00bfff', '#ff00ff', '#ffff00'];
@@ -20,6 +22,7 @@ export default function PoseDebugOverlay({
   landmarks,
   width,
   height,
+  mirrored = false,
 }: PoseDebugOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -71,7 +74,8 @@ export default function PoseDebugOverlay({
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        objectFit: 'cover' // Align with video if needed
+        objectFit: 'cover', // Align with video if needed
+        transform: mirrored ? 'scaleX(-1)' : undefined,
       }}
       className="absolute top-0 left-0 pointer-events-none"
     />
