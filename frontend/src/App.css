@@ -1383,28 +1383,29 @@ button:disabled {
 .bigscreen-overlay {
   position: absolute;
   top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.55);
+  left: 16px;
+  background: rgba(45, 30, 20, 0.8);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 24px;
-  padding: 6px 24px;
+  padding: 4px 8px 4px 16px;
+  box-shadow: 0 6px 18px rgba(30, 15, 5, 0.3);
   pointer-events: none;
 }
 
 .bigscreen-title {
-  color: var(--primary);
+  color: #FF8A3D;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .bigscreen-scene-label {
-  color: var(--text-light);
+  color: #fff;
   font-size: 14px;
-  font-weight: 800;
-  margin-left: 10px;
+  font-weight: 700;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
 }
 
 .bs-editmode-toggle {
@@ -2969,15 +2970,15 @@ button:disabled {
 }
 
 /* ===== Current Task Focus (Top-Middle) ===== */
+/* 字幕列：貼齊畫面底部、內容往上長，上方留給角色的頭和名牌。
+   圖層高於名牌（5）和說話徽章（6），題目不會被蓋住；不攔截點擊 */
 .bigscreen-current-task-container {
   position: absolute;
-  top: 72px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 3;
-  width: auto;
-  min-width: 480px;
-  max-width: 900px;
+  bottom: 20px;
+  left: 24px;
+  right: 24px;
+  z-index: 7;
+  pointer-events: none;
   /* background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8)); */
   /* background: rgba(252, 233, 215, 0.92); */
   /* backdrop-filter: blur(20px); */
@@ -6142,16 +6143,17 @@ button:disabled {
 
 /* ── Task Hint: bar attached to bottom of the central beige task box ───── */
 .bs-hint-bar {
-  align-self: stretch;
-  /* bleed to the inner edges of .bigscreen-current-task-container (padding: 20px 40px) */
-  margin: 4px -40px -20px;
+  margin: -6px 0 0;
+  width: fit-content;
+  max-width: min(1280px, 100%);
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 12px 32px;
   background: rgba(20, 15, 10, 0.88);
   border-top: 2px solid var(--primary, #f76e12);
-  border-radius: 0 0 22px 22px;
+  border-radius: 22px;
   color: #fff;
 }
 
@@ -7462,6 +7464,9 @@ button:disabled {
 
 /* ── 大屏中央 AI 助理 — 機器人 + 環狀波動 ─────────────────────── */
 .bs-robot-zone {
+  /* 字幕列貼底，機器人排在字幕列上方，並避開浮在卡片上緣的分類標籤 */
+  order: -1;
+  margin-bottom: 10px;
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -8465,93 +8470,140 @@ button:disabled {
 }
 
 /* ── 大螢幕：導師任務管理情境卡（不含答案） ───────────────────────────── */
+/* 字幕列分兩區：左邊狀態與進度，右邊內容（內容裡題目靠左、字卡靠右） */
 .bs-lesson {
+  display: flex;
+  align-items: stretch;
+  gap: 28px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px 32px 16px 28px;
+  border-radius: 44px;
+  background: linear-gradient(105deg,
+      rgba(255, 244, 230, 0.97) 0%,
+      rgba(250, 230, 208, 0.97) 55%,
+      rgba(246, 220, 194, 0.97) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 14px 40px rgba(50, 25, 8, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  text-align: left;
+  color: #3D2210;
+}
+
+.bs-lesson-status {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 15px 40px 22px;
-  border-radius: 24px;
-  background: rgba(255, 246, 236, 0.94);
-  border: 1.5px solid rgba(247, 110, 18, 0.35);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), 0 0 30px rgba(247, 110, 18, 0.15);
-  text-align: center;
-  color: var(--text);
-}
-
-.bs-lesson-top {
-  display: flex;
-  align-items: center;
-  justify-content: start;
-  gap: 10px;
-  width: 100%;
+  justify-content: center;
+  gap: 8px;
+  min-width: 170px;
+  padding-right: 28px;
+  border-right: 1.5px solid rgba(122, 78, 45, 0.45);
 }
 
 .bs-lesson-step {
-  padding: 1px 14px;
-  border-radius: 999px;
-  background: #F76E12;
-  color: #fff;
-  font-size: 12px;
+  color: #4A2A12;
+  font-size: 18px;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+/* 浮在卡片上緣的分類標籤（情境對話／暖身觀察／討論回顧） */
+.bs-lesson-tab {
+  position: absolute;
+  top: -42px;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px 5px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #C8551A, #F76E12);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(120, 50, 10, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.bs-lesson-tab .material-symbols-outlined {
+  font-size: 20px;
+}
+
+/* 文字在左欄；字卡在右欄，跨列後相對整張卡片垂直置中 */
+.bs-lesson-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(0, auto);
+  align-content: center;
+  align-items: center;
+  column-gap: 24px;
+}
+
+.bs-lesson-head {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.bs-lesson-prompt {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 4px;
 }
 
 .bs-lesson-task {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: #9A5A26;
+  color: #8A5A33;
 }
 
 .bs-lesson-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 900;
   letter-spacing: 0.04em;
 }
 
 /* 逐句演練：目前發言者與即時逐字稿 */
-.bs-turn {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px 12px;
-  max-width: 60vw;
-}
-
 .bs-turn-who {
-  padding: 4px 16px;
+  padding: 3px 14px;
   border-radius: 999px;
   background: var(--turn-color, #F76E12);
   color: #fff;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 900;
 }
 
-.bs-turn.is-paused .bs-turn-who { background: #8a8a8a; }
+.bs-turn-who.is-paused { background: #8a8a8a; }
 
 .bs-turn-count {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
-  color: #8a6a4a;
+  color: #8A5A33;
 }
 
 .bs-turn-text {
-  flex-basis: 100%;
+  order: 2;
+  grid-column: 1;
+  margin-top: 4px;
   font-size: 24px;
   font-weight: 800;
   color: #482607;
 }
 
 /* 逐句演練：大屏的分級提示（跟發言者 iPad 同一級） */
+/* 外層不佔版面，子元素直接排進 .bs-lesson-main：題目、提示標籤在左，字卡在右 */
 .bs-th {
-  flex-basis: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  display: contents;
+}
+
+.bs-th > * {
   animation: bs-th-in 0.3s ease-out;
 }
 
@@ -8561,49 +8613,73 @@ button:disabled {
 }
 
 .bs-th-tag {
-  padding: 2px 12px;
+  order: 1;
+  grid-column: 1;
+  justify-self: start;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 16px 3px 10px;
   border-radius: 999px;
-  background: #FFE2CC;
-  color: #C05621;
-  font-size: 15px;
+  background: linear-gradient(135deg, #FFA45C, #F98A3C);
+  color: #3D2210;
+  font-size: 16px;
   font-weight: 800;
+  box-shadow: 0 2px 8px rgba(160, 70, 15, 0.3);
 }
 
-.bs-th-hint-zh {
-  font-size: 28px;
-  font-weight: 900;
-  color: #482607;
-}
-
-.bs-th-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-}
-
-.bs-th-chip {
-  padding: 4px 14px;
-  border-radius: 10px;
-  border: 2px solid var(--turn-color, #F76E12);
-  background: #fff;
-  color: #482607;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.bs-th-chips--shuffle .bs-th-chip {
-  background: var(--turn-color, #F76E12);
+.bs-th-tag .material-symbols-outlined {
+  font-size: 20px;
   color: #fff;
 }
 
+.bs-th-hint-zh {
+  grid-column: 1;
+  margin-top: 4px;
+  font-size: 28px;
+  font-weight: 900;
+  color: #3D2210;
+}
+
+.bs-th-chips {
+  grid-column: 2;
+  /* 有字卡時左欄最多四列：標題、題目、提示標籤、即時逐字稿 */
+  grid-row: 1 / span 4;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.bs-th-chip {
+  padding: 10px 26px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: linear-gradient(180deg, #FFF9F1, #FBE6CF);
+  color: #4A2A12;
+  font-size: 24px;
+  font-weight: 800;
+  box-shadow: 0 5px 12px rgba(122, 78, 45, 0.28), inset 0 1px 0 #fff;
+}
+
+/* 重組字卡數量多，縮小一點避免字幕列太高 */
+.bs-th-chips--shuffle .bs-th-chip {
+  padding: 5px 16px;
+  border-radius: 14px;
+  font-size: 20px;
+}
+
 .bs-th-line-en {
+  grid-column: 1 / -1;
+  margin-top: 4px;
   font-size: 26px;
   font-weight: 900;
-  color: #482607;
+  color: #3D2210;
 }
 
 .bs-th-line-zh {
+  grid-column: 1;
   font-size: 17px;
   font-weight: 700;
   color: #8a6a4a;
@@ -8689,24 +8765,45 @@ button:disabled {
 
 .bs-lesson-dots {
   display: flex;
-  gap: 6px;
+  align-items: center;
 }
 
 .bs-lesson-dots span {
-  width: 10px;
-  height: 10px;
+  position: relative;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: rgba(247, 110, 18, 0.2);
+  background: rgba(122, 78, 45, 0.35);
 }
 
-.bs-lesson-dots span.is-done {
-  background: #00A99D;
+/* 點與點之間的連接線 */
+.bs-lesson-dots span + span {
+  margin-left: 16px;
+}
+
+.bs-lesson-dots span + span::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  width: 16px;
+  height: 3px;
+  transform: translateY(-50%);
+  background: rgba(122, 78, 45, 0.35);
+}
+
+.bs-lesson-dots span.is-done,
+.bs-lesson-dots span.is-current {
+  background: #F76E12;
+}
+
+.bs-lesson-dots span.is-done::before,
+.bs-lesson-dots span.is-current::before {
+  background: #F76E12;
 }
 
 .bs-lesson-dots span.is-current {
-  width: 26px;
-  border-radius: 999px;
-  background: #F76E12;
+  box-shadow: 0 0 0 3px rgba(247, 110, 18, 0.3), 0 0 10px rgba(247, 110, 18, 0.6);
 }
 /* ── 課程三階段：任務前 / 任務中 / 任務後 ───────────────────────────────── */
 .hs-lesson-phases {
@@ -8835,17 +8932,40 @@ button:disabled {
 .hs-lesson-banner-phase--post,
 .bs-lesson-phase--post { background: #8E5BD6; }
 
-.bs-lesson-phase {
-  padding: 1px 14px;
+/* 字幕列的階段標籤統一深棕底，用圖示圓點的顏色區分階段（選擇器加權，蓋過教師端共用的階段色） */
+.bs-lesson .bs-lesson-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 24px 5px 6px;
   border-radius: 999px;
-  color: #fff;
-  font-size: 12px;
+  background: linear-gradient(135deg, #7A4E2D, #4A2A12);
+  color: #FFF3E4;
+  font-size: 22px;
   font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(50, 25, 8, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
+.bs-lesson-phase .material-symbols-outlined {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #F76E12;
+  color: #fff;
+  font-size: 22px;
+}
+
+.bs-lesson-phase--pre .material-symbols-outlined { background: #2B9ED8; }
+.bs-lesson-phase--post .material-symbols-outlined { background: #8E5BD6; }
+
 .bs-lesson-question {
-  max-width: 900px;
-  font-size: 30px;
+  flex: 1 1 56%;
+  min-width: 0;
+  font-size: 28px;
   font-weight: 900;
   line-height: 1.3;
   color: var(--text-dark, #2b2b2b);
@@ -8859,32 +8979,29 @@ button:disabled {
 }
 
 .bs-lesson-chips {
+  flex: 0 1 44%;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
 }
 
 .bs-lesson-chips-label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
-  color: #9A5A26;
+  color: #8A5A33;
 }
 
 .bs-lesson-chip {
-  padding: 3px 14px;
-  border-radius: 999px;
-  background: #fff;
-  border: 1.5px solid rgba(142, 91, 214, 0.35);
-  color: #6A3FB0;
-  font-size: 16px;
+  padding: 7px 18px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #FFF9F1, #FBE6CF);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  color: #4A2A12;
+  font-size: 18px;
   font-weight: 800;
-}
-
-.bs-lesson-chip--frame {
-  border-color: rgba(247, 110, 18, 0.35);
-  color: #C2560C;
+  box-shadow: 0 4px 10px rgba(122, 78, 45, 0.25), inset 0 1px 0 #fff;
 }
 
 /* ── 上課中的備課中心覆蓋層（HostSession 保持掛載，課堂持續進行） ───────── */

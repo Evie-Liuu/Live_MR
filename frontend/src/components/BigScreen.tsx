@@ -26,6 +26,18 @@ import { HINT_LABELS, shownHintLevel, type HintLevel as TurnHintLevel } from '..
 import TurnHintBody from './TurnHintBody.tsx';
 import { phaseMeta } from '../config/lessonPhases.ts';
 
+/** 字幕列左側的進度點：前 done 個已完成，下一個是目前這一步 */
+function LessonProgress({ count, done }: { count: number; done: number }) {
+  if (count <= 1) return null;
+  return (
+    <div className="bs-lesson-dots" aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <span key={i} className={i < done ? 'is-done' : i === done ? 'is-current' : ''} />
+      ))}
+    </div>
+  );
+}
+
 export interface TaskEntry {
   id: string;
   label: string;
@@ -971,24 +983,26 @@ export default function BigScreen() {
     const settlement = showSettlementRef.current;
     ctx.save();
 
-    // 中央容器(.bigscreen-current-task-container)的有效底部 — 隨任務框/提示欄向下生長,
-    // 後續 AI 助理機器人區段以此為基準向下定位。
-    let taskContainerBottomY = 96;
+    // 字幕列(.bigscreen-current-task-container)貼齊底部，隨任務框/提示欄往上長；
+    // 後續 AI 助理機器人區段以它的頂部為基準往上定位。
+    const subtitleBottomY = ch - 20;
+    let taskContainerTopY = subtitleBottomY;
 
     // ── 1. Top pill (bigscreen-overlay) ──────────────────────────────────────
     const titleText = 'MR 雙語角 — 大屏顯示';
     const sceneLabel = SCENE_PRESETS[sceneIdRef.current]?.label ?? '';
     ctx.font = '700 15px system-ui, sans-serif';
     const titleW = ctx.measureText(titleText).width;
-    ctx.font = '800 14px system-ui, sans-serif';
+    ctx.font = '700 14px system-ui, sans-serif';
     const labelW = sceneLabel ? ctx.measureText(sceneLabel).width : 0;
-    const pillPad = 24;
+    const pillPad = 16;
     const pillH = 34;
-    const pillW = pillPad + titleW + (sceneLabel ? 10 + labelW : 0) + pillPad;
-    const pillX = (cw - pillW) / 2;
+    const labelGap = 25; // 標題與場景名之間，中間畫分隔線
+    const pillW = pillPad + titleW + (sceneLabel ? labelGap + labelW : 0) + pillPad;
+    const pillX = 16;
     const pillY = 16;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillStyle = 'rgba(45, 30, 20, 0.8)';
     rrPath(ctx, pillX, pillY, pillW, pillH, 24);
     ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
@@ -1002,9 +1016,12 @@ export default function BigScreen() {
     ctx.textAlign = 'left';
     ctx.fillText(titleText, pillX + pillPad, pillY + pillH / 2);
     if (sceneLabel) {
-      ctx.fillStyle = '#A69688';
-      ctx.font = '800 14px system-ui, sans-serif';
-      ctx.fillText(sceneLabel, pillX + pillPad + titleW + 10, pillY + pillH / 2);
+      const dividerX = pillX + pillPad + titleW + 12;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillRect(dividerX, pillY + 9, 1, pillH - 18);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 14px system-ui, sans-serif';
+      ctx.fillText(sceneLabel, pillX + pillPad + titleW + labelGap, pillY + pillH / 2);
     }
 
     // ── 2. Current-task box (bigscreen-current-task-container) ────────────────
@@ -1015,42 +1032,46 @@ export default function BigScreen() {
       const boxW = Math.max(480, Math.min(ctx.measureText(currentTask.label).width + 80, maxLW + 80));
       const boxH = 75;
       const boxX = (cw - boxW) / 2;
-      const boxY = 96;
 
       // When the hint bar is shown, flatten the bottom corners so hint bar joins flush.
       const hintActive = hintEnabledRef.current && hintLevelRef.current;
-      const taskBoxPath = () => {
-        if (hintActive) {
-          // Top corners rounded, bottom corners square
-          const r = 24;
-          ctx.beginPath();
-          ctx.moveTo(boxX + r, boxY);
-          ctx.lineTo(boxX + boxW - r, boxY);
-          ctx.arcTo(boxX + boxW, boxY, boxX + boxW, boxY + r, r);
-          ctx.lineTo(boxX + boxW, boxY + boxH);
-          ctx.lineTo(boxX, boxY + boxH);
-          ctx.lineTo(boxX, boxY + r);
-          ctx.arcTo(boxX, boxY, boxX + r, boxY, r);
-          ctx.closePath();
-        } else {
-          rrPath(ctx, boxX, boxY, boxW, boxH, 24);
-        }
+      // 任務框的 y 要等提示欄高度量完才知道，所以包成函式
+      const drawTaskBox = (boxY: number) => {
+        const taskBoxPath = () => {
+          if (hintActive) {
+            // Top corners rounded, bottom corners square
+            const r = 24;
+            ctx.beginPath();
+            ctx.moveTo(boxX + r, boxY);
+            ctx.lineTo(boxX + boxW - r, boxY);
+            ctx.arcTo(boxX + boxW, boxY, boxX + boxW, boxY + r, r);
+            ctx.lineTo(boxX + boxW, boxY + boxH);
+            ctx.lineTo(boxX, boxY + boxH);
+            ctx.lineTo(boxX, boxY + r);
+            ctx.arcTo(boxX, boxY, boxX + r, boxY, r);
+            ctx.closePath();
+          } else {
+            rrPath(ctx, boxX, boxY, boxW, boxH, 24);
+          }
+        };
+
+        ctx.fillStyle = 'rgba(252, 233, 215, 0.92)';
+        taskBoxPath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(247, 110, 18, 0.3)';
+        ctx.lineWidth = 1;
+        taskBoxPath();
+        ctx.stroke();
+
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(currentTask.label, cw / 2, boxY + boxH / 2, maxLW);
+        ctx.textAlign = 'left';
+        taskContainerTopY = boxY;
       };
 
-      ctx.fillStyle = 'rgba(252, 233, 215, 0.92)';
-      taskBoxPath();
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(247, 110, 18, 0.3)';
-      ctx.lineWidth = 1;
-      taskBoxPath();
-      ctx.stroke();
-
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(currentTask.label, cw / 2, boxY + boxH / 2, maxLW);
-      ctx.textAlign = 'left';
-      taskContainerBottomY = boxY + boxH;
+      if (!hintActive) drawTaskBox(subtitleBottomY - boxH);
 
       // ── 2b. Hint bar (bs-hint-bar) — attached below the task box ───────────
       if (hintActive) {
@@ -1117,7 +1138,8 @@ export default function BigScreen() {
         if (epLines.length) { nLines = epLines.length; lineH = epLineH; }
         else if (usLines.length) { nLines = usLines.length; lineH = usLineH; }
         const barH = nLines > 1 ? (50 - lineH) + nLines * lineH : 50;
-        const barY = boxY + boxH;
+        const barY = subtitleBottomY - barH;
+        drawTaskBox(barY - boxH);
 
         // Dark background, bottom corners rounded (top flush against task box)
         ctx.fillStyle = 'rgba(20, 15, 10, 0.88)';
@@ -1202,7 +1224,6 @@ export default function BigScreen() {
           ctx.textAlign = 'left';
           ctx.fillText(text, cx, midY, maxCX - cx);
         }
-        taskContainerBottomY = barY + barH;
       }
     }
 
@@ -1271,7 +1292,7 @@ export default function BigScreen() {
     }
 
     // ── 4. AI 助理機器人區 (bs-robot-zone) ──────────────────────────────────
-    // 互動進行中時,在中央任務框下方畫出機器人 + (可選的) AI 提示說話泡泡。
+    // 互動進行中時,在字幕列上方畫出機器人 + (可選的) AI 提示說話泡泡。
     const phase = interactionPhaseRef.current;
     if (phase !== 'idle') {
       const aiHintNow = aiHintRef.current;
@@ -1324,7 +1345,7 @@ export default function BigScreen() {
       }
 
       const totalRowW = robotWrapW + (showBubble ? robotToBubbleGap + modeTagW + tagToBubbleGap + bubbleW : 0);
-      const zoneTop = taskContainerBottomY > 96 ? taskContainerBottomY + 10 : 96;
+      const zoneTop = taskContainerTopY - 10 - robotWrapH;
       const rowLeftX = (cw - totalRowW) / 2;
 
       // 機器人柔光暈 (徑向漸層)
@@ -2629,8 +2650,8 @@ export default function BigScreen() {
           className="bigscreen-recording-indicator"
           style={{
             position: 'absolute',
-            top: '20px',
-            left: '30px',
+            top: '72px',
+            left: '16px',
             backgroundColor: 'rgba(252, 233, 215, 0.9)',
             border: '1px solid rgba(247, 110, 18, 0.3)',
             padding: '8px 16px',
@@ -2690,9 +2711,12 @@ export default function BigScreen() {
         </div>
       )}
 
-      {/* 中央米色對話框 (顯示當前任務 / AI 助理提示) */}
+      {/* 底部字幕列 (顯示當前任務 / AI 助理提示) */}
       {(() => {
         const currentTask = activeTasks.find(t => !t.completed);
+
+        // 逐句演練目前這一輪；步驟講完或課程完成時不顯示
+        const turn = lesson && !lesson.allDone && scriptTurn && scriptTurn.status !== 'stepEnd' ? scriptTurn : null;
 
         return (
           <div className="bigscreen-current-task-container">
@@ -2700,72 +2724,97 @@ export default function BigScreen() {
             {/* 任務前 / 任務後：一次聚焦一題提問與句型框架 */}
             {lesson && lesson.phase && lesson.phase !== 'during' && (
               <div className={`bs-lesson bs-lesson--${lesson.phase}`}>
-                <div className="bs-lesson-top">
+                <div className="bs-lesson-status">
                   <span className={`bs-lesson-phase bs-lesson-phase--${lesson.phase}`}>
-                    {phaseMeta(lesson.phase).label}・{phaseMeta(lesson.phase).sub}
+                    <span className="material-symbols-outlined" aria-hidden="true">{lesson.phase === 'pre' ? 'visibility' : 'forum'}</span>
+                    {phaseMeta(lesson.phase).label}
                   </span>
                   {lesson.prompt && lesson.prompt.count > 1 && (
-                    <span className="bs-lesson-step">提問 {lesson.prompt.index + 1}/{lesson.prompt.count}</span>
+                    <span className="bs-lesson-step">提問 {lesson.prompt.index + 1} / {lesson.prompt.count}</span>
                   )}
-                  <span className="bs-lesson-task">{lesson.taskTitle}</span>
+                  {lesson.prompt && <LessonProgress count={lesson.prompt.count} done={lesson.prompt.index} />}
                 </div>
-                {lesson.prompt && (
-                  <>
-                    <div className="bs-lesson-question">{lesson.prompt.en}</div>
-                    {/* <div className="bs-lesson-question-zh">{lesson.prompt.zh}</div> */}
-                  </>
-                )}
-                {/* {lesson.focusPoints && lesson.focusPoints.length > 0 && (
-                  <div className="bs-lesson-chips">
-                    <span className="bs-lesson-chips-label">語言重點</span>
-                    {lesson.focusPoints.map(f => <span key={f} className="bs-lesson-chip">{f}</span>)}
+                <div className="bs-lesson-main">
+                  <span className="bs-lesson-tab">
+                    <span className="material-symbols-outlined" aria-hidden="true">campaign</span>
+                    {phaseMeta(lesson.phase).sub}
+                  </span>
+                  <div className="bs-lesson-head">
+                    <span className="bs-lesson-task">{lesson.taskTitle}</span>
                   </div>
-                )} */}
-                {lesson.level === 'preA1-A1' && lesson.frames && lesson.frames.length > 0 && (
-                  <div className="bs-lesson-chips">
-                    <span className="bs-lesson-chips-label">試著這樣說</span>
-                    {lesson.frames.map(f => <span key={f} className="bs-lesson-chip bs-lesson-chip--frame">{f}</span>)}
+                  <div className="bs-lesson-prompt">
+                    {lesson.prompt && (
+                      <>
+                        <div className="bs-lesson-question">{lesson.prompt.en}</div>
+                        {/* <div className="bs-lesson-question-zh">{lesson.prompt.zh}</div> */}
+                      </>
+                    )}
+                    {/* {lesson.focusPoints && lesson.focusPoints.length > 0 && (
+                      <div className="bs-lesson-chips">
+                        <span className="bs-lesson-chips-label">語言重點</span>
+                        {lesson.focusPoints.map(f => <span key={f} className="bs-lesson-chip">{f}</span>)}
+                      </div>
+                    )} */}
+                    {lesson.level === 'preA1-A1' && lesson.frames && lesson.frames.length > 0 && (
+                      <div className="bs-lesson-chips">
+                        <span className="bs-lesson-chips-label">試著這樣說</span>
+                        {lesson.frames.map(f => <span key={f} className="bs-lesson-chip bs-lesson-chip--frame">{f}</span>)}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             )}
             {lesson && (!lesson.phase || lesson.phase === 'during') && (
               <div className="bs-lesson">
-                <div className="bs-lesson-top">
-                  <span className="bs-lesson-phase bs-lesson-phase--during">任務中</span>
-                  <span className="bs-lesson-step">
-                    {lesson.allDone ? '完成' : `步驟 ${lesson.stepIndex + 1}/${lesson.stepCount}`}
+                <div className="bs-lesson-status">
+                  <span className="bs-lesson-phase bs-lesson-phase--during">
+                    <span className="material-symbols-outlined" aria-hidden="true">track_changes</span>
+                    任務中
                   </span>
-                  <span className="bs-lesson-task">{lesson.taskTitle}</span>
+                  <span className="bs-lesson-step">
+                    {lesson.allDone ? '完成' : `步驟 ${lesson.stepIndex + 1} / ${lesson.stepCount}`}
+                  </span>
+                  <LessonProgress count={lesson.stepCount} done={lesson.doneCount} />
                 </div>
-                <div className="bs-lesson-title">
-                  {lesson.stepTitle}
-                  {/* {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>} */}
-                </div>
-                {scriptTurn && scriptTurn.status !== 'stepEnd' && !lesson.allDone && (
-                  <div className={`bs-turn${scriptTurn.status === 'paused' ? ' is-paused' : ''}`} style={{ ['--turn-color' as string]: scriptTurn.speaker.color }}>
-                    <span className="bs-turn-who">
-                      {scriptTurn.status === 'paused' ? '暫停中' : `${scriptTurn.speaker.label}・${scriptTurn.speaker.name}`}
+                <div className="bs-lesson-main" style={turn ? { ['--turn-color' as string]: turn.speaker.color } : undefined}>
+                  <span className="bs-lesson-tab">
+                    <span className="material-symbols-outlined" aria-hidden="true">campaign</span>
+                    {phaseMeta('during').sub}
+                  </span>
+                  <div className="bs-lesson-head">
+                    {turn && (
+                      <>
+                        <span className={`bs-turn-who${turn.status === 'paused' ? ' is-paused' : ''}`}>
+                          {turn.status === 'paused' ? '暫停中' : `${turn.speaker.label}・${turn.speaker.name}`}
+                        </span>
+                        <span className="bs-turn-count">{turn.lineIndex + 1}/{turn.lineCount}</span>
+                      </>
+                    )}
+                    <span className="bs-lesson-title">
+                      {lesson.stepTitle}
+                      {/* {lesson.purpose && <span className="bs-lesson-purpose">{lesson.purpose}</span>} */}
                     </span>
-                    <span className="bs-turn-count">{scriptTurn.lineIndex + 1}/{scriptTurn.lineCount}</span>
-                    {scriptTurn.status === 'running' && (
-                      lesson.lines
-                        ? <span className="bs-turn-text">{scriptTurn.line.en}</span>
-                        : turnHint && turnHint.seq === scriptTurn.seq ? (
-                          // 分級提示：跟發言者畫面同一級
-                          <div key={turnHint.level} className="bs-th">
-                            <span className="bs-th-tag">
-                              {shownHintLevel(scriptTurn.line, turnHint.level) === 0 ? '用英文說說看' : `提示・${HINT_LABELS[shownHintLevel(scriptTurn.line, turnHint.level)]}`}
-                            </span>
-                            <TurnHintBody line={scriptTurn.line} seq={scriptTurn.seq} level={turnHint.level} classPrefix="bs-th" />
-                          </div>
-                        ) : null
-                    )}
-                    {scriptTurn.status === 'running' && !lesson.lines && turnTranscript && (
-                      <span className="bs-turn-text bs-turn-text--live">{turnTranscript}</span>
-                    )}
+                    <span className="bs-lesson-task">{lesson.taskTitle}</span>
                   </div>
-                )}
+                  {turn && turn.status === 'running' && (
+                    lesson.lines
+                      ? <span className="bs-turn-text">{turn.line.en}</span>
+                      : turnHint && turnHint.seq === turn.seq ? (
+                        // 分級提示：跟發言者畫面同一級
+                        <div key={turnHint.level} className="bs-th">
+                          <span className="bs-th-tag">
+                            <span className="material-symbols-outlined" aria-hidden="true">lightbulb</span>
+                            {shownHintLevel(turn.line, turnHint.level) === 0 ? '用英文說說看' : `提示・${HINT_LABELS[shownHintLevel(turn.line, turnHint.level)]}`}
+                          </span>
+                          <TurnHintBody line={turn.line} seq={turn.seq} level={turnHint.level} classPrefix="bs-th" />
+                        </div>
+                      ) : null
+                  )}
+                  {turn && turn.status === 'running' && !lesson.lines && turnTranscript && (
+                    <span className="bs-turn-text bs-turn-text--live">{turnTranscript}</span>
+                  )}
+                </div>
                 {/* {!lesson.allDone && lesson.roles.length > 0 && (
                   <div className="bs-lesson-roles">
                     {lesson.roles.map((r, i) => (
@@ -2783,11 +2832,7 @@ export default function BigScreen() {
                     ))}
                   </ul>
                 )}
-                <div className="bs-lesson-dots" aria-hidden="true">
-                  {Array.from({ length: lesson.stepCount }, (_, i) => (
-                    <span key={i} className={i < lesson.doneCount ? 'is-done' : i === lesson.doneCount ? 'is-current' : ''} />
-                  ))}
-                </div> */}
+                */}
               </div>
             )}
 
