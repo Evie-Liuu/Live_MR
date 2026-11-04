@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices } from './scriptPlayback.ts';
-import { gestureWeight, lookAngles, mouthOpenness } from './scriptedAvatar.ts';
+import { gestureWeight, idleLoopSample, lookAngles, mouthOpenness } from './scriptedAvatar.ts';
 import type { DialogueTask } from '../types/dialogueTask.ts';
 
 const task: DialogueTask = {
@@ -80,6 +80,34 @@ describe('scriptedAvatar math', () => {
     expect(gestureWeight(1, 2)).toBe(1);
     expect(gestureWeight(1.9, 2)).toBeLessThan(1);
     expect(gestureWeight(2, 2)).toBe(0);
+  });
+
+  it('idleLoopSample ends each cycle exactly where the next one starts', () => {
+    const duration = 8.3;
+    const fade = 0.8;
+    const span = duration - fade;
+    const start = idleLoopSample(0, duration);
+    expect(start).toEqual({ time: fade, wrapTime: 0, wrapWeight: 0 });
+    // 混到底時的姿勢（wrapTime）等於下一輪起點（time）
+    const end = idleLoopSample(span - 1e-6, duration);
+    expect(end.time).toBeCloseTo(duration, 4);
+    expect(end.wrapTime).toBeCloseTo(fade, 4);
+    expect(end.wrapWeight).toBeCloseTo(1, 4);
+    expect(idleLoopSample(span, duration).time).toBeCloseTo(fade);
+    // 循環前段不混合，取樣永遠不超出動作範圍
+    expect(idleLoopSample(1, duration).wrapWeight).toBe(0);
+    for (let t = 0; t < 40; t += 0.037) {
+      const s = idleLoopSample(t, duration);
+      expect(s.time).toBeGreaterThanOrEqual(fade);
+      expect(s.time).toBeLessThanOrEqual(duration);
+    }
+  });
+
+  it('idleLoopSample handles short and empty clips', () => {
+    expect(idleLoopSample(5, 0)).toEqual({ time: 0, wrapTime: 0, wrapWeight: 0 });
+    const s = idleLoopSample(0.1, 1);
+    expect(s.time).toBeCloseTo(0.6);
+    expect(s.wrapWeight).toBeGreaterThan(0);
   });
 
   it('mouthOpenness stays within 0..1', () => {

@@ -2,7 +2,7 @@
  * scriptedAvatar.ts
  *
  * 劇本模擬器用的程式動畫（不需要動作檔）：
- *   - 待機：手臂放下、胸口呼吸起伏、身體微幅擺動
+ *   - 待機：手臂放下、胸口呼吸起伏、身體微幅擺動；setIdle 設定循環動作檔後改由動作檔驅動
  *   - 自動眨眼（隨機間隔）
  *   - 轉頭看向目標（說話者看聽者、聽者看說話者）
  *   - 說話：嘴巴開合（假的音節節奏，瀏覽器 TTS 拿不到音訊無法真正對嘴）＋輕微點頭
@@ -24,6 +24,8 @@ export interface AvatarAnimator {
   update(delta: number, elapsed: number, input: AnimatorInput): void;
   /** 播放一次性動作（由 createVRMAnimationClip 建立）；會中斷正在播的動作 */
   playGesture(clip: THREE.AnimationClip): void;
+  /** 用循環動作檔取代程式待機姿勢（由 createVRMAnimationClip 建立） */
+  setIdle(clip: THREE.AnimationClip): void;
   /** 目前頭部的世界座標（給其他角色當 lookTarget） */
   headWorldPosition(out: THREE.Vector3): THREE.Vector3;
 }
@@ -38,6 +40,21 @@ const MOUTH_SPEED = 18;
 /** 動作開始 / 結束時與待機姿勢混合的秒數 */
 const GESTURE_FADE_IN = 0.25;
 const GESTURE_FADE_OUT = 0.35;
+/** 待機動作檔頭尾姿勢不一定相同，循環時用這段秒數交叉淡化 */
+const IDLE_LOOP_FADE = 0.8;
+
+/**
+ * 循環播放的取樣位置：實際播放 [fade, duration) 這段，尾端 fade 秒逐漸混向開頭的 [0, fade)，
+ * 混到底時正好等於下一輪的起點，因此頭尾姿勢不同也不會跳動。
+ */
+export function idleLoopSample(time: number, duration: number): { time: number; wrapTime: number; wrapWeight: number } {
+  if (duration <= 0) return { time: 0, wrapTime: 0, wrapWeight: 0 };
+  const fade = Math.min(IDLE_LOOP_FADE, duration / 2);
+  const span = duration - fade;
+  const t = fade + THREE.MathUtils.euclideanModulo(time, span);
+  const u = THREE.MathUtils.clamp((t - span) / fade, 0, 1);
+  return { time: t, wrapTime: Math.max(0, t - span), wrapWeight: u * u * (3 - 2 * u) };
+}
 
 /** 動作的混合權重：開頭淡入、結尾淡出（0~1） */
 export function gestureWeight(time: number, duration: number): number {
@@ -143,6 +160,13 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
     bones: { bone: THREE.Object3D; interp: THREE.Interpolant }[];
     expressions: { target: { weight: number }; interp: THREE.Interpolant }[];
   } | null = null;
+  let idle: {
+    duration: number;
+    rotations: { bone: THREE.Object3D; interp: THREE.Interpolant }[];
+    positions: { bone: THREE.Object3D; interp: THREE.Interpolant }[];
+  } | null = null;
+  const idleQuat = new THREE.Quaternion();
+  const idlePos = new THREE.Vector3();
   const gestureQuat = new THREE.Quaternion();
   const lookQuat = new THREE.Quaternion();
   const lookEuler = new THREE.Euler();
@@ -185,6 +209,21 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
       const nod = speaking && !gesture ? Math.sin(elapsed * 5 + seed) * 0.035 : 0;
       neck?.rotation.set(0, 0, 0);
       head?.rotation.set(nod * pitchSign, 0, Math.sin(elapsed * 0.7 + seed) * 0.02);
+
+      // 待機動作檔蓋過上面的程式姿勢；動作檔沒有的骨頭維持程式姿勢。seed 讓角色不會同步擺動
+      if (idle) {
+        const s = idleLoopSample(elapsed + seed, idle.duration);
+        for (const { bone: b, interp } of idle.rotations) {
+          b.quaternion.fromArray(interp.evaluate(s.time) as unknown as number[]);
+          if (s.wrapWeight > 0) b.quaternion.slerp(idleQuat.fromArray(interp.evaluate(s.wrapTime) as unknown as number[]), s.wrapWeight);
+        }
+        // 髖部位移要一起套用，否則腿部旋轉會讓腳離地或穿進地板
+        for (const { bone: b, interp } of idle.positions) {
+          b.position.fromArray(interp.evaluate(s.time) as unknown as number[]);
+          if (s.wrapWeight > 0) b.position.lerp(idlePos.fromArray(interp.evaluate(s.wrapTime) as unknown as number[]), s.wrapWeight);
+        }
+        if (nod && head) head.quaternion.multiply(lookQuat.setFromEuler(lookEuler.set(nod * pitchSign, 0, 0)));
+      }
 
       // ② 動作：依淡入淡出權重，從待機姿勢 slerp 到動作姿勢
       if (gesture) {
@@ -239,6 +278,18 @@ export function createAvatarAnimator(vrm: VRM, seed = Math.random() * 10): Avata
         }
       }
       gesture = { time: 0, duration: clip.duration, bones, expressions };
+    },
+    setIdle(clip) {
+      const rotations: { bone: THREE.Object3D; interp: THREE.Interpolant }[] = [];
+      const positions: { bone: THREE.Object3D; interp: THREE.Interpolant }[] = [];
+      for (const track of clip.tracks) {
+        const { nodeName, propertyName } = THREE.PropertyBinding.parseTrackName(track.name);
+        const obj = vrm.scene.getObjectByName(nodeName);
+        if (!obj) continue;
+        if (propertyName === 'quaternion') rotations.push({ bone: obj, interp: createInterpolant(track) });
+        else if (propertyName === 'position') positions.push({ bone: obj, interp: createInterpolant(track) });
+      }
+      idle = { duration: clip.duration, rotations, positions };
     },
     headWorldPosition(out) {
       if (head) return head.getWorldPosition(out);

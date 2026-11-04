@@ -124,7 +124,7 @@ export default function ScriptTurnOverlay(props: ScriptTurnOverlayProps) {
       {props.isNext && turn.next && (
         <div className="sto-next" style={{ ['--next-color' as string]: turn.next.color }}>
           <span className="sto-next-label">下一句輪到你</span>
-          {turn.nextLine && <span className="sto-next-line">{turn.nextLine}</span>}
+          {/* {turn.nextLine && <span className="sto-next-line">{turn.nextLine}</span>} */}
         </div>
       )}
     </div>

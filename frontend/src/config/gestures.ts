@@ -6,6 +6,9 @@
  * 新增動作則要同時改這裡、backend/src/dialogueTaskTypes.ts 的 GESTURE_IDS 與產生器。
  */
 
+/** 待機循環動作：不是可排進台詞的手勢，不列入 GESTURES；檔案不存在時用程式待機姿勢 */
+export const IDLE_ANIMATION_URL = '/animations/idle.vrma';
+
 export type GestureId = 'wave' | 'nod' | 'bow' | 'point' | 'handOver' | 'thumbsUp' | 'happy';
 
 export interface GestureDef {

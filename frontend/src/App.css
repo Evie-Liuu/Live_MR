@@ -2974,7 +2974,7 @@ button:disabled {
    圖層高於名牌（5）和說話徽章（6），題目不會被蓋住；不攔截點擊 */
 .bigscreen-current-task-container {
   position: absolute;
-  bottom: 20px;
+  bottom: 55px;
   left: 24px;
   right: 24px;
   z-index: 7;

@@ -18,7 +18,7 @@ import { loadStaticProps, disposeStaticProps } from '../utils/propLoader.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMAnimationLoaderPlugin, VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
-import { GESTURES, type GestureId } from '../config/gestures.ts';
+import { GESTURES, IDLE_ANIMATION_URL, type GestureId } from '../config/gestures.ts';
 
 interface StageAvatar {
   slotId: string;
@@ -60,6 +60,24 @@ function loadGestureLibrary(): Promise<Map<GestureId, VRMAnimation>> {
     return lib;
   })();
   return gestureLibrary;
+}
+
+let idleAnimation: Promise<VRMAnimation | null> | null = null;
+
+/** 待機動作檔；缺檔或載入失敗回傳 null，角色改用程式待機姿勢 */
+function loadIdleAnimation(): Promise<VRMAnimation | null> {
+  idleAnimation ??= (async () => {
+    const loader = new GLTFLoader();
+    loader.register(parser => new VRMAnimationLoaderPlugin(parser));
+    try {
+      const gltf = await loader.loadAsync(IDLE_ANIMATION_URL);
+      return (gltf.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0] ?? null;
+    } catch (err) {
+      console.warn('[ScriptStage] idle animation load failed, using procedural idle:', err);
+      return null;
+    }
+  })();
+  return idleAnimation;
 }
 
 /** 與大螢幕編輯模式相同：沒有姿勢驅動時把腳貼地 */
@@ -144,16 +162,19 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     Promise.all(slots.map(async (slot, i) => {
       const vrmId = slot.defaultVrmId ?? DEFAULT_VRM_SOURCE_ID;
       const url = (VRM_SOURCES[vrmId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
-      const { vrm } = await loadVrm({
-        url,
-        scene,
-        spawn: {
-          position: [slot.position[0], FLOOR_Y, slot.position[2]],
-          rotation: slot.rotation,
-          scale: preset.avatarDefaults?.scale,
-        },
-        onProgress: p => { slotProgress[i] = p; reportProgress(); },
-      });
+      const [{ vrm }, idleAnim] = await Promise.all([
+        loadVrm({
+          url,
+          scene,
+          spawn: {
+            position: [slot.position[0], FLOOR_Y, slot.position[2]],
+            rotation: slot.rotation,
+            scale: preset.avatarDefaults?.scale,
+          },
+          onProgress: p => { slotProgress[i] = p; reportProgress(); },
+        }),
+        loadIdleAnimation(),
+      ]);
       if (disposed) { scene.remove(vrm.scene); VRMUtils.deepDispose(vrm.scene); return; }
       slotProgress[i] = 1;
       reportProgress();
@@ -163,7 +184,9 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
         proxy.name = 'VRMLookAtQuaternionProxy';
         vrm.scene.add(proxy);
       }
-      avatars.push({ slotId: slot.id, vrm, animator: createAvatarAnimator(vrm, i * 2.3 + 0.7), clips: new Map() });
+      const animator = createAvatarAnimator(vrm, i * 2.3 + 0.7);
+      if (idleAnim) animator.setIdle(createVRMAnimationClip(idleAnim, vrm));
+      avatars.push({ slotId: slot.id, vrm, animator, clips: new Map() });
     }))
       .then(() => { if (!disposed) setReady(true); })
       .catch(err => {
