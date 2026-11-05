@@ -17,11 +17,14 @@ import type { RefObject } from 'react';
 import * as THREE from 'three';
 import { VRMUtils, type VRM } from '@pixiv/three-vrm';
 import { loadVrm } from '../utils/vrmLoader';
+import { VRMLookAtQuaternionProxy, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
 import {
+  applyIdleEyes,
   applyPoseToVrm,
   createPoseApplyState,
   type PoseApplyState,
 } from '../utils/vrmPoseApplier';
+import { IDLE_RELEASE_SECONDS, createIdlePose, loadIdleAnimation, shouldPlayIdle, type IdlePose } from '../utils/idleAvatar';
 import { applyLights } from '../utils/threeScene';
 import {
   loadStaticProps,
@@ -74,6 +77,12 @@ interface AvatarSlot {
   lastPoseAt: number;
   /** Exponential moving average of inter-pose intervals (ms), default 33 = 30 fps */
   avgPoseIntervalMs: number;
+  /** 登台展演中不跟姿勢時的待機動作 */
+  idle: IdlePose;
+  /** 上一幀是否在播待機 */
+  wasIdling: boolean;
+  /** 回到姿勢驅動後，還要花幾秒放回待機動作碰過的骨頭 */
+  idleReleaseLeft: number;
   /** Object interaction state machine */
   interaction: {
     propState: 'displayed' | 'held' | 'returning';
@@ -155,6 +164,11 @@ interface UseBigScreenSceneOptions {
    * undefined＝不限制，誰都可以拿。
    */
   propGrabberIdentity?: string | null;
+  /**
+   * 只有這位的姿勢會驅動角色（登台展演的發言者），其他人播待機動作；null＝全部播待機；
+   * undefined＝不限制，所有人都跟自己的姿勢。
+   */
+  poseOnlyIdentity?: string | null;
   /** Called once per frame with renderer stats. Only passed when stats panel is visible. */
   onStats?: (s: StatsSnapshot) => void;
   /**
@@ -219,7 +233,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, poseOnlyIdentity, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -490,6 +504,8 @@ export function useBigScreenScene(
   currentPropIdRef.current = currentPropId;
   const propGrabberIdentityRef = useRef(propGrabberIdentity);
   propGrabberIdentityRef.current = propGrabberIdentity;
+  const poseOnlyIdentityRef = useRef(poseOnlyIdentity);
+  poseOnlyIdentityRef.current = poseOnlyIdentity;
 
   const onStatsRef = useRef<((s: StatsSnapshot) => void) | undefined>(undefined);
   onStatsRef.current = onStats;
@@ -783,7 +799,38 @@ export function useBigScreenScene(
           20,
         );
 
-        if (slot.pendingPose) {
+        // 登台展演：非發言者（或發言者沒有姿勢資料時）播待機動作。靜態角色另有擺法，不處理。
+        const hasFreshPose = !!slot.pendingPose
+          || (!!slot.lastFrame && frameStart - slot.lastPoseAt < POSE_STALLED_MS);
+        const idling = !identity.startsWith(PLACEHOLDER_PREFIX)
+          && shouldPlayIdle(identity, poseOnlyIdentityRef.current, hasFreshPose);
+
+        if (idling) {
+          // 姿勢照收不解算：拿著道具的人要靠最新的手部資料才能放下；輪到他時也能立刻接上
+          if (slot.pendingPose) {
+            slot.lastFrame = slot.pendingPose;
+            slot.pendingPose = null;
+          }
+          slot.idle.update(delta, elapsedRef.current);
+          applyIdleEyes(slot.vrm, slot.poseState.idleEyes);
+          slot.wasIdling = true;
+        } else if (slot.wasIdling) {
+          // 丟掉進入待機前的解算結果，否則會先往舊姿勢動一下才接上現在的姿勢
+          slot.poseState.prevRotations = {};
+          slot.poseState.cachedBoneRotations = null;
+          slot.poseState.cachedHipsPos = null;
+          slot.poseState.lastSolveAt = 0;
+          slot.wasIdling = false;
+          slot.idleReleaseLeft = IDLE_RELEASE_SECONDS;
+        }
+        if (!idling && slot.idleReleaseLeft > 0) {
+          slot.idleReleaseLeft -= delta;
+          slot.idle.release(slot.idleReleaseLeft > 0 ? delta : Infinity);
+        }
+
+        if (idling) {
+          // 骨頭已由待機動作寫好
+        } else if (slot.pendingPose) {
           // New data: run full kalidokit solve + bone lerp
           applyPoseToVrm(slot.vrm, slot.poseState, slot.pendingPose, delta, {
             lerpSpeed: adaptiveLerp,
@@ -868,6 +915,8 @@ export function useBigScreenScene(
           // 限定發言者時，其他人不能拿也不觸發發亮；已經拿著的人照常跟手、放下
           const grabber = propGrabberIdentityRef.current;
           if (ia.propState === 'displayed' && grabber !== undefined && grabber !== identity) continue;
+          // 播待機動作的角色看起來沒在動，不能憑台下的手勢拿起道具
+          if (ia.propState === 'displayed' && idling) continue;
 
           // ── Hand landmarks from last known frame ───────────────────────────
           const frame = slot.lastFrame;
@@ -1255,6 +1304,18 @@ export function useBigScreenScene(
             }
           }
 
+          const idle = createIdlePose(vrm);
+          void loadIdleAnimation().then(anim => {
+            if (!anim || avatarsRef.current.get(identity)?.vrm !== vrm) return;
+            // createVRMAnimationClip 需要視線代理物件，先建好避免它自動建立並印警告
+            if (vrm.lookAt) {
+              const proxy = new VRMLookAtQuaternionProxy(vrm.lookAt);
+              proxy.name = 'VRMLookAtQuaternionProxy';
+              vrm.scene.add(proxy);
+            }
+            idle.setClip(createVRMAnimationClip(anim, vrm));
+          });
+
           const slot: AvatarSlot = {
             vrm,
             baseX: spawn?.position?.[0] ?? 0,
@@ -1264,6 +1325,9 @@ export function useBigScreenScene(
             lastFrame: null,
             lastPoseAt: 0,
             avgPoseIntervalMs: BASE_INTERVAL_MS,
+            idle,
+            wasIdling: false,
+            idleReleaseLeft: 0,
             interaction: {
               propState: 'displayed',
               lockHand: null,

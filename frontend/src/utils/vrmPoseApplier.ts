@@ -501,7 +501,7 @@ const BLINK_SECONDS = 0.15;
  * 角色自己的眼動：每 2～6 秒眨一次眼，每 1.5～4 秒換一次視線（左右 ±8°、上下 ±4°），
  * 跟學生臉部偵測無關，避免辨識雜訊造成眼睛抖動或半閉。
  */
-function applyIdleEyes(vrm: VRM, eyes: PoseApplyState['idleEyes']): void {
+export function applyIdleEyes(vrm: VRM, eyes: PoseApplyState['idleEyes']): void {
   const now = performance.now() / 1000;
   if (eyes.nextBlinkAt === 0) {
     eyes.nextBlinkAt = now + 1 + Math.random() * 3;

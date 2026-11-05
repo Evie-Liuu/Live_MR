@@ -18,7 +18,8 @@ import { loadStaticProps, disposeStaticProps } from '../utils/propLoader.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMAnimationLoaderPlugin, VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
-import { GESTURES, IDLE_ANIMATION_URL, type GestureId } from '../config/gestures.ts';
+import { GESTURES, type GestureId } from '../config/gestures.ts';
+import { loadIdleAnimation } from '../utils/idleAvatar.ts';
 
 interface StageAvatar {
   slotId: string;
@@ -60,24 +61,6 @@ function loadGestureLibrary(): Promise<Map<GestureId, VRMAnimation>> {
     return lib;
   })();
   return gestureLibrary;
-}
-
-let idleAnimation: Promise<VRMAnimation | null> | null = null;
-
-/** 待機動作檔；缺檔或載入失敗回傳 null，角色改用程式待機姿勢 */
-function loadIdleAnimation(): Promise<VRMAnimation | null> {
-  idleAnimation ??= (async () => {
-    const loader = new GLTFLoader();
-    loader.register(parser => new VRMAnimationLoaderPlugin(parser));
-    try {
-      const gltf = await loader.loadAsync(IDLE_ANIMATION_URL);
-      return (gltf.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0] ?? null;
-    } catch (err) {
-      console.warn('[ScriptStage] idle animation load failed, using procedural idle:', err);
-      return null;
-    }
-  })();
-  return idleAnimation;
 }
 
 /** 與大螢幕編輯模式相同：沒有姿勢驅動時把腳貼地 */

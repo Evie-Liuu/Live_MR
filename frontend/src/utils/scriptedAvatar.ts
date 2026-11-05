@@ -97,7 +97,7 @@ function interp(i: THREE.Interpolant, t: number): number {
 }
 
 /** KeyframeTrack 執行時有 createInterpolant（依插值模式設定），但 @types/three 沒有宣告 */
-function createInterpolant(track: THREE.KeyframeTrack): THREE.Interpolant {
+export function createInterpolant(track: THREE.KeyframeTrack): THREE.Interpolant {
   return (track as THREE.KeyframeTrack & { createInterpolant(): THREE.Interpolant }).createInterpolant();
 }
 

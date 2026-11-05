@@ -776,6 +776,8 @@ export default function BigScreen() {
   // ── 角色名牌：頭頂顯示「角色・演出者」，目前步驟沒台詞的角色淡化、說話中的角色發光 ──
   const nameplateSinkRef = useRef<((anchors: AvatarAnchors) => void) | null>(null);
   const pushNameplateAnchors = useCallback((anchors: AvatarAnchors) => nameplateSinkRef.current?.(anchors), []);
+  // 沒在演練＝undefined（不限制）；演練中但暫停／步驟講完＝null（沒有發言者）
+  const turnIdentity = !scriptTurn ? undefined : scriptTurn.status === 'running' ? scriptTurn.speaker.identity : null;
   const nameplates = useMemo(() => buildNameplates({
     slots: (SCENE_PRESETS[sceneId] ?? SCENE_PRESETS[DEFAULT_SCENE_ID]).slots ?? [],
     slotAssignments,
@@ -783,10 +785,9 @@ export default function BigScreen() {
     displayNames,
     lesson,
     speaking: speakingIdentities,
-    // 沒在演練＝undefined（不限制收音效果）；演練中但暫停／步驟講完＝null
-    turnIdentity: !scriptTurn ? undefined : scriptTurn.status === 'running' ? scriptTurn.speaker.identity : null,
+    turnIdentity,
     ...(staticStage ? { rolesOnlyPrefix: PLACEHOLDER_PREFIX } : {}),
-  }), [sceneId, slotAssignments, participantNames, displayNames, lesson, speakingIdentities, scriptTurn, staticStage]);
+  }), [sceneId, slotAssignments, participantNames, displayNames, lesson, speakingIdentities, turnIdentity, staticStage]);
 
   const speakingIdentitiesArray = useMemo(() => {
     if (forceShowSpeakerBadges) {
@@ -833,6 +834,8 @@ export default function BigScreen() {
     slotAssignments,
     currentPropId: turnProp?.id ?? propForTask(sceneId, currentTaskId),
     propGrabberIdentity: turnProp ? scriptTurn?.speaker.identity ?? null : undefined,
+    // 登台展演：只有發言者跟姿勢，其他人播待機動作
+    poseOnlyIdentity: turnIdentity,
     onStats: showPerformanceMonitor ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,
