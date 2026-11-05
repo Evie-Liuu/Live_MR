@@ -48,6 +48,9 @@ import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import CheckpointHostPanel, { type AiCheckpointKind } from './CheckpointHostPanel.tsx';
 import AiAssistantPanel, { type InteractionPhase } from './AiAssistantPanel.tsx';
 import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.tsx';
+import CustomSelect from './CustomSelect.tsx';
+import type { SelectOption } from '../utils/selectDropdown.ts';
+import { sortByAccount } from '../utils/sortByAccount.ts';
 import { MAX_HINT_LEVEL, type HintLevel as TurnHintLevel, type TurnHintMode } from '../utils/turnHints.ts';
 import {
   advanceTurn, backTurn, jumpTurn, resolveTurn, restartTurnIfActive, setTurnPaused, startTurn, stepCastLines,
@@ -113,70 +116,6 @@ interface PendingStudent {
   name: string;
 }
 
-// ─── Custom Select Component ──────────────────────────────────────────────────
-interface Option {
-  value: string;
-  label: React.ReactNode;
-}
-
-interface CustomSelectProps {
-  value: string;
-  options: Option[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-}
-
-function CustomSelect({ value, options, onChange, disabled }: CustomSelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const selectRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (selectRef.current && !selectRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedOption = options.find(o => o.value === value);
-
-  return (
-    <div className={`custom-select-container ${disabled ? 'disabled' : ''}`} ref={selectRef}>
-      <div
-        className={`custom-select-trigger slot-select-ui ${disabled ? 'disabled' : ''}`}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-      >
-        <div className="custom-select-value">
-          {!disabled && selectedOption ? selectedOption.label : <span style={{ color: '#999' }}>{selectedOption?.label}</span>}
-        </div>
-        <span className="material-symbols-outlined custom-select-icon">
-          {isOpen ? 'expand_less' : 'expand_more'}
-        </span>
-      </div>
-      {isOpen && !disabled && (
-        <div className="custom-select-dropdown">
-          {options.map(opt => (
-            <div
-              key={opt.value}
-              className={`custom-select-option ${opt.value === value ? 'selected' : ''}`}
-              onClick={() => {
-                onChange(opt.value);
-                setIsOpen(false);
-              }}
-            >
-              {opt.label}
-              {opt.value === value && <span className="material-symbols-outlined check-icon">check</span>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Scene background controls ───────────────────────────────────────────────
 function SceneBackgroundControls({
   bgType,
@@ -228,7 +167,7 @@ function SceneBackgroundControls({
     };
   }, []);
 
-  const deviceOptions: Option[] = useMemo(() => ([
+  const deviceOptions: SelectOption[] = useMemo(() => ([
     { value: '', label: '預設相機' },
     ...devices.map((d, i) => ({
       value: d.deviceId,
@@ -2338,10 +2277,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   const teacherIdentity = connectedRoom?.localParticipant.identity;
   // 帳號 full_name 優先：localParticipant.setName 是非同步的，改名不會觸發重新渲染
   const teacherName = user?.full_name || connectedRoom?.localParticipant.name;
-  /** 可指派的人員（老師在最前面） */
+  /** 可指派的人員（老師在最前面，學生依帳號排序） */
   const assignableParticipants = [
     ...(teacherIdentity ? [{ identity: teacherIdentity, name: teacherName ? `${teacherName} (老師)` : '老師' }] : []),
-    ...studentList.map(info => ({ identity: info.participant.identity, name: info.participant.name || info.participant.identity })),
+    ...sortByAccount(studentList.map(info => ({ identity: info.participant.identity, name: info.participant.name || info.participant.identity }))),
   ];
   /**
    * 角色配置的「指派給」選項：已經演其他角色的人標出角色名稱，
@@ -2352,6 +2291,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     const otherLabel = otherSlotId ? currentScenePreset.slots?.find(s => s.id === otherSlotId)?.label ?? otherSlotId : null;
     return {
       value: p.identity,
+      searchText: `${p.name} ${p.identity}`,
       label: (
         <div className="custom-select-option-content">
           <span>{p.name}</span>
@@ -3883,7 +3823,8 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                     <CustomSelect
                       value={assignedIdentity ?? ''}
                       options={[
-                        {
+                        // 已指派才有東西可以移除
+                        ...(assignedIdentity ? [{
                           value: '',
                           label: (
                             <div className="custom-select-option-content">
@@ -3891,13 +3832,16 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                               <span style={{ color: '#666' }}>─ 移除指派</span>
                             </div>
                           )
-                        },
+                        }] : []),
                         ...participantOptionsFor(sceneSlot.id)
                       ]}
                       onChange={(val) => {
                         handleSlotAssign(sceneSlot.id, val === '' ? null : val);
                       }}
-                      placeholder="─ 移除指派"
+                      placeholder="選擇學生"
+                      searchable
+                      searchPlaceholder="搜尋學生"
+                      emptyText="找不到符合的學生"
                     />
                   </div>
 
