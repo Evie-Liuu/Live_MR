@@ -479,18 +479,21 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                                   {sceneProps.map(p => <option key={p.id} value={p.id}>✊ 拿起{p.label}</option>)}
                                 </select>
                               )}
-                              <span className="te-line-tools">
-                                <button className="te-mini-btn" onClick={() => moveLine(i, -1)} disabled={i === 0} aria-label="上移台詞">
-                                  <span className="material-symbols-outlined">arrow_upward</span>
-                                </button>
-                                <button className="te-mini-btn" onClick={() => moveLine(i, 1)} disabled={i === step.lines.length - 1} aria-label="下移台詞">
-                                  <span className="material-symbols-outlined">arrow_downward</span>
-                                </button>
-                                <button className="te-mini-btn te-mini-danger" onClick={() => removeLine(line.id)} aria-label="刪除台詞">
-                                  <span className="material-symbols-outlined">delete</span>
-                                </button>
+                              {/* 工具與時間是一組，放不下時一起換到下一行並靠右 */}
+                              <span className="te-line-meta">
+                                <span className="te-line-tools">
+                                  <button className="te-mini-btn" onClick={() => moveLine(i, -1)} disabled={i === 0} aria-label="上移台詞">
+                                    <span className="material-symbols-outlined">arrow_upward</span>
+                                  </button>
+                                  <button className="te-mini-btn" onClick={() => moveLine(i, 1)} disabled={i === step.lines.length - 1} aria-label="下移台詞">
+                                    <span className="material-symbols-outlined">arrow_downward</span>
+                                  </button>
+                                  <button className="te-mini-btn te-mini-danger" onClick={() => removeLine(line.id)} aria-label="刪除台詞">
+                                    <span className="material-symbols-outlined">delete</span>
+                                  </button>
+                                </span>
+                                {range && <span className="te-time">{formatClock(range.start)} – {formatClock(range.end)}</span>}
                               </span>
-                              {range && <span className="te-time">{formatClock(range.start)} – {formatClock(range.end)}</span>}
                             </div>
                             <div className="te-bubble">
                               <textarea
@@ -841,7 +844,7 @@ function CastEditor({ task, slotLabel, onChange }: {
           <div className="te-cast-head"><strong>{full} 人版（完整）</strong></div>
           {speakers.map(id => (
             <div key={id} className="te-cast-row">
-              <span>{slotLabel(id)}</span>
+              <span className="te-cast-name" title={slotLabel(id)}>{slotLabel(id)}</span>
               <span className="te-cast-count">{fullCounts.get(id) ?? 0} 句</span>
             </div>
           ))}
@@ -869,7 +872,7 @@ function CastEditor({ task, slotLabel, onChange }: {
                 const merged = opt.merge[id];
                 return (
                   <label key={id} className="te-cast-row">
-                    <span>{slotLabel(id)}</span>
+                    <span className="te-cast-name" title={slotLabel(id)}>{slotLabel(id)}</span>
                     <select value={merged ?? ''} onChange={e => setMerge(i, id, e.target.value)}>
                       <option value="">自己演</option>
                       {speakers.filter(o => o !== id).map(o => <option key={o} value={o}>台詞給 {slotLabel(o)}</option>)}

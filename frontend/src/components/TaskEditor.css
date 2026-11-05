@@ -113,7 +113,9 @@
 .te-top-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
+  min-width: 0;
 }
 
 .te-save-state {
@@ -373,7 +375,8 @@
 .te-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 264px minmax(0, 1fr) 340px;
+  /* 右欄隨視窗縮窄，把空間留給中欄的台詞卡片 */
+  grid-template-columns: 264px minmax(0, 1fr) clamp(280px, 24vw, 340px);
   gap: 20px;
   padding: 20px 24px 32px;
   align-items: start;
@@ -464,6 +467,8 @@
 
 .te-panel-title {
   margin: 0 0 2px;
+  /* 全域 h2 用 --text-h，在 App.css 是白色 */
+  color: var(--te-ink);
   font-size: 16px;
   font-weight: 800;
 }
@@ -596,6 +601,7 @@
 
 /* ── 中欄 ── */
 .te-center {
+  container: te-center / inline-size;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -643,6 +649,10 @@
 }
 
 .te-chip-teal {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 3px 12px;
   border-radius: 999px;
   background: #E6F6F4;
@@ -692,8 +702,8 @@
   gap: 4px;
   padding: 0 20px;
   border-bottom: 1px solid var(--te-line);
-  overflow-x: auto;
-  overflow-y: hidden;
+  /* 放不下時換行，不用橫向捲動：捲動條隱藏時後面的分頁看起來像不存在 */
+  flex-wrap: wrap;
 }
 
 .te-tab {
@@ -720,6 +730,22 @@
   border-bottom-color: var(--te-orange);
   background: #FFF6EE;
   border-radius: 10px 10px 0 0;
+}
+
+/* 依中欄實際寬度（不是視窗寬度）收掉圖示，五個分頁才排得進一行 */
+@container te-center (max-width: 740px) {
+  .te-tabs {
+    padding: 0 12px;
+  }
+
+  .te-tab {
+    padding: 10px;
+    font-size: 15px;
+  }
+
+  .te-tab .material-symbols-outlined {
+    display: none;
+  }
 }
 
 .te-tab-body {
@@ -773,12 +799,24 @@
 
 .te-line-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
   min-height: 30px;
 }
 
+.te-line-meta {
+  flex: none;
+  max-width: 100%;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .te-speaker {
+  max-width: 100%;
+  min-width: 0;
   font: inherit;
   font-weight: 800;
   font-size: 16px;
@@ -798,6 +836,8 @@
 }
 
 .te-chip-soft {
+  flex: none;
+  white-space: nowrap;
   padding: 2px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -819,7 +859,6 @@
 }
 
 .te-time {
-  margin-left: auto;
   padding: 2px 10px;
   border-radius: 8px;
   background: #F5F5F4;
@@ -1088,6 +1127,8 @@
   background: var(--te-card);
   text-align: left;
   color: var(--te-ink);
+  /* 連續長字（網址、沒有空白的英文）也要換行，不能撐破卡片 */
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition: border-color .15s, box-shadow .15s;
 }
@@ -1246,6 +1287,8 @@ button.te-side-card:hover {
 
 /* 台詞動作選單 */
 .te-gesture {
+  max-width: 100%;
+  min-width: 0;
   font: inherit;
   font-size: 12px;
   color: var(--te-muted);
@@ -1288,6 +1331,9 @@ button.te-side-card:hover {
 }
 
 .te-tag {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -1392,7 +1438,8 @@ button.te-side-card:hover {
 
 .te-cast-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  /* 要放得下「角色名稱＋台詞給 角色名稱＋句數」 */
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 12px;
 }
 
@@ -1429,17 +1476,27 @@ button.te-side-card:hover {
 
 .te-cast-row {
   display: grid;
-  grid-template-columns: 1fr auto 52px;
+  /* 名稱欄跟著名稱寬度（上限 60%），下拉選單讓出空間 */
+  grid-template-columns: fit-content(60%) minmax(0, 1fr) 52px;
   align-items: center;
   gap: 8px;
   font-size: 14px;
 }
 
+.te-cast-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .te-cast-option--full .te-cast-row {
-  grid-template-columns: 1fr 52px;
+  grid-template-columns: minmax(0, 1fr) 52px;
 }
 
 .te-cast-row select {
+  justify-self: end;
+  width: 100%;
+  min-width: 0;
   max-width: 150px;
   padding: 4px 6px;
   font-size: 13px;
@@ -1593,6 +1650,7 @@ button.te-side-card:hover {
 }
 
 .te-cp-preview {
+  overflow-wrap: anywhere;
   margin: -4px 0 0;
   font-size: 13px;
   color: #00695F;
