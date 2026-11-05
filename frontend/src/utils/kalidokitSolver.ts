@@ -225,13 +225,12 @@ export function solveWithKalidokit(
     const limit = BONE_ROTATION_LIMITS[vrmName]
     if (limit) clampEulerInPlace(euler, limit)
 
-    // 同側：左右對調後反轉 Y，軀幹再反轉 Z（手臂的 Z 不反轉，否則上下顛倒）。
-    // 鏡像＝把同側的結果再對矢狀面反射一次（左右骨骼互換、Y/Z 反號），
-    // 抵銷後剩下：Y 不變、手臂的 Z 反號。都在歐拉角空間做，避免四元數空間的軸交叉耦合。
-    const isArm = vrmName.toLowerCase().includes('arm') || vrmName.toLowerCase().includes('hand');
+    // 鏡像：Y 不變、Z 反號（手臂與軀幹相同），骨骼直接對同名。
+    // 同側＝把鏡像結果再對矢狀面反射一次：左右骨骼互換、Y/Z 再反號。
+    // 都在歐拉角空間做，避免四元數空間的軸交叉耦合。
     const adjusted = mirror
-      ? { x: euler.x, y: euler.y, z: isArm ? -euler.z : euler.z }
-      : { x: euler.x, y: -euler.y, z: isArm ? euler.z : -euler.z }
+      ? { x: euler.x, y: euler.y, z: -euler.z }
+      : { x: euler.x, y: -euler.y, z: euler.z }
     const currentQuat = eulerToQuaternion(adjusted)
     rotations[vrmName] = slerpRotation(currentQuat, prevRotations[vrmName], smoothing, maxStepRad)
   }
@@ -241,8 +240,8 @@ export function solveWithKalidokit(
   if (poseRig.Hips) {
     const hipsEuler = poseRig.Hips.rotation
     const mirroredHips = mirror
-      ? { x: hipsEuler.x, y: hipsEuler.y, z: hipsEuler.z * 0.1 }
-      : { x: hipsEuler.x, y: -hipsEuler.y, z: -hipsEuler.z * 0.1 }
+      ? { x: hipsEuler.x, y: hipsEuler.y, z: -hipsEuler.z * 0.1 }
+      : { x: hipsEuler.x, y: -hipsEuler.y, z: hipsEuler.z * 0.1 }
     const hipsQuat = eulerToQuaternion(mirroredHips)
     rotations.hips = slerpRotation(hipsQuat, prevRotations.hips, smoothing, maxStepRad / 2)
 

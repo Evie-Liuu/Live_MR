@@ -390,8 +390,9 @@ export function applyPoseToVrm(
     // Always apply Hips translation so the avatar stays grounded,
     // regardless of lowerBodyEnabled.
     if (boneName === 'hips' && hipsPosition) {
-      // 鏡像：本人往畫面右移，面向觀眾的角色也往畫面右移
-      const mirrorX = mirror ? 1 : -1;
+      // Kalidokit 的 x 跟未翻轉影像同向（往右＝本人的左側）。
+      // 鏡像：本人往自己左側移，角色在畫面上也往左移（-X）
+      const mirrorX = mirror ? -1 : 1;
       bone.position.x = THREE.MathUtils.lerp(bone.position.x, mirrorX * hipsPosition.x * 0.1, t);
       bone.position.y = THREE.MathUtils.lerp(bone.position.y, hipsPosition.y, t);
       bone.position.z = THREE.MathUtils.lerp(bone.position.z, -hipsPosition.z * 0.1, t);
@@ -445,11 +446,11 @@ export function applyPoseToVrm(
         const hx = clampAngle(faceRig.head.x, HL.x);
         const hy = clampAngle(faceRig.head.y, HL.y);
         const hz = clampAngle(faceRig.head.z, HL.z);
-        // 低頭／抬頭（X）兩種模式都要反號；鏡像時轉頭（Y）、歪頭（Z）保持 Kalidokit 的方向，
-        // 同側模式則再反號（等於對矢狀面反射一次），跟 solver 的身體處理一致。
+        // 低頭／抬頭（X）兩種模式都要反號；鏡像時轉頭（Y）保持 Kalidokit 的方向、歪頭（Z）反號，
+        // 同側模式則對矢狀面反射一次（Y、Z 再反號），跟 solver 的身體處理一致。
         const rotX = -hx;
         const rotY = mirror ? hy : -hy;
-        const rotZ = mirror ? hz : -hz;
+        const rotZ = mirror ? -hz : hz;
         _euler.set(rotX, rotY, rotZ, 'XYZ');
         _targetQuat.setFromEuler(_euler);
         head.quaternion.slerp(_targetQuat, t);
