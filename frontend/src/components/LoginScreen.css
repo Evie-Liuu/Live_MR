@@ -324,3 +324,15 @@
     transform-origin: center;
   }
 }
+.login-guest-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: #6B7280;
+  font-size: 14px;
+  text-decoration: underline;
+  cursor: pointer;
+}

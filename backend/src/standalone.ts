@@ -193,6 +193,9 @@ async function main(): Promise<void> {
     if (!process.env.GEMINI_API_KEY) {
       console.warn('提醒：尚未設定 GEMINI_API_KEY，AI 助理功能將無法使用。請編輯 launcher.env 後重新啟動。')
     }
+    if (process.env.ENABLE_GUEST_JOIN === '1') {
+      console.warn('提醒：已開放學生免登入加入（仍需老師核准），正式上課前請從 launcher.env 移除 ENABLE_GUEST_JOIN。')
+    }
     if (process.env.ENABLE_TEST_ACCOUNTS === '1') {
       console.warn(`提醒：已啟用本地測試帳號（${process.env.TEST_ACCOUNTS_FILE}），正式上課前請從 launcher.env 移除 ENABLE_TEST_ACCOUNTS。`)
     }

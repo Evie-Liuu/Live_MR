@@ -4,7 +4,7 @@ import { PENDING_ROOM_STORAGE_KEY, readPendingRoomId, resolveAuthRoute } from '.
 import { formatRoomId, joinErrorText } from './utils/qrRoomId.ts';
 import type { AuthUser } from './hooks/useAuth.ts';
 import { useAuth } from './hooks/useAuth.ts';
-import { createRoom, joinRequest } from './api.ts';
+import { createRoom, fetchGuestJoinEnabled, joinRequest } from './api.ts';
 import LoginScreen from './components/LoginScreen.tsx';
 import './App.css';
 
@@ -86,6 +86,24 @@ function App() {
     return readPendingRoomId(window.location.search, storage);
   });
   const hasAutoRoutedRef = useRef(false);
+  // 免登入加入（ENABLE_GUEST_JOIN=1）：沒登入的人也能進學生加入畫面，自己填名稱
+  const [guestJoinEnabled, setGuestJoinEnabled] = useState(false);
+  const guestDeepLinkUsedRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetchGuestJoinEnabled().then(enabled => { if (active) setGuestJoinEnabled(enabled); });
+    return () => { active = false; };
+  }, []);
+
+  // 沒登入的人掃 QR 或開加入連結：直接到加入畫面並預填房號。只做一次，離開後不會又被帶回去
+  useEffect(() => {
+    if (isLoading || isAuthenticated || !guestJoinEnabled || !pendingRoomId) return;
+    if (guestDeepLinkUsedRef.current || state.screen !== 'select-role') return;
+    guestDeepLinkUsedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 開機導向只跑一次（見上方說明）
+    setState({ screen: 'student-home', roomId: pendingRoomId });
+  }, [isLoading, isAuthenticated, guestJoinEnabled, pendingRoomId, state.screen]);
 
   // Handle host room creation
   const handleHost = async (selection: StartSelection = {}) => {
@@ -179,7 +197,7 @@ function App() {
   const renderScreen = () => {
     const isTeacherScreen = state.screen === 'teacher-home' || state.screen === 'lesson-prep';
     // auth 還在確認時不畫登入表單（避免重整時先閃登入頁），老師畫面也要等 user 才有 teacherUid
-    if (isLoading && (state.screen === 'select-role' || isTeacherScreen)) {
+    if (isLoading && (state.screen === 'select-role' || state.screen === 'student-home' || isTeacherScreen)) {
       return <AppSpinner />;
     }
     // 從 sessionStorage 還原了老師畫面，但 auth 載完發現已沒有有效 session（過期 / 被登出）→ 顯示登入頁
@@ -188,7 +206,12 @@ function App() {
     }
     switch (state.screen) {
       case 'select-role':
-        return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+        return (
+          <LoginScreen
+            onLoginSuccess={handleLoginSuccess}
+            onGuestJoin={guestJoinEnabled ? () => setState({ screen: 'student-home' }) : undefined}
+          />
+        );
 
       case 'teacher-home':
         return (
@@ -244,18 +267,19 @@ function App() {
       case 'student-home':
         return (
           <StudentHome
-            fullName={user ? displayNameOf(user) : '學生'}
+            // 沒登入且伺服器開放免登入：不給名稱，由學生自己輸入
+            fullName={user ? displayNameOf(user) : guestJoinEnabled ? undefined : '學生'}
             initialRoomId={state.roomId}
             initialError={state.error}
-            onSubmitted={(requestId, roomId) =>
-              setState({
-                screen: 'student-waiting',
-                roomId,
-                requestId,
-                name: user ? displayNameOf(user) : '學生',
-              })
-            }
-            onLogout={() => { void logout(); }}
+            onSubmitted={(requestId, roomId, name) => {
+              // 房號只自動帶入一次，之後回到登入畫面重整不會又被帶回來
+              try { sessionStorage.removeItem(PENDING_ROOM_STORAGE_KEY); } catch { /* ignore */ }
+              setState({ screen: 'student-waiting', roomId, requestId, name });
+            }}
+            onLogout={() => {
+              if (user) void logout();
+              else setState({ screen: 'select-role' });
+            }}
           />
         );
 

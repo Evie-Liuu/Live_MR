@@ -7,9 +7,11 @@ import './LoginScreen.css';
 
 interface LoginScreenProps {
   onLoginSuccess: (user: AuthUser) => void;
+  /** 有給才顯示免登入入口（伺服器開放時） */
+  onGuestJoin?: () => void;
 }
 
-export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export default function LoginScreen({ onLoginSuccess, onGuestJoin }: LoginScreenProps) {
   const { loginWithEmailAndPassword, loginWithTestAccount } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -172,6 +174,12 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               立即註冊
             </a>
           </div>
+
+          {onGuestJoin && (
+            <button type="button" className="login-guest-btn" onClick={onGuestJoin}>
+              學生免登入加入課堂
+            </button>
+          )}
         </div>
       </div>
     </div>

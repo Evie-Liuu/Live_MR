@@ -37,7 +37,8 @@ export function joinErrorText(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (/\b404\b/.test(msg)) return '找不到這個房號，可能輸入錯誤或課堂已結束。';
   if (/\b400\b/.test(msg)) return '資料不完整，請重新登入後再試一次。';
-  if (/\b409\b/.test(msg)) return '此帳號已在教室中，請換一個帳號；如果是剛斷線，請等約 30 秒再試。';
+  if (/\b403\b/.test(msg)) return '目前沒有開放免登入加入，請登入後再試一次。';
+  if (/\b409\b/.test(msg)) return'此帳號已在教室中，請換一個帳號；如果是剛斷線，請等約 30 秒再試。';
   if (/failed to fetch|network/i.test(msg)) return '連不上伺服器，請確認已連上教室的網路。';
   return `加入失敗，請稍後再試（${msg}）`;
 }

@@ -8,6 +8,8 @@ export interface CreateRoomResponse {
 
 export interface JoinRequestResponse {
   requestId: string;
+  /** 訪客實際使用的名稱（同名時後端會自動編號） */
+  name?: string;
 }
 
 export interface RequestStatusResponse {
@@ -29,14 +31,26 @@ export async function createRoom(): Promise<CreateRoomResponse> {
 export async function joinRequest(
   roomId: string,
   name: string,
+  opts: { guest?: boolean } = {},
 ): Promise<JoinRequestResponse> {
   const res = await fetch(`/api/rooms/${roomId}/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(opts.guest ? { name, guest: true } : { name }),
   });
   if (!res.ok) throw new Error(`joinRequest failed: ${res.status}`);
   return res.json() as Promise<JoinRequestResponse>;
+}
+
+/** 伺服器是否開放免登入加入；查不到時視為沒開放 */
+export async function fetchGuestJoinEnabled(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/guest-join');
+    if (!res.ok) return false;
+    return ((await res.json()) as { enabled?: boolean }).enabled === true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getRequestStatus(

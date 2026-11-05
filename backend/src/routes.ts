@@ -10,6 +10,7 @@ import { generateHint as generateAIHint, generateHints as generateAIHints } from
 import { createLessonPlanRouter, type LessonPlanRouteDeps } from './lessonPlanRoutes.js'
 import { createDialogueTaskRouter, type DialogueTaskRouteDeps } from './dialogueTaskRoutes.js'
 import { authenticateTestAccount, isTestStudentName, loadTestAccounts, testAccountsEnabled } from './testAccounts.js'
+import { GUEST_NAME_MAX_TRIES, guestJoinEnabled, guestNameCandidate, isReservedName, normalizeGuestName } from './guestJoin.js'
 
 const recordingsDir = process.env.RECORDINGS_DIR
   ? path.resolve(process.env.RECORDINGS_DIR)
@@ -159,19 +160,56 @@ export function createRouter(
     }
   })
 
+  // GET /api/guest-join — 前端決定要不要顯示免登入入口（ENABLE_GUEST_JOIN=1）
+  router.get('/guest-join', (_req: Request, res: Response) => {
+    res.json({ enabled: guestJoinEnabled() })
+  })
+
   // POST /api/rooms/:roomId/join
   router.post('/rooms/:roomId/join', async (req: Request, res: Response) => {
     const roomId = req.params.roomId as string
-    const { name } = req.body as { name?: string }
+    const { name, guest } = req.body as { name?: string; guest?: boolean }
 
     if (!name) {
       res.status(400).json({ error: 'Name is required' })
       return
     }
 
+    if (guest && !guestJoinEnabled()) {
+      res.status(403).json({ error: 'Guest join disabled' })
+      return
+    }
+
+    // 名稱就是 LiveKit identity，host- 開頭會被當成老師
+    if (typeof name === 'string' && isReservedName(name)) {
+      res.status(400).json({ error: 'Name not allowed' })
+      return
+    }
+
     const room = store.getRoom(roomId)
     if (!room) {
       res.status(404).json({ error: 'Room not found' })
+      return
+    }
+
+    if (guest) {
+      const base = normalizeGuestName(name)
+      if (!base) {
+        res.status(400).json({ error: 'Name not allowed' })
+        return
+      }
+      // 同名自動編號，否則後連上的人會把先到的人踢掉。
+      // 名稱檢查和 addJoinRequest 之間不能有 await，否則同時申請的人會拿到同一個名稱。
+      for (let n = 1; n <= GUEST_NAME_MAX_TRIES; n++) {
+        const candidate = guestNameCandidate(base, n)
+        if (isTestStudentName(candidate) || await isInRoom(roomId, candidate)) continue
+        if (store.isNameHeld(roomId, candidate, APPROVE_CONNECT_WINDOW_MS)) continue
+        const request = store.addJoinRequest(roomId, candidate)
+        notifyRoom(roomId, 'join-request', { requestId: request.requestId, name: request.name })
+        res.json({ requestId: request.requestId, name: request.name })
+        return
+      }
+      res.status(409).json({ error: 'Too many guests with this name' })
       return
     }
 

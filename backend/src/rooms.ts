@@ -80,6 +80,13 @@ export class RoomStore {
       && r.approvedAt !== undefined && now - r.approvedAt < withinMs)
   }
 
+  /** 這個名稱有人正在等核准，或剛核准還沒連上 LiveKit */
+  isNameHeld(roomId: string, name: string, approvedWithinMs: number, now = Date.now()): boolean {
+    return (this.rooms.get(roomId)?.requests ?? []).some(r =>
+      r.name === name && (r.status === 'pending'
+        || (r.status === 'approved' && r.approvedAt !== undefined && now - r.approvedAt < approvedWithinMs)))
+  }
+
   rejectRequest(roomId: string, requestId: string): JoinRequest | undefined {
     const room = this.rooms.get(roomId)
     if (!room) return undefined
