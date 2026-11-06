@@ -8,7 +8,8 @@ interface TourCoachProps {
   onClose: () => void;
 }
 
-const RING_PAD = 6;
+/** 被框起來的目標加上這個 class：框線畫在目標本身，捲動時跟著原生移動、被容器自然裁切 */
+const TARGET_CLASS = 'tour-target';
 /** 完成畫面停留幾秒後自動關掉 */
 const DONE_AUTO_CLOSE_MS = 6000;
 
@@ -26,13 +27,13 @@ function clipsOf(el: HTMLElement) {
 
 /**
  * 教學模組的提示：框出畫面上真的按鈕並在旁邊說明，不擋住任何操作。
- * 目標會跟著抽屜滑入、捲動、視窗縮放移動，所以每幀重新量位置；
- * 框線只畫在看得到的部分，目標被捲出去時改為提示捲動方向。
+ * 框線用 class 畫在目標本身，捲動時與目標同步移動、超出捲動容器的部分自然被裁掉；
+ * 提示框是 fixed，每幀與捲動事件當下量位置直接寫入；目標被捲出去時改為提示捲動方向。
  */
 export default function TourCoach({ step, onClose }: TourCoachProps) {
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<TargetView>({ kind: 'none' });
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [placed, setPlaced] = useState(false);
 
   const scrollToTarget = () => {
     if (step.target) document.querySelector(step.target)?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
@@ -49,10 +50,18 @@ export default function TourCoach({ step, onClose }: TourCoachProps) {
 
   useLayoutEffect(() => {
     let raf = 0;
-    let last = '';
+    let lastView = '';
+    let marked: HTMLElement | null = null;
+    const mark = (el: HTMLElement | null) => {
+      if (el === marked) return;
+      marked?.classList.remove(TARGET_CLASS);
+      el?.classList.add(TARGET_CLASS);
+      marked = el;
+    };
+    // 位置直接寫進 DOM，不經過 React 重繪，捲動事件當下就跟上
     const measure = () => {
-      raf = requestAnimationFrame(measure);
       const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
+      mark(el);
       const r = el?.getBoundingClientRect();
       const rect: Box | null = r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null;
       const next = el ? visibleTarget(rect, clipsOf(el)) : { kind: 'none' as const };
@@ -62,14 +71,27 @@ export default function TourCoach({ step, onClose }: TourCoachProps) {
       const nextPos = bubble
         ? placeBubble(near, { width: bubble.offsetWidth, height: bubble.offsetHeight }, step.placement, { width: window.innerWidth, height: window.innerHeight }, anchorTop)
         : null;
-      const key = JSON.stringify([next, nextPos]);
-      if (key === last) return;
-      last = key;
-      setView(next);
-      setPos(nextPos);
+      if (bubble && nextPos) {
+        bubble.style.top = `${nextPos.top}px`;
+        bubble.style.left = `${nextPos.left}px`;
+        bubble.style.visibility = '';
+        setPlaced(true);
+      }
+      // 只有看得到／看不到、方向改變時才需要重繪內容
+      const key = next.kind === 'hidden' ? `hidden:${next.direction}` : next.kind;
+      if (key !== lastView) {
+        lastView = key;
+        setView(next);
+      }
     };
-    measure();
-    return () => cancelAnimationFrame(raf);
+    const loop = () => { measure(); raf = requestAnimationFrame(loop); };
+    loop();
+    window.addEventListener('scroll', measure, { capture: true, passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', measure, { capture: true });
+      mark(null);
+    };
   }, [step.target, step.placement]);
 
   useEffect(() => {
@@ -84,23 +106,15 @@ export default function TourCoach({ step, onClose }: TourCoachProps) {
     return () => window.clearTimeout(t);
   }, [step.id, onClose]);
 
-  const ring = view.kind === 'visible' ? view.box : null;
   return (
     <>
-      {ring && (
-        <div
-          className="tour-ring"
-          aria-hidden="true"
-          style={{ top: ring.top - RING_PAD, left: ring.left - RING_PAD, width: ring.width + RING_PAD * 2, height: ring.height + RING_PAD * 2 }}
-        />
-      )}
       <div
         ref={bubbleRef}
         className={`tour-bubble${step.id === 'done' ? ' is-done' : ''}`}
         role="dialog"
         aria-live="polite"
         aria-label={`教學：${step.title}`}
-        style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}
+        style={placed ? undefined : { visibility: 'hidden' }}
       >
         <div className="tour-head">
           {step.progress
@@ -115,7 +129,7 @@ export default function TourCoach({ step, onClose }: TourCoachProps) {
         {view.kind === 'hidden' && (
           <button type="button" className="tour-scroll" onClick={scrollToTarget}>
             <span className="material-symbols-outlined" aria-hidden="true">{view.direction === 'above' ? 'arrow_upward' : 'arrow_downward'}</span>
-            按鈕在{view.direction === 'above' ? '上方' : '下方'}，捲回去
+            按鈕在{view.direction === 'above' ? '上方' : '下方'}
           </button>
         )}
         {step.id === 'done' && <button type="button" className="tour-finish" onClick={onClose}>知道了</button>}

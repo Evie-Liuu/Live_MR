@@ -113,7 +113,7 @@ export default function TeacherHome({ teacherName, teacherUid, onPrep, onStart, 
       <main className="th-main">
         <div className="th-hero">
           <MegaphoneIcon />
-          <h1 className="th-title"><span className="th-orange">Live</span> <span className="th-teal">MR</span></h1>
+          <h1 className="th-title"><span className="th-orange">Bilingual</span> <span className="th-teal">Corner</span></h1>
           <Spark className="th-hero-spark" />
         </div>
         <p className="th-greeting">{teacherName} 老師，今天要做什麼？</p>
