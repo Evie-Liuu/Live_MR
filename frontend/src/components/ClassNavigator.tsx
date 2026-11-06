@@ -1,8 +1,11 @@
 import type { ClassNavState } from '../utils/classNavigator.ts';
 import './ClassNavigator.css';
 
-/** 課堂導航（唯讀）：進度與下一步提示，不提供操作 */
-export default function ClassNavigator({ nav }: { nav: ClassNavState }) {
+/**
+ * 課堂導航（唯讀）：進度與下一步提示，不提供操作。
+ * help：這一步有教學模組時，提示旁顯示「怎麼做？」。
+ */
+export default function ClassNavigator({ nav, help }: { nav: ClassNavState; help?: { label: string; onClick: () => void } }) {
   return (
     <div className="cnav" role="status" aria-label="課堂導航">
       <ol className="cnav-stages">
@@ -20,6 +23,12 @@ export default function ClassNavigator({ nav }: { nav: ClassNavState }) {
         <span className="material-symbols-outlined" aria-hidden="true">{nav.warn ? 'warning' : 'arrow_forward'}</span>
         <span className="cnav-hint-text">{nav.hint}</span>
       </p>
+      {help && (
+        <button type="button" className="cnav-help" onClick={help.onClick} title={help.label}>
+          <span className="material-symbols-outlined" aria-hidden="true">school</span>
+          怎麼做？
+        </button>
+      )}
       {nav.notice && (
         <p className="cnav-notice" title={nav.notice}>
           <span className="material-symbols-outlined" aria-hidden="true">warning</span>

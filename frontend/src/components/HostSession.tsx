@@ -51,6 +51,8 @@ import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.t
 import CustomSelect from './CustomSelect.tsx';
 import ClassNavigator from './ClassNavigator.tsx';
 import { classNavState } from '../utils/classNavigator.ts';
+import TourCoach from './TourCoach.tsx';
+import { roleTourStep } from '../utils/roleTour.ts';
 import type { SelectOption } from '../utils/selectDropdown.ts';
 import { sortByAccount } from '../utils/sortByAccount.ts';
 import { MAX_HINT_LEVEL, type HintLevel as TurnHintLevel, type TurnHintMode } from '../utils/turnHints.ts';
@@ -2584,7 +2586,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     lesson: lesson ? {
       phase: lesson.phase,
       allDone: lessonAllDone,
-      unassignedRoles: castSlots.filter(s => !slotAssignments[s.id]).map(s => s.label),
+      unassignedRoles: castSlots.filter(st => !slotAssignments[st.id]).map(st => st.label),
       checkpointCount: (lessonStep?.checkpoints?.length ?? 0) + (lessonStep ? lesson.aiCheckpoints?.[lessonStep.id]?.length ?? 0 : 0),
       isLastStep: lesson.doneCount >= lesson.record.task.steps.length - 1,
       turn: scriptTurn ? {
@@ -2597,6 +2599,17 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
       } : null,
     } : null,
   });
+  // 教學模組「指定角色」：從導航的「怎麼做？」開始，步驟依實際狀態推算
+  const [roleTourOn, setRoleTourOn] = useState(false);
+  const unassignedCast = castSlots.filter(s => !slotAssignments[s.id]).map(s => ({ slotId: s.id, label: s.label }));
+  const roleTour = roleTourOn && lesson
+    ? roleTourStep({ panelOpen: showSlotPanel, unassigned: unassignedCast, studentCount: studentList.length })
+    : null;
+  const closeRoleTour = useCallback(() => setRoleTourOn(false), []);
+  const roleTourHelp = !roleTourOn && lesson && unassignedCast.length > 0 && classNav.stages.find(st => st.status === 'current')?.id === 'setup'
+    ? { label: '教學：怎麼指定角色', onClick: () => setRoleTourOn(true) }
+    : undefined;
+
   const toggleClassNav = () => {
     setShowClassNav(v => {
       try { localStorage.setItem(CLASS_NAV_STORAGE_KEY, v ? 'off' : 'on'); } catch { /* 下次重開回到預設 */ }
@@ -2988,7 +3001,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
       )}
 
       {/* ── Main Body: Sidebar + Video ────────────────────────────────────────── */}
-      {showClassNav && <ClassNavigator nav={classNav} />}
+      {showClassNav && <ClassNavigator nav={classNav} help={roleTourHelp} />}
+      {roleTour && <TourCoach step={roleTour} onClose={closeRoleTour} />}
 
       <div className="hs-body">
 
@@ -3099,7 +3113,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
 
           {/* Character / Slot card：排在任務之後——選定任務才知道需要哪些角色、各幾句台詞 */}
           {hasSlots && (
-            <div className={`hs-card hs-card--character ${showSlotPanel ? 'hs-card--open' : ''}`} onClick={openSlot}>
+            <div data-tour="role-card" className={`hs-card hs-card--character ${showSlotPanel ? 'hs-card--open' : ''}`} onClick={openSlot}>
               <div className="hs-card-header">
                 <span className="hs-card-icon">🎭</span>
                 <span className="hs-card-title">角色</span>
@@ -3886,7 +3900,7 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                     </div>
                   </div>
 
-                  <div className="slot-field">
+                  <div className="slot-field" data-tour="role-assign" data-slot={sceneSlot.id}>
                     <label className="slot-field-label">指派給</label>
                     <CustomSelect
                       value={assignedIdentity ?? ''}

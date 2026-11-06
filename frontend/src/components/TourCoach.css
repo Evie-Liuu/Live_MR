@@ -1,0 +1,156 @@
+/* 教學模組：框線與提示框都不攔截點擊（框線完全穿透，提示框只佔自己的範圍） */
+.tour-ring {
+  position: fixed;
+  z-index: 300;
+  box-sizing: border-box;
+  border: 3px solid #F76E12;
+  border-radius: 14px;
+  box-shadow: 0 0 0 4px rgba(247, 110, 18, .22);
+  pointer-events: none;
+  animation: tour-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tour-pulse {
+  50% {
+    box-shadow: 0 0 0 9px rgba(247, 110, 18, .08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-ring {
+    animation: none;
+  }
+}
+
+.tour-bubble {
+  position: fixed;
+  z-index: 301;
+  width: min(300px, calc(100vw - 24px));
+  box-sizing: border-box;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #F3E8DA;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, .18);
+  color: #1F2A37;
+  font-size: 14px;
+}
+
+.tour-bubble.is-done {
+  border-color: #B7E4DF;
+}
+
+.tour-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tour-progress {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #FFEBDB;
+  color: #B4500A;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.tour-done-icon {
+  flex: none;
+  color: #00A99D;
+  font-size: 20px !important;
+}
+
+.tour-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.tour-close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #78716C;
+  cursor: pointer;
+}
+
+.tour-close:hover {
+  background: #F5F5F4;
+  color: #1F2A37;
+}
+
+.tour-close .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.tour-body {
+  margin: 8px 0 0;
+  line-height: 1.6;
+  color: #44403C;
+}
+
+.tour-finish {
+  display: block;
+  margin: 12px 0 0 auto;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 999px;
+  background: #00A99D;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* 導航列上的「怎麼做？」入口 */
+.cnav-help {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 12px;
+  border: 1px solid #F76E12;
+  border-radius: 999px;
+  background: #fff;
+  color: #B4500A;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.cnav-help:hover {
+  background: #FFF3EA;
+}
+
+.cnav-help .material-symbols-outlined {
+  font-size: 16px;
+}
+
+/* 目標被捲出可見範圍時：告訴老師在哪個方向，一鍵捲回去 */
+.tour-scroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border: 1px solid #F76E12;
+  border-radius: 999px;
+  background: #FFF3EA;
+  color: #B4500A;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tour-scroll .material-symbols-outlined {
+  font-size: 16px;
+}
