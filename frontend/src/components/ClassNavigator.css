@@ -1,0 +1,152 @@
+/* 課堂導航：頂列下方的一條細列，只顯示進度與下一步 */
+.cnav {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  padding: 4px 16px;
+  box-sizing: border-box;
+  background: #FFFBF6;
+  border-bottom: 1px solid #F3E8DA;
+  color: #1F2A37;
+  font-size: 14px;
+}
+
+.cnav-stages {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cnav-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #78716C;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cnav-dot {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 2px solid #D6D3D1;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.cnav-dot .material-symbols-outlined {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+}
+
+.cnav-stage--done {
+  color: #00695F;
+}
+
+.cnav-stage--done .cnav-dot {
+  border-color: #00A99D;
+  background: #00A99D;
+}
+
+.cnav-stage--current {
+  background: #FFEBDB;
+  color: #B4500A;
+  font-weight: 800;
+}
+
+.cnav-stage--current .cnav-dot {
+  border-color: #F76E12;
+  background: #F76E12;
+  box-shadow: inset 0 0 0 2px #fff;
+}
+
+.cnav-stage--skipped .cnav-dot {
+  border-style: dashed;
+  border-color: #D97706;
+}
+
+.cnav-skipped {
+  font-size: 11px;
+  font-weight: 700;
+  color: #B45309;
+}
+
+.cnav-hint,
+.cnav-notice {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cnav-hint {
+  flex: 1;
+  font-weight: 700;
+}
+
+.cnav-hint .material-symbols-outlined,
+.cnav-notice .material-symbols-outlined {
+  flex: none;
+  font-size: 18px;
+  line-height: 1;
+  color: #F76E12;
+}
+
+.cnav-hint-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cnav-hint.is-warn {
+  color: #B45309;
+}
+
+.cnav-hint.is-warn .material-symbols-outlined,
+.cnav-notice .material-symbols-outlined {
+  color: #D97706;
+}
+
+.cnav-notice {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 窄視窗：進度只留目前階段與已跳過的提醒，把空間給提示文字 */
+@media (max-width: 1100px) {
+  .cnav {
+    gap: 8px;
+  }
+
+  .cnav-stage--done,
+  .cnav-stage--todo {
+    display: none;
+  }
+
+  /* 頂列放不下：導航鈕只留圖示，開關狀態看顏色 */
+  .hs-action-nav .hs-action-label,
+  .hs-action-nav .hs-badge-btn {
+    display: none;
+  }
+}

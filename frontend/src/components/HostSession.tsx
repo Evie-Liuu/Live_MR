@@ -49,6 +49,8 @@ import CheckpointHostPanel, { type AiCheckpointKind } from './CheckpointHostPane
 import AiAssistantPanel, { type InteractionPhase } from './AiAssistantPanel.tsx';
 import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.tsx';
 import CustomSelect from './CustomSelect.tsx';
+import ClassNavigator from './ClassNavigator.tsx';
+import { classNavState } from '../utils/classNavigator.ts';
 import type { SelectOption } from '../utils/selectDropdown.ts';
 import { sortByAccount } from '../utils/sortByAccount.ts';
 import { MAX_HINT_LEVEL, type HintLevel as TurnHintLevel, type TurnHintMode } from '../utils/turnHints.ts';
@@ -110,6 +112,11 @@ interface ParticipantInfo {
   videoTrack: RemoteTrackPublication | null;
   poseData: PoseFrame | null;
 }
+
+const CLASS_NAV_STORAGE_KEY = 'class-nav';
+const BIGSCREEN_PING_MS = 2000;
+/** 連續這麼多次沒回應才算大屏關了（大屏忙著載入模型時可能一時回不了） */
+const BIGSCREEN_MISSED_PINGS_CLOSED = 2;
 
 interface PendingStudent {
   requestId: string;
@@ -384,6 +391,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   const lastSpeakingStudentRef = useRef<string | null>(null);
   // Embedded BigScreen preview in sidebar
   const [showBigScreenPreview, setShowBigScreenPreview] = useState(false);
+  /** 大屏視窗是否開著（ping／pong 判斷，教師端重整後一樣知道） */
+  const [bigScreenOpen, setBigScreenOpen] = useState(false);
+  /** 課堂導航開關，記在這台裝置上 */
+  const [showClassNav, setShowClassNav] = useState(() => {
+    try { return localStorage.getItem(CLASS_NAV_STORAGE_KEY) !== 'off'; } catch { return true; }
+  });
   const [bigScreenMenuOpen, setBigScreenMenuOpen] = useState(false);
 
   // Student removal confirmation modal state
@@ -395,6 +408,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
 
   // Big-screen pop-out window reference
   const bigScreenWindowRef = useRef<Window | null>(null);
+  const bigScreenMissedPingsRef = useRef(0);
   // BroadcastChannel to push pose data to big screen
   const channelRef = useRef<BroadcastChannel | null>(null);
   /** 大屏名牌用的顯示名稱（identity → 帳號 full_name），見 participant-names */
@@ -1557,8 +1571,21 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     // 接收大屏編輯狀態(互斥:大屏編輯中不可開始互動)
     ch.onmessage = (ev: MessageEvent<BigScreenMsg>) => {
       if (ev.data?.type === 'edit-mode') setBigScreenEditing(!!ev.data.editing);
+      if (ev.data?.type === 'bigscreen-pong') {
+        bigScreenMissedPingsRef.current = 0;
+        setBigScreenOpen(true);
+      }
     };
+    // 用「連續沒回應的次數」判斷，不比時間：教師端分頁在背景時計時器會被降速，比時間會誤判成關閉
+    const ping = () => {
+      if (bigScreenMissedPingsRef.current >= BIGSCREEN_MISSED_PINGS_CLOSED) setBigScreenOpen(false);
+      bigScreenMissedPingsRef.current += 1;
+      ch.postMessage({ type: 'bigscreen-ping' } satisfies BigScreenMsg);
+    };
+    ping();
+    const pingTimer = window.setInterval(ping, BIGSCREEN_PING_MS);
     return () => {
+      window.clearInterval(pingTimer);
       ch.close();
       channelRef.current = null;
     };
@@ -2549,6 +2576,34 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   const lessonPhaseContent = lesson ? phaseContent(lesson.record.task, lesson.phase) : null;
   const lessonQuestion = lesson && lessonPhaseContent ? lessonPhaseContent.questions[lesson.questionIndex] : undefined;
 
+  const classNav = classNavState({
+    bigScreenOpen,
+    studentCount: studentList.length,
+    pendingCount: pending.length,
+    pollActive: !!checkpointPoll,
+    lesson: lesson ? {
+      phase: lesson.phase,
+      allDone: lessonAllDone,
+      unassignedRoles: castSlots.filter(s => !slotAssignments[s.id]).map(s => s.label),
+      checkpointCount: (lessonStep?.checkpoints?.length ?? 0) + (lessonStep ? lesson.aiCheckpoints?.[lessonStep.id]?.length ?? 0 : 0),
+      isLastStep: lesson.doneCount >= lesson.record.task.steps.length - 1,
+      turn: scriptTurn ? {
+        status: scriptTurn.status,
+        lineIndex: scriptTurn.lineIndex,
+        lineCount: scriptTurn.lineCount,
+        speakerLabel: scriptTurn.speaker.label,
+        speakerName: scriptTurn.speaker.name,
+        speakerStatus,
+      } : null,
+    } : null,
+  });
+  const toggleClassNav = () => {
+    setShowClassNav(v => {
+      try { localStorage.setItem(CLASS_NAV_STORAGE_KEY, v ? 'off' : 'on'); } catch { /* 下次重開回到預設 */ }
+      return !v;
+    });
+  };
+
   const handleBrandClick = () => {
     setShowExitConfirm(true);
     // sessionStorage.clear();
@@ -2649,6 +2704,17 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
           </button>
 
           <RecordingPanel isRecording={isRecording} bigScreenEditing={bigScreenEditing} onStart={start} onStop={stop} />
+
+          <button
+            className={`hs-action-btn hs-action-nav ${showClassNav ? 'hs-action--on' : 'hs-action--off'}`}
+            onClick={toggleClassNav}
+            aria-pressed={showClassNav}
+            title={showClassNav ? '關閉課堂導航' : '開啟課堂導航'}
+          >
+            <span className="material-symbols-outlined">assistant_direction</span>
+            <span className="hs-action-label">導航</span>
+            <span className={`hs-badge-btn ${showClassNav ? 'hs-badge--on' : 'hs-badge--off'}`}>{showClassNav ? 'ON' : 'OFF'}</span>
+          </button>
 
           <button
             className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
@@ -2922,6 +2988,8 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
       )}
 
       {/* ── Main Body: Sidebar + Video ────────────────────────────────────────── */}
+      {showClassNav && <ClassNavigator nav={classNav} />}
+
       <div className="hs-body">
 
         {/* ── Left Sidebar ──────────────────────────────────────────────────── */}

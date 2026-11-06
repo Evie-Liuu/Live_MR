@@ -52,7 +52,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'perf-record' | 'perf-sample' | 'script-turn' | 'turn-transcript' | 'turn-hint' | 'participant-names';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'perf-record' | 'perf-sample' | 'script-turn' | 'turn-transcript' | 'turn-hint' | 'participant-names' | 'bigscreen-ping' | 'bigscreen-pong';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -2230,7 +2230,10 @@ export default function BigScreen() {
     channel.onmessage = (ev: MessageEvent) => {
       const msg = ev.data as BigScreenMsg;
 
-      if (msg.type === 'pose' && msg.identity) {
+      if (msg.type === 'bigscreen-ping') {
+        // 教師端確認大屏是否開著；教師端內嵌的預覽 iframe 不算
+        if (window.self === window.top) channel.postMessage({ type: 'bigscreen-pong' } satisfies BigScreenMsg);
+      } else if (msg.type === 'pose' && msg.identity) {
         // On first sight of an identity, pre-register the correct VRM override
         // before ensureAvatar runs.  This handles the case where BigScreen opened
         // after the initial vrm-identity-change broadcast was already sent.
