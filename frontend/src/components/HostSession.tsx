@@ -252,6 +252,9 @@ function SceneBackgroundControls({
 
 /** 右側 AI 助理面板是否顯示（目前不使用） */
 const SHOW_RIGHT_PANEL = false;
+/** 頂列暫時隱藏的按鈕，要開回來改成 true */
+const SHOW_RECORDING_BUTTON = false;
+const SHOW_FACE_BUTTON = false;
 
 const nameCollator = new Intl.Collator('zh-Hant', { numeric: true, sensitivity: 'base' });
 const byName = (a: string, b: string) => nameCollator.compare(a, b);
@@ -2716,7 +2719,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
             {pending.length > 0 && <span className="hs-badge-btn hs-badge--alert">{pending.length}</span>}
           </button>
 
-          {false &&
+          {SHOW_RECORDING_BUTTON &&
             <RecordingPanel isRecording={isRecording} bigScreenEditing={bigScreenEditing} onStart={start} onStop={stop} />
           }
 
@@ -2727,11 +2730,11 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
             title={showClassNav ? '關閉課堂引導' : '開啟課堂引導'}
           >
             <span className="material-symbols-outlined">assistant_direction</span>
-            <span className="hs-action-label">新手引導</span>
+            <span className="hs-action-label">課堂引導</span>
             <span className={`hs-badge-btn ${showClassNav ? 'hs-badge--on' : 'hs-badge--off'}`}>{showClassNav ? 'ON' : 'OFF'}</span>
           </button>
 
-          {false &&
+          {SHOW_FACE_BUTTON &&
             <button
               className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
               onClick={() => setFaceEnabled(v => !v)}
