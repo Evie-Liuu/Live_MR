@@ -2716,29 +2716,32 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
             {pending.length > 0 && <span className="hs-badge-btn hs-badge--alert">{pending.length}</span>}
           </button>
 
-          <RecordingPanel isRecording={isRecording} bigScreenEditing={bigScreenEditing} onStart={start} onStop={stop} />
+          {false &&
+            <RecordingPanel isRecording={isRecording} bigScreenEditing={bigScreenEditing} onStart={start} onStop={stop} />
+          }
 
           <button
             className={`hs-action-btn hs-action-nav ${showClassNav ? 'hs-action--on' : 'hs-action--off'}`}
             onClick={toggleClassNav}
             aria-pressed={showClassNav}
-            title={showClassNav ? '關閉課堂導航' : '開啟課堂導航'}
+            title={showClassNav ? '關閉課堂引導' : '開啟課堂引導'}
           >
             <span className="material-symbols-outlined">assistant_direction</span>
-            <span className="hs-action-label">導航</span>
+            <span className="hs-action-label">新手引導</span>
             <span className={`hs-badge-btn ${showClassNav ? 'hs-badge--on' : 'hs-badge--off'}`}>{showClassNav ? 'ON' : 'OFF'}</span>
           </button>
 
-          <button
-            className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
-            onClick={() => setFaceEnabled(v => !v)}
-            title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
-          >
-            {/* <span className="hs-action-icon">{faceEnabled ? '😊' : '😶'}</span> */}
-            <span className="material-symbols-outlined">ar_on_you</span>
-            <span className="hs-action-label">臉部</span>
-            <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
-          </button>
+          {false &&
+            <button
+              className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
+              onClick={() => setFaceEnabled(v => !v)}
+              title={faceEnabled ? '關閉臉部辨識' : '開啟臉部辨識'}
+            >
+              <span className="material-symbols-outlined">ar_on_you</span>
+              <span className="hs-action-label">臉部</span>
+              <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
+            </button>
+          }
 
           {/* <button
             className={`hs-action-btn ${lowPowerMode ? 'hs-action--on' : 'hs-action--off'}`}
@@ -3092,18 +3095,18 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
                     )}
                   </div>
                 ) : (
-                <>
-                <div className="hs-task-progress-bar">
-                  <div
-                    className="hs-task-progress-fill"
-                    style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
-                  />
-                </div>
-                <div className="hs-lesson-console-note">
-                  <span className="material-symbols-outlined" aria-hidden="true">east</span>
-                  登台展演與台下互動在畫面右側
-                </div>
-                </>
+                  <>
+                    <div className="hs-task-progress-bar">
+                      <div
+                        className="hs-task-progress-fill"
+                        style={{ width: `${Math.round((lesson.doneCount / lesson.record.task.steps.length) * 100)}%` }}
+                      />
+                    </div>
+                    <div className="hs-lesson-console-note">
+                      <span className="material-symbols-outlined" aria-hidden="true">east</span>
+                      登台展演與台下互動在畫面右側
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
