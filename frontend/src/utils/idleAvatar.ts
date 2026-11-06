@@ -66,12 +66,21 @@ const ALWAYS_POSED = new Set<VRMHumanBoneName>([
 
 const blendT = (delta: number) => 1 - Math.exp(-BLEND_SPEED * delta);
 
-export function createIdlePose(vrm: VRM, seed = Math.random() * 10): IdlePose {
+export interface IdlePoseOptions {
+  /**
+   * 髖部維持模型原本的高度，只疊加擺動量。給沒有姿勢驅動的靜態角色用：
+   * 它們的髖部停在模型的原始高度，不是姿勢驅動時的 0。
+   */
+  keepHipsHeight?: boolean;
+}
+
+export function createIdlePose(vrm: VRM, seed = Math.random() * 10, options: IdlePoseOptions = {}): IdlePose {
   const h = vrm.humanoid;
   const bones = VRMHumanBoneList
     .map(name => ({ name, node: h.getNormalizedBoneNode(name) }))
     .filter((b): b is { name: VRMHumanBoneName; node: THREE.Object3D } => !!b.node);
   const hips = h.getNormalizedBoneNode('hips');
+  const hipsBase = options.keepHipsHeight && hips ? hips.position.clone() : new THREE.Vector3();
   const leftArm = h.getNormalizedBoneNode('leftUpperArm');
   const rightArm = h.getNormalizedBoneNode('rightUpperArm');
   const armDownL = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -ARM_DOWN));
@@ -129,9 +138,9 @@ export function createIdlePose(vrm: VRM, seed = Math.random() * 10): IdlePose {
           if (clip.hips) {
             pos.fromArray(clip.hips.interp.evaluate(s.time) as unknown as number[]);
             if (s.wrapWeight > 0) pos.lerp(wrapPos.fromArray(clip.hips.interp.evaluate(s.wrapTime) as unknown as number[]), s.wrapWeight);
-            pos.sub(clip.hips.center);
+            pos.sub(clip.hips.center).add(hipsBase);
           } else {
-            pos.set(0, 0, 0);
+            pos.copy(hipsBase);
           }
           hips.position.lerp(pos, t);
         }
@@ -142,7 +151,7 @@ export function createIdlePose(vrm: VRM, seed = Math.random() * 10): IdlePose {
           else if (node === rightArm) node.quaternion.slerp(armDownR, t);
           else node.quaternion.slerp(identity, t);
         }
-        hips?.position.lerp(pos.set(0, 0, 0), t);
+        hips?.position.lerp(pos.copy(hipsBase), t);
       }
 
       // 嘴巴闔上；姿勢驅動時由臉部偵測寫入，不歸零會停在最後的嘴型

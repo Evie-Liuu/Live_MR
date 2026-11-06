@@ -92,6 +92,15 @@ describe('createIdlePose', () => {
     expect(angle).toBeLessThan(ROT.angleTo(REST) * 0.2);
   });
 
+  it('keeps the model height for static avatars', () => {
+    const { vrm, bone } = stubVrm();
+    bone('hips').position.y = 0.9;
+    const idle = createIdlePose(vrm, 0, { keepHipsHeight: true });
+    idle.setClip(clip());
+    run((d, e) => idle.update(d, e));
+    expect(Math.abs(bone('hips').position.y - 0.9)).toBeLessThan(0.02);
+  });
+
   it('stands with arms down when there is no clip', () => {
     const { vrm, bone } = stubVrm();
     bone('hips').position.y = 0.9;

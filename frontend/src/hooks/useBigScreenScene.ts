@@ -169,6 +169,8 @@ interface UseBigScreenSceneOptions {
    * undefined＝不限制，所有人都跟自己的姿勢。
    */
   poseOnlyIdentity?: string | null;
+  /** 靜態角色（任務前階段）播待機動作；編輯模式不傳，維持不動方便擺位 */
+  placeholderIdle?: boolean;
   /** Called once per frame with renderer stats. Only passed when stats panel is visible. */
   onStats?: (s: StatsSnapshot) => void;
   /**
@@ -233,7 +235,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, poseOnlyIdentity, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, poseOnlyIdentity, placeholderIdle, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -506,6 +508,8 @@ export function useBigScreenScene(
   propGrabberIdentityRef.current = propGrabberIdentity;
   const poseOnlyIdentityRef = useRef(poseOnlyIdentity);
   poseOnlyIdentityRef.current = poseOnlyIdentity;
+  const placeholderIdleRef = useRef(placeholderIdle);
+  placeholderIdleRef.current = placeholderIdle;
 
   const onStatsRef = useRef<((s: StatsSnapshot) => void) | undefined>(undefined);
   onStatsRef.current = onStats;
@@ -799,11 +803,13 @@ export function useBigScreenScene(
           20,
         );
 
-        // 登台展演：非發言者（或發言者沒有姿勢資料時）播待機動作。靜態角色另有擺法，不處理。
+        // 登台展演：非發言者（或發言者沒有姿勢資料時）播待機動作。
+        // 靜態角色：任務前階段播待機動作，編輯模式維持不動
         const hasFreshPose = !!slot.pendingPose
           || (!!slot.lastFrame && frameStart - slot.lastPoseAt < POSE_STALLED_MS);
-        const idling = !identity.startsWith(PLACEHOLDER_PREFIX)
-          && shouldPlayIdle(identity, poseOnlyIdentityRef.current, hasFreshPose);
+        const idling = identity.startsWith(PLACEHOLDER_PREFIX)
+          ? !!placeholderIdleRef.current
+          : shouldPlayIdle(identity, poseOnlyIdentityRef.current, hasFreshPose);
 
         if (idling) {
           // 姿勢照收不解算：拿著道具的人要靠最新的手部資料才能放下；輪到他時也能立刻接上
@@ -1304,7 +1310,7 @@ export function useBigScreenScene(
             }
           }
 
-          const idle = createIdlePose(vrm);
+          const idle = createIdlePose(vrm, undefined, { keepHipsHeight: identity.startsWith(PLACEHOLDER_PREFIX) });
           void loadIdleAnimation().then(anim => {
             if (!anim || avatarsRef.current.get(identity)?.vrm !== vrm) return;
             // createVRMAnimationClip 需要視線代理物件，先建好避免它自動建立並印警告

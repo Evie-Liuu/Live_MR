@@ -836,6 +836,8 @@ export default function BigScreen() {
     propGrabberIdentity: turnProp ? scriptTurn?.speaker.identity ?? null : undefined,
     // 登台展演：只有發言者跟姿勢，其他人播待機動作
     poseOnlyIdentity: turnIdentity,
+    // 任務前（暖身）：已指派的靜態角色播待機動作
+    placeholderIdle: staticStage,
     onStats: showPerformanceMonitor ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,
