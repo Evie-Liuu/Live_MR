@@ -6,27 +6,17 @@
  */
 import * as THREE from 'three';
 import { VRMHumanBoneList, type VRM, type VRMHumanBoneName } from '@pixiv/three-vrm';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { VRMAnimationLoaderPlugin, type VRMAnimation } from '@pixiv/three-vrm-animation';
+import type { VRMAnimation } from '@pixiv/three-vrm-animation';
 import { IDLE_ANIMATION_URL } from '../config/gestures.ts';
+import { DEFAULT_BODY_TYPE, loadAnimation, type BodyType } from './animationLibrary.ts';
 import { createInterpolant, idleLoopSample } from './scriptedAvatar.ts';
 
-let idleAnimation: Promise<VRMAnimation | null> | null = null;
-
-/** 待機動作檔，整個 app 共用一份；缺檔或載入失敗回傳 null，呼叫端改用程式待機姿勢 */
-export function loadIdleAnimation(): Promise<VRMAnimation | null> {
-  idleAnimation ??= (async () => {
-    const loader = new GLTFLoader();
-    loader.register(parser => new VRMAnimationLoaderPlugin(parser));
-    try {
-      const gltf = await loader.loadAsync(IDLE_ANIMATION_URL);
-      return (gltf.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0] ?? null;
-    } catch (err) {
-      console.warn('[IdleAvatar] idle animation load failed, using procedural idle:', err);
-      return null;
-    }
-  })();
-  return idleAnimation;
+/**
+ * 待機動作檔，依體型挑版本（大人先找 idle.adult.vrma），每個檔案整個 app 只下載一次；
+ * 缺檔或載入失敗回傳 null，呼叫端改用程式待機姿勢
+ */
+export function loadIdleAnimation(bodyType: BodyType = DEFAULT_BODY_TYPE): Promise<VRMAnimation | null> {
+  return loadAnimation(IDLE_ANIMATION_URL, bodyType);
 }
 
 /**

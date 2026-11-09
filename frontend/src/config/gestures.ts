@@ -4,6 +4,10 @@
  * 目前的 .vrma 由 scripts/generate-vrma.mjs 程式產生（npm run generate:vrma）。
  * 取得授權的專業動作檔後，直接用同名檔案覆蓋 public/animations/<id>.vrma 即可，程式不用改；
  * 新增動作則要同時改這裡、backend/src/dialogueTaskTypes.ts 的 GESTURE_IDS 與產生器。
+ *
+ * 大人與小孩手臂比例不同，同一個動作檔套到另一種體型手的位置會跑掉（例如揮手打到臉）。
+ * 大人版放成 <名稱>.adult.vrma（例如 wave.adult.vrma），vrmSources 標記 bodyType: 'adult'
+ * 的模型會自動優先使用，沒有大人版就用原檔（見 utils/animationLibrary.ts）。
  */
 
 /** 待機循環動作：不是可排進台詞的手勢，不列入 GESTURES；檔案不存在時用程式待機姿勢 */

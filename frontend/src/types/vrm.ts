@@ -197,11 +197,16 @@ export interface ThemeConfig {
 // ─── VRM Source Configuration ─────────────────────────────────────────────────
 
 /** A single VRM model source entry */
+/** 體型：決定動作檔用哪個版本（大人先找 <名稱>.adult.vrma） */
+export type BodyType = 'child' | 'adult';
+
 export interface VrmSource {
   id: string;
   label: string;
   /** URL path to the .vrm file */
   url: string;
+  /** 沒標記的當作小孩（目前動作檔是用小孩骨架做的） */
+  bodyType?: BodyType;
 }
 
 /** Registry of all available VRM sources */

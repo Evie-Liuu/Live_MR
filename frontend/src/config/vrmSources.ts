@@ -10,6 +10,9 @@ import type { VrmSource } from '../types/vrm';
  *  1. Drop the .vrm file into /public/
  *  2. Add an entry below
  *  3. It will be visible in the model-source picker automatically
+ *
+ * bodyType：大人模型標 'adult'，動作會優先用 public/animations/<名稱>.adult.vrma；
+ * 沒標記的當作小孩，直接用 <名稱>.vrma。
  */
 export const VRM_SOURCES: Record<string, VrmSource> = {
   default: {
@@ -41,11 +44,13 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     id: 'clothingStoreStaff_female',
     label: '女店員',
     url: '/models/ClothingStoreStaff_Female.vrm',
+    bodyType: 'adult',
   },
   clothingStoreStaff_male: {
     id: 'clothingStoreStaff_male',
     label: '男店員',
     url: '/models/ClothingStoreStaff_Male.vrm',
+    bodyType: 'adult',
   },
 } as const;
 

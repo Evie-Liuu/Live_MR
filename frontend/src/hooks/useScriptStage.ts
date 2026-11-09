@@ -16,15 +16,17 @@ import { applyLights } from '../utils/threeScene.ts';
 import { loadVrm } from '../utils/vrmLoader.ts';
 import { loadStaticProps, disposeStaticProps } from '../utils/propLoader.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { VRMAnimationLoaderPlugin, VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
+import { VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
 import { GESTURES, type GestureId } from '../config/gestures.ts';
 import { loadIdleAnimation } from '../utils/idleAvatar.ts';
+import { DEFAULT_BODY_TYPE, loadAnimation, type BodyType } from '../utils/animationLibrary.ts';
 
 interface StageAvatar {
   slotId: string;
   vrm: VRM;
   animator: AvatarAnimator;
+  /** 決定動作檔版本（大人先找 <名稱>.adult.vrma） */
+  bodyType: BodyType;
   /** 每個角色各自轉換的動作 clip（VRM0 / VRM1 轉換結果不同，不能共用） */
   clips: Map<GestureId, THREE.AnimationClip>;
 }
@@ -41,26 +43,25 @@ export interface ScriptStage {
   playGesture: (slotId: string, gesture: GestureId) => void;
 }
 
-/** 動作檔與場景無關，整個 app 共用一份 */
-let gestureLibrary: Promise<Map<GestureId, VRMAnimation>> | null = null;
+type GestureLibrary = Map<GestureId, VRMAnimation>;
 
-function loadGestureLibrary(): Promise<Map<GestureId, VRMAnimation>> {
-  gestureLibrary ??= (async () => {
-    const loader = new GLTFLoader();
-    loader.register(parser => new VRMAnimationLoaderPlugin(parser));
-    const lib = new Map<GestureId, VRMAnimation>();
-    await Promise.all(GESTURES.map(async g => {
-      try {
-        const gltf = await loader.loadAsync(g.url);
-        const anim = (gltf.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0];
-        if (anim) lib.set(g.id, anim);
-      } catch (err) {
-        console.warn(`[ScriptStage] gesture ${g.id} load failed:`, err);
-      }
-    }));
-    return lib;
-  })();
-  return gestureLibrary;
+/** 動作檔與場景無關，每種體型整個 app 共用一份 */
+const gestureLibraries = new Map<BodyType, Promise<GestureLibrary>>();
+
+function loadGestureLibrary(bodyType: BodyType): Promise<GestureLibrary> {
+  let lib = gestureLibraries.get(bodyType);
+  if (!lib) {
+    lib = (async () => {
+      const map: GestureLibrary = new Map();
+      await Promise.all(GESTURES.map(async g => {
+        const anim = await loadAnimation(g.url, bodyType);
+        if (anim) map.set(g.id, anim);
+      }));
+      return map;
+    })();
+    gestureLibraries.set(bodyType, lib);
+  }
+  return lib;
 }
 
 /** 與大螢幕編輯模式相同：沒有姿勢驅動時把腳貼地 */
@@ -78,10 +79,10 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     if (slotId) lastSpeakerRef.current = slotId;
   }, []);
   const avatarsRef = useRef<StageAvatar[]>([]);
-  const libraryRef = useRef<Map<GestureId, VRMAnimation> | null>(null);
+  const librariesRef = useRef(new Map<BodyType, GestureLibrary>());
   const playGesture = useCallback((slotId: string, gestureId: GestureId) => {
     const avatar = avatarsRef.current.find(a => a.slotId === slotId);
-    const anim = libraryRef.current?.get(gestureId);
+    const anim = avatar && librariesRef.current.get(avatar.bodyType)?.get(gestureId);
     if (!avatar || !anim) return;
     let clip = avatar.clips.get(gestureId);
     if (!clip) {
@@ -139,12 +140,17 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     const slots = preset.slots ?? [];
     const avatars: StageAvatar[] = [];
     avatarsRef.current = avatars;
-    void loadGestureLibrary().then(lib => { if (!disposed) libraryRef.current = lib; });
+    // 場景裡有哪些體型就載哪幾套動作
+    const libraries = librariesRef.current;
+    const bodyTypes = new Set(slots.map(s => VRM_SOURCES[s.defaultVrmId ?? DEFAULT_VRM_SOURCE_ID]?.bodyType ?? DEFAULT_BODY_TYPE));
+    for (const bt of bodyTypes) void loadGestureLibrary(bt).then(lib => { if (!disposed) libraries.set(bt, lib); });
     const slotProgress = new Array(slots.length).fill(0);
     const reportProgress = () => setProgress(slots.length ? slotProgress.reduce((a, b) => a + b, 0) / slots.length : 1);
     Promise.all(slots.map(async (slot, i) => {
       const vrmId = slot.defaultVrmId ?? DEFAULT_VRM_SOURCE_ID;
-      const url = (VRM_SOURCES[vrmId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID]).url;
+      const source = VRM_SOURCES[vrmId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID];
+      const url = source.url;
+      const bodyType = source.bodyType ?? DEFAULT_BODY_TYPE;
       const [{ vrm }, idleAnim] = await Promise.all([
         loadVrm({
           url,
@@ -156,7 +162,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
           },
           onProgress: p => { slotProgress[i] = p; reportProgress(); },
         }),
-        loadIdleAnimation(),
+        loadIdleAnimation(bodyType),
       ]);
       if (disposed) { scene.remove(vrm.scene); VRMUtils.deepDispose(vrm.scene); return; }
       slotProgress[i] = 1;
@@ -169,7 +175,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       }
       const animator = createAvatarAnimator(vrm, i * 2.3 + 0.7);
       if (idleAnim) animator.setIdle(createVRMAnimationClip(idleAnim, vrm));
-      avatars.push({ slotId: slot.id, vrm, animator, clips: new Map() });
+      avatars.push({ slotId: slot.id, vrm, animator, bodyType, clips: new Map() });
     }))
       .then(() => { if (!disposed) setReady(true); })
       .catch(err => {

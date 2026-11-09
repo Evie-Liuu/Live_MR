@@ -25,6 +25,7 @@ import {
   type PoseApplyState,
 } from '../utils/vrmPoseApplier';
 import { IDLE_RELEASE_SECONDS, createIdlePose, loadIdleAnimation, shouldPlayIdle, type IdlePose } from '../utils/idleAvatar';
+import { bodyTypeOfVrmUrl } from '../utils/animationLibrary';
 import { applyLights } from '../utils/threeScene';
 import {
   loadStaticProps,
@@ -1311,7 +1312,7 @@ export function useBigScreenScene(
           }
 
           const idle = createIdlePose(vrm, undefined, { keepHipsHeight: identity.startsWith(PLACEHOLDER_PREFIX) });
-          void loadIdleAnimation().then(anim => {
+          void loadIdleAnimation(bodyTypeOfVrmUrl(resolvedUrl)).then(anim => {
             if (!anim || avatarsRef.current.get(identity)?.vrm !== vrm) return;
             // createVRMAnimationClip 需要視線代理物件，先建好避免它自動建立並印警告
             if (vrm.lookAt) {
