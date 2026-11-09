@@ -14,7 +14,10 @@ import { SCENE_PRESETS } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 import { applyLights } from '../utils/threeScene.ts';
 import { loadVrm } from '../utils/vrmLoader.ts';
-import { loadStaticProps, disposeStaticProps } from '../utils/propLoader.ts';
+import { loadStaticProps, disposeStaticProps, loadTaskProps, disposeTaskProps } from '../utils/propLoader.ts';
+import { loadOccluderGlb, disposeOccluder } from '../utils/occluderLoader.ts';
+import { OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders.ts';
+import { hiddenMembers, readSavedSceneLayout, resolveGroupPlacements, type GroupTransform } from '../utils/savedSceneLayout.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
 import { VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
 import { GESTURES, type GestureId } from '../config/gestures.ts';
@@ -130,11 +133,48 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
 
-    // 靜態道具（收銀台等）；缺檔由 propLoader 吞掉
-    let propPool: Map<string, THREE.Group> | null = null;
+    // 物件擺放跟上課的大螢幕一致：讀編輯模式存下來的群組移動、隱藏與遮罩物件
+    const layout = readSavedSceneLayout(sceneId);
+    const placements = resolveGroupPlacements(preset, layout.groupTransforms, FLOOR_Y);
+    const hidden = hiddenMembers(preset, layout.groupHidden);
+    const place = (obj: THREE.Object3D, key: string) => {
+      const p = placements.get(key);
+      if (p) { obj.position.set(...p.pos); obj.rotation.set(...p.rot); }
+      if (hidden.has(key)) obj.visible = false;
+    };
+
+    // 靜態道具（收銀台、衣架）與展示物件（衣服等）；缺檔由 propLoader 吞掉
+    let staticPool: Map<string, THREE.Group> | null = null;
+    let taskPool: Map<string, THREE.Group> | null = null;
     loadStaticProps(preset.propSystem?.staticProps ?? [], scene)
-      .then(pool => { if (disposed) disposeStaticProps(pool, scene); else propPool = pool; })
+      .then(pool => {
+        if (disposed) { disposeStaticProps(pool, scene); return; }
+        staticPool = pool;
+        for (const [id, obj] of pool) place(obj, `staticProp:${id}`);
+      })
       .catch(err => console.warn('[ScriptStage] static props load error:', err));
+    loadTaskProps(preset.propSystem?.taskProps ?? {}, scene)
+      .then(pool => {
+        if (disposed) { disposeTaskProps(pool, scene); return; }
+        taskPool = pool;
+        for (const [id, obj] of pool) place(obj, `taskProp:${id}`);
+      })
+      .catch(err => console.warn('[ScriptStage] task props load error:', err));
+
+    // 遮罩物件（老師在編輯模式加的）
+    const occluders: THREE.Group[] = [];
+    for (const inst of layout.occluders) {
+      const lib = OCCLUDER_LIBRARY_BY_ID[inst.libraryId];
+      if (!lib) continue;
+      void loadOccluderGlb(lib.glbUrl, scene).then(group => {
+        if (!group) return;
+        if (disposed) { disposeOccluder(group, scene); return; }
+        group.position.set(...inst.position);
+        group.rotation.set(...inst.rotation);
+        group.scale.setScalar(inst.scale);
+        occluders.push(group);
+      });
+    }
 
     // 角色：每個 slot 載入預設模型
     const slots = preset.slots ?? [];
@@ -151,13 +191,14 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       const source = VRM_SOURCES[vrmId] ?? VRM_SOURCES[DEFAULT_VRM_SOURCE_ID];
       const url = source.url;
       const bodyType = source.bodyType ?? DEFAULT_BODY_TYPE;
+      const placed: GroupTransform | undefined = placements.get(`slot:${slot.id}`);
       const [{ vrm }, idleAnim] = await Promise.all([
         loadVrm({
           url,
           scene,
           spawn: {
-            position: [slot.position[0], FLOOR_Y, slot.position[2]],
-            rotation: slot.rotation,
+            position: placed?.pos ?? [slot.position[0], FLOOR_Y, slot.position[2]],
+            rotation: placed?.rot ?? slot.rotation,
             scale: preset.avatarDefaults?.scale,
           },
           onProgress: p => { slotProgress[i] = p; reportProgress(); },
@@ -167,6 +208,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       if (disposed) { scene.remove(vrm.scene); VRMUtils.deepDispose(vrm.scene); return; }
       slotProgress[i] = 1;
       reportProgress();
+      if (hidden.has(`slot:${slot.id}`)) vrm.scene.visible = false;
       // createVRMAnimationClip 需要視線代理物件，先建好避免它每次自動建立並印警告
       if (vrm.lookAt) {
         const proxy = new VRMLookAtQuaternionProxy(vrm.lookAt);
@@ -228,7 +270,9 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       cancelAnimationFrame(raf);
       observer.disconnect();
       for (const a of avatars) { scene.remove(a.vrm.scene); VRMUtils.deepDispose(a.vrm.scene); }
-      if (propPool) disposeStaticProps(propPool, scene);
+      if (staticPool) disposeStaticProps(staticPool, scene);
+      if (taskPool) disposeTaskProps(taskPool, scene);
+      for (const g of occluders) disposeOccluder(g, scene);
       (shadowFloor.material as THREE.Material).dispose();
       shadowFloor.geometry.dispose();
       renderer.dispose();

@@ -119,9 +119,9 @@ export function classNavState(input: ClassNavInput): ClassNavState {
   let warn = false;
   if (current === 'open') hint = openHint(input);
   else if (current === 'setup') hint = setupHint(input);
-  else if (current === 'pre') hint = '點一題提問投到大屏帶暖身，完成後切到「任務中」';
+  else if (current === 'pre') hint = '自由提問帶大家觀察場景進行暖身，完成後切到「任務中」';
   else if (current === 'during') ({ hint, warn } = duringHint(lesson!, input.pollActive));
-  else hint = '點提問帶討論；討論完點左上角 Logo 離開課堂';
+  else hint = '自行討論；課堂結束點左上角 Logo 離開課堂';
 
   const notice = current !== 'open' && !input.bigScreenOpen ? '大屏沒有開啟，學生看不到畫面' : null;
   return { stages, hint, warn, notice };
