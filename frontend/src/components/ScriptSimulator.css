@@ -300,12 +300,14 @@
   color: var(--ss-ink);
 }
 
+/* 人名標籤佔版面空間（台詞很短時卡片至少和人名一樣寬），用負邊距拉到卡片上緣，中心對齊上框線 */
 .ss-sub-speaker {
-  position: absolute;
-  top: 0;
-  left: 26px;
-  transform: translateY(-50%);
+  position: relative;
+  /* 高度固定 28px：-(上內距 26 + 一半高度 14) */
+  margin: -40px 0 6px 2px;
   padding: 4px 18px;
+  line-height: 20px;
+  white-space: nowrap;
   border-radius: 12px 12px 12px 4px;
   background: linear-gradient(135deg, var(--ss-accent-2), var(--ss-accent));
   color: #fff;
