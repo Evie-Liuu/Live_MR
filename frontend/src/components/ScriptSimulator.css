@@ -1,14 +1,25 @@
-/* ── 劇本模擬器（深藍播放器風格）──────────────────────────────────────── */
+/* ── 劇本模擬器（暖色服飾店風格：深咖啡外框、橘色主色、米杏色劇本面板）──────── */
 .ss-screen {
-  --ss-bg: #050F26;
-  --ss-panel: rgba(12, 30, 66, 0.86);
-  --ss-panel-solid: #0C1E42;
-  --ss-line: rgba(86, 160, 255, 0.22);
-  --ss-line-strong: rgba(56, 189, 248, 0.6);
-  --ss-accent: #22D3EE;
-  --ss-accent-2: #0EA5E9;
-  --ss-text: #EAF2FF;
-  --ss-muted: #93A9CF;
+  /* 外框與舞台上的深色元件 */
+  --ss-bg: #2A1E18;
+  --ss-dark: rgba(43, 28, 20, 0.72);
+  --ss-dark-solid: #3A2619;
+  --ss-dark-line: rgba(255, 214, 180, 0.22);
+  /* 主色 */
+  --ss-accent: #F76E12;
+  --ss-accent-2: #FF9A3D;
+  --ss-accent-soft: #FFE6D2;
+  /* 米杏色面板 */
+  --ss-panel: #FBE8D8;
+  --ss-panel-deep: #F4D6BE;
+  --ss-card: #FFF8F2;
+  --ss-ink: #3B2A20;
+  --ss-ink-soft: #6B4E3D;
+  --ss-muted: #9A7A66;
+  --ss-line: rgba(160, 96, 52, 0.18);
+  --ss-line-strong: rgba(247, 110, 18, 0.55);
+  /* 深色元件上的文字 */
+  --ss-text: #FFF6EE;
   position: fixed;
   inset: 0;
   /* 高於上課中的抽屜（panel-drawer 為 201） */
@@ -16,8 +27,8 @@
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(1200px 600px at 15% -10%, rgba(14, 165, 233, 0.18), transparent 60%),
-    radial-gradient(900px 500px at 100% 110%, rgba(99, 102, 241, 0.16), transparent 60%),
+    radial-gradient(1100px 560px at 10% -10%, rgba(247, 110, 18, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 100% 110%, rgba(255, 154, 61, 0.12), transparent 60%),
     var(--ss-bg);
   color: var(--ss-text);
   text-align: left;
@@ -37,7 +48,7 @@
 .ss-screen button:focus-visible,
 .ss-screen select:focus-visible,
 .ss-screen input:focus-visible {
-  outline: 2px solid var(--ss-accent);
+  outline: 2px solid var(--ss-accent-2);
   outline-offset: 2px;
 }
 
@@ -71,11 +82,11 @@
 
 .ss-player {
   position: relative;
-  border-radius: 18px;
+  border-radius: 22px;
   overflow: hidden;
-  background: var(--ss-panel-solid);
-  border: 1px solid var(--ss-line);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  background: var(--ss-dark-solid);
+  border: 2px solid rgba(214, 140, 84, 0.45);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 .ss-player.is-fullscreen {
@@ -94,7 +105,7 @@
   aspect-ratio: 16 / 9;
   max-height: calc(100vh - 80px);
   margin: 0 auto;
-  background: #020817;
+  background: #1C130E;
 }
 
 .ss-player.is-fullscreen .ss-stage {
@@ -118,31 +129,33 @@
   object-fit: cover;
 }
 
-/* 左上標題 */
+/* 左上標題：深咖啡膠囊、橘色圓形圖示 */
 .ss-title {
   position: absolute;
   top: 14px;
   left: 14px;
   z-index: 2;
-  max-width: 55%;
+  max-width: 60%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 12px 6px 6px;
+  gap: 12px;
+  padding: 6px 8px 6px 6px;
   border-radius: 999px;
-  background: rgba(5, 15, 38, 0.7);
-  border: 1px solid var(--ss-line);
+  background: linear-gradient(90deg, rgba(120, 58, 20, 0.88), rgba(58, 34, 20, 0.78));
+  border: 1px solid rgba(255, 170, 110, 0.45);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(8px);
 }
 
 .ss-title-icon {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #FF9A3D, #F76E12);
+  background: linear-gradient(135deg, var(--ss-accent-2), var(--ss-accent));
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
   color: #fff;
 }
 
@@ -150,6 +163,7 @@
   min-width: 0;
   font-size: 17px;
   font-weight: 800;
+  color: #FFF1E4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -157,12 +171,13 @@
 
 .ss-title-badge {
   flex: none;
-  padding: 2px 10px;
+  padding: 5px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 240, 226, 0.16);
+  border: 1px solid rgba(255, 200, 160, 0.45);
   color: #FFE3C7;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 /* 右上工具列 */
@@ -175,9 +190,9 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
-  border-radius: 12px;
-  background: rgba(5, 15, 38, 0.7);
-  border: 1px solid var(--ss-line);
+  border-radius: 999px;
+  background: var(--ss-dark);
+  border: 1px solid var(--ss-dark-line);
   backdrop-filter: blur(8px);
 }
 
@@ -185,10 +200,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
+  height: 36px;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: 999px;
   background: transparent;
   color: var(--ss-text);
   font-size: 13px;
@@ -198,21 +213,21 @@
 }
 
 .ss-tool .material-symbols-outlined {
-  font-size: 19px;
+  font-size: 20px;
 }
 
 .ss-tool:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .ss-tool.is-on {
   border-color: var(--ss-line-strong);
-  background: rgba(34, 211, 238, 0.14);
-  color: var(--ss-accent);
+  background: rgba(247, 110, 18, 0.22);
+  color: var(--ss-accent-2);
 }
 
 .ss-tool-icon {
-  width: 34px;
+  width: 36px;
   padding: 0;
   justify-content: center;
 }
@@ -227,7 +242,7 @@
   align-items: center;
   justify-content: center;
   gap: 14px;
-  background: rgba(2, 8, 23, 0.72);
+  background: rgba(32, 20, 13, 0.72);
   font-size: 15px;
 }
 
@@ -236,29 +251,34 @@
 }
 
 .ss-overlay-soft {
-  background: rgba(2, 8, 23, 0.45);
+  background: rgba(32, 20, 13, 0.45);
   font-size: 18px;
   font-weight: 700;
 }
 
 .ss-overlay-error {
-  color: #FCA5A5;
+  color: #FFB4A0;
 }
 
 .ss-btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 20px;
+  padding: 10px 22px;
   border: none;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--ss-accent-2), var(--ss-accent));
-  color: #04223A;
+  color: #fff;
   font-weight: 800;
+  box-shadow: 0 8px 20px rgba(247, 110, 18, 0.4);
   cursor: pointer;
 }
 
-/* 字幕 */
+.ss-btn-primary:hover {
+  filter: brightness(1.06);
+}
+
+/* 字幕：米杏色卡片，角色名稱是卡片左上的橘色標籤 */
 .ss-subtitle {
   position: absolute;
   left: 50%;
@@ -270,39 +290,46 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 10px 20px 12px;
-  border-radius: 14px;
-  background: rgba(8, 20, 48, 0.82);
-  border: 1px solid var(--ss-line);
-  /* border-left: 4px solid var(--speaker); */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(6px);
+  gap: 6px;
+  padding: 26px 24px 14px;
+  margin-top: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 248, 241, 0.96), rgba(251, 232, 216, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 12px 30px rgba(40, 20, 8, 0.35);
+  color: var(--ss-ink);
 }
 
 .ss-sub-speaker {
-  padding: 1px 10px;
-  border-radius: 6px;
-  background: var(--speaker);
+  position: absolute;
+  top: 0;
+  left: 26px;
+  transform: translateY(-50%);
+  padding: 4px 18px;
+  border-radius: 12px 12px 12px 4px;
+  background: linear-gradient(135deg, var(--ss-accent-2), var(--ss-accent));
   color: #fff;
-  font-size: 12px;
+  font-size: clamp(13px, 1.3vw, 17px);
   font-weight: 800;
+  box-shadow: 0 6px 14px rgba(247, 110, 18, 0.35);
 }
 
 .ss-sub-en {
   font-size: clamp(15px, 1.8vw, 22px);
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1.35;
+  color: var(--ss-ink);
 }
 
 .ss-sub-zh {
-  font-size: clamp(12px, 1.3vw, 16px);
-  color: #C7D5EE;
+  font-size: clamp(12px, 1.3vw, 17px);
+  font-weight: 600;
+  color: var(--ss-ink-soft);
 }
 
 /* 控制列顯示時，字幕往上讓位 */
 .ss-player.controls-shown .ss-subtitle {
-  bottom: 76px;
+  bottom: 84px;
 }
 
 /* 播放控制列：疊在舞台底部，滑鼠移入顯示、閒置後淡出 */
@@ -315,8 +342,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 30px 14px 12px;
-  background: linear-gradient(180deg, transparent, rgba(5, 15, 38, 0.82) 40%, rgba(5, 15, 38, 0.95));
+  padding: 30px 16px 14px;
+  background: linear-gradient(180deg, transparent, rgba(43, 28, 20, 0.78) 45%, rgba(36, 23, 16, 0.94));
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
@@ -328,19 +355,19 @@
 
 .ss-ctrl {
   flex: none;
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--ss-line);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--ss-dark-line);
+  border-radius: 999px;
+  background: rgba(255, 240, 226, 0.08);
   color: var(--ss-text);
   line-height: 1;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .ss-ctrl .material-symbols-outlined {
@@ -352,7 +379,7 @@
 }
 
 .ss-ctrl:hover:not(:disabled) {
-  background: rgba(34, 211, 238, 0.14);
+  background: rgba(247, 110, 18, 0.22);
   border-color: var(--ss-line-strong);
 }
 
@@ -362,7 +389,7 @@
 }
 
 .ss-ctrl.is-muted {
-  color: #FCA5A5;
+  color: #FFB4A0;
 }
 
 /* 控制列上的文字開關：章節、中文字幕 */
@@ -371,46 +398,48 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px;
+  padding: 0 14px;
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .ss-ctrl-text .material-symbols-outlined {
-  font-size: 19px;
+  font-size: 20px;
 }
 
 .ss-ctrl-text.is-on {
   border-color: var(--ss-line-strong);
-  background: rgba(34, 211, 238, 0.14);
-  color: var(--ss-accent);
+  background: rgba(247, 110, 18, 0.22);
+  color: #FFC48F;
 }
 
+/* 主播放鍵：橘色大圓鈕 */
 .ss-ctrl-main {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: none;
+  width: 54px;
+  height: 54px;
+  border: 3px solid rgba(255, 255, 255, 0.28);
   background: linear-gradient(135deg, var(--ss-accent-2), var(--ss-accent));
-  color: #04223A;
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(247, 110, 18, 0.45);
 }
 
 .ss-ctrl-main:hover:not(:disabled) {
-  background: linear-gradient(135deg, #38BDF8, #67E8F9);
+  background: linear-gradient(135deg, #FFAE5E, #FF8030);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .ss-ctrl-main .material-symbols-outlined {
-  font-size: 28px;
+  font-size: 32px;
 }
 
 .ss-time {
   flex: none;
   min-width: 96px;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--ss-muted);
+  color: #FFE9D6;
 }
 
 .ss-progress {
@@ -421,18 +450,18 @@
   border-radius: 999px;
   appearance: none;
   background: linear-gradient(90deg, var(--ss-accent-2), var(--ss-accent)) 0 / var(--pct, 0%) 100% no-repeat,
-    rgba(255, 255, 255, 0.14);
+    rgba(255, 240, 226, 0.22);
   cursor: pointer;
 }
 
 .ss-progress::-webkit-slider-thumb {
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid var(--ss-accent-2);
-  box-shadow: 0 0 10px rgba(34, 211, 238, 0.6);
+  border: 4px solid var(--ss-accent);
+  box-shadow: 0 0 10px rgba(247, 110, 18, 0.55);
 }
 
 .ss-progress::-moz-range-thumb {
@@ -440,7 +469,7 @@
   height: 12px;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid var(--ss-accent-2);
+  border: 4px solid var(--ss-accent);
 }
 
 .ss-progress:disabled {
@@ -449,27 +478,28 @@
 }
 
 .ss-speed select {
-  height: 34px;
-  padding: 0 8px;
-  border: 1px solid var(--ss-line);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06);
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--ss-dark-line);
+  border-radius: 999px;
+  background: rgba(255, 240, 226, 0.08);
   color: var(--ss-text);
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
 }
 
 .ss-speed option {
-  background: var(--ss-panel-solid);
+  background: var(--ss-card);
+  color: var(--ss-ink);
 }
 
 .ss-note {
   margin: 0;
   font-size: 13px;
-  color: var(--ss-muted);
+  color: #D9B9A2;
 }
 
-/* 章節：控制列按鈕上方浮現的選單 */
+/* 章節：控制列按鈕上方浮現的選單（米杏色卡片） */
 .ss-chapter-wrap {
   position: relative;
   flex: none;
@@ -484,15 +514,15 @@
   max-height: min(360px, 55vh);
   overflow-y: auto;
   padding: 6px;
-  border-radius: 14px;
-  background: rgba(8, 22, 52, 0.97);
-  border: 1px solid var(--ss-line-strong);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(34, 211, 238, 0.15);
-  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  background: var(--ss-card);
+  border: 1px solid rgba(247, 110, 18, 0.3);
+  box-shadow: 0 16px 40px rgba(30, 15, 5, 0.45);
+  color: var(--ss-ink);
   transform-origin: bottom right;
   animation: ss-menu-in 0.14s ease-out;
   scrollbar-width: thin;
-  scrollbar-color: rgba(147, 169, 207, 0.4) transparent;
+  scrollbar-color: rgba(160, 96, 52, 0.35) transparent;
 }
 
 @keyframes ss-menu-in {
@@ -516,9 +546,9 @@
   gap: 10px;
   padding: 9px 10px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
-  color: var(--ss-text);
+  color: var(--ss-ink);
   text-align: left;
   cursor: pointer;
   transition: background 0.12s;
@@ -526,7 +556,7 @@
 
 .ss-chapter:hover:not(:disabled),
 .ss-chapter:focus-visible {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--ss-panel);
   outline: none;
 }
 
@@ -536,7 +566,7 @@
 }
 
 .ss-chapter.is-active {
-  background: rgba(34, 211, 238, 0.16);
+  background: var(--ss-accent-soft);
 }
 
 .ss-chapter-num {
@@ -545,13 +575,14 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ss-panel-deep);
+  color: var(--ss-ink-soft);
   font-size: 13px;
   font-weight: 800;
 }
 
 .ss-chapter.is-active .ss-chapter-num {
-  background: var(--ss-accent-2);
+  background: var(--ss-accent);
   color: #fff;
 }
 
@@ -564,7 +595,7 @@
 }
 
 .ss-chapter.is-active .ss-chapter-title {
-  color: var(--ss-accent);
+  color: #C2510A;
 }
 
 .ss-chapter-time {
@@ -573,48 +604,54 @@
   color: var(--ss-muted);
 }
 
-/* ── 右側：對話劇本 / 語法說明 / 教學注意點 ─────────────────────────────── */
+/* ── 右側：對話劇本 / 語法說明 / 教學注意點（米杏色面板）──────────────────── */
 .ss-panel {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-radius: 18px;
+  border-radius: 22px;
   overflow: hidden;
   background: var(--ss-panel);
-  border: 1px solid var(--ss-line);
+  border: 2px solid rgba(214, 140, 84, 0.55);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+  color: var(--ss-ink);
 }
 
+/* 分頁：上方咖啡色帶，選中的分頁像資料夾頁籤一樣接到下方面板 */
 .ss-tabs {
   flex: none;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border-bottom: 1px solid var(--ss-line);
+  gap: 6px;
+  padding: 10px 10px 0;
+  background: linear-gradient(180deg, #8A4A22, #A65A26);
 }
 
 .ss-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 14px 6px;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 4px 3.5px;
   border: none;
-  background: transparent;
-  color: var(--ss-muted);
-  font-size: 15px;
+  border-radius: 14px 14px 0 0;
+  background: rgba(255, 228, 206, 0.35);
+  color: #FFF1E4;
+  font-size: 17px !important;
   font-weight: 800;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
 
 .ss-tab:hover {
-  color: var(--ss-text);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 228, 206, 0.55);
 }
 
 .ss-tab.is-active {
-  color: #fff;
-  background: linear-gradient(135deg, rgba(14, 165, 233, 0.75), rgba(34, 211, 238, 0.55));
+  background: var(--ss-panel);
+  color: var(--ss-accent);
 }
 
 .ss-panel-body {
@@ -623,7 +660,7 @@
   overflow-y: auto;
   padding: 12px 14px 16px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(147, 169, 207, 0.4) transparent;
+  scrollbar-color: rgba(160, 96, 52, 0.35) transparent;
 }
 
 .ss-empty {
@@ -642,7 +679,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 /* 對話劇本：階段標題可點擊開闔 */
@@ -659,8 +696,8 @@
   padding: 4px 10px;
   border: 1px solid var(--ss-line);
   border-radius: 999px;
-  background: transparent;
-  color: var(--ss-muted);
+  background: var(--ss-card);
+  color: var(--ss-ink-soft);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -671,34 +708,35 @@
 }
 
 .ss-script-bar-btn:hover {
-  color: var(--ss-text);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--ss-accent);
+  border-color: var(--ss-line-strong);
 }
 
 .ss-step-toggle {
   width: 100%;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
-  color: var(--ss-text);
+  color: var(--ss-ink);
   text-align: left;
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .ss-step-toggle:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .ss-step-count {
   margin-left: auto;
-  font-size: 12px;
-  color: var(--ss-muted);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ss-accent);
 }
 
 .ss-step-chevron {
-  color: var(--ss-muted);
+  color: var(--ss-ink-soft);
   transition: transform 0.18s;
 }
 
@@ -717,27 +755,31 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--ss-panel-deep);
+  color: var(--ss-ink-soft);
   font-size: 13px;
   font-weight: 800;
 }
 
 .ss-step.is-current .ss-step-num,
 .ss-info.is-current .ss-step-num {
-  background: var(--ss-accent-2);
+  background: var(--ss-accent);
   color: #fff;
 }
 
 .ss-step-title {
+  font-size: 16px;
   font-weight: 800;
+  color: var(--ss-ink);
 }
 
+/* 目的標籤：紫粉漸層膠囊 */
 .ss-step-purpose {
-  padding: 1px 8px;
+  padding: 2px 10px;
   border-radius: 999px;
-  background: rgba(244, 114, 182, 0.16);
-  color: #F9A8D4;
-  font-size: 12px;
+  background: linear-gradient(90deg, #B65BE0, #E66FB8);
+  color: #fff;
+  font-size: 10.2px;
   font-weight: 700;
 }
 
@@ -745,6 +787,9 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .ss-line-empty {
@@ -753,27 +798,38 @@
   color: var(--ss-muted);
 }
 
+/* 每句台詞是一張白色卡片，句號在卡片左邊 */
 .ss-line {
   display: grid;
-  grid-template-columns: 18px 44px minmax(0, 1fr) 38px;
+  grid-template-columns: 18px 44px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 10px 6px;
-  border-bottom: 1px solid rgba(86, 160, 255, 0.12);
-  border-radius: 12px;
-  transition: background 0.15s;
+  padding: 12px 12px 12px 4px;
+  border-radius: 16px;
+  background: rgba(255, 248, 242, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.ss-line:hover {
+  background: var(--ss-card);
 }
 
 .ss-line.is-active {
-  background: rgba(34, 211, 238, 0.1);
-  /* box-shadow: inset 3px 0 0 var(--speaker); */
+  background: #fff;
+  border-color: rgba(247, 110, 18, 0.45);
+  box-shadow: 0 6px 16px rgba(160, 80, 30, 0.16);
 }
 
 .ss-line-num {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ss-muted);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ss-ink-soft);
   text-align: right;
+}
+
+.ss-line.is-active .ss-line-num {
+  color: var(--ss-accent);
 }
 
 .ss-line-avatar {
@@ -782,8 +838,8 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--speaker) 22%, #FFF7EE);
-  border: 2px solid var(--speaker);
+  background: color-mix(in srgb, var(--speaker) 18%, #fff);
+  border: 3px solid color-mix(in srgb, var(--speaker) 70%, #fff);
   font-size: 22px;
 }
 
@@ -791,7 +847,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   padding: 0;
   border: none;
   background: none;
@@ -804,28 +860,31 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--speaker);
-  font-size: 14px;
+  color: color-mix(in srgb, var(--speaker) 80%, #3B2A20);
+  font-size: 15px;
   font-weight: 800;
 }
 
 .ss-line-gesture {
-  padding: 0 8px;
-  border-radius: 6px;
-  background: rgba(139, 111, 217, 0.22);
-  color: #C4B5FD;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4C9BF0, #6FB6FF);
+  color: #fff;
   font-size: 11px;
   font-weight: 700;
 }
 
 .ss-line-en {
   font-size: 15px;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ss-ink);
 }
 
 .ss-line-zh {
   font-size: 13px;
-  color: var(--ss-muted);
+  line-height: 1.45;
+  color: var(--ss-ink-soft);
 }
 
 .ss-line-play {
@@ -835,8 +894,8 @@
   place-items: center;
   border: 1px solid var(--ss-line);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--ss-text);
+  background: var(--ss-card);
+  color: var(--ss-accent);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
@@ -845,7 +904,7 @@
 .ss-line.is-playing .ss-line-play {
   background: linear-gradient(135deg, var(--ss-accent-2), var(--ss-accent));
   border-color: transparent;
-  color: #04223A;
+  color: #fff;
 }
 
 .ss-line-play:disabled {
@@ -855,29 +914,31 @@
 
 /* 語法說明 / 教學注意點 */
 .ss-info {
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(86, 160, 255, 0.14);
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 248, 242, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 .ss-info.is-current {
-  border-color: var(--ss-line-strong);
+  background: #fff;
+  border-color: rgba(247, 110, 18, 0.45);
+  box-shadow: 0 6px 16px rgba(160, 80, 30, 0.14);
 }
 
 .ss-info-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 4px 0 6px;
+  margin: 4px 0 8px;
 }
 
 .ss-info-chip {
   padding: 2px 10px;
   border-radius: 999px;
-  background: rgba(34, 211, 238, 0.14);
-  border: 1px solid rgba(34, 211, 238, 0.35);
-  color: #A5F3FC;
+  background: var(--ss-accent-soft);
+  border: 1px solid rgba(247, 110, 18, 0.35);
+  color: #B4500A;
   font-size: 13px;
   font-weight: 700;
 }
@@ -885,8 +946,8 @@
 .ss-info-text {
   margin: 0;
   font-size: 14px;
-  line-height: 1.6;
-  color: #D6E2F7;
+  line-height: 1.65;
+  color: var(--ss-ink);
   white-space: pre-wrap;
 }
 
@@ -894,8 +955,12 @@
   margin: 4px 0 0;
   padding-left: 20px;
   font-size: 14px;
-  line-height: 1.6;
-  color: #D6E2F7;
+  line-height: 1.65;
+  color: var(--ss-ink);
+}
+
+.ss-info-list li::marker {
+  color: var(--ss-accent);
 }
 
 .ss-info-empty {
@@ -932,5 +997,9 @@
 
   .ss-controls {
     flex-wrap: wrap;
+  }
+
+  .ss-subtitle {
+    max-width: 88%;
   }
 }
