@@ -1009,8 +1009,15 @@ export function useBigScreenScene(
 
             // 剛抓取時 (inCooldown) held=false 以產生平滑飛向手部的 lerp 動畫
             const propCfg = presetRef.current.propSystem?.taskProps?.[taskId];
-            attachPropToHand(prop, slot.vrm, ia.lockHand, !inCooldown, propCfg?.heldSideOffset);
-            if (propCfg?.heldRotation) rotatePropToward(prop, propCfg.heldRotation, delta * 8);
+            // 握拳的拿法可以另外設定（fistHold），沒設定就跟模擬器一樣
+            const fist = propCfg?.fistHold;
+            attachPropToHand(
+              prop, slot.vrm, ia.lockHand, !inCooldown, propCfg?.heldSideOffset,
+              fist ? fist.offset : propCfg?.heldOffset,
+              fist ? fist.fingerReach : propCfg?.heldFingerReach,
+            );
+            const heldRot = fist?.rotation ?? propCfg?.heldRotation;
+            if (heldRot) rotatePropToward(prop, heldRot, delta * 8);
 
             if (!hLandmarks || hLandmarks.length < 21) {
               // Grace period: 500 ms before forcing a release on landmark loss

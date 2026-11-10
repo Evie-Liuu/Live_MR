@@ -184,9 +184,13 @@ export const THEMES: ThemeConfig[] = [
             'pants_jeans': { taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
             // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
-            'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
-            // 放在櫃檯靠鏡頭那側、稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時立起來
-            'receipt': { label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [1.0, 1.34, -1.05], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [-Math.PI / 2, 0, 0], scale: 2.2 },
+            'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [0.8, 1.35, -2.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
+            // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
+            // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
+            'receipt': { label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [0.95, 1.56, -3.75], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [Math.PI / 8, -Math.PI / 2, 0], heldFingerReach: 0.05,
+              // 大螢幕握拳：直立握在拳頭裡、印字面朝觀看者（不像模擬器那樣往指尖外推，否則會浮在拳頭上方）
+              fistHold: { rotation: [Math.PI / 2, -Math.PI / 2, 0], offset: [0, 0, 0.03], fingerReach: 0 },
+              scale: 2.2 },
           },
         },
         groups: [

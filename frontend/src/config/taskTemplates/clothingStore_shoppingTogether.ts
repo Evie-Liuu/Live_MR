@@ -29,7 +29,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           { id: 'step1_3', speakerSlotId: 'cashier', en: 'Sure. What color are you looking for?', zh: '好的，你想找什麼顏色的呢？', gesture: 'point' },
           { id: 'step1_4', speakerSlotId: 'customer', en: 'Blue, please.', zh: '藍色，謝謝。' },
           { id: 'step1_5', speakerSlotId: 'customer2', en: "I'm looking for a T-shirt, too. Red, please.", zh: '我也在找 T 恤。請給我紅色的。' },
-          { id: 'step1_6', speakerSlotId: 'staff', en: 'Sure! Here is a red T-shirt.', zh: '好的！這裡有一件紅色 T 恤。', prop: 'tshirt_red' },
+          { id: 'step1_6', speakerSlotId: 'staff', en: 'Sure! Here is a red T-shirt.', zh: '好的！這裡有一件紅色 T 恤。', gesture: 'handOver', prop: 'tshirt_red' },
         ],
         grammarPoints: ['How can I help you today?', "I'm looking for + 商品", 'What color are you looking for?', '顏色 + please.', 'too'],
         grammarNote: [

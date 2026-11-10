@@ -292,7 +292,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
         const holder = held?.propId === id ? avatars.find(a => a.slotId === held.slotId) : undefined;
         if (held && holder) {
           // attachPropToHand 用真人的左右（鏡像）：VRM 左手＝真人右手
-          attachPropToHand(obj, holder.vrm, held.hand === 'leftHand' ? 'right' : 'left', held.inHand, cfg?.heldSideOffset);
+          attachPropToHand(obj, holder.vrm, held.hand === 'leftHand' ? 'right' : 'left', held.inHand, cfg?.heldSideOffset, cfg?.heldOffset, cfg?.heldFingerReach);
           if (!held.inHand) {
             holder.vrm.humanoid.getNormalizedBoneNode(held.hand)?.getWorldPosition(displayPos);
             if (obj.position.distanceTo(displayPos) < 0.25) held.inHand = true;

@@ -139,6 +139,19 @@ export interface TaskPropConfig {
   heldRotation?: [x: number, y: number, z: number];
   /** 拿在手上時往身體外側偏移（公尺），避免大件道具擋住臉和身體。未設定就在手的位置 */
   heldSideOffset?: number;
+  /** 拿在手上時相對手骨的位移（公尺，世界座標）。未設定就用預設的掌心前方 [0, 0.03, 0.15] */
+  heldOffset?: [x: number, y: number, z: number];
+  /** 捏在指尖：道具中心放在指尖再沿手的方向往外這麼多公尺（適合收據、卡片這類小道具，不會穿進手掌）；未設定就放在手腕前方 */
+  heldFingerReach?: number;
+  /**
+   * 大螢幕學生握拳拿起時的拿法，覆蓋上面的 held* 設定。
+   * 拳頭的手指是彎起來的，跟模擬器遞東西的張開手不同，小道具要另外調才會像握在拳頭裡
+   */
+  fistHold?: {
+    rotation?: [x: number, y: number, z: number];
+    offset?: [x: number, y: number, z: number];
+    fingerReach?: number;
+  };
   scale?: number;
 }
 

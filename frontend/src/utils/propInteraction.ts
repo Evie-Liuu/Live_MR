@@ -173,6 +173,11 @@ export function attachPropToHand(
   held: boolean,
   sideOffset = 0,
   offset: [number, number, number] = [0, 0.03, 0.15],
+  /**
+   * 有給值時改以指尖為基準：道具中心放在指尖再沿手的方向往外這麼多公尺，
+   * 小道具（收據、卡片）才會像捏在指尖遞出去，不會穿進手掌
+   */
+  fingerReach?: number,
 ): void {
   // Mirror: person's right → VRM leftHand; person's left → VRM rightHand
   const boneName = hand === 'right' ? 'leftHand' : 'rightHand';
@@ -180,6 +185,19 @@ export function attachPropToHand(
   const boneNode = vrm.humanoid.getNormalizedBoneNode(boneName);
   if (!boneNode) return;
   boneNode.getWorldPosition(_bonePos);
+  if (fingerReach !== undefined) {
+    const side = boneName === 'leftHand' ? 'left' : 'right';
+    const knuckle = vrm.humanoid.getNormalizedBoneNode(`${side}MiddleProximal`);
+    // 指尖用中指末節（會跟著手指彎曲）；模型沒有手指骨就退回手腕
+    const tip = vrm.humanoid.getNormalizedBoneNode(`${side}MiddleDistal`) ?? knuckle;
+    if (knuckle && tip) {
+      knuckle.getWorldPosition(_armPos);
+      _offsetVec.subVectors(_armPos, _bonePos);
+      tip.getWorldPosition(_bonePos);
+      const palm = _offsetVec.length();
+      if (palm > 0) _bonePos.addScaledVector(_offsetVec.divideScalar(palm), fingerReach);
+    }
+  }
   _offsetVec.set(...offset);
   _bonePos.add(_offsetVec);
 
