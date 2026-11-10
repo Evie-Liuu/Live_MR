@@ -196,7 +196,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack, classMod
         </div>
 
         <div className="lpl-panel-body">
-          {tasks.length > 0 && (
+          {tasks.length > 0 ? (
             <section aria-label="我的任務">
               <ul className="lpl-list">
                 {tasks.map(t => (
@@ -222,9 +222,16 @@ export default function LessonPrep({ teacherUid, institutionId, onBack, classMod
                 ))}
               </ul>
             </section>
+          ) : (
+            <section className="lpl-empty">
+              <EmptyIllustration />
+              <h2>{hasAnything ? 'AI 教案' : '開始建立第一份教案'}</h2>
+              <p>還沒有教案，按「新建教案」開始。</p>
+              <NewPlanMenuButton align="center" size="large" onSelect={handleNewOption} />
+            </section>
           )}
 
-          {plans.length > 0 ? (
+          {/* {plans.length > 0 ? (
             <section aria-label="AI 教案">
               <h2 className="lpl-section-title">AI 教案</h2>
               <ul className="lpl-list">
@@ -258,7 +265,7 @@ export default function LessonPrep({ teacherUid, institutionId, onBack, classMod
               <p>還沒有教案，按「新建教案」開始。</p>
               <NewPlanMenuButton align="center" size="large" onSelect={handleNewOption} />
             </section>
-          )}
+          )} */}
         </div>
       </main>
 
