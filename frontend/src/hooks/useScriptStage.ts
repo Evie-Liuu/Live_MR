@@ -17,6 +17,7 @@ import { loadVrm } from '../utils/vrmLoader.ts';
 import { loadStaticProps, disposeStaticProps, loadTaskProps, disposeTaskProps } from '../utils/propLoader.ts';
 import { loadOccluderGlb, disposeOccluder } from '../utils/occluderLoader.ts';
 import { OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders.ts';
+import { attachPropToHand, returnPropToDisplay, rotatePropToward } from '../utils/propInteraction.ts';
 import { hiddenMembers, readSavedSceneLayout, resolveGroupPlacements, type GroupTransform } from '../utils/savedSceneLayout.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
 import { VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
@@ -44,6 +45,42 @@ export interface ScriptStage {
   setSpeaker: (slotId: string | null) => void;
   /** 讓角色做一次動作；動作檔還沒載入或載入失敗時略過 */
   playGesture: (slotId: string, gesture: GestureId) => void;
+  /**
+   * 角色把展示物件拿到手上（例如遞收據）；有動作時用動作裡伸出去的那隻手。
+   * slotId 為 null 時放回原位
+   */
+  holdProp: (slotId: string | null, propId?: string, gesture?: GestureId) => void;
+}
+
+type HandBone = 'leftHand' | 'rightHand';
+
+interface HeldProp {
+  slotId: string;
+  propId: string;
+  hand: HandBone;
+  /** 已經到手上（之後直接貼住手，不再慢慢飛過去） */
+  inHand: boolean;
+}
+
+/** 動作裡手臂轉動幅度較大的那隻手；沒有手臂動作時用右手 */
+function activeHand(clip: THREE.AnimationClip, vrm: VRM): HandBone {
+  const swing = (side: 'left' | 'right') => {
+    let total = 0;
+    for (const bone of [`${side}UpperArm`, `${side}LowerArm`] as const) {
+      const node = vrm.humanoid.getNormalizedBoneNode(bone);
+      const track = node && clip.tracks.find(t => t.name === `${node.name}.quaternion`);
+      if (!track) continue;
+      const v = track.values;
+      let max = 0;
+      for (let i = 4; i < v.length; i += 4) {
+        const dot = Math.abs(v[0] * v[i] + v[1] * v[i + 1] + v[2] * v[i + 2] + v[3] * v[i + 3]);
+        max = Math.max(max, 2 * Math.acos(Math.min(1, dot)));
+      }
+      total += max;
+    }
+    return total;
+  };
+  return swing('left') > swing('right') ? 'leftHand' : 'rightHand';
 }
 
 type GestureLibrary = Map<GestureId, VRMAnimation>;
@@ -83,17 +120,32 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   }, []);
   const avatarsRef = useRef<StageAvatar[]>([]);
   const librariesRef = useRef(new Map<BodyType, GestureLibrary>());
-  const playGesture = useCallback((slotId: string, gestureId: GestureId) => {
-    const avatar = avatarsRef.current.find(a => a.slotId === slotId);
-    const anim = avatar && librariesRef.current.get(avatar.bodyType)?.get(gestureId);
-    if (!avatar || !anim) return;
+  const clipFor = useCallback((avatar: StageAvatar, gestureId: GestureId) => {
+    const anim = librariesRef.current.get(avatar.bodyType)?.get(gestureId);
+    if (!anim) return null;
     let clip = avatar.clips.get(gestureId);
     if (!clip) {
       clip = createVRMAnimationClip(anim, avatar.vrm);
       avatar.clips.set(gestureId, clip);
     }
-    avatar.animator.playGesture(clip);
+    return clip;
   }, []);
+  const playGesture = useCallback((slotId: string, gestureId: GestureId) => {
+    const avatar = avatarsRef.current.find(a => a.slotId === slotId);
+    const clip = avatar && clipFor(avatar, gestureId);
+    if (avatar && clip) avatar.animator.playGesture(clip);
+  }, [clipFor]);
+  const heldRef = useRef<HeldProp | null>(null);
+  const holdProp = useCallback((slotId: string | null, propId?: string, gesture?: GestureId) => {
+    const avatar = slotId ? avatarsRef.current.find(a => a.slotId === slotId) : undefined;
+    if (!avatar || !propId) { heldRef.current = null; return; }
+    const prev = heldRef.current;
+    if (prev?.slotId === avatar.slotId && prev.propId === propId && !gesture) return;
+    const clip = gesture ? clipFor(avatar, gesture) : null;
+    const hand = clip ? activeHand(clip, avatar.vrm) : prev?.slotId === avatar.slotId && prev.propId === propId ? prev.hand : 'rightHand';
+    const inHand = prev?.slotId === avatar.slotId && prev.propId === propId && prev.hand === hand && prev.inHand;
+    heldRef.current = { slotId: avatar.slotId, propId, hand, inHand };
+  }, [clipFor]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -227,6 +279,34 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
 
     // 渲染迴圈：說話者看向其他角色的中心，聽者看向說話者；
     // 講完不復原，視線停在原處，等下一位說話者開口才轉向
+    // 展示物件：被拿著的貼到手上，其餘回到擺放位置
+    const taskPropCfg = preset.propSystem?.taskProps ?? {};
+    const displayOf = (id: string): GroupTransform => placements.get(`taskProp:${id}`)
+      ?? { pos: taskPropCfg[id].displayPos, rot: taskPropCfg[id].rotation ?? [0, 0, 0] };
+    const displayPos = new THREE.Vector3();
+    const updateProps = (delta: number) => {
+      if (!taskPool) return;
+      const held = heldRef.current;
+      for (const [id, obj] of taskPool) {
+        const cfg = taskPropCfg[id];
+        const holder = held?.propId === id ? avatars.find(a => a.slotId === held.slotId) : undefined;
+        if (held && holder) {
+          // attachPropToHand 用真人的左右（鏡像）：VRM 左手＝真人右手
+          attachPropToHand(obj, holder.vrm, held.hand === 'leftHand' ? 'right' : 'left', held.inHand, cfg?.heldSideOffset);
+          if (!held.inHand) {
+            holder.vrm.humanoid.getNormalizedBoneNode(held.hand)?.getWorldPosition(displayPos);
+            if (obj.position.distanceTo(displayPos) < 0.25) held.inHand = true;
+          }
+          if (cfg?.heldRotation) rotatePropToward(obj, cfg.heldRotation, delta * 8);
+          continue;
+        }
+        const home = displayOf(id);
+        displayPos.set(...home.pos);
+        if (obj.position.distanceToSquared(displayPos) > 1e-8) returnPropToDisplay(obj, displayPos, delta);
+        if (cfg?.heldRotation) rotatePropToward(obj, home.rot, delta * 8);
+      }
+    };
+
     const timer = new THREE.Timer();
     const headPos = new THREE.Vector3();
     const listenerCenter = new THREE.Vector3();
@@ -260,6 +340,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
         a.animator.update(rawDelta, elapsed, { speaking, lookTarget });
         a.vrm.update(physicsDelta);
       }
+      updateProps(rawDelta);
       renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(animate);
@@ -280,5 +361,5 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   }, [canvasRef, sceneId]);
 
   // 模擬器開著時場景不會變（編輯器被蓋住），所以不處理 sceneId 中途變更時的狀態重設
-  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker, playGesture };
+  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker, playGesture, holdProp };
 }

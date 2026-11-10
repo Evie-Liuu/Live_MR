@@ -93,7 +93,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
           { id: 'step3_3', speakerSlotId: 'customer2', en: "That's all. Thank you.", zh: '不用了，謝謝。' },
           { id: 'step3_4', speakerSlotId: 'staff', en: "That's 33 dollars. Cash or card?", zh: '總共 33 元。付現還是刷卡？' },
           { id: 'step3_5', speakerSlotId: 'customer', en: 'Card, please.', zh: '刷卡，謝謝。' },
-          { id: 'step3_6', speakerSlotId: 'staff', en: 'Here is your receipt.', zh: '這是你的收據。', gesture: 'handOver' },
+          { id: 'step3_6', speakerSlotId: 'staff', en: 'Here is your receipt.', zh: '這是你的收據。', gesture: 'handOver', prop: 'receipt' },
           { id: 'step3_7', speakerSlotId: 'customer', en: 'Thank you. Bye!', zh: '謝謝，再見！', gesture: 'wave' },
           { id: 'step3_8', speakerSlotId: 'cashier', en: "You're welcome. Have a nice day!", zh: '不客氣，祝你有美好的一天！', gesture: 'bow' },
         ],

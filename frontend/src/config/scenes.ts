@@ -185,6 +185,8 @@ export const THEMES: ThemeConfig[] = [
             // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
             // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
             'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
+            // 放在櫃檯靠鏡頭那側、稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時立起來
+            'receipt': { label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [1.0, 1.34, -1.05], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [-Math.PI / 2, 0, 0], scale: 2.2 },
           },
         },
         groups: [
@@ -196,6 +198,7 @@ export const THEMES: ThemeConfig[] = [
               { kind: 'slot', id: 'staff' },
               { kind: 'staticProp', id: 'cashier_counter' },
               { kind: 'taskProp', id: 'tshirt_red' },
+              { kind: 'taskProp', id: 'receipt' },
             ],
           },
           {

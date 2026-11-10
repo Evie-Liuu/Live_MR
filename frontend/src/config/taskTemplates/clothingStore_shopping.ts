@@ -61,7 +61,7 @@ export const clothingStoreShopping: TaskTemplate = {
         lines: [
           { id: 'pay_1', speakerSlotId: 'cashier', en: "That's 18 dollars. Cash or card?", zh: '總共 18 元，付現還是刷卡？' },
           { id: 'pay_2', speakerSlotId: 'customer', en: 'Card, please.', zh: '刷卡，謝謝。', gesture: 'handOver' },
-          { id: 'pay_3', speakerSlotId: 'cashier', en: 'Here is your receipt.', zh: '這是你的收據。', gesture: 'handOver' },
+          { id: 'pay_3', speakerSlotId: 'cashier', en: 'Here is your receipt.', zh: '這是你的收據。', gesture: 'handOver', prop: 'receipt' },
         ],
         grammarPoints: ["That's + 金額.", 'Cash or card?', 'Here is your …'],
         grammarNote: '選擇疑問句 A or B? 回答時直接說出選項即可。',
