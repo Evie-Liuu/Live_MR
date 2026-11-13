@@ -183,6 +183,8 @@ interface UseBigScreenSceneOptions {
   onScenePropsReady?: () => void;
   /** Cap the THREE.js render loop. 0 = unlimited (default). Read every frame via ref. */
   renderFpsLimit?: number;
+  /** 暫停渲染（例如大屏蓋上全畫面的劇本模擬器時，避免兩個 3D 畫面同時運算）。Read every frame via ref. */
+  paused?: boolean;
   /** Whether BigScreen is actively recording. Hook lowers pixel ratio to 1 during recording. */
   isRecording?: boolean;
   /**
@@ -236,7 +238,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, poseOnlyIdentity, placeholderIdle, onStats, onScenePropsReady, renderFpsLimit, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, poseOnlyIdentity, placeholderIdle, onStats, onScenePropsReady, renderFpsLimit, paused, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -525,6 +527,8 @@ export function useBigScreenScene(
 
   const renderFpsLimitRef = useRef<number>(0);
   renderFpsLimitRef.current = renderFpsLimit ?? 0;
+  const pausedRef = useRef(false);
+  pausedRef.current = paused ?? false;
 
   const isRecordingRef = useRef(false);
   isRecordingRef.current = isRecording ?? false;
@@ -786,6 +790,7 @@ export function useBigScreenScene(
     let lastStatsAt = 0;
     const animate = (timestamp: number) => {
       rafRef.current = requestAnimationFrame(animate);
+      if (pausedRef.current) return;
       const fpsLimit = renderFpsLimitRef.current;
       if (fpsLimit > 0 && timestamp - lastRenderAt < 1000 / fpsLimit) return;
       lastRenderAt = timestamp;

@@ -11,6 +11,8 @@ export const LIVEKIT_URL = (() => {
 
 /** BroadcastChannel name for HostSession ↔ BigScreen pose relay */
 export const BIGSCREEN_CHANNEL_NAME = 'live-mr-bigscreen';
+/** 教師端按「大螢幕模擬」時大屏還沒開：開視窗前把模擬播放請求（BigScreenMsg 'script-sim'）放在這裡帶過去 */
+export const BIGSCREEN_SCRIPT_SIM_STORAGE_KEY = 'bigscreen-scriptSim';
 
 /**
  * LiveKit setMicrophoneEnabled 的 AudioCaptureOptions 預設值。

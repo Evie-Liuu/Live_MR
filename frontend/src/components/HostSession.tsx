@@ -18,7 +18,7 @@ import { SCENE_PRESETS, DEFAULT_SCENE_ID, THEMES } from '../config/scenes.ts';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources.ts';
 // import PerformanceMonitor from './PerformanceMonitor.tsx';
 import {
-  LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, MIC_AUDIO_OPTIONS, MAX_POSE_PUBLISHERS, POSE_PUBLISHERS_RESEND_MS,
+  LIVEKIT_URL, BIGSCREEN_CHANNEL_NAME, BIGSCREEN_SCRIPT_SIM_STORAGE_KEY, MIC_AUDIO_OPTIONS, MAX_POSE_PUBLISHERS, POSE_PUBLISHERS_RESEND_MS,
   SCRIPT_TURN_RESEND_MS,
 } from '../config/constants.ts';
 import { createPoseDecodePool } from '../utils/poseCodec.ts';
@@ -556,6 +556,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
 
   // ─── 導師任務管理：上課用的對話任務（我的任務）與目前步驟 ─────────────
   const [lesson, setLesson] = useState<HostLessonState | null>(loadHostLesson);
+  /** 大螢幕是否正在播放劇本模擬（大屏關掉模擬器時會回報 script-sim-closed） */
+  const [bigScreenSim, setBigScreenSim] = useState(false);
+  const hasLesson = lesson !== null;
+  // 下課（沒有任務）就關掉大屏上的模擬器；大屏只在播放期間持有整份台詞
+  useEffect(() => {
+    if (hasLesson) return;
+    channelRef.current?.postMessage({ type: 'script-sim', simTask: null } satisfies BigScreenMsg);
+    setBigScreenSim(false);
+  }, [hasLesson]);
   const lessonAllDone = lesson ? isLessonDone(lesson) : false;
   // 逐句演練：目前這一輪（由 lesson.turn 推導，見下方 scriptTurn）；data 事件用 ref 讀
   const scriptTurnRef = useRef<ScriptTurn | null>(null);
@@ -1576,6 +1585,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     // 接收大屏編輯狀態(互斥:大屏編輯中不可開始互動)
     ch.onmessage = (ev: MessageEvent<BigScreenMsg>) => {
       if (ev.data?.type === 'edit-mode') setBigScreenEditing(!!ev.data.editing);
+      if (ev.data?.type === 'script-sim-closed') setBigScreenSim(false);
       if (ev.data?.type === 'bigscreen-pong') {
         bigScreenMissedPingsRef.current = 0;
         setBigScreenOpen(true);
@@ -2578,6 +2588,33 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     : null;
   const lessonStep = lesson ? lesson.record.task.steps[currentStepIndex(lesson)] : undefined;
   const lessonDone = lessonAllDone;
+  /** 大屏模擬播放中（大屏關閉時視為已結束） */
+  const bigScreenSimShown = bigScreenSim && bigScreenOpen && hasLesson;
+  const lessonHasLines = !!lesson?.record.task.steps.some(s => s.lines.length > 0);
+  /** 把整份任務送到大屏播放模擬；再按一次關閉。任務中從目前步驟開始，其他階段從頭開始 */
+  const toggleBigScreenSim = () => {
+    if (!lesson) return;
+    if (bigScreenSimShown) {
+      channelRef.current?.postMessage({ type: 'script-sim', simTask: null } satisfies BigScreenMsg);
+      setBigScreenSim(false);
+      return;
+    }
+    const msg = {
+      type: 'script-sim',
+      simTask: lessonTask(lesson),
+      simStepIndex: lesson.phase === 'during' ? currentStepIndex(lesson) : 0,
+    } satisfies BigScreenMsg;
+    if (!bigScreenOpen) {
+      // 大屏沒開：先開視窗。新視窗還沒掛上頻道，收不到廣播，改由 sessionStorage 帶過去
+      // （新視窗會複製一份教師端的 sessionStorage，開完就從教師端移除）
+      try { sessionStorage.setItem(BIGSCREEN_SCRIPT_SIM_STORAGE_KEY, JSON.stringify(msg)); } catch {/* ignore */ }
+      openBigScreen('display');
+      try { sessionStorage.removeItem(BIGSCREEN_SCRIPT_SIM_STORAGE_KEY); } catch {/* ignore */ }
+    }
+    // 大屏視窗已存在（例如還沒回應 ping）時直接由廣播開啟
+    channelRef.current?.postMessage(msg);
+    setBigScreenSim(true);
+  };
   const lessonPhaseContent = lesson ? phaseContent(lesson.record.task, lesson.phase) : null;
   const lessonQuestion = lesson && lessonPhaseContent ? lessonPhaseContent.questions[lesson.questionIndex] : undefined;
 
@@ -3261,6 +3298,23 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                     <span className="material-symbols-outlined" aria-hidden="true">restart_alt</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  className={`hs-lesson-sim-btn${bigScreenSimShown ? ' is-on' : ''}`}
+                  disabled={!bigScreenSimShown && ((bigScreenOpen && bigScreenEditing) || !lessonHasLines)}
+                  aria-pressed={bigScreenSimShown}
+                  title={
+                    bigScreenSimShown ? '關閉大螢幕上的模擬播放'
+                      : bigScreenOpen && bigScreenEditing ? '大螢幕編輯中，無法模擬播放'
+                        : !lessonHasLines ? '這個任務還沒有台詞'
+                          : !bigScreenOpen ? '開啟大螢幕並播放劇本模擬（會顯示完整台詞）'
+                            : '在大螢幕播放劇本模擬（會顯示完整台詞）'
+                  }
+                  onClick={toggleBigScreenSim}
+                >
+                  <span className="material-symbols-outlined" aria-hidden="true">{bigScreenSimShown ? 'stop_circle' : 'theaters'}</span>
+                  {bigScreenSimShown ? '結束模擬' : '大螢幕模擬'}
+                </button>
               </div>
               {/* 第二列：目前的步驟或提問 */}
               <div className="hs-lesson-banner-text">

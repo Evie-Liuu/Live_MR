@@ -8483,6 +8483,32 @@ button:disabled {
 }
 
 .hs-flow-reset .material-symbols-outlined { font-size: 18px; }
+
+/* 在大螢幕播放劇本模擬 */
+.hs-lesson-sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 4px 12px 4px 8px;
+  border: 1.5px solid rgba(247, 110, 18, 0.45);
+  border-radius: 999px;
+  background: #fff;
+  color: #C05621;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.hs-flow-reset + .hs-lesson-sim-btn { margin-left: 0; }
+.hs-lesson-sim-btn .material-symbols-outlined { font-size: 18px; }
+.hs-lesson-sim-btn:hover:not(:disabled) { background: #FFF0E3; }
+.hs-lesson-sim-btn.is-on { background: #F76E12; border-color: #F76E12; color: #fff; }
+.hs-lesson-sim-btn.is-on:hover { background: #E05F0B; }
+.hs-lesson-sim-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.hs-lesson-sim-btn:focus-visible { outline: 2px solid #C05621; outline-offset: 2px; }
 .hs-flow-reset:hover:not(:disabled) { border-color: #D64545; color: #D64545; }
 .hs-flow-reset:disabled { opacity: 0.4; }
 

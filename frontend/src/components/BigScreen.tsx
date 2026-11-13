@@ -10,7 +10,7 @@ import PerformanceMonitor from './PerformanceMonitor.tsx';
 import StatsPanel, { type StatsSnapshot } from './StatsPanel.tsx';
 import { usePerfFollower } from '../hooks/usePerfSampler.ts';
 import { describeDevice, perfCount, type PerfDevice } from '../utils/perfRecorder.ts';
-import { BIGSCREEN_CHANNEL_NAME } from '../config/constants.ts';
+import { BIGSCREEN_CHANNEL_NAME, BIGSCREEN_SCRIPT_SIM_STORAGE_KEY } from '../config/constants.ts';
 import { getRecordings } from '../api.ts';
 import { TASK_HINTS, hintLevelMeta } from '../config/taskHints.ts';
 import type { HintLevel, TaskHint } from '../config/taskHints.ts';
@@ -25,6 +25,8 @@ import { BIGSCREEN_TURN_HINT_STORAGE_KEY, BIGSCREEN_TURN_STORAGE_KEY, type Scrip
 import { HINT_LABELS, shownHintLevel, type HintLevel as TurnHintLevel } from '../utils/turnHints.ts';
 import TurnHintBody from './TurnHintBody.tsx';
 import { phaseMeta } from '../config/lessonPhases.ts';
+import type { DialogueTask } from '../types/dialogueTask.ts';
+import ScriptSimulator from './ScriptSimulator.tsx';
 
 /** 字幕列左側的進度點：前 done 個已完成，下一個是目前這一步 */
 function LessonProgress({ count, done }: { count: number; done: number }) {
@@ -52,7 +54,7 @@ export interface TaskEntry {
 export type BackgroundTypeOverride = 'default' | 'none' | 'camera';
 
 export interface BigScreenMsg {
-  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'perf-record' | 'perf-sample' | 'script-turn' | 'turn-transcript' | 'turn-hint' | 'participant-names' | 'bigscreen-ping' | 'bigscreen-pong';
+  type: 'pose' | 'leave' | 'scene-change' | 'vrm-change' | 'vrm-identity-change' | 'slot-assign' | 'task-change' | 'recording-start' | 'recording-stop' | 'settlement-done' | 'hint-change' | 'ai-hint' | 'group-transform' | 'camera-bg-device' | 'bg-type-override' | 'speaking' | 'interaction-phase' | 'occluders-set' | 'group-hidden-set' | 'edit-mode' | 'edit-mode-set' | 'lesson-change' | 'checkpoint-change' | 'perf-record' | 'perf-sample' | 'script-turn' | 'turn-transcript' | 'turn-hint' | 'participant-names' | 'bigscreen-ping' | 'bigscreen-pong' | 'script-sim' | 'script-sim-closed';
   identity?: string;
   poseData?: unknown;
   /** For 'scene-change': new scene preset ID */
@@ -67,6 +69,10 @@ export interface BigScreenMsg {
   tasks?: TaskEntry[];
   /** For 'recording-start': session identifier */
   sessionId?: string;
+  /** For 'script-sim': 老師端送來要在大屏模擬播放的整份任務（null = 關閉模擬器） */
+  simTask?: DialogueTask | null;
+  /** For 'script-sim': 模擬器從哪個步驟開始 */
+  simStepIndex?: number;
   /** For 'lesson-change': 導師任務管理的目前步驟情境（null = 未上課） */
   lesson?: LessonScreenState | null;
   /** For 'perf-record': 教師端效能記錄開始／停止 */
@@ -433,6 +439,25 @@ export default function BigScreen() {
   });
 
   // 導師任務管理：目前步驟的情境（不含答案，台詞只有老師開提示時才有）
+  // 劇本模擬播放：老師端按按鈕才送來整份任務（含台詞），平常大屏不持有台詞
+  const [scriptSim, setScriptSim] = useState<{ task: DialogueTask; stepIndex: number; key: number } | null>(() => {
+    // 教師端按「大螢幕模擬」時大屏還沒開：開視窗前把請求放在 sessionStorage（內嵌預覽 iframe 不處理）
+    if (window.self !== window.top) return null;
+    try {
+      const msg = JSON.parse(sessionStorage.getItem(BIGSCREEN_SCRIPT_SIM_STORAGE_KEY) ?? 'null') as BigScreenMsg | null;
+      return msg?.simTask ? { task: msg.simTask, stepIndex: msg.simStepIndex ?? 0, key: 1 } : null;
+    } catch { return null; }
+  });
+  // 只用一次：重新整理大屏不會再開模擬器
+  useEffect(() => {
+    try { sessionStorage.removeItem(BIGSCREEN_SCRIPT_SIM_STORAGE_KEY); } catch {/* ignore */ }
+  }, []);
+  const scriptSimOpenRef = useRef(false);
+  useEffect(() => { scriptSimOpenRef.current = scriptSim !== null; }, [scriptSim]);
+  const closeScriptSim = useCallback(() => {
+    setScriptSim(null);
+    channelRef.current?.postMessage({ type: 'script-sim-closed' } satisfies BigScreenMsg);
+  }, []);
   const [lesson, setLesson] = useState<LessonScreenState | null>(() => {
     try { return JSON.parse(sessionStorage.getItem(BIGSCREEN_LESSON_STORAGE_KEY) ?? 'null'); } catch { return null; }
   });
@@ -841,6 +866,8 @@ export default function BigScreen() {
     onStats: showPerformanceMonitor ? setStatsData : undefined,
     onScenePropsReady: () => bumpBootUnit('props'),
     renderFpsLimit: renderFps,
+    // 模擬器蓋住整個畫面時暫停大屏渲染（錄影中照常渲染，錄影畫面不能斷）
+    paused: scriptSim !== null && !isActivelyRecording,
     isRecording: isActivelyRecording,
     onPostRenderRef: postRenderRef,
     groupTransforms: effectiveGroupTransforms,
@@ -2077,6 +2104,8 @@ export default function BigScreen() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      // 劇本模擬器開著時，按鍵交給模擬器（空白鍵、方向鍵、Esc）
+      if (scriptSimOpenRef.current) return;
 
       if (e.key === 'e' || e.key === 'E') {
         // 互動進行中不可進入編輯模式(退出不受限)
@@ -2398,6 +2427,16 @@ export default function BigScreen() {
         setTurnTranscript(msg.turnTranscript ?? '');
       } else if (msg.type === 'turn-hint') {
         setTurnHint(msg.turnHint ?? null);
+      } else if (msg.type === 'script-sim') {
+        // 只有獨立大屏視窗播放；教師端內嵌的預覽 iframe 忽略（避免教師端多跑一個 3D 畫面）
+        if (window.self !== window.top) return;
+        const task = msg.simTask ?? null;
+        if (!task || editModeRef.current) {
+          setScriptSim(null);
+          if (task) channel.postMessage({ type: 'script-sim-closed' } satisfies BigScreenMsg);
+        } else {
+          setScriptSim(prev => ({ task, stepIndex: msg.simStepIndex ?? 0, key: (prev?.key ?? 0) + 1 }));
+        }
       } else if (msg.type === 'lesson-change') {
         const next = msg.lesson ?? null;
         setLesson(next);
@@ -2610,6 +2649,11 @@ export default function BigScreen() {
         >
           DEV · 強制顯示說話徽章（按 B 關閉）
         </div>
+      )}
+
+      {/* 劇本模擬播放（老師端送來時才出現，蓋住整個大屏） */}
+      {scriptSim && (
+        <ScriptSimulator key={scriptSim.key} task={scriptSim.task} startStepIndex={scriptSim.stepIndex} onClose={closeScriptSim} />
       )}
 
       {/* 3a. 角色名牌（角色・演出者），跟著模型頭頂移動 */}
