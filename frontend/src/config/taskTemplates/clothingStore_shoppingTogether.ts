@@ -26,7 +26,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
         lines: [
           { id: 'step1_1', speakerSlotId: 'cashier', en: 'Hello! Welcome to our clothing store. How can I help you today?', zh: '你好！歡迎來到我們的服飾店，請問有什麼可以幫你？', gesture: 'wave' },
           { id: 'step1_2', speakerSlotId: 'customer', en: "I'm looking for a T-shirt.", zh: '我在找 T 恤。' },
-          { id: 'step1_3', speakerSlotId: 'cashier', en: 'Sure. What color are you looking for?', zh: '好的，你想找什麼顏色的呢？', gesture: 'point' },
+          { id: 'step1_3', speakerSlotId: 'cashier', en: 'Sure. What color are you looking for?', zh: '好的，你想找什麼顏色的呢？'},
           { id: 'step1_4', speakerSlotId: 'customer', en: 'Blue, please.', zh: '藍色，謝謝。' },
           { id: 'step1_5', speakerSlotId: 'customer2', en: "I'm looking for a T-shirt, too. Red, please.", zh: '我也在找 T 恤。請給我紅色的。' },
           { id: 'step1_6', speakerSlotId: 'staff', en: 'Sure! Here is a red T-shirt.', zh: '好的！這裡有一件紅色 T 恤。', gesture: 'handOver', prop: 'tshirt_red' },
