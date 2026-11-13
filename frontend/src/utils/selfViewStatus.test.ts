@@ -24,6 +24,17 @@ describe('selfViewStatus', () => {
     expect(selfViewStatus(pose([15]), false).text).toBe('看不到左手');
     expect(selfViewStatus(pose([16]), false).text).toBe('看不到右手');
   });
+
+  it('visibility 都是 1（編碼後被丟掉）時，改看座標是否在鏡頭畫面內', () => {
+    const p = pose();
+    p[15] = { x: 0.7, y: 1.3, z: 0, visibility: 1 }; // 左手垂在畫面下方
+    p[16] = { x: -0.1, y: 0.8, z: 0, visibility: 1 }; // 右手伸出畫面左側
+    expect(selfViewStatus(p, false).text).toBe('看不到雙手，手勢不會同步');
+    p[16] = { x: 0.3, y: 0.8, z: 0, visibility: 1 };
+    expect(selfViewStatus(p, false).text).toBe('看不到左手');
+    p[11] = { x: 0.7, y: 1.05, z: 0, visibility: 1 };
+    expect(selfViewStatus(p, false).text).toContain('肩膀');
+  });
 });
 
 describe('coverRect', () => {

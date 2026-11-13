@@ -14,7 +14,7 @@ interface LocalVideoProps {
 }
 
 /** 左上角的追蹤狀態提示（沒入鏡、看不到手等）；先隱藏，要用時改成 true */
-const SHOW_TRACKING_STATUS = false;
+const SHOW_TRACKING_STATUS = true;
 /** 檢查姿勢是否過時的間隔 */
 const STALE_CHECK_MS = 400;
 
