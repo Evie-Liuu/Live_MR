@@ -20,6 +20,7 @@ import { trustCaLocally, trustCaForOpenSsl } from './launcher/trustStore.js'
 import { buildLivekitConfig } from './launcher/livekitConfig.js'
 import { LiveKitProcess } from './launcher/livekitProcess.js'
 import { securityHeaders } from './launcher/security.js'
+import { checkClock, isExpired, readBuildLicense } from './launcher/license.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -45,7 +46,23 @@ const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'devsecret123456789
 const LIVEKIT_PORT = 7880
 const HTTPS_PORT = parseInt(process.env.LIVEMR_PORT || '443', 10)
 
+/** 測試交付版：過期或時鐘被調回去就不能用（內部版本沒有授權資訊，不受限） */
+const LICENSE = readBuildLicense()
+function licenseBlocked(): string | null {
+  if (!LICENSE) return null
+  if (isExpired(LICENSE)) return `此測試版已於 ${LICENSE.expires} 到期，請聯絡提供者取得新版本。`
+  if (!checkClock(DATA_DIR)) return '電腦時間異常（比上次使用時還早），請校正系統時間後再啟動。'
+  return null
+}
+
 async function main(): Promise<void> {
+  if (LICENSE) console.log(`[license] 測試版・${LICENSE.tester}・有效至 ${LICENSE.expires}・${LICENSE.id}`)
+  const blocked = licenseBlocked()
+  if (blocked) {
+    console.error(blocked)
+    process.exit(1)
+  }
+
   const ip = detectLanIp()
   if (!ip) {
     console.error('無法偵測區網 IP，請確認已連上網路（Wi-Fi/網路線）。')
@@ -84,6 +101,14 @@ async function main(): Promise<void> {
   }))
   app.use(securityHeaders(ip))
   app.use(express.json({ limit: '25mb' }))
+  // 開著沒關、跨過到期日的情況：API 一律拒絕
+  if (LICENSE) {
+    // （時鐘檢查只在啟動時做，避免每個請求都寫檔）
+    app.use('/api', (_req, res, next) => {
+      if (isExpired(LICENSE)) res.status(403).json({ error: `此測試版已於 ${LICENSE.expires} 到期，請聯絡提供者取得新版本。` })
+      else next()
+    })
+  }
 
   const store = new RoomStore()
   const recordingStore = new RecordingStore()
