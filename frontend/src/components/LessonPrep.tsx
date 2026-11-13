@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { levelLabel, type LessonPlanRecord, type LessonPlanSummary } from '../types/lessonPlan.ts';
-import { listLessonPlans, getLessonPlan, deleteLessonPlan, lessonPlanErrorText } from '../utils/lessonPlanClient.ts';
+import { listLessonPlans, deleteLessonPlan, lessonPlanErrorText } from '../utils/lessonPlanClient.ts';
 import type { DialogueTask, DialogueTaskRecord, DialogueTaskSummary } from '../types/dialogueTask.ts';
 import { listDialogueTasks, getDialogueTask, deleteDialogueTask, dialogueTaskErrorText } from '../utils/dialogueTaskClient.ts';
 import LessonPlanView from './LessonPlanView.tsx';
@@ -97,11 +97,11 @@ export default function LessonPrep({ teacherUid, institutionId, onBack, classMod
     setView({ kind: 'task-editor', record: null, draft: task });
   };
 
-  const handleOpen = async (id: string) => {
-    setError(null);
-    try { setView({ kind: 'view', record: await getLessonPlan(id) }); }
-    catch (e) { setError(lessonPlanErrorText(e)); }
-  };
+  // const handleOpen = async (id: string) => {
+  //   setError(null);
+  //   try { setView({ kind: 'view', record: await getLessonPlan(id) }); }
+  //   catch (e) { setError(lessonPlanErrorText(e)); }
+  // };
 
   /** 確認視窗按下「刪除」後執行；失敗時拋出錯誤文字，讓視窗留著顯示 */
   const confirmDelete = async (target: PendingDelete) => {
