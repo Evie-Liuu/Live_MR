@@ -73,6 +73,9 @@ import {
   type HostLessonState,
 } from '../utils/lessonSession.ts';
 import { LESSON_PHASES, phaseContent, phaseMeta, type LessonPhase } from '../config/lessonPhases.ts';
+
+/** 課程橫幅的階段圖示：暖身觀察／情境對話／討論回顧 */
+const PHASE_ICONS: Record<LessonPhase, string> = { pre: 'visibility', during: 'forum', post: 'rate_review' };
 import type { SceneOccluderInstance } from '../types/sceneOccluder.ts';
 import { useAuth } from '../hooks/useAuth';
 
@@ -3254,9 +3257,10 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
                           className="hs-flow-phase-btn"
                           aria-pressed={active}
                           disabled={!!checkpointPoll}
-                          title={p.sub}
+                          title={active ? `${p.label}：${p.sub}（目前階段）` : `切換到${p.label}：${p.sub}`}
                           onClick={() => changeLessonPhase(p.id)}
                         >
+                          <span className="material-symbols-outlined hs-flow-phase-icon" aria-hidden="true">{PHASE_ICONS[p.id]}</span>
                           {p.label}
                         </button>
                         {p.id === 'during' && active && (
@@ -3291,11 +3295,11 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                     type="button"
                     className="hs-flow-reset"
                     disabled={!!checkpointPoll || lesson.doneCount === 0}
-                    title="所有步驟回到未完成"
-                    aria-label="重置步驟"
+                    title={lesson.doneCount === 0 ? '還沒有完成的步驟' : '所有步驟回到未完成'}
                     onClick={resetAllLessons}
                   >
                     <span className="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+                    重置
                   </button>
                 )}
                 <button
@@ -3312,7 +3316,9 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                   }
                   onClick={toggleBigScreenSim}
                 >
-                  <span className="material-symbols-outlined" aria-hidden="true">{bigScreenSimShown ? 'stop_circle' : 'theaters'}</span>
+                  {bigScreenSimShown
+                    ? <span className="hs-lesson-sim-live" aria-hidden="true" />
+                    : <span className="material-symbols-outlined" aria-hidden="true">theaters</span>}
                   {bigScreenSimShown ? '結束模擬' : '大螢幕模擬'}
                 </button>
               </div>

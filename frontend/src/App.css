@@ -8390,14 +8390,19 @@ button:disabled {
 }
 
 .hs-flow-phase {
+  --phase: #8a6a4a;
+  --phase-soft: rgba(138, 106, 74, 0.1);
+  --phase-ink: #6B4E3D;
   position: relative;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.05);
+  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
+.hs-flow-phase--pre { --phase: #2B9ED8; --phase-soft: rgba(43, 158, 216, 0.12); --phase-ink: #1F6E99; }
+.hs-flow-phase--during { --phase: #6E9A35; --phase-soft: rgba(118, 162, 61, 0.14); --phase-ink: #4F7A1F; }
+.hs-flow-phase--post { --phase: #8E5BD6; --phase-soft: rgba(142, 91, 214, 0.12); --phase-ink: #6A3FB0; }
 
 /* 階段之間的箭頭 */
 .hs-flow-phase + .hs-flow-phase::before {
@@ -8412,25 +8417,63 @@ button:disabled {
   transform: translateY(-50%) rotate(45deg);
 }
 
+/* 未選的階段：白底凸起按鈕（邊框＋底部陰影），一看就是可以按的 */
 .hs-flow-phase-btn {
-  padding: 3px 12px;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 14px 4px 10px;
+  border: 1px solid #E3D3C3;
   border-radius: 999px;
-  background: transparent;
-  color: #8a6a4a;
+  background: #fff;
+  box-shadow: 0 1px 0 #E3D3C3, 0 2px 4px rgba(120, 72, 32, 0.08);
+  color: var(--phase-ink);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hs-flow-phase-icon {
+  font-size: 18px !important;
+  color: var(--phase);
+}
+.hs-flow-phase:not(.is-active) .hs-flow-phase-btn:hover:not(:disabled) {
+  border-color: var(--phase);
+  background: var(--phase-soft);
+  box-shadow: 0 1px 0 var(--phase), 0 4px 10px rgba(120, 72, 32, 0.12);
+  transform: translateY(-1px);
+}
+.hs-flow-phase:not(.is-active) .hs-flow-phase-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 var(--phase), 0 1px 2px rgba(120, 72, 32, 0.1);
 }
 
-.hs-flow-phase:not(.is-active) .hs-flow-phase-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.8); }
-
-.hs-flow-phase.is-active .hs-flow-phase-btn { color: #fff; }
-.hs-flow-phase--pre.is-active { background: #2B9ED8; }
-.hs-flow-phase--during.is-active { background: #76A23D; }
-.hs-flow-phase--post.is-active { background: #8E5BD6; }
+/* 目前階段：整顆填滿階段色，像按下去的狀態；任務中的步驟編號也放在裡面 */
+.hs-flow-phase.is-active {
+  padding: 2px 4px 2px 2px;
+  background: var(--phase);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.hs-flow-phase.is-active .hs-flow-phase-btn {
+  min-height: 30px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: #fff;
+  cursor: default;
+}
+.hs-flow-phase.is-active .hs-flow-phase-icon { color: #fff; }
+.hs-flow-phase:not(.is-active) .hs-flow-phase-btn:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
 
 .hs-flow-phase-btn:disabled,
 .hs-flow-step:disabled,
@@ -8467,50 +8510,131 @@ button:disabled {
   outline-offset: 2px;
 }
 
+/* 重置步驟：白底凸起按鈕，滑鼠移上去轉紅，提示是「全部清掉」的動作 */
 .hs-flow-reset {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  margin-left: auto;
-  padding: 0;
-  border: 1px solid #E0D6CC;
-  border-radius: 50%;
-  background: #fff;
-  color: #8a6a4a;
-  cursor: pointer;
-}
-
-.hs-flow-reset .material-symbols-outlined { font-size: 18px; }
-
-/* 在大螢幕播放劇本模擬 */
-.hs-lesson-sim-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  min-height: 32px;
   margin-left: auto;
-  padding: 4px 12px 4px 8px;
-  border: 1.5px solid rgba(247, 110, 18, 0.45);
+  padding: 4px 12px 4px 9px;
+  border: 1px solid #E3D3C3;
   border-radius: 999px;
   background: #fff;
-  color: #C05621;
+  box-shadow: 0 1px 0 #E3D3C3, 0 2px 4px rgba(120, 72, 32, 0.08);
+  color: #8a6a4a;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hs-flow-reset .material-symbols-outlined { font-size: 18px; }
+.hs-flow-reset:hover:not(:disabled) {
+  border-color: #D64545;
+  background: #FDEDEB;
+  box-shadow: 0 1px 0 #D64545, 0 4px 10px rgba(120, 72, 32, 0.12);
+  color: #C0392B;
+  transform: translateY(-1px);
+}
+.hs-flow-reset:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 #D64545, 0 1px 2px rgba(120, 72, 32, 0.1);
+}
+.hs-flow-reset:disabled {
+  border-color: #EADFD4;
+  background: #F6F0EA;
+  box-shadow: none;
+  color: #B39C8A;
+}
+
+/* 在大螢幕播放劇本模擬：實心橘色主要按鈕；播放中改成「結束模擬」並帶閃爍的直播點 */
+.hs-lesson-sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-height: 32px;
+  margin-left: auto;
+  padding: 4px 14px 4px 10px;
+  border: 1px solid #D85E0C;
+  border-radius: 999px;
+  background: #F76E12;
+  box-shadow: 0 1px 0 #B84E08, 0 2px 6px rgba(247, 110, 18, 0.3);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .hs-flow-reset + .hs-lesson-sim-btn { margin-left: 0; }
 .hs-lesson-sim-btn .material-symbols-outlined { font-size: 18px; }
-.hs-lesson-sim-btn:hover:not(:disabled) { background: #FFF0E3; }
-.hs-lesson-sim-btn.is-on { background: #F76E12; border-color: #F76E12; color: #fff; }
-.hs-lesson-sim-btn.is-on:hover { background: #E05F0B; }
-.hs-lesson-sim-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.hs-lesson-sim-btn:hover:not(:disabled) {
+  background: #E8620A;
+  box-shadow: 0 1px 0 #B84E08, 0 5px 12px rgba(247, 110, 18, 0.35);
+  transform: translateY(-1px);
+}
+.hs-lesson-sim-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 #B84E08, 0 1px 3px rgba(247, 110, 18, 0.3);
+}
+.hs-lesson-sim-btn.is-on {
+  border-color: #E3D3C3;
+  background: #fff;
+  box-shadow: 0 1px 0 #E3D3C3, 0 2px 4px rgba(120, 72, 32, 0.08);
+  color: #C0392B;
+}
+.hs-lesson-sim-btn.is-on:hover {
+  border-color: #C0392B;
+  background: #FDEDEB;
+  box-shadow: 0 1px 0 #C0392B, 0 4px 10px rgba(120, 72, 32, 0.12);
+}
+.hs-lesson-sim-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #E03131;
+  animation: hs-sim-live 1.4s ease-in-out infinite;
+}
+@keyframes hs-sim-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.hs-lesson-sim-btn:disabled {
+  border-color: #E3D3C3;
+  background: #F3EAE1;
+  box-shadow: none;
+  color: #9A7A66;
+  cursor: not-allowed;
+}
 .hs-lesson-sim-btn:focus-visible { outline: 2px solid #C05621; outline-offset: 2px; }
-.hs-flow-reset:hover:not(:disabled) { border-color: #D64545; color: #D64545; }
-.hs-flow-reset:disabled { opacity: 0.4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hs-flow-phase,
+  .hs-flow-phase-btn,
+  .hs-flow-reset,
+  .hs-lesson-sim-btn { transition: none; }
+  .hs-flow-phase-btn:hover,
+  .hs-flow-phase-btn:active,
+  .hs-flow-reset:hover,
+  .hs-flow-reset:active,
+  .hs-lesson-sim-btn:hover,
+  .hs-lesson-sim-btn:active { transform: none !important; }
+  .hs-lesson-sim-live { animation: none; }
+}
 
 .hs-lesson-lines-btn.is-on {
   background: #00A99D;
