@@ -119,6 +119,10 @@ interface ParticipantInfo {
 }
 
 const CLASS_NAV_STORAGE_KEY = 'class-nav';
+/** 影像區版面配置，記在這台裝置上 */
+const VIDEO_LAYOUT_STORAGE_KEY = 'host-video-layout';
+/** featured = 自己的畫面放大（佔 2×2 格）；equal = 每人一樣大 */
+type VideoLayout = 'featured' | 'equal';
 const BIGSCREEN_PING_MS = 2000;
 /** 連續這麼多次沒回應才算大屏關了（大屏忙著載入模型時可能一時回不了） */
 const BIGSCREEN_MISSED_PINGS_CLOSED = 2;
@@ -406,6 +410,16 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     try { return localStorage.getItem(CLASS_NAV_STORAGE_KEY) !== 'off'; } catch { return true; }
   });
   const [bigScreenMenuOpen, setBigScreenMenuOpen] = useState(false);
+  const [videoLayout, setVideoLayout] = useState<VideoLayout>(() => {
+    try { return localStorage.getItem(VIDEO_LAYOUT_STORAGE_KEY) === 'equal' ? 'equal' : 'featured'; } catch { return 'featured'; }
+  });
+  const toggleVideoLayout = useCallback(() => {
+    setVideoLayout(v => {
+      const next: VideoLayout = v === 'featured' ? 'equal' : 'featured';
+      try { localStorage.setItem(VIDEO_LAYOUT_STORAGE_KEY, next); } catch { /* 下次重開回到預設 */ }
+      return next;
+    });
+  }, []);
 
   // Student removal confirmation modal state
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
@@ -2279,7 +2293,12 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
     .sort((a, b) => byName(a.participant.name || a.participant.identity, b.participant.name || b.participant.identity));
 
   // 影像區：老師＋學生依人數平均分配（大屏預覽時維持精簡列）
-  const { gridRef: videoGridRef, gridStyle: videoGridStyle } = useVideoGridLayout((connectedRoom ? 1 : 0) + studentList.length, !showBigScreenPreview);
+  // 版面為「放大自己」時，教師自己的畫面佔 2×2 格，方便看自己的追蹤效果
+  const { gridRef: videoGridRef, gridStyle: videoGridStyle, featuredStyle: teacherCardGridStyle } = useVideoGridLayout(
+    (connectedRoom ? 1 : 0) + studentList.length,
+    !showBigScreenPreview,
+    connectedRoom !== null && videoLayout === 'featured',
+  );
 
   // 台下互動點 → 大屏：各選項人數、已作答 / 在線人數（公布後才含正確答案）
   const studentIdsKey = studentList.map(s => s.participant.identity).sort().join('|');
@@ -2795,6 +2814,23 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
             <span className="hs-action-label">省電</span>
             <span className={`hs-badge-btn ${lowPowerMode ? 'hs-badge--on' : 'hs-badge--off'}`}>{lowPowerMode ? 'ON' : 'OFF'}</span>
           </button> */}
+
+          <button
+            className="hs-action-btn hs-action--on"
+            onClick={toggleVideoLayout}
+            disabled={showBigScreenPreview}
+            title={showBigScreenPreview
+              ? '大屏預覽開著時，影像區固定為精簡列'
+              : videoLayout === 'featured' ? '目前：放大自己的畫面。點一下改成每人一樣大' : '目前：每人一樣大。點一下改成放大自己的畫面'}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+              {videoLayout === 'featured' ? 'view_quilt' : 'grid_view'}
+            </span>
+            <span className="hs-action-label">版面</span>
+            <span className="hs-badge-btn hs-badge--on">
+              {videoLayout === 'featured' ? '放大' : '等大'}
+            </span>
+          </button>
 
           <button
             className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--on' : 'hs-action--off'}`}
@@ -3448,7 +3484,7 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                   return (
                     <div
                       className={`hs-video-card hs-teacher-card${isTeacherSpeaking ? ' hs-video-card--speaking' : ''}`}
-                      style={{ opacity: hasSlots && !teacherSlot ? 0.8 : 1 }}
+                      style={{ ...teacherCardGridStyle, opacity: hasSlots && !teacherSlot ? 0.8 : 1 }}
                     >
                       <LocalVideo
                         room={connectedRoom}

@@ -4048,7 +4048,12 @@ button:disabled {
   white-space: nowrap;
 }
 
-.hs-action-btn:hover {
+.hs-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hs-action-btn:hover:not(:disabled) {
   background: var(--primary);
   /* border-color: rgba(255, 255, 255, 0.28); */
   color: #fff;
@@ -4088,12 +4093,12 @@ button:disabled {
   opacity: 0.5;
 }
 
-.hs-action--on:hover {
+.hs-action--on:hover:not(:disabled) {
   background: var(--secondary) !important;
   color: #fff !important;
 }
 
-.hs-action--alert:hover {
+.hs-action--alert:hover:not(:disabled) {
   background: #ff8080 !important;
   color: #fff !important;
 }
