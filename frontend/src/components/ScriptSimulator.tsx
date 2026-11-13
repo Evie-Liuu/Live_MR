@@ -84,6 +84,10 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
   const [speed, setSpeed] = useState<number>(1);
   const [muted, setMuted] = useState(false);
   const [showZh, setShowZh] = useState(true);
+  /** 循環播放：播完最後一句自動從頭再播（預設開啟） */
+  const [loop, setLoop] = useState(true);
+  const loopRef = useRef(loop);
+  useEffect(() => { loopRef.current = loop; }, [loop]);
   const [showChapters, setShowChapters] = useState(false);
   const [panelTab, setPanelTab] = useState<PanelTab>('script');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -148,6 +152,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
       const next = window.setTimeout(() => {
         if (token !== tokenRef.current) return;
         if (i + 1 < cues.length) playCueRef.current(i + 1);
+        else if (loopRef.current) playCueRef.current(0);
         else setStatus('ended');
       }, LINE_GAP_MS / speed);
       timersRef.current.push(next);
@@ -468,6 +473,15 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
                   </div>
                 )}
               </div>
+              <button
+                className={`ss-ctrl ss-ctrl-text${loop ? ' is-on' : ''}`}
+                onClick={() => setLoop(v => !v)}
+                aria-pressed={loop}
+                aria-label="循環播放"
+                title={loop ? '關閉循環播放' : '開啟循環播放'}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">repeat</span>
+              </button>
               <button
                 className={`ss-ctrl ss-ctrl-text${showZh ? ' is-on' : ''}`}
                 onClick={() => setShowZh(v => !v)}
