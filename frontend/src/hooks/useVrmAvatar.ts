@@ -79,11 +79,14 @@ export function useVrmAvatar(
     cameraRef.current = camera;
 
     // Renderer
+    // 透明背景：模型直接疊在使用者的鏡頭影像上，方便對照自己的動作與追蹤效果
+    // （原本沒開 alpha，模型後面是一整片黑底蓋住影像）
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      // alpha: preset.backgroundType === 'none', // transparent when no background set
+      alpha: true,
       antialias: true,
     });
+    renderer.setClearColor(0x000000, 0);
     renderer.setSize(
       canvas.clientWidth || canvas.width,
       canvas.clientHeight || canvas.height,

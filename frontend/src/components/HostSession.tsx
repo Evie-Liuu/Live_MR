@@ -3312,14 +3312,14 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                       : bigScreenOpen && bigScreenEditing ? '大螢幕編輯中，無法模擬播放'
                         : !lessonHasLines ? '這個任務還沒有台詞'
                           : !bigScreenOpen ? '開啟大螢幕並播放劇本模擬（會顯示完整台詞）'
-                            : '在大螢幕播放劇本模擬（會顯示完整台詞）'
+                            : '在大螢幕播放劇本模擬'
                   }
                   onClick={toggleBigScreenSim}
                 >
                   {bigScreenSimShown
                     ? <span className="hs-lesson-sim-live" aria-hidden="true" />
                     : <span className="material-symbols-outlined" aria-hidden="true">theaters</span>}
-                  {bigScreenSimShown ? '結束模擬' : '大螢幕模擬'}
+                  {bigScreenSimShown ? '結束模擬' : '情境模擬放映'}
                 </button>
               </div>
               {/* 第二列：目前的步驟或提問 */}

@@ -881,7 +881,65 @@ button:disabled {
   height: 100%;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.82;
+  /* 背景已透明，只剩模型本身；略透一點，看得到模型後面自己的動作 */
+  opacity: 0.9;
+}
+
+/* ── 教師端自己的畫面：追蹤狀態＋顯示方式 ── */
+.self-view-skeleton {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.self-view-status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  background: rgba(20, 14, 10, 0.68);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.self-view-status-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #9CA3AF;
+}
+.self-view-status--ok .self-view-status-dot { background: #4ADE80; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); }
+.self-view-status--partial { background: rgba(146, 64, 14, 0.85); }
+.self-view-status--partial .self-view-status-dot { background: #FBBF24; }
+.self-view-status--lost { background: rgba(153, 27, 27, 0.85); }
+.self-view-status--lost .self-view-status-dot { background: #F87171; animation: selfViewBlink 1.2s ease-in-out infinite; }
+@keyframes selfViewBlink { 50% { opacity: 0.3; } }
+
+/* 沒偵測到人時，畫面外框也轉紅，眼角餘光就看得到 */
+.self-view:has(.self-view-status--lost)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 3px solid rgba(248, 113, 113, 0.85);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .self-view-status--lost .self-view-status-dot { animation: none; }
 }
 
 .camera-off-placeholder-new {
