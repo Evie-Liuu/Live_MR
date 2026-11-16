@@ -180,8 +180,8 @@ export const THEMES: ThemeConfig[] = [
             'tshirt_blue_static': { taskId: 'ask_price_1', label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
             // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
-            'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [0.8, 1.35, -2.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
-            'tshirt_blue': { label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI/2], heldRotation: [0, 0, 0] },
+            'tshirt_red': { label: '櫃檯的紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [0.8, 1.35, -2.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
+            'tshirt_blue': { label: '櫃檯的藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI/2], heldRotation: [0, 0, 0] },
             
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'dress_red': { taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
@@ -204,6 +204,7 @@ export const THEMES: ThemeConfig[] = [
               { kind: 'slot', id: 'staff' },
               { kind: 'staticProp', id: 'cashier_counter' },
               { kind: 'taskProp', id: 'tshirt_red' },
+              { kind: 'taskProp', id: 'tshirt_blue' },
               { kind: 'taskProp', id: 'receipt' },
             ],
           },
@@ -214,7 +215,7 @@ export const THEMES: ThemeConfig[] = [
               { kind: 'slot', id: 'customer' },
               { kind: 'slot', id: 'customer2' },
               { kind: 'staticProp', id: 'rack' },
-              { kind: 'taskProp', id: 'tshirt_blue' },
+              { kind: 'taskProp', id: 'tshirt_blue_static' },
               { kind: 'taskProp', id: 'jacket_black' },
               { kind: 'taskProp', id: 'dress_red' },
               { kind: 'taskProp', id: 'shirt_white' },
