@@ -17,6 +17,11 @@ export interface DialogueLine {
   prop?: string
   /** 動作為「指向」時指著的展示物件（場景 taskProps 的 id）；模擬播放時角色會轉身指向它 */
   pointAt?: string
+  /**
+   * 這句屬於某個角色的支線（例如店員對顧客B 說的話）：演出人數版本把那個角色刪掉時，這句一起刪。
+   * 該角色自己說的台詞不用標，刪角色時本來就會刪。
+   */
+  branch?: string
 }
 
 /**
@@ -64,12 +69,14 @@ export interface TemplateSource {
 }
 
 /**
- * 併角方案：用比原本少的人數演出時，把某些角色的台詞併給另一個角色說。
+ * 併角方案：用比原本少的人數演出時，把某些角色的台詞併給另一個角色說，或整個刪掉某些角色。
  * merge 是「被併掉的角色 → 改由哪個角色說」，例如 { staff: 'cashier' }＝店員B 的台詞由店員A 說。
+ * omit 是整段刪掉的角色：他的台詞、以及標了 branch 為他的台詞（例如別人對他說的話）都不演。
  * 演出人數不另外存，由併角後實際有台詞的角色數算出（任務改過台詞也不會對不上）。
  */
 export interface CastOption {
   merge: Record<string, string>
+  omit?: string[]
 }
 
 export interface DialogueTask {
@@ -109,38 +116,55 @@ export function speakingSlots(task: DialogueTask): string[] {
 
 /**
  * 併角後實際演出的人數；規則不成立時回 null：
- * 併給自己、併給沒有台詞的角色、或併給同樣被併掉的角色（不允許連鎖）。
- * 被併掉但任務裡已經沒有台詞的角色直接略過。
+ * 併給自己、併給沒有台詞的角色、併給同樣被併掉的角色（不允許連鎖）、或併給被刪掉的角色。
+ * 被併掉但任務裡已經沒有台詞的角色直接略過；同時被併掉又被刪掉的角色以刪掉為準。
  */
-export function castSize(task: DialogueTask, merge: Record<string, string>): number | null {
+export function castSize(task: DialogueTask, merge: Record<string, string>, omit: readonly string[] = []): number | null {
   const speakers = speakingSlots(task)
   for (const [from, to] of Object.entries(merge)) {
-    if (!speakers.includes(from)) continue
-    if (from === to || !speakers.includes(to) || merge[to] !== undefined) return null
+    if (!speakers.includes(from) || omit.includes(from)) continue
+    if (from === to || !speakers.includes(to) || merge[to] !== undefined || omit.includes(to)) return null
   }
-  return speakers.filter(id => !(id in merge)).length
+  return speakers.filter(id => !(id in merge) && !omit.includes(id)).length
+}
+
+/** 這句在刪掉 omit 這些角色的版本裡是否還要演 */
+export function lineKept(line: DialogueLine, omit: readonly string[] = []): boolean {
+  return !omit.includes(line.speakerSlotId) && !(line.branch !== undefined && omit.includes(line.branch))
+}
+
+export interface CastChoice {
+  size: number
+  merge: Record<string, string>
+  omit: string[]
 }
 
 /** 可選的演出人數（由少到多，最後一個是完整人數）；無效或與其他方案同人數的併角方案略過 */
-export function castChoices(task: DialogueTask): { size: number; merge: Record<string, string> }[] {
+export function castChoices(task: DialogueTask): CastChoice[] {
   const full = speakingSlots(task).length
-  const choices: { size: number; merge: Record<string, string> }[] = []
+  const choices: CastChoice[] = []
   for (const opt of task.castOptions ?? []) {
-    const size = castSize(task, opt.merge)
-    if (size !== null && size >= 1 && size < full && !choices.some(c => c.size === size)) choices.push({ size, merge: opt.merge })
+    const omit = opt.omit ?? []
+    const size = castSize(task, opt.merge, omit)
+    if (size !== null && size >= 1 && size < full && !choices.some(c => c.size === size)) choices.push({ size, merge: opt.merge, omit })
   }
   choices.sort((a, b) => a.size - b.size)
-  return [...choices, { size: full, merge: {} }]
+  return [...choices, { size: full, merge: {}, omit: [] }]
 }
 
-/** 依併角規則把被併掉角色的台詞改由對應角色說（回傳新任務，不改原任務） */
-export function applyCastMerge(task: DialogueTask, merge: Record<string, string>): DialogueTask {
-  if (Object.keys(merge).length === 0) return task
+/**
+ * 依併角規則產生該人數要演的任務（回傳新任務，不改原任務）：
+ * 刪掉的角色與他的支線台詞拿掉，被併掉角色的台詞改由對應角色說
+ */
+export function applyCastMerge(task: DialogueTask, merge: Record<string, string>, omit: readonly string[] = []): DialogueTask {
+  if (Object.keys(merge).length === 0 && omit.length === 0) return task
   return {
     ...task,
     steps: task.steps.map(s => ({
       ...s,
-      lines: s.lines.map(l => (merge[l.speakerSlotId] ? { ...l, speakerSlotId: merge[l.speakerSlotId] } : l)),
+      lines: s.lines
+        .filter(l => lineKept(l, omit))
+        .map(l => (merge[l.speakerSlotId] ? { ...l, speakerSlotId: merge[l.speakerSlotId] } : l)),
     })),
   }
 }

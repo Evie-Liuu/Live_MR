@@ -65,12 +65,18 @@ function isStep(v: unknown): v is DialogueStep {
       (Array.isArray(s.checkpoints) && s.checkpoints.length <= MAX_CHECKPOINTS_PER_STEP && s.checkpoints.every(isCheckpoint)))
 }
 
-/** 併角方案只檢查形狀（角色 id → 角色 id、不併給自己）；是否對得上台詞由前端依任務內容判斷 */
+/**
+ * 併角方案只檢查形狀（角色 id → 角色 id、不併給自己；刪掉的角色是 id 清單），至少要有一條規則；
+ * 是否對得上台詞由前端依任務內容判斷
+ */
 function isCastOption(v: unknown): v is CastOption {
   const c = v as Partial<CastOption> | null
   if (!c || typeof c.merge !== 'object' || c.merge === null || Array.isArray(c.merge)) return false
   const entries = Object.entries(c.merge)
-  return entries.length >= 1 && entries.length <= MAX_CAST_MERGES && entries.every(([from, to]) => isId(from) && isId(to) && from !== to)
+  const omit = c.omit ?? []
+  if (!Array.isArray(omit) || omit.length > MAX_CAST_MERGES || !omit.every(isId)) return false
+  return entries.length + omit.length >= 1 && entries.length <= MAX_CAST_MERGES &&
+    entries.every(([from, to]) => isId(from) && isId(to) && from !== to)
 }
 
 function isTemplateSource(v: unknown): v is TemplateSource {
@@ -104,6 +110,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
         ...(isGestureId(l.gesture) ? { gesture: l.gesture } : {}),
         ...(isPropId(l.prop) ? { prop: l.prop } : {}),
         ...(l.gesture === 'point' && isPropId(l.pointAt) ? { pointAt: l.pointAt } : {}),
+        ...(isId(l.branch) ? { branch: l.branch } : {}),
       })),
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
       ...(s.checkpoints?.length ? {
@@ -116,7 +123,9 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
     })),
     ...(t.sourceTemplate ? { sourceTemplate: { id: t.sourceTemplate.id, version: t.sourceTemplate.version } } : {}),
     ...(tags.length > 0 ? { tags } : {}),
-    ...(t.castOptions?.length ? { castOptions: t.castOptions.map(c => ({ merge: { ...c.merge } })) } : {}),
+    ...(t.castOptions?.length
+      ? { castOptions: t.castOptions.map(c => ({ merge: { ...c.merge }, ...(c.omit?.length ? { omit: [...c.omit] } : {}) })) }
+      : {}),
   }
 }
 

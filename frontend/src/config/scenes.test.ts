@@ -5,7 +5,7 @@ describe('propForTask', () => {
   const sceneId = 'clothingStore_cashier';
 
   it('任務對應到可識別的道具 id', () => {
-    expect(propForTask(sceneId, 'ask_price_1')).toBe('tshirt_blue');
+    expect(propForTask(sceneId, 'ask_price_1')).toBe('tshirt_blue_static');
     expect(propForTask(sceneId, 'ask_price_5')).toBe('pants_jeans');
   });
 

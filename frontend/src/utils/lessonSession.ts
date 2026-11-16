@@ -88,7 +88,7 @@ export function taskCast(task: DialogueTask): { slotId: string; lines: number }[
 export function lessonTask(lesson: HostLessonState): DialogueTask {
   const { task } = lesson.record;
   const choice = lesson.castSize === undefined ? undefined : castChoices(task).find(c => c.size === lesson.castSize);
-  return choice ? applyCastMerge(task, choice.merge) : task;
+  return choice ? applyCastMerge(task, choice.merge, choice.omit) : task;
 }
 
 export function clampDoneCount(lesson: HostLessonState, doneCount: number): number {

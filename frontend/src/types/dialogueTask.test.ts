@@ -65,6 +65,31 @@ describe('併角方案', () => {
     expect(castSize(task, { ghost: 'cashier' })).toBe(4)
   })
 
+  it('刪掉角色：他的台詞與標成他支線的台詞都拿掉，人數扣掉他', () => {
+    const withBranch: DialogueTask = {
+      ...task,
+      steps: [{ ...task.steps[0], lines: [...task.steps[0].lines, { ...line('cashier'), id: 'toB', branch: 'customer2' }] }],
+    }
+    expect(castSize(withBranch, { staff: 'cashier' }, ['customer2'])).toBe(2)
+    const cut = applyCastMerge(withBranch, { staff: 'cashier' }, ['customer2'])
+    expect(speakingSlots(cut)).toEqual(['cashier', 'customer'])
+    expect(cut.steps[0].lines.map(l => l.id)).toEqual(['cashier', 'customer', 'staff', 'staff'])
+    expect(withBranch.steps[0].lines).toHaveLength(6)
+  })
+
+  it('不能把台詞併給被刪掉的角色；同時被併又被刪以刪掉為準', () => {
+    expect(castSize(task, { staff: 'customer2' }, ['customer2'])).toBeNull()
+    expect(castSize(task, { customer2: 'customer' }, ['customer2'])).toBe(3)
+  })
+
+  it('有刪角的方案也列在可選人數裡', () => {
+    const t: DialogueTask = { ...task, castOptions: [{ merge: { staff: 'cashier' }, omit: ['customer2'] }] }
+    expect(castChoices(t)).toEqual([
+      { size: 2, merge: { staff: 'cashier' }, omit: ['customer2'] },
+      { size: 4, merge: {}, omit: [] },
+    ])
+  })
+
   it('併角後台詞改由對應角色說，原任務不變', () => {
     const merged = applyCastMerge(task, { staff: 'cashier' })
     expect(speakingSlots(merged)).toEqual(['cashier', 'customer', 'customer2'])

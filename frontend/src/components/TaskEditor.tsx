@@ -3,7 +3,7 @@ import { THEMES, grabbableProps } from '../config/scenes.ts';
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
   MAX_CAST_OPTIONS, MAX_CHECKPOINTS_PER_STEP, MAX_CHECKPOINT_OPTIONS, MAX_TAGS, MAX_TAG_LEN, MIN_CHECKPOINT_OPTIONS,
-  blankTask, castChoices, castSize, cleanCheckpoints, cloneStep, formatClock, newCheckpoint, newLine, newStep, speakingSlots,
+  blankTask, castChoices, castSize, cleanCheckpoints, cloneStep, formatClock, lineKept, newCheckpoint, newLine, newStep, speakingSlots,
   splitTags, stepTimings,
   type AudienceCheckpoint, type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
 } from '../types/dialogueTask.ts';
@@ -83,6 +83,11 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
   const scene = SCENES.find(s => s.id === task.sceneId);
   const slots = useMemo(() => scene?.slots ?? [], [scene]);
   const sceneProps = useMemo(() => grabbableProps(task.sceneId), [task.sceneId]);
+  /** 有演出人數版本會刪掉的角色：台詞可以標成他們的支線 */
+  const omittedSlots = useMemo(
+    () => [...new Set((task.castOptions ?? []).flatMap(c => c.omit ?? []))],
+    [task.castOptions],
+  );
   const activeIndex = Math.max(0, task.steps.findIndex(s => s.id === activeStepId));
   const step: DialogueStep | undefined = task.steps[activeIndex];
   const timings = useMemo(() => stepTimings(step?.lines ?? []), [step]);
@@ -179,8 +184,8 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
     if (saving) return false;
     // 題目空白的台下互動點不存
     const payload: DialogueTask = { ...cleanCheckpoints(task), title: task.title.trim() || '未命名任務' };
-    // 還沒設定任何併角的空白版本不存（後端不接受空的併角）
-    const castOptions = (task.castOptions ?? []).filter(c => Object.keys(c.merge).length > 0);
+    // 還沒設定任何併角或刪角的空白版本不存（後端不接受空的併角）
+    const castOptions = (task.castOptions ?? []).filter(c => Object.keys(c.merge).length > 0 || (c.omit?.length ?? 0) > 0);
     if (castOptions.length > 0) payload.castOptions = castOptions;
     else delete payload.castOptions;
     setSaving(true);
@@ -255,6 +260,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
             speakerSlotId: nextSlots.some(sl => sl.id === l.speakerSlotId) ? l.speakerSlotId : nextSlots[0]?.id ?? '',
             prop: nextProps.some(p => p.id === l.prop) ? l.prop : undefined,
             pointAt: nextProps.some(p => p.id === l.pointAt) ? l.pointAt : undefined,
+            branch: nextSlots.some(sl => sl.id === l.branch) ? l.branch : undefined,
           })),
         })),
       };
@@ -494,6 +500,24 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                                 >
                                   <option value="">無道具</option>
                                   {sceneProps.map(p => <option key={p.id} value={p.id}>✊ 拿起{p.label}</option>)}
+                                </select>
+                              )}
+                              {(omittedSlots.some(id => id !== line.speakerSlotId) || line.branch) && (
+                                <select
+                                  className={`te-gesture${line.branch ? ' has-gesture' : ''}`}
+                                  value={line.branch ?? ''}
+                                  aria-label="支線"
+                                  title="這句屬於某個角色的支線（例如對他說的話）：少人數版本刪掉那個角色時，這句一起刪"
+                                  onChange={e => editLine(line.id, { branch: e.target.value || undefined })}
+                                >
+                                  <option value="">主線</option>
+                                  {[...new Set([...omittedSlots, ...(line.branch ? [line.branch] : [])])]
+                                    .filter(id => id !== line.speakerSlotId)
+                                    .map(id => (
+                                      <option key={id} value={id}>
+                                        ✂ {slots.find(sl => sl.id === id)?.label ?? id} 的支線
+                                      </option>
+                                    ))}
                                 </select>
                               )}
                               {/* 工具與時間是一組，放不下時一起換到下一行並靠右 */}
@@ -783,9 +807,13 @@ function ListEditor({ label, placeholder, items, onChange }: ListEditorProps) {
 }
 
 /** 每個角色在某個併角方案下的台詞句數 */
-function castLineCounts(task: DialogueTask, merge: Record<string, string>): Map<string, number> {
+/** 演出人數版本的角色選單：刪掉這個角色 */
+const CAST_OMIT = '__omit__';
+
+function castLineCounts(task: DialogueTask, merge: Record<string, string>, omit: readonly string[] = []): Map<string, number> {
   const counts = new Map<string, number>();
   for (const line of task.steps.flatMap(s => s.lines)) {
+    if (!lineKept(line, omit)) continue;
     const id = merge[line.speakerSlotId] ?? line.speakerSlotId;
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
@@ -795,10 +823,11 @@ function castLineCounts(task: DialogueTask, merge: Record<string, string>): Map<
 /** 演出人數版本的問題說明；沒問題回 null */
 function castProblem(task: DialogueTask, options: CastOption[], index: number): string | null {
   const full = speakingSlots(task).length;
-  const sizes = options.map(o => castSize(task, o.merge));
+  const sizes = options.map(o => castSize(task, o.merge, o.omit));
   const size = sizes[index];
-  if (Object.keys(options[index].merge).length === 0) return '尚未設定併角（儲存時略過）';
-  if (size === null) return '不能把台詞併給已經被併掉的角色';
+  if (Object.keys(options[index].merge).length === 0 && !options[index].omit?.length) return '尚未設定併角（儲存時略過）';
+  if (size === null) return '不能把台詞併給已經被併掉或刪掉的角色';
+  if (size === 0) return '所有角色都被刪掉了';
   if (size >= full) return '與完整人數相同';
   if (sizes.indexOf(size) !== index) return '與其他版本人數相同';
   return null;
@@ -836,12 +865,16 @@ function CastEditor({ task, slotLabel, onChange }: {
   const full = speakers.length;
   const fullCounts = castLineCounts(task, {});
 
+  /** to：空字串＝自己演、OMIT＝刪掉這個角色、其他＝台詞給該角色 */
   const setMerge = (index: number, from: string, to: string) => {
     onChange(options.map((o, i) => {
       if (i !== index) return o;
       const merge = { ...o.merge };
-      if (to) merge[from] = to; else delete merge[from];
-      return { merge };
+      const omit = (o.omit ?? []).filter(id => id !== from);
+      delete merge[from];
+      if (to === CAST_OMIT) omit.push(from);
+      else if (to) merge[from] = to;
+      return omit.length ? { merge, omit } : { merge };
     }));
   };
 
@@ -852,7 +885,8 @@ function CastEditor({ task, slotLabel, onChange }: {
   return (
     <div className="te-cast-panel">
       <p className="te-cast-intro">
-        套用到整個任務的所有步驟。完整 {full} 人各演一角；人數不夠時可新增較少人數的版本，把某些角色的台詞併給別人說。
+        套用到整個任務的所有步驟。完整 {full} 人各演一角；人數不夠時可新增較少人數的版本，把某些角色的台詞併給別人說，
+        或整個刪掉某個角色（別人對他說的台詞，可在台詞旁標成他的支線一起刪）。
         上課時在「角色配置」切換演出人數。
       </p>
 
@@ -869,8 +903,9 @@ function CastEditor({ task, slotLabel, onChange }: {
 
         {options.map((opt, i) => {
           const err = castProblem(task, options, i);
-          const size = castSize(task, opt.merge);
-          const counts = castLineCounts(task, opt.merge);
+          const omit = opt.omit ?? [];
+          const size = castSize(task, opt.merge, omit);
+          const counts = castLineCounts(task, opt.merge, omit);
           return (
             <section key={i} className="te-cast-option" aria-label={`演出人數版本 ${i + 1}`}>
               <div className="te-cast-head">
@@ -886,15 +921,17 @@ function CastEditor({ task, slotLabel, onChange }: {
                 </button>
               </div>
               {speakers.map(id => {
-                const merged = opt.merge[id];
+                const omitted = omit.includes(id);
+                const merged = omitted ? undefined : opt.merge[id];
                 return (
                   <label key={id} className="te-cast-row">
                     <span className="te-cast-name" title={slotLabel(id)}>{slotLabel(id)}</span>
-                    <select value={merged ?? ''} onChange={e => setMerge(i, id, e.target.value)}>
+                    <select value={omitted ? CAST_OMIT : merged ?? ''} onChange={e => setMerge(i, id, e.target.value)}>
                       <option value="">自己演</option>
                       {speakers.filter(o => o !== id).map(o => <option key={o} value={o}>台詞給 {slotLabel(o)}</option>)}
+                      <option value={CAST_OMIT}>刪掉這個角色</option>
                     </select>
-                    <span className="te-cast-count">{merged ? '—' : `${counts.get(id) ?? 0} 句`}</span>
+                    <span className="te-cast-count">{omitted ? '刪除' : merged ? '—' : `${counts.get(id) ?? 0} 句`}</span>
                   </label>
                 );
               })}

@@ -16,6 +16,8 @@ export interface DialogueLine {
   prop?: string
   /** 動作為「指向」時指著的展示物件（前端場景 taskProps 的 id） */
   pointAt?: string
+  /** 這句屬於某個角色的支線：演出人數版本刪掉那個角色時，這句一起刪 */
+  branch?: string
 }
 
 /** 動作庫 id，與前端 frontend/src/config/gestures.ts 一致 */
@@ -79,6 +81,8 @@ export interface TemplateSource {
  */
 export interface CastOption {
   merge: Record<string, string>
+  /** 整段刪掉的角色（他的台詞與 branch 為他的台詞都不演） */
+  omit?: string[]
 }
 
 export interface DialogueTask {

@@ -1,19 +1,15 @@
 import type { DialogueTask } from '../../types/dialogueTask.ts';
 import { cloneCheckpoints, createId } from '../../types/dialogueTask.ts';
 import type { TaskTemplate } from './types.ts';
-import { clothingStoreShopping } from './clothingStore_shopping.ts';
-import { clothingStoreSize } from './clothingStore_size.ts';
-import { clothingStoreReturn } from './clothingStore_return.ts';
 import { clothingStoreShoppingTogether } from './clothingStore_shoppingTogether.ts';
+import { clothingStoreExchange } from './clothingStore_exchange.ts';
 
 export type { TaskTemplate } from './types.ts';
 
 /** 任務庫內建模板（顯示順序即此陣列順序）。新增模板見 ./README.md */
 export const TASK_TEMPLATES: readonly TaskTemplate[] = [
-  clothingStoreShopping,
-  clothingStoreSize,
-  clothingStoreReturn,
   clothingStoreShoppingTogether,
+  clothingStoreExchange,
 ];
 
 /** 套用模板：深拷貝內容、換上新 id，並記錄來源模板。回傳的任務尚未存檔。 */
@@ -33,7 +29,9 @@ export function applyTemplate(template: TaskTemplate): DialogueTask {
     })),
     sourceTemplate: { id: template.id, version: template.version },
     ...(template.tags.length > 0 ? { tags: [...template.tags] } : {}),
-    ...(task.castOptions?.length ? { castOptions: task.castOptions.map(c => ({ merge: { ...c.merge } })) } : {}),
+    ...(task.castOptions?.length
+      ? { castOptions: task.castOptions.map(c => ({ merge: { ...c.merge }, ...(c.omit?.length ? { omit: [...c.omit] } : {}) })) }
+      : {}),
   };
 }
 
@@ -59,6 +57,7 @@ export function toTemplateSource(task: DialogueTask, templateId: string): string
         ...(l.gesture ? { gesture: l.gesture } : {}),
         ...(l.prop ? { prop: l.prop } : {}),
         ...(l.gesture === 'point' && l.pointAt ? { pointAt: l.pointAt } : {}),
+        ...(l.branch ? { branch: l.branch } : {}),
       })),
       grammarPoints: s.grammarPoints,
       grammarNote: s.grammarNote,

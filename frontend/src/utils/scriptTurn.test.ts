@@ -39,7 +39,7 @@ describe('scriptTurn', () => {
       return lesson({ record: { ...record, task: { ...record.task, steps: [{ ...step, lines: [{ ...first, prop }, ...others] }, ...rest] } } });
     };
     const l = withProp('tshirt_red');
-    expect(resolveTurn(l, startTurn(l), cast)?.prop).toEqual({ id: 'tshirt_red', label: '紅色 T 恤' });
+    expect(resolveTurn(l, startTurn(l), cast)?.prop).toEqual({ id: 'tshirt_red', label: '櫃檯的紅色 T 恤' });
     const missing = withProp('no_such_prop');
     expect(resolveTurn(missing, startTurn(missing), cast)?.prop).toBeNull();
     expect(resolveTurn(lesson(), startTurn(lesson()), cast)?.prop).toBeNull();

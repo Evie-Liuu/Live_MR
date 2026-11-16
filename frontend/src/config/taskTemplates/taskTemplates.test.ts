@@ -90,7 +90,7 @@ describe('內建任務模板', () => {
       const opts = tpl.task.castOptions ?? [];
       expect(opts.length).toBeLessThanOrEqual(MAX_CAST_OPTIONS);
       const full = speakingSlots(tpl.task).length;
-      const sizes = opts.map(o => castSize(tpl.task, o.merge));
+      const sizes = opts.map(o => castSize(tpl.task, o.merge, o.omit));
       for (const [i, size] of sizes.entries()) {
         expect(size, `第 ${i + 1} 個併角方案不成立`).not.toBeNull();
         expect(size!).toBeLessThan(full);
