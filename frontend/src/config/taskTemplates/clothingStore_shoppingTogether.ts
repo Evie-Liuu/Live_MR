@@ -26,7 +26,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
         lines: [
           { id: 'step1_1', speakerSlotId: 'cashier', en: 'Hello! Welcome to our clothing store. How can I help you today?', zh: '你好！歡迎來到我們的服飾店，請問有什麼可以幫你？', gesture: 'wave' },
           { id: 'step1_2', speakerSlotId: 'customer', en: "I'm looking for a T-shirt.", zh: '我在找 T 恤。' },
-          { id: 'step1_3', speakerSlotId: 'cashier', en: 'Sure. What color are you looking for?', zh: '好的，你想找什麼顏色的呢？'},
+          { id: 'step1_3', speakerSlotId: 'cashier', en: 'Sure. What color are you looking for?', zh: '好的，你想找什麼顏色的呢？' },
           { id: 'step1_4', speakerSlotId: 'customer', en: 'Blue, please.', zh: '藍色，謝謝。' },
           { id: 'step1_5', speakerSlotId: 'customer2', en: "I'm looking for a T-shirt, too. Red, please.", zh: '我也在找 T 恤。請給我紅色的。' },
           { id: 'step1_6', speakerSlotId: 'staff', en: 'Sure! Here is a red T-shirt.', zh: '好的！這裡有一件紅色 T 恤。', gesture: 'handOver', prop: 'tshirt_red' },
@@ -55,7 +55,7 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
         title: '詢價與折扣',
         purpose: '詢問價格、理解折扣資訊',
         lines: [
-          { id: 'step2_1', speakerSlotId: 'customer', en: 'How much is this blue T-shirt?', zh: '這件藍色 T 恤多少錢？', gesture: 'point' },
+          { id: 'step2_1', speakerSlotId: 'customer', en: 'How much is this blue T-shirt?', zh: '這件藍色 T 恤多少錢？', gesture: 'point', pointAt: 'tshirt_blue' },
           { id: 'step2_2', speakerSlotId: 'staff', en: "It's 20 dollars.", zh: '20 元。' },
           { id: 'step2_3', speakerSlotId: 'customer2', en: 'Is it on sale?', zh: '有在打折嗎？' },
           { id: 'step2_4', speakerSlotId: 'staff', en: "Yes. It's 10% off today.", zh: '有，今天打九折。', gesture: 'happy' },
@@ -88,9 +88,9 @@ export const clothingStoreShoppingTogether: TaskTemplate = {
         title: '購買與付款',
         purpose: '確認購買、詢問付款方式、理解結帳流程',
         lines: [
-          { id: 'step3_1', speakerSlotId: 'customer', en: "I'll take it.", zh: '我要買這件。', gesture: 'nod' },
+          { id: 'step3_1', speakerSlotId: 'customer', en: "I'll take it.", zh: '我要買這件。', gesture: 'nod', prop: 'tshirt_blue' },
           { id: 'step3_2', speakerSlotId: 'cashier', en: 'Great choice! Anything else?', zh: '好選擇！還需要其他東西嗎？', gesture: 'thumbsUp' },
-          { id: 'step3_3', speakerSlotId: 'customer2', en: "That's all. Thank you.", zh: '不用了，謝謝。' },
+          { id: 'step3_3', speakerSlotId: 'customer2', en: "Also the red T-shirt, and that's all. Thank you.", zh: '還有紅色 T 恤，就這樣，謝謝。', prop: 'tshirt_red' },
           { id: 'step3_4', speakerSlotId: 'staff', en: "That's 33 dollars. Cash or card?", zh: '總共 33 元。付現還是刷卡？' },
           { id: 'step3_5', speakerSlotId: 'customer', en: 'Card, please.', zh: '刷卡，謝謝。' },
           { id: 'step3_6', speakerSlotId: 'staff', en: 'Here is your receipt.', zh: '這是你的收據。', gesture: 'handOver', prop: 'receipt' },

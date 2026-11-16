@@ -103,6 +103,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
         id: l.id, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh,
         ...(isGestureId(l.gesture) ? { gesture: l.gesture } : {}),
         ...(isPropId(l.prop) ? { prop: l.prop } : {}),
+        ...(l.gesture === 'point' && isPropId(l.pointAt) ? { pointAt: l.pointAt } : {}),
       })),
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
       ...(s.checkpoints?.length ? {

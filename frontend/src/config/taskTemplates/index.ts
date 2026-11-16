@@ -58,6 +58,7 @@ export function toTemplateSource(task: DialogueTask, templateId: string): string
         id: `step${i + 1}_${j + 1}`, speakerSlotId: l.speakerSlotId, en: l.en, zh: l.zh,
         ...(l.gesture ? { gesture: l.gesture } : {}),
         ...(l.prop ? { prop: l.prop } : {}),
+        ...(l.gesture === 'point' && l.pointAt ? { pointAt: l.pointAt } : {}),
       })),
       grammarPoints: s.grammarPoints,
       grammarNote: s.grammarNote,

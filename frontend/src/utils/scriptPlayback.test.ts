@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices } from './scriptPlayback.ts';
-import { gestureWeight, idleLoopSample, lookAngles, mouthOpenness } from './scriptedAvatar.ts';
+import { gestureWeight, horizontalYaw, idleLoopSample, lookAngles, MAX_TORSO_YAW, mouthOpenness, splitTurn, wrapAngle } from './scriptedAvatar.ts';
 import type { DialogueTask } from '../types/dialogueTask.ts';
 
 const task: DialogueTask = {
@@ -71,6 +71,28 @@ describe('scriptedAvatar math', () => {
     expect(lookAngles(forward, left, new THREE.Vector3(-1, 0, 1)).yaw).toBeCloseTo(-Math.PI / 4);
     expect(lookAngles(forward, left, new THREE.Vector3(0, 0.2, 1)).up).toBeGreaterThan(0);
     expect(lookAngles(forward, left, new THREE.Vector3(5, 0, -1)).yaw).toBeCloseTo((55 * Math.PI) / 180);
+  });
+
+  it('lookAngles: 上半身已轉過去時，頭只轉剩下的角度', () => {
+    // 物件在左前方 80°，上半身轉了 60° → 頭再轉 20°
+    const dir = new THREE.Vector3(Math.sin(80 * Math.PI / 180), 0, Math.cos(80 * Math.PI / 180));
+    expect(lookAngles(forward, left, dir, (60 * Math.PI) / 180).yaw).toBeCloseTo((20 * Math.PI) / 180);
+    // 轉過頭了就往回看
+    expect(lookAngles(forward, left, new THREE.Vector3(0, 0, 1), (30 * Math.PI) / 180).yaw).toBeCloseTo((-30 * Math.PI) / 180);
+  });
+
+  it('horizontalYaw / wrapAngle: 水平角不看高度，角度換到 ±π 內', () => {
+    expect(horizontalYaw(forward, left, new THREE.Vector3(1, 5, 1))).toBeCloseTo(Math.PI / 4);
+    expect(horizontalYaw(forward, left, new THREE.Vector3(-1, 0, 0))).toBeCloseTo(-Math.PI / 2);
+    expect(wrapAngle(Math.PI * 1.5)).toBeCloseTo(-Math.PI / 2);
+    expect(wrapAngle(-Math.PI * 1.5)).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('splitTurn: 小角度只扭上半身，物件在背後時整個人轉過去', () => {
+    expect(splitTurn(0.3)).toEqual({ torso: 0.3, root: 0 });
+    const behind = splitTurn(-170 * Math.PI / 180);
+    expect(behind.torso).toBeCloseTo(-MAX_TORSO_YAW);
+    expect(behind.torso + behind.root).toBeCloseTo(-170 * Math.PI / 180);
   });
 
   it('gestureWeight fades in, holds at 1 and fades out', () => {

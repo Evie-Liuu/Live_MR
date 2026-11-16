@@ -15,6 +15,8 @@ export interface DialogueLine {
   gesture?: GestureId
   /** 輪到這句時發言者可握拳拿起的道具（場景 taskProps 的 id，見 config/scenes.ts） */
   prop?: string
+  /** 動作為「指向」時指著的展示物件（場景 taskProps 的 id）；模擬播放時角色會轉身指向它 */
+  pointAt?: string
 }
 
 /**

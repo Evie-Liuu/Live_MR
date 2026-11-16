@@ -43,8 +43,11 @@ export interface ScriptStage {
   error: string | null;
   /** 設定目前說話的角色（null = 沒人說話） */
   setSpeaker: (slotId: string | null) => void;
-  /** 讓角色做一次動作；動作檔還沒載入或載入失敗時略過 */
-  playGesture: (slotId: string, gesture: GestureId) => void;
+  /**
+   * 讓角色做一次動作；動作檔還沒載入或載入失敗時略過。
+   * pointAt：展示物件 id，動作期間上半身轉向它、手對準它（指向這件衣服）
+   */
+  playGesture: (slotId: string, gesture: GestureId, pointAt?: string) => void;
   /**
    * 角色把展示物件拿到手上（例如遞收據）；有動作時用動作裡伸出去的那隻手。
    * slotId 為 null 時放回原位
@@ -130,10 +133,12 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     }
     return clip;
   }, []);
-  const playGesture = useCallback((slotId: string, gestureId: GestureId) => {
+  /** 展示物件目前的中心點（世界座標）；場景還沒載入或沒有這個物件時回傳 null */
+  const propCenterRef = useRef<(propId: string) => THREE.Vector3 | null>(() => null);
+  const playGesture = useCallback((slotId: string, gestureId: GestureId, pointAt?: string) => {
     const avatar = avatarsRef.current.find(a => a.slotId === slotId);
     const clip = avatar && clipFor(avatar, gestureId);
-    if (avatar && clip) avatar.animator.playGesture(clip);
+    if (avatar && clip) avatar.animator.playGesture(clip, pointAt ? propCenterRef.current(pointAt) : null);
   }, [clipFor]);
   const heldRef = useRef<HeldProp | null>(null);
   const holdProp = useCallback((slotId: string | null, propId?: string, gesture?: GestureId) => {
@@ -284,6 +289,16 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     const displayOf = (id: string): GroupTransform => placements.get(`taskProp:${id}`)
       ?? { pos: taskPropCfg[id].displayPos, rot: taskPropCfg[id].rotation ?? [0, 0, 0] };
     const displayPos = new THREE.Vector3();
+    const propBox = new THREE.Box3();
+    propCenterRef.current = (propId) => {
+      const obj = taskPool?.get(propId);
+      if (obj) {
+        // 模型的原點不一定在中間（衣服常在衣架掛鉤），取外框中心
+        propBox.setFromObject(obj);
+        return propBox.isEmpty() ? obj.getWorldPosition(new THREE.Vector3()) : propBox.getCenter(new THREE.Vector3());
+      }
+      return taskPropCfg[propId] ? new THREE.Vector3(...displayOf(propId).pos) : null;
+    };
     const updateProps = (delta: number) => {
       if (!taskPool) return;
       const held = heldRef.current;
@@ -348,6 +363,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     return () => {
       disposed = true;
       avatarsRef.current = [];
+      propCenterRef.current = () => null;
       cancelAnimationFrame(raf);
       observer.disconnect();
       for (const a of avatars) { scene.remove(a.vrm.scene); VRMUtils.deepDispose(a.vrm.scene); }

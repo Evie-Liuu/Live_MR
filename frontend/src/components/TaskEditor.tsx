@@ -254,6 +254,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
             ...l,
             speakerSlotId: nextSlots.some(sl => sl.id === l.speakerSlotId) ? l.speakerSlotId : nextSlots[0]?.id ?? '',
             prop: nextProps.some(p => p.id === l.prop) ? l.prop : undefined,
+            pointAt: nextProps.some(p => p.id === l.pointAt) ? l.pointAt : undefined,
           })),
         })),
       };
@@ -462,11 +463,27 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                                 value={line.gesture ?? ''}
                                 aria-label="動作"
                                 title="說這句時角色做的動作（模擬播放時看得到）"
-                                onChange={e => editLine(line.id, { gesture: isGestureId(e.target.value) ? e.target.value : undefined })}
+                                onChange={e => {
+                                  const gesture = isGestureId(e.target.value) ? e.target.value : undefined;
+                                  // 指向的物件只對「指向」有意義，換成別的動作就清掉
+                                  editLine(line.id, gesture === 'point' ? { gesture } : { gesture, pointAt: undefined });
+                                }}
                               >
                                 <option value="">無動作</option>
                                 {GESTURES.map(g => <option key={g.id} value={g.id}>{g.icon} {g.label}</option>)}
                               </select>
+                              {line.gesture === 'point' && sceneProps.length > 0 && (
+                                <select
+                                  className={`te-gesture${line.pointAt ? ' has-gesture' : ''}`}
+                                  value={line.pointAt ?? ''}
+                                  aria-label="指向的物件"
+                                  title="模擬播放時角色會轉身、用手指著這個物件"
+                                  onChange={e => editLine(line.id, { pointAt: e.target.value || undefined })}
+                                >
+                                  <option value="">指向前方</option>
+                                  {sceneProps.map(p => <option key={p.id} value={p.id}>👉 指向{p.label}</option>)}
+                                </select>
+                              )}
                               {sceneProps.length > 0 && (
                                 <select
                                   className={`te-gesture${line.prop ? ' has-gesture' : ''}`}

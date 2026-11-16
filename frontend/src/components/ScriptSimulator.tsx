@@ -159,7 +159,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     };
 
     setSpeaker(cue.line.speakerSlotId);
-    if (cue.line.gesture) playGesture(cue.line.speakerSlotId, cue.line.gesture);
+    if (cue.line.gesture) playGesture(cue.line.speakerSlotId, cue.line.gesture, cue.line.gesture === 'point' ? cue.line.pointAt : undefined);
     // 台詞指定的展示物件（例如收據）由說話者拿在手上；沒有就放回原位
     holdProp(cue.line.prop ? cue.line.speakerSlotId : null, cue.line.prop, cue.line.gesture);
     const text = cue.line.en.trim();
