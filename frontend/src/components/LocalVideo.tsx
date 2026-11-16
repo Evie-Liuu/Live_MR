@@ -4,6 +4,7 @@ import { Track } from 'livekit-client';
 import PoseDebugOverlay from './PoseDebugOverlay';
 import type { PoseFrame } from '../types/vrm';
 import { useVrmAvatar } from '../hooks/useVrmAvatar';
+import { useSettledValue } from '../hooks/useSettledValue.ts';
 import { coverRect, POSE_STALE_MS, selfViewStatus } from '../utils/selfViewStatus.ts';
 
 interface LocalVideoProps {
@@ -13,10 +14,12 @@ interface LocalVideoProps {
   slotLabel?: string | null;
 }
 
-/** 左上角的追蹤狀態提示（沒入鏡、看不到手等）；先隱藏，要用時改成 true */
+/** 左上角的追蹤狀態提示（沒入鏡、看不到手等）；不想顯示時改成 false */
 const SHOW_TRACKING_STATUS = true;
 /** 檢查姿勢是否過時的間隔 */
 const STALE_CHECK_MS = 400;
+/** 追蹤狀態要維持這麼久才換提示，偶發幾幀抓錯手不會讓提示閃來閃去 */
+const STATUS_HOLD_MS = 800;
 
 /**
  * 教師端自己的鏡頭畫面：照鏡子方向的影像，疊上角色與追蹤骨架（骨架對齊裁切後的影像）。
@@ -82,7 +85,8 @@ export default function LocalVideo({ room, poseData, vrmSourceId, slotLabel }: L
   }, []);
 
   const landmarks = (poseData as PoseFrame | null)?.landmarks;
-  const status = selfViewStatus(landmarks, stale);
+  const rawStatus = selfViewStatus(landmarks, stale);
+  const status = useSettledValue(rawStatus, rawStatus.text, STATUS_HOLD_MS);
   const rect = coverRect(box.width, box.height, videoDims.width, videoDims.height);
   const identityText = room.localParticipant.name || room.localParticipant.identity;
   const labelText = slotLabel || '未指派';
