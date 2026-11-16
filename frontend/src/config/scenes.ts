@@ -177,14 +177,16 @@ export const THEMES: ThemeConfig[] = [
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
-            'tshirt_blue': { taskId: 'ask_price_1', label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'tshirt_blue_static': { taskId: 'ask_price_1', label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
+            // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
+            'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [0.8, 1.35, -2.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
+            'tshirt_blue': { label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI/2], heldRotation: [0, 0, 0] },
+            
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'dress_red': { taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.5, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'pants_jeans': { taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
-            // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
-            'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [0.8, 1.35, -2.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
             'receipt': { label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [0.95, 1.56, -3.75], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [Math.PI / 8, -Math.PI / 2, 0], heldFingerReach: 0.05,
