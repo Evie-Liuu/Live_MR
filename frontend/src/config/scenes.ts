@@ -172,7 +172,7 @@ export const THEMES: ThemeConfig[] = [
           policy: 'auto-swap',
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
-            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI/30, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI / 30, Math.PI / 30, 0], scale: 1.2 },
             { id: 'rack', label: "衣架", url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
           ],
           taskProps: {
@@ -182,25 +182,33 @@ export const THEMES: ThemeConfig[] = [
             // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
             // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
             'tshirt_red': { label: '櫃檯的紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [0.8, 1.35, -2.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
-            'tshirt_blue': { label: '櫃檯的藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI/2], heldRotation: [0, 0, 0] },
-            
+            'tshirt_blue': { label: '櫃檯的藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 2], heldRotation: [0, 0, 0] },
+
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'dress_red': { taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+            'dress_red': {
+              taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
-              bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 } },
+              bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 }
+            },
             'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'pants_jeans': { taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+            'pants_jeans': {
+              taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在腰前：褲頭對齊腰部，褲管拖到腳邊（配合「有點太長」）
-              bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 } },
-            'hat': { label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-3.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+              bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 }
+            },
+            'hat': {
+              label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-3.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就戴上（模型原點偏一側，往右補回來）
-              bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 } },
+              bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 }
+            },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
-            'receipt': { label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [0.95, 1.56, -3.75], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [Math.PI / 8, -Math.PI / 2, 0], heldFingerReach: 0.05,
+            'receipt': {
+              label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [0.95, 1.56, -3.75], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [Math.PI / 8, -Math.PI / 2, 0], heldFingerReach: 0.05,
               // 大螢幕握拳：直立握在拳頭裡、印字面朝觀看者（不像模擬器那樣往指尖外推，否則會浮在拳頭上方）
               fistHold: { rotation: [Math.PI / 2, -Math.PI / 2, 0], offset: [0, 0, 0.03], fingerReach: 0 },
-              scale: 2.2 },
+              scale: 2.2
+            },
           },
         },
         groups: [
@@ -236,59 +244,141 @@ export const THEMES: ThemeConfig[] = [
       },
 
       // ── Scene 2：試衣間 ───────────────────────────────────────────────
-      // {
-      //   id: 'clothingStore_fitting',
-      //   label: '試衣間',
-      //   labelEn: 'Fitting Room',
-      //   icon: '🪞',
-      //   allowedVrmIds: [
-      //     'default',
-      //     'student_male',
-      //     'student_female',
-      //     'clothingStoreStaff_female',
-      //     'clothingStoreStaff_male',
-      //   ],
-      //   slots: [
-      //     {
-      //       id: 'staff',
-      //       label: '店員',
-      //       icon: '🧑‍💼',
-      //       position: [1.2, 0, -1.5],
-      //       // rotation: [0, -Math.PI / 3, 0],
-      //       defaultVrmId: 'clothingStoreStaff_female',
-      //     },
-      //     {
-      //       id: 'shopper',
-      //       label: '試穿顧客',
-      //       icon: '👕',
-      //       position: [-1.2, 0, -1.5],
-      //       // rotation: [0, Math.PI / 3, 0],
-      //       defaultVrmId: 'default',
-      //     },
-      //   ],
-      //   modules: [
-      //     {
-      //       id: 'try_on',
-      //       label: 'Try On Items',
-      //       icon: '👗',
-      //       tasks: [
-      //         { id: 'try_on_1', label: 'Ask if you can try on the red dress.' },
-      //         { id: 'try_on_2', label: 'Tell the staff the item does not fit.' },
-      //         { id: 'try_on_3', label: 'Ask for a different colour to try.' },
-      //       ],
-      //     },
-      //     {
-      //       id: 'return_exchange',
-      //       label: 'Return or Exchange',
-      //       icon: '🔄',
-      //       tasks: [
-      //         { id: 'return_exchange_1', label: 'Ask how to return an item bought online.' },
-      //         { id: 'return_exchange_2', label: 'Request an exchange for the same item in a different size.' },
-      //         { id: 'return_exchange_3', label: 'Explain that you have the receipt and want a refund.' },
-      //       ],
-      //     },
-      //   ],
-      // },
+      // 角色、道具、群組目前和收銀台相同
+      {
+        id: 'clothingStore_fitting',
+        label: '試衣間',
+        labelEn: 'Fitting Room',
+        icon: '🪞',
+        allowedVrmIds: [
+          // 'default',
+          'student_male',
+          'student_female',
+          'clothingStoreStaff_female',
+          'clothingStoreStaff_male',
+        ],
+        slots: [
+          {
+            id: 'customer',
+            label: 'Customer A',
+            icon: '👗',
+            position: [-1.4, 0.5, -1.5],
+            rotation: [0, Math.PI / 4, 0],
+            defaultVrmId: 'student_female',
+          },
+          {
+            id: 'customer2',
+            label: 'Customer B',
+            icon: '🛍️',
+            position: [-2.4, 0.5, -1.5],
+            rotation: [0, Math.PI / 4, 0],
+            defaultVrmId: 'student_male',
+          },
+          {
+            id: 'staff',
+            label: 'Staff',
+            icon: '🏪',
+            position: [-0.5, 1.0, -3],
+            rotation: [0, -Math.PI / 8, 0],
+            defaultVrmId: 'clothingStoreStaff_female',
+          },
+        ],
+        modules: [
+          {
+            id: 'try_on',
+            label: 'Try On Items',
+            icon: '👗',
+            tasks: [
+              { id: 'try_on_1', label: 'Ask if you can try on the red dress.' },
+              { id: 'try_on_2', label: 'Tell the staff the item does not fit.' },
+              { id: 'try_on_3', label: 'Ask for a different colour to try.' },
+            ],
+          },
+          {
+            id: 'return_exchange',
+            label: 'Return or Exchange',
+            icon: '🔄',
+            tasks: [
+              { id: 'return_exchange_1', label: 'Ask how to return an item bought online.' },
+              { id: 'return_exchange_2', label: 'Request an exchange for the same item in a different size.' },
+              { id: 'return_exchange_3', label: 'Explain that you have the receipt and want a refund.' },
+            ],
+          },
+        ],
+        propSystem: {
+          policy: 'auto-swap',
+          staticProps: [
+            // Placeholder — replace url with actual GLB path when asset is ready
+            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI / 30, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'rack', label: "衣架", url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
+          ],
+          taskProps: {
+            // Placeholder entries — replace urls with actual GLB paths when assets are ready
+            'tshirt_blue_static': { taskId: 'ask_price_1', label: '藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [-2.5, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'tshirt_blue_small': { label: '小號藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue_Small.glb', displayPos: [-2.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            // 平放在櫃檯上（傾斜角與 cashier_counter 一致），拿起來時轉成垂掛
+            // 'tshirt_red': { label: '紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [1.19, 1.3, -1.39], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0], heldSideOffset: 0.22, scale: 0.9 },
+            'tshirt_red': { label: '櫃檯的紅色 T 恤', url: '/models/clothingStore/objects/Tshirt_Red.glb', displayPos: [0.8, 1.35, -2.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 30], heldRotation: [0, 0, 0] },
+            'tshirt_blue': { label: '櫃檯的藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 2], heldRotation: [0, 0, 0] },
+
+            'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'dress_red': {
+              taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+              // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
+              bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 }
+            },
+            'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'pants_jeans': {
+              taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+              // 上課拿著雙手握拳就比在腰前：褲頭對齊腰部，褲管拖到腳邊（配合「有點太長」）
+              bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 }
+            },
+            'hat': {
+              label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-3.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+              // 上課拿著雙手握拳就戴上（模型原點偏一側，往右補回來）
+              bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 }
+            },
+            // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
+            // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
+            'receipt': {
+              label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [0.95, 1.56, -3.75], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [Math.PI / 8, -Math.PI / 2, 0], heldFingerReach: 0.05,
+              // 大螢幕握拳：直立握在拳頭裡、印字面朝觀看者（不像模擬器那樣往指尖外推，否則會浮在拳頭上方）
+              fistHold: { rotation: [Math.PI / 2, -Math.PI / 2, 0], offset: [0, 0, 0.03], fingerReach: 0 },
+              scale: 2.2
+            },
+          },
+        },
+        groups: [
+          {
+            id: 'cashier_side',
+            label: '收銀區',
+            members: [
+              { kind: 'slot', id: 'cashier' },
+              { kind: 'slot', id: 'staff' },
+              { kind: 'staticProp', id: 'cashier_counter' },
+              { kind: 'taskProp', id: 'tshirt_red' },
+              { kind: 'taskProp', id: 'tshirt_blue' },
+              { kind: 'taskProp', id: 'receipt' },
+            ],
+          },
+          {
+            id: 'customer_side',
+            label: '顧客區',
+            members: [
+              { kind: 'slot', id: 'customer' },
+              { kind: 'slot', id: 'customer2' },
+              { kind: 'staticProp', id: 'rack' },
+              { kind: 'taskProp', id: 'tshirt_blue_small' },
+              { kind: 'taskProp', id: 'tshirt_blue_static' },
+              { kind: 'taskProp', id: 'jacket_black' },
+              { kind: 'taskProp', id: 'dress_red' },
+              { kind: 'taskProp', id: 'shirt_white' },
+              { kind: 'taskProp', id: 'pants_jeans' },
+              { kind: 'taskProp', id: 'hat' },
+            ],
+          },
+        ],
+      },
     ],
   },
 

@@ -15,6 +15,13 @@ Grammar: Keep it simple and natural for a learner. Use whatever tense the teache
 Vocabulary: prices (dollars, cost, price), sizes (small, medium, large), colors, payment methods (cash, card), polite expressions (please, thank you), plus common everyday words when the topic shifts.
 Response style: short, conversational, natural — 1 to 2 sentences.
 `.trim(),
+  clothingStore_fitting: `
+Setting: A clothing store fitting room. The student tries on clothes (jeans, a dress, a hat) and talks with a friend or a shop assistant about how they look. Trying on is the default backdrop, but the conversation may naturally drift into everyday small talk when the teacher leads there.
+Language: Everyday spoken English. Trying-on and outfit vocabulary is the core, but follow the teacher into other everyday topics when asked.
+Grammar: Keep it simple and natural for a learner. Use whatever tense the teacher's question calls for. Avoid overly complex constructions.
+Vocabulary: try on, fitting room, fit, too long / too short / too big / too small, look nice / great on you, look good with, colors, clothing items, polite expressions, plus common everyday words when the topic shifts.
+Response style: short, conversational, natural — 1 to 2 sentences.
+`.trim(),
 }
 
 const MODE_INSTRUCTIONS: Record<AIHintMode, string> = {
