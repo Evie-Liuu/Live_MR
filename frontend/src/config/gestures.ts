@@ -13,7 +13,7 @@
 /** 待機循環動作：不是可排進台詞的手勢，不列入 GESTURES；檔案不存在時用程式待機姿勢 */
 export const IDLE_ANIMATION_URL = '/animations/idle.vrma';
 
-export type GestureId = 'wave' | 'nod' | 'bow' | 'point' | 'handOver' | 'thumbsUp' | 'happy';
+export type GestureId = 'wave' | 'nod' | 'bow' | 'point' | 'handOver' | 'hold' | 'thumbsUp' | 'happy';
 
 export interface GestureDef {
   id: GestureId;
@@ -29,6 +29,7 @@ export const GESTURES: readonly GestureDef[] = [
   { id: 'bow', label: '鞠躬', icon: '🙇', url: '/animations/bow.vrma' },
   { id: 'point', label: '指向', icon: '👉', url: '/animations/point.vrma' },
   { id: 'handOver', label: '遞東西', icon: '🤲', url: '/animations/handOver.vrma' },
+  { id: 'hold', label: '拿著', icon: '✊', url: '/animations/hold.vrma' },
   { id: 'thumbsUp', label: '比讚', icon: '👍', url: '/animations/thumbsUp.vrma' },
   { id: 'happy', label: '開心', icon: '😄', url: '/animations/happy.vrma' },
 ];

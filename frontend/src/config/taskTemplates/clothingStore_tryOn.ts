@@ -24,7 +24,7 @@ export const clothingStoreTryOn: TaskTemplate = {
         title: '試穿牛仔褲與描述尺寸',
         purpose: '能詢問是否可以試穿、徵求朋友意見，並描述尺寸問題',
         lines: [
-          { id: 'step1_1', speakerSlotId: 'customer', en: 'Can I try these jeans on?', zh: '我可以試穿這條牛仔褲嗎？', prop: 'pants_jeans' },
+          { id: 'step1_1', speakerSlotId: 'customer', en: 'Can I try these jeans on?', zh: '我可以試穿這條牛仔褲嗎？', gesture: 'hold', prop: 'pants_jeans' },
           { id: 'step1_2', speakerSlotId: 'staff', en: 'Sure! The fitting room is over there.', zh: '當然可以！試衣間在那邊。', gesture: 'point' },
           { id: 'step1_3', speakerSlotId: 'customer', en: 'What do you think?', zh: '你覺得怎麼樣？', prop: 'pants_jeans', wear: true },
           { id: 'step1_4', speakerSlotId: 'customer2', en: 'They look nice on you!', zh: '你穿起來很好看！', gesture: 'nod' },
@@ -61,7 +61,7 @@ export const clothingStoreTryOn: TaskTemplate = {
         purpose: '能詢問穿著效果、表達喜好，並說明理由',
         lines: [
           { id: 'step2_1', speakerSlotId: 'customer', en: 'Can I try this red dress on, too?', zh: '我也可以試穿這件紅色洋裝嗎？', gesture: 'point', pointAt: 'dress_red' },
-          { id: 'step2_2', speakerSlotId: 'staff', en: 'Of course! Here you are.', zh: '當然可以！給你。', gesture: 'handOver', prop: 'dress_red' },
+          { id: 'step2_2', speakerSlotId: 'staff', en: 'Of course! Here you are.', zh: '當然可以！給你。', gesture: 'hold', prop: 'dress_red' },
           { id: 'step2_3', speakerSlotId: 'customer', en: 'How does this dress look?', zh: '這件洋裝看起來怎麼樣？', prop: 'dress_red', wear: true },
           { id: 'step2_4', speakerSlotId: 'customer2', en: 'It looks great on you!', zh: '你穿起來很好看！', gesture: 'thumbsUp' },
           { id: 'step2_5', speakerSlotId: 'customer', en: 'Thanks! I really like this dress.', zh: '謝謝！我真的很喜歡這件洋裝。', gesture: 'happy' },
@@ -100,7 +100,7 @@ export const clothingStoreTryOn: TaskTemplate = {
         purpose: '能表達決定、提出建議、詢問搭配意見並稱讚對方的選擇',
         lines: [
           { id: 'step3_1', speakerSlotId: 'customer', en: "I think I'll choose this dress.", zh: '我想我會選這件洋裝。', prop: 'dress_red', wear: true },
-          { id: 'step3_2', speakerSlotId: 'customer2', en: 'How about this hat?', zh: '這頂帽子怎麼樣？', prop: 'hat' },
+          { id: 'step3_2', speakerSlotId: 'customer2', en: 'How about this hat?', zh: '這頂帽子怎麼樣？', gesture: 'hold', prop: 'hat' },
           { id: 'step3_3', speakerSlotId: 'customer', en: 'Do you think it looks good with the dress?', zh: '你覺得這頂帽子搭配這件洋裝好看嗎？' },
           { id: 'step3_4', speakerSlotId: 'staff', en: 'Try this hat with the dress!', zh: '試試看用這頂帽子搭配洋裝吧！', gesture: 'happy', branch: 'staff' },
           { id: 'step3_5', speakerSlotId: 'customer2', en: 'Yes! It looks great with the dress.', zh: '好看！它跟這件洋裝很搭。', gesture: 'nod' },

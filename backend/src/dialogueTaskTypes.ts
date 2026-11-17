@@ -23,7 +23,7 @@ export interface DialogueLine {
 }
 
 /** 動作庫 id，與前端 frontend/src/config/gestures.ts 一致 */
-export const GESTURE_IDS = ['wave', 'nod', 'bow', 'point', 'handOver', 'thumbsUp', 'happy'] as const
+export const GESTURE_IDS = ['wave', 'nod', 'bow', 'point', 'handOver', 'hold', 'thumbsUp', 'happy'] as const
 export type GestureId = typeof GESTURE_IDS[number]
 
 /** 道具 id 由前端場景設定決定，後端只檢查格式；場景沒有這個道具時上課會直接略過 */

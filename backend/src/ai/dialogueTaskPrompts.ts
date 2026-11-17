@@ -121,7 +121,7 @@ ${describeCast(castSize, ctx.slots.length)}
 - "gesture": the body movement the speaker's 3D avatar makes while saying the line. One of:
   wave (greeting someone or saying goodbye), nod (agreeing, confirming, understanding),
   bow (polite thanks, apology or farewell), point (pointing at an item, place or direction),
-  handOver (giving or receiving an item, receipt, money or card), thumbsUp (approval, "great", "good choice"),
+  handOver (giving or receiving an item, receipt, money or card), hold (holding an item up in one hand, e.g. picking up clothes to try on), thumbsUp (approval, "great", "good choice"),
   happy (pleased or excited), or none.
   Use a gesture only where it is natural — roughly one third to one half of the lines — and use none for the rest.
 - "title" (task) and step "title": short Traditional Chinese names, e.g. 服飾店購物 / 招呼 / 報價.

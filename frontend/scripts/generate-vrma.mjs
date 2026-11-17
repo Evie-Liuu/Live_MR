@@ -2,7 +2,8 @@
 /**
  * generate-vrma.mjs — 產生劇本模擬器用的基本 VRMA 動作檔（程式產生，無授權問題）
  *
- *   node scripts/generate-vrma.mjs            → 寫入 public/animations/<id>.vrma
+ *   node scripts/generate-vrma.mjs            → 寫入 public/animations/<id>.vrma（全部）
+ *   node scripts/generate-vrma.mjs hold wave  → 只寫入指定的動作（避免覆蓋已換成專業動作檔的檔案）
  *
  * 之後若取得授權的專業動作檔，直接用同名檔案覆蓋即可，程式不用改（見 src/config/gestures.ts）。
  *
@@ -170,6 +171,19 @@ const GESTURES = {
     expressions: { happy: [[0, 0], [0.45, 0.6], [1.7, 0.6], [2.2, 0]] },
   },
 
+  // 拿著：右手往前下方伸、手肘彎起讓前臂朝前，握拳拿著東西（拇指收進拳頭）
+  hold: {
+    duration: 2.6,
+    bones: {
+      rightUpperArm: [[0, R_ARM_IDLE], [0.45, rot(['z', 70], ['y', 15])], [2.1, rot(['z', 70], ['y', 15])], [2.6, R_ARM_IDLE]],
+      rightLowerArm: [[0, IDENTITY], [0.45, rot(['y', 70])], [2.1, rot(['y', 70])], [2.6, IDENTITY]],
+      ...curlFingers('right', 85, [[0, 0], [0.45, 1], [2.1, 1], [2.6, 0]]),
+      rightThumbProximal: [[0, IDENTITY], [0.45, rot(['y', -25], ['z', 20])], [2.1, rot(['y', -25], ['z', 20])], [2.6, IDENTITY]],
+      rightThumbDistal: [[0, IDENTITY], [0.45, rot(['z', 30])], [2.1, rot(['z', 30])], [2.6, IDENTITY]],
+      head: [[0, IDENTITY], [0.45, rot(['x', 5])], [2.1, rot(['x', 5])], [2.6, IDENTITY]],
+    },
+  },
+
   // 開心：笑臉＋身體左右輕擺、手臂微抬
   happy: {
     duration: 2.0,
@@ -286,7 +300,10 @@ function toGlb(json, bin) {
 }
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
+const only = process.argv.slice(2);
+for (const id of only) if (!GESTURES[id]) throw new Error(`unknown gesture ${id}`);
 for (const [id, gesture] of Object.entries(GESTURES)) {
+  if (only.length && !only.includes(id)) continue;
   const file = path.join(OUT_DIR, `${id}.vrma`);
   fs.writeFileSync(file, buildVrma(gesture));
   console.log(`wrote ${path.relative(process.cwd(), file)} (${gesture.duration}s)`);

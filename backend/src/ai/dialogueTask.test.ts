@@ -141,7 +141,7 @@ describe('buildDialogueTaskPrompt', () => {
     const line = (schema as unknown as { properties: { steps: { items: { properties: { lines: { items: { required: string[]; properties: { gesture: { enum: string[] } } } } } } } } })
       .properties.steps.items.properties.lines.items
     expect(line.required).toContain('gesture')
-    expect(line.properties.gesture.enum).toEqual(['wave', 'nod', 'bow', 'point', 'handOver', 'thumbsUp', 'happy', 'none'])
+    expect(line.properties.gesture.enum).toEqual(['wave', 'nod', 'bow', 'point', 'handOver', 'hold', 'thumbsUp', 'happy', 'none'])
   })
 })
 
