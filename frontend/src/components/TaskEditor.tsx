@@ -88,6 +88,11 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
     () => [...new Set((task.castOptions ?? []).flatMap(c => c.omit ?? []))],
     [task.castOptions],
   );
+  /** 有演出人數版本會併掉的角色：台詞（包括他自己說的）也可以標成他的支線 */
+  const mergedSlots = useMemo(
+    () => [...new Set((task.castOptions ?? []).flatMap(c => Object.keys(c.merge)))],
+    [task.castOptions],
+  );
   const activeIndex = Math.max(0, task.steps.findIndex(s => s.id === activeStepId));
   const step: DialogueStep | undefined = task.steps[activeIndex];
   const timings = useMemo(() => stepTimings(step?.lines ?? []), [step]);
@@ -502,17 +507,17 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                                   {sceneProps.map(p => <option key={p.id} value={p.id}>✊ 拿起{p.label}</option>)}
                                 </select>
                               )}
-                              {(omittedSlots.some(id => id !== line.speakerSlotId) || line.branch) && (
+                              {(omittedSlots.some(id => id !== line.speakerSlotId) || mergedSlots.length > 0 || line.branch) && (
                                 <select
                                   className={`te-gesture${line.branch ? ' has-gesture' : ''}`}
                                   value={line.branch ?? ''}
                                   aria-label="支線"
-                                  title="這句屬於某個角色的支線（例如對他說的話）：少人數版本刪掉那個角色時，這句一起刪"
+                                  title="這句屬於某個角色的支線（例如對他說的話、店員專屬的話）：少人數版本刪掉或併掉那個角色時，這句一起刪"
                                   onChange={e => editLine(line.id, { branch: e.target.value || undefined })}
                                 >
                                   <option value="">主線</option>
-                                  {[...new Set([...omittedSlots, ...(line.branch ? [line.branch] : [])])]
-                                    .filter(id => id !== line.speakerSlotId)
+                                  {[...new Set([...omittedSlots, ...mergedSlots, ...(line.branch ? [line.branch] : [])])]
+                                    .filter(id => id !== line.speakerSlotId || mergedSlots.includes(id) || id === line.branch)
                                     .map(id => (
                                       <option key={id} value={id}>
                                         ✂ {slots.find(sl => sl.id === id)?.label ?? id} 的支線
@@ -813,7 +818,7 @@ const CAST_OMIT = '__omit__';
 function castLineCounts(task: DialogueTask, merge: Record<string, string>, omit: readonly string[] = []): Map<string, number> {
   const counts = new Map<string, number>();
   for (const line of task.steps.flatMap(s => s.lines)) {
-    if (!lineKept(line, omit)) continue;
+    if (!lineKept(line, omit, merge)) continue;
     const id = merge[line.speakerSlotId] ?? line.speakerSlotId;
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
@@ -886,7 +891,7 @@ function CastEditor({ task, slotLabel, onChange }: {
     <div className="te-cast-panel">
       <p className="te-cast-intro">
         套用到整個任務的所有步驟。完整 {full} 人各演一角；人數不夠時可新增較少人數的版本，把某些角色的台詞併給別人說，
-        或整個刪掉某個角色（別人對他說的台詞，可在台詞旁標成他的支線一起刪）。
+        或整個刪掉某個角色。別人對他說的台詞、或併給別人說會不自然的台詞，可在台詞旁標成他的支線，刪掉或併掉他時一起刪。
         上課時在「角色配置」切換演出人數。
       </p>
 

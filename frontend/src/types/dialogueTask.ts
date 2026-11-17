@@ -18,8 +18,9 @@ export interface DialogueLine {
   /** 動作為「指向」時指著的展示物件（場景 taskProps 的 id）；模擬播放時角色會轉身指向它 */
   pointAt?: string
   /**
-   * 這句屬於某個角色的支線（例如店員對顧客B 說的話）：演出人數版本把那個角色刪掉時，這句一起刪。
-   * 該角色自己說的台詞不用標，刪角色時本來就會刪。
+   * 這句屬於某個角色的支線，只在那個角色有自己的演員時才演：演出人數版本把那個角色刪掉或併掉時，這句一起刪。
+   * 例如店員對顧客B 說的話（標顧客B），或店員專屬、併給別人說會不自然的台詞（標店員自己）。
+   * 角色被刪掉時他自己說的台詞本來就會刪，不用標。
    */
   branch?: string
 }
@@ -72,6 +73,7 @@ export interface TemplateSource {
  * 併角方案：用比原本少的人數演出時，把某些角色的台詞併給另一個角色說，或整個刪掉某些角色。
  * merge 是「被併掉的角色 → 改由哪個角色說」，例如 { staff: 'cashier' }＝店員B 的台詞由店員A 說。
  * omit 是整段刪掉的角色：他的台詞、以及標了 branch 為他的台詞（例如別人對他說的話）都不演。
+ * 被併掉的角色，標了 branch 為他的台詞也不演（其他台詞照常改由接手的角色說）。
  * 演出人數不另外存，由併角後實際有台詞的角色數算出（任務改過台詞也不會對不上）。
  */
 export interface CastOption {
@@ -128,9 +130,10 @@ export function castSize(task: DialogueTask, merge: Record<string, string>, omit
   return speakers.filter(id => !(id in merge) && !omit.includes(id)).length
 }
 
-/** 這句在刪掉 omit 這些角色的版本裡是否還要演 */
-export function lineKept(line: DialogueLine, omit: readonly string[] = []): boolean {
-  return !omit.includes(line.speakerSlotId) && !(line.branch !== undefined && omit.includes(line.branch))
+/** 這句在刪掉 omit、併掉 merge 這些角色的版本裡是否還要演 */
+export function lineKept(line: DialogueLine, omit: readonly string[] = [], merge: Record<string, string> = {}): boolean {
+  if (omit.includes(line.speakerSlotId)) return false
+  return line.branch === undefined || (!omit.includes(line.branch) && !(line.branch in merge))
 }
 
 export interface CastChoice {
@@ -154,7 +157,7 @@ export function castChoices(task: DialogueTask): CastChoice[] {
 
 /**
  * 依併角規則產生該人數要演的任務（回傳新任務，不改原任務）：
- * 刪掉的角色與他的支線台詞拿掉，被併掉角色的台詞改由對應角色說
+ * 刪掉的角色與他的支線台詞拿掉、被併掉角色的支線台詞拿掉，被併掉角色的其他台詞改由對應角色說
  */
 export function applyCastMerge(task: DialogueTask, merge: Record<string, string>, omit: readonly string[] = []): DialogueTask {
   if (Object.keys(merge).length === 0 && omit.length === 0) return task
@@ -163,7 +166,7 @@ export function applyCastMerge(task: DialogueTask, merge: Record<string, string>
     steps: task.steps.map(s => ({
       ...s,
       lines: s.lines
-        .filter(l => lineKept(l, omit))
+        .filter(l => lineKept(l, omit, merge))
         .map(l => (merge[l.speakerSlotId] ? { ...l, speakerSlotId: merge[l.speakerSlotId] } : l)),
     })),
   }

@@ -77,6 +77,18 @@ describe('併角方案', () => {
     expect(withBranch.steps[0].lines).toHaveLength(6)
   })
 
+  it('併掉角色：標成他支線的台詞（包括他自己說的）拿掉，其他台詞改由接手的人說', () => {
+    const withBranch: DialogueTask = {
+      ...task,
+      steps: [{ ...task.steps[0], lines: [...task.steps[0].lines, { ...line('staff'), id: 'staffOnly', branch: 'staff' }] }],
+    }
+    const cut = applyCastMerge(withBranch, { staff: 'cashier' })
+    expect(cut.steps[0].lines.map(l => `${l.id}:${l.speakerSlotId}`)).toEqual([
+      'cashier:cashier', 'customer:customer', 'staff:cashier', 'customer2:customer2', 'staff:cashier',
+    ])
+    expect(applyCastMerge(withBranch, { customer2: 'customer' }).steps[0].lines).toHaveLength(6)
+  })
+
   it('不能把台詞併給被刪掉的角色；同時被併又被刪以刪掉為準', () => {
     expect(castSize(task, { staff: 'customer2' }, ['customer2'])).toBeNull()
     expect(castSize(task, { customer2: 'customer' }, ['customer2'])).toBe(3)

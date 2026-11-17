@@ -188,6 +188,7 @@ export const THEMES: ThemeConfig[] = [
             'dress_red': { taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'pants_jeans': { taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'hat': { label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-3.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
             'receipt': { label: '收據', url: '/models/clothingStore/objects/Receipts.glb', displayPos: [0.95, 1.56, -3.75], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [Math.PI / 8, -Math.PI / 2, 0], heldFingerReach: 0.05,
@@ -222,6 +223,7 @@ export const THEMES: ThemeConfig[] = [
               { kind: 'taskProp', id: 'dress_red' },
               { kind: 'taskProp', id: 'shirt_white' },
               { kind: 'taskProp', id: 'pants_jeans' },
+              { kind: 'taskProp', id: 'hat' },
             ],
           },
         ],
