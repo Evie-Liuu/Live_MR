@@ -52,6 +52,7 @@ import {
   returnPropToDisplay,
   rotatePropToward,
 } from '../utils/propInteraction';
+import { anchorBonePosition, isHandAtAnchor, placePropOnBody, readBodyFrame, type BodyFrame } from '../utils/bodyHold';
 import {
   detectFist,
   detectOpenHand,
@@ -103,6 +104,12 @@ interface AvatarSlot {
     grabFistLastAt: number;
     /** performance.now() deadline before which open-hand release is ignored */
     grabCooldownUntil: number;
+    /** 拿著的道具目前貼在身上（比在身上、戴帽子）；見 TaskPropConfig.bodyHold */
+    onBody: boolean;
+    /** 手的位置與 onBody 不一致是從什麼時候開始（0＝一致）；要維持一段時間才切換 */
+    bodyToggleSince: number;
+    /** 上次從身上拿回手上的時間，之後短暫用平滑移動回到手上 */
+    bodyLeftAt: number;
   };
   /** Pre-allocated output for projectToUV — avoids per-frame {x,y} allocation */
   _propUV: { x: number; y: number };
@@ -121,6 +128,14 @@ const STATS_INTERVAL_MS = 500;
 const POSE_STALLED_MS = 2000;
 /** Milliseconds after a grab during which open-hand is ignored (prevents instant release) */
 const GRAB_RELEASE_COOLDOWN_MS = 600;
+
+/** 手移到身上或移開要維持這麼久才切換（貼上身／拿回手上），偶發幾幀的抖動不會讓道具跳來跳去 */
+const BODY_HOLD_SWITCH_MS = 250;
+/** 從身上拿回手上後，這段時間用平滑移動回到手上 */
+const BODY_HOLD_LEAVE_LERP_MS = 300;
+const _bodyFrame: BodyFrame = { left: new THREE.Vector3(), forward: new THREE.Vector3(), sizeFactor: 1 };
+const _bodyAnchorPos = new THREE.Vector3();
+const _bodyHandPos = new THREE.Vector3();
 
 /** Reusable Vector3 for prop returning target — avoids per-frame allocation */
 const _displayPosVec = new THREE.Vector3();
@@ -501,10 +516,18 @@ export function useBigScreenScene(
   /** 有 heldRotation 的道具放回時轉回擺放角度（t=1 直接到位）。 */
   const restorePropRotation = useCallback((prop: THREE.Group, taskId: string, t: number) => {
     const cfg = presetRef.current.propSystem?.taskProps?.[taskId];
-    if (!cfg?.heldRotation) return;
+    // 貼在身上會轉向身體正面，所以有 bodyHold 的道具也要轉回來
+    if (!cfg?.heldRotation && !cfg?.bodyHold) return;
     rotatePropToward(prop, effectiveDisplayRotRef.current.get(taskId) ?? cfg.rotation ?? [0, 0, 0], t);
   }, []);
   /** Tracks the active prop ID for interaction use */
+  /** 貼在身上時改過大小的道具，拿回手上或放回時轉回原本大小（t=1 直接到位）。 */
+  const restorePropScale = useCallback((prop: THREE.Group, taskId: string, t: number) => {
+    const base = presetRef.current.propSystem?.taskProps?.[taskId]?.scale ?? 1;
+    if (prop.scale.x === base) return;
+    prop.scale.setScalar(THREE.MathUtils.lerp(prop.scale.x, base, Math.min(1, t)));
+  }, []);
+
   const currentPropIdRef = useRef<string | undefined>(undefined);
   currentPropIdRef.current = currentPropId;
   const propGrabberIdentityRef = useRef(propGrabberIdentity);
@@ -910,6 +933,7 @@ export function useBigScreenScene(
               _displayPosVec.set(...dp);
               const arrived = returnPropToDisplay(returningProp, _displayPosVec, delta);
               restorePropRotation(returningProp, ia.returningTaskId, arrived ? 1 : delta * 8);
+              restorePropScale(returningProp, ia.returningTaskId, arrived ? 1 : delta * 8);
               if (arrived) {
                 ia.propState = 'displayed';
                 ia.returningTaskId = undefined;
@@ -953,6 +977,7 @@ export function useBigScreenScene(
               const dp = effective ?? dpCfg;
               if (dp) prop.position.copy(_displayPosVec.set(...dp));
               restorePropRotation(prop, taskId, 1);
+              restorePropScale(prop, taskId, 1);
             }
 
             // console.log(heldBy);
@@ -992,6 +1017,8 @@ export function useBigScreenScene(
                     ia.handLostAt = 0;
                     ia.grabFistFirstAt = 0;
                     ia.grabCooldownUntil = now + GRAB_RELEASE_COOLDOWN_MS;
+                    ia.onBody = false;
+                    ia.bodyToggleSince = 0;
                     heldByIdentityRef.current.set(taskId, identity);
                     highlightProp(prop, false);
                     grabbedThisFrame = true;
@@ -1016,13 +1043,46 @@ export function useBigScreenScene(
             const propCfg = presetRef.current.propSystem?.taskProps?.[taskId];
             // 握拳的拿法可以另外設定（fistHold），沒設定就跟模擬器一樣
             const fist = propCfg?.fistHold;
-            attachPropToHand(
-              prop, slot.vrm, ia.lockHand, !inCooldown, propCfg?.heldSideOffset,
-              fist ? fist.offset : propCfg?.heldOffset,
-              fist ? fist.fingerReach : propCfg?.heldFingerReach,
-            );
-            const heldRot = fist?.rotation ?? propCfg?.heldRotation;
-            if (heldRot) rotatePropToward(prop, heldRot, delta * 8);
+
+            // 手移到身上（腰前、胸前、頭頂）一段時間 → 道具貼到身上；手移開一段時間 → 回到手上
+            const bodyCfg = propCfg?.bodyHold;
+            const bodyReady = !!bodyCfg && !inCooldown
+              && readBodyFrame(slot.vrm, _bodyFrame)
+              && anchorBonePosition(slot.vrm, bodyCfg.anchor, _bodyAnchorPos);
+            const handBone = slot.vrm.humanoid.getNormalizedBoneNode(ia.lockHand === 'right' ? 'leftHand' : 'rightHand');
+            if (bodyCfg && bodyReady && handBone) {
+              handBone.getWorldPosition(_bodyHandPos);
+              const atAnchor = isHandAtAnchor(_bodyHandPos, _bodyAnchorPos, bodyCfg.anchor, _bodyFrame, ia.onBody);
+              if (atAnchor === ia.onBody) {
+                ia.bodyToggleSince = 0;
+              } else {
+                if (ia.bodyToggleSince === 0) ia.bodyToggleSince = now;
+                if (now - ia.bodyToggleSince >= BODY_HOLD_SWITCH_MS) {
+                  if (!atAnchor) ia.bodyLeftAt = now;
+                  ia.onBody = atAnchor;
+                  ia.bodyToggleSince = 0;
+                }
+              }
+            } else if (ia.onBody) {
+              ia.onBody = false;
+              ia.bodyToggleSince = 0;
+              ia.bodyLeftAt = now;
+            }
+
+            if (ia.onBody && bodyCfg) {
+              placePropOnBody(prop, _bodyAnchorPos, _bodyFrame, bodyCfg, propCfg?.scale ?? 1, delta * 10);
+            } else {
+              const leavingBody = now - ia.bodyLeftAt < BODY_HOLD_LEAVE_LERP_MS;
+              attachPropToHand(
+                prop, slot.vrm, ia.lockHand, !inCooldown && !leavingBody, propCfg?.heldSideOffset,
+                fist ? fist.offset : propCfg?.heldOffset,
+                fist ? fist.fingerReach : propCfg?.heldFingerReach,
+              );
+              const heldRot = fist?.rotation ?? propCfg?.heldRotation;
+              if (heldRot) rotatePropToward(prop, heldRot, delta * 8);
+              else if (bodyCfg) restorePropRotation(prop, taskId, delta * 8);
+              restorePropScale(prop, taskId, delta * 10);
+            }
 
             if (!hLandmarks || hLandmarks.length < 21) {
               // Grace period: 500 ms before forcing a release on landmark loss
@@ -1054,6 +1114,7 @@ export function useBigScreenScene(
               _displayPosVec.set(...dp);
               const arrived = returnPropToDisplay(prop, _displayPosVec, delta);
               restorePropRotation(prop, taskId, arrived ? 1 : delta * 8);
+              restorePropScale(prop, taskId, arrived ? 1 : delta * 8);
               if (arrived) {
                 ia.propState = 'displayed';
               }
@@ -1356,6 +1417,9 @@ export function useBigScreenScene(
               grabFistFirstAt: 0,
               grabFistLastAt: 0,
               grabCooldownUntil: 0,
+              onBody: false,
+              bodyToggleSince: 0,
+              bodyLeftAt: 0,
             },
             _propUV: { x: 0, y: 0 },
           };
@@ -1408,8 +1472,9 @@ export function useBigScreenScene(
       if (!prop || !displayPos) continue;
       prop.position.set(...displayPos);
       restorePropRotation(prop, taskId, 1);
+      restorePropScale(prop, taskId, 1);
     }
-  }, [restorePropRotation]);
+  }, [restorePropRotation, restorePropScale]);
 
   /** Swap the VRM model for a specific identity. Removes old avatar and reloads with new URL. */
   const swapAvatar = useCallback(
