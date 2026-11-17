@@ -52,7 +52,7 @@ import {
   returnPropToDisplay,
   rotatePropToward,
 } from '../utils/propInteraction';
-import { anchorBonePosition, isHandAtAnchor, placePropOnBody, readBodyFrame, type BodyFrame } from '../utils/bodyHold';
+import { anchorBonePosition, placePropOnBody, readBodyFrame, resetDoubleFist, stepDoubleFist, type BodyFrame, type DoubleFistTimer } from '../utils/bodyHold';
 import {
   detectFist,
   detectOpenHand,
@@ -104,10 +104,10 @@ interface AvatarSlot {
     grabFistLastAt: number;
     /** performance.now() deadline before which open-hand release is ignored */
     grabCooldownUntil: number;
-    /** 拿著的道具目前貼在身上（比在身上、戴帽子）；見 TaskPropConfig.bodyHold */
+    /** 拿著的道具目前貼在身上（比在身上、戴帽子）；見 TaskPropConfig.bodyHold。貼上後放手、手出鏡都不會掉 */
     onBody: boolean;
-    /** 手的位置與 onBody 不一致是從什麼時候開始（0＝一致）；要維持一段時間才切換 */
-    bodyToggleSince: number;
+    /** 雙手握拳的計時：維持一段時間就切換貼上身／拿回手上 */
+    bodyFist: DoubleFistTimer;
     /** 上次從身上拿回手上的時間，之後短暫用平滑移動回到手上 */
     bodyLeftAt: number;
   };
@@ -129,13 +129,10 @@ const POSE_STALLED_MS = 2000;
 /** Milliseconds after a grab during which open-hand is ignored (prevents instant release) */
 const GRAB_RELEASE_COOLDOWN_MS = 600;
 
-/** 手移到身上或移開要維持這麼久才切換（貼上身／拿回手上），偶發幾幀的抖動不會讓道具跳來跳去 */
-const BODY_HOLD_SWITCH_MS = 250;
 /** 從身上拿回手上後，這段時間用平滑移動回到手上 */
 const BODY_HOLD_LEAVE_LERP_MS = 300;
 const _bodyFrame: BodyFrame = { left: new THREE.Vector3(), forward: new THREE.Vector3(), sizeFactor: 1 };
 const _bodyAnchorPos = new THREE.Vector3();
-const _bodyHandPos = new THREE.Vector3();
 
 /** Reusable Vector3 for prop returning target — avoids per-frame allocation */
 const _displayPosVec = new THREE.Vector3();
@@ -1018,7 +1015,7 @@ export function useBigScreenScene(
                     ia.grabFistFirstAt = 0;
                     ia.grabCooldownUntil = now + GRAB_RELEASE_COOLDOWN_MS;
                     ia.onBody = false;
-                    ia.bodyToggleSince = 0;
+                    resetDoubleFist(ia.bodyFist);
                     heldByIdentityRef.current.set(taskId, identity);
                     highlightProp(prop, false);
                     grabbedThisFrame = true;
@@ -1044,33 +1041,23 @@ export function useBigScreenScene(
             // 握拳的拿法可以另外設定（fistHold），沒設定就跟模擬器一樣
             const fist = propCfg?.fistHold;
 
-            // 手移到身上（腰前、胸前、頭頂）一段時間 → 道具貼到身上；手移開一段時間 → 回到手上
+            // 雙手握拳一下 → 道具貼到身上（貼在哪由 bodyHold 決定，不用對準位置）；再雙手握拳一下 → 拿回手上
             const bodyCfg = propCfg?.bodyHold;
-            const bodyReady = !!bodyCfg && !inCooldown
-              && readBodyFrame(slot.vrm, _bodyFrame)
-              && anchorBonePosition(slot.vrm, bodyCfg.anchor, _bodyAnchorPos);
-            const handBone = slot.vrm.humanoid.getNormalizedBoneNode(ia.lockHand === 'right' ? 'leftHand' : 'rightHand');
-            if (bodyCfg && bodyReady && handBone) {
-              handBone.getWorldPosition(_bodyHandPos);
-              const atAnchor = isHandAtAnchor(_bodyHandPos, _bodyAnchorPos, bodyCfg.anchor, _bodyFrame, ia.onBody);
-              if (atAnchor === ia.onBody) {
-                ia.bodyToggleSince = 0;
-              } else {
-                if (ia.bodyToggleSince === 0) ia.bodyToggleSince = now;
-                if (now - ia.bodyToggleSince >= BODY_HOLD_SWITCH_MS) {
-                  if (!atAnchor) ia.bodyLeftAt = now;
-                  ia.onBody = atAnchor;
-                  ia.bodyToggleSince = 0;
-                }
+            if (bodyCfg && !inCooldown) {
+              const otherHand = ia.lockHand === 'right' ? leftHand : rightHand;
+              const holdSeen = !!hLandmarks && hLandmarks.length >= 21;
+              const otherSeen = !!otherHand && otherHand.length >= 21;
+              const doubleFist = holdSeen && otherSeen && detectFist(hLandmarks) && detectFist(otherHand);
+              if (stepDoubleFist(ia.bodyFist, doubleFist, holdSeen && otherSeen, now)) {
+                if (ia.onBody) ia.bodyLeftAt = now;
+                ia.onBody = !ia.onBody;
               }
-            } else if (ia.onBody) {
-              ia.onBody = false;
-              ia.bodyToggleSince = 0;
-              ia.bodyLeftAt = now;
             }
 
             if (ia.onBody && bodyCfg) {
-              placePropOnBody(prop, _bodyAnchorPos, _bodyFrame, bodyCfg, propCfg?.scale ?? 1, delta * 10);
+              if (readBodyFrame(slot.vrm, _bodyFrame) && anchorBonePosition(slot.vrm, bodyCfg.anchor, _bodyAnchorPos)) {
+                placePropOnBody(prop, _bodyAnchorPos, _bodyFrame, bodyCfg, propCfg?.scale ?? 1, delta * 10);
+              }
             } else {
               const leavingBody = now - ia.bodyLeftAt < BODY_HOLD_LEAVE_LERP_MS;
               attachPropToHand(
@@ -1084,7 +1071,10 @@ export function useBigScreenScene(
               restorePropScale(prop, taskId, delta * 10);
             }
 
-            if (!hLandmarks || hLandmarks.length < 21) {
+            if (ia.onBody) {
+              // 貼在身上：放開手、手出鏡都不會掉，換到下一句時才放回
+              ia.handLostAt = 0;
+            } else if (!hLandmarks || hLandmarks.length < 21) {
               // Grace period: 500 ms before forcing a release on landmark loss
               if (!inCooldown) {
                 if (ia.handLostAt === 0) ia.handLostAt = now;
@@ -1418,7 +1408,7 @@ export function useBigScreenScene(
               grabFistLastAt: 0,
               grabCooldownUntil: 0,
               onBody: false,
-              bodyToggleSince: 0,
+              bodyFist: { since: 0, lastAt: 0, armed: true },
               bodyLeftAt: 0,
             },
             _propUV: { x: 0, y: 0 },

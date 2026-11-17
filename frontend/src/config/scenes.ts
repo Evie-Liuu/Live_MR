@@ -186,14 +186,14 @@ export const THEMES: ThemeConfig[] = [
             
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'dress_red': { taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
-              // 上課拿著移到胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
+              // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
               bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 } },
             'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'pants_jeans': { taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
-              // 上課拿著移到腰前：褲頭對齊腰部，褲管拖到腳邊（配合「有點太長」）
+              // 上課拿著雙手握拳就比在腰前：褲頭對齊腰部，褲管拖到腳邊（配合「有點太長」）
               bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 } },
             'hat': { label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-3.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
-              // 上課拿著移到頭頂就戴上（模型原點偏一側，往右補回來）
+              // 上課拿著雙手握拳就戴上（模型原點偏一側，往右補回來）
               bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 } },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的

@@ -1,29 +1,55 @@
 // frontend/src/utils/bodyHold.ts
 /**
- * 道具貼在身上（把衣服比在身上、戴帽子）：拿著道具的手移到腰前、胸前或頭頂時，道具改貼在角色身上。
- * 只用 VRM 標準人形骨架（hips、chest、head、肩膀、腳）判斷位置與身體方向，任何模型都適用。
+ * 道具貼在身上（把衣服比在身上、戴帽子）：拿著道具時雙手握拳一下，道具改貼在角色身上，再雙手握拳一下拿回手上。
+ * 貼的位置只用 VRM 標準人形骨架（hips、chest、head、肩膀、腳）算出，任何模型都適用。
  */
 import * as THREE from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 import type { BodyHoldConfig } from '../types/vrm';
+import { shouldResetFistTimer } from './gestureDetector';
 
-/** 標準身高角色的髖部高度（公尺）；設定裡的位移、大小與判斷距離都以此為準，依角色實際髖部高度縮放 */
+/** 標準身高角色的髖部高度（公尺）；設定裡的位移與大小都以此為準，依角色實際髖部高度縮放 */
 const REFERENCE_HIPS_HEIGHT = 0.85;
 
+/** 雙手握拳要維持這麼久才切換（貼上身／拿回手上） */
+export const DOUBLE_FIST_MS = 300;
+
+/** 雙手握拳的計時狀態 */
+export interface DoubleFistTimer {
+  /** 開始雙手握拳的時間（0＝沒在計時） */
+  since: number;
+  /** 上次偵測到雙手握拳的時間（手部不是每格都有資料） */
+  lastAt: number;
+  /** 切換後要先鬆開過一次才能再切換，避免一直握著就來回切換 */
+  armed: boolean;
+}
+
+export function resetDoubleFist(t: DoubleFistTimer): void {
+  t.since = 0;
+  t.lastAt = 0;
+  t.armed = true;
+}
+
 /**
- * 手要在錨點附近多近才算「移到身上」（公尺，以標準身高為準）：
- * side＝離身體中線的左右距離上限；below / above＝比錨點低 / 高多少以內。
- * 只看左右與高低、不看前後：手垂在身體兩側時左右距離約 0.2 公尺，不會誤貼。
+ * 每幀更新雙手握拳計時；回 true 表示這一幀要切換。
+ * bothHandsSeen＝兩隻手都有資料：有資料卻不是雙手握拳就歸零；沒資料要隔一段時間才歸零（同單手握拳的規則）。
  */
-const ANCHOR_ZONES: Record<BodyHoldConfig['anchor'], { side: number; below: number; above: number }> = {
-  hips: { side: 0.13, below: 0.25, above: 0.2 },
-  chest: { side: 0.13, below: 0.15, above: 0.2 },
-  head: { side: 0.18, below: 0, above: 0.4 },
-};
-/** 已經貼上時，手要離開這麼多倍的範圍才拿回手上，避免在邊界來回跳 */
-const RELEASE_ZONE_SCALE = 1.6;
-/** 比錨點高低範圍額外放寬（公尺，以標準身高為準） */
-const RELEASE_ZONE_MARGIN = 0.1;
+export function stepDoubleFist(t: DoubleFistTimer, doubleFist: boolean, bothHandsSeen: boolean, now: number): boolean {
+  if (doubleFist) {
+    t.lastAt = now;
+    if (!t.armed) return false;
+    if (t.since === 0) t.since = now;
+    if (now - t.since < DOUBLE_FIST_MS) return false;
+    t.since = 0;
+    t.armed = false;
+    return true;
+  }
+  if (shouldResetFistTimer(bothHandsSeen, now, t.lastAt)) {
+    t.since = 0;
+    t.armed = true;
+  }
+  return false;
+}
 
 export interface BodyFrame {
   /** 角色的左方（水平單位向量，取自兩肩連線） */
@@ -32,30 +58,6 @@ export interface BodyFrame {
   forward: THREE.Vector3;
   /** 角色身高相對標準身高的比例 */
   sizeFactor: number;
-}
-
-/**
- * 手（世界座標）是否在錨點的範圍內。
- * wasOn＝目前已經貼在身上：範圍放寬，手要明顯移開才算離開。
- */
-export function isHandAtAnchor(
-  hand: THREE.Vector3,
-  anchor: THREE.Vector3,
-  anchorKind: BodyHoldConfig['anchor'],
-  body: Pick<BodyFrame, 'left' | 'sizeFactor'>,
-  wasOn: boolean,
-): boolean {
-  const zone = ANCHOR_ZONES[anchorKind];
-  const k = body.sizeFactor;
-  const widen = wasOn ? RELEASE_ZONE_SCALE : 1;
-  const margin = wasOn ? RELEASE_ZONE_MARGIN : 0;
-  const dx = hand.x - anchor.x;
-  const dz = hand.z - anchor.z;
-  const side = Math.abs(dx * body.left.x + dz * body.left.z);
-  const dy = hand.y - anchor.y;
-  return side <= zone.side * widen * k
-    && dy >= -(zone.below * widen + margin) * k
-    && dy <= (zone.above * widen + margin) * k;
 }
 
 const _a = new THREE.Vector3();

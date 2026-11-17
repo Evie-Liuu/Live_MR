@@ -128,7 +128,7 @@ export interface PropConfig {
 
 /** 道具貼在身上的位置；見 TaskPropConfig.bodyHold */
 export interface BodyHoldConfig {
-  /** 貼在哪裡，也是手要移過去的位置：hips 腰前（褲子）、chest 胸前（上衣、洋裝）、head 頭頂（帽子） */
+  /** 貼在哪裡：hips 腰前（褲子）、chest 胸前（上衣、洋裝）、head 頭頂（帽子） */
   anchor: 'hips' | 'chest' | 'head';
   /** 道具原點相對錨點骨頭的位移（公尺，以角色身體為準：右、上、前） */
   offset?: [right: number, up: number, forward: number];
@@ -165,8 +165,8 @@ export interface TaskPropConfig {
     fingerReach?: number;
   };
   /**
-   * 上課時拿著這個道具、把手移到身上某個位置（腰前、胸前、頭頂），道具就貼到身上，
-   * 像把衣服比在身上或戴上帽子；手移開就回到手上，放開拳頭照常放回。未設定就不會貼。
+   * 上課時拿著這個道具、雙手握拳一下，道具就貼到身上（腰前、胸前或頭頂），像把衣服比在身上或戴上帽子；
+   * 貼上後放手也不會掉，再雙手握拳一下拿回手上，換到下一句時放回。未設定就不會貼。
    * 位置與大小以標準身高的角色為準，會依角色實際身高（髖部高度）等比縮放，任何模型都適用。
    */
   bodyHold?: BodyHoldConfig;

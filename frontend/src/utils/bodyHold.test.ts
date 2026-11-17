@@ -1,43 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { isHandAtAnchor, placePropOnBody, type BodyFrame } from './bodyHold.ts';
+import { DOUBLE_FIST_MS, placePropOnBody, stepDoubleFist, type BodyFrame } from './bodyHold.ts';
 
-/** 面向 +Z 的標準身高角色（左方是 +X） */
-const body: BodyFrame = { left: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1), sizeFactor: 1 };
 const hips = new THREE.Vector3(0, 0.85, 0);
 const v = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
-describe('isHandAtAnchor', () => {
-  it('手在腰前（中線附近）才算，手垂在身體兩側不算', () => {
-    expect(isHandAtAnchor(v(0.05, 0.85, 0.15), hips, 'hips', body, false)).toBe(true);
-    expect(isHandAtAnchor(v(0.22, 0.8, 0), hips, 'hips', body, false)).toBe(false);
-    expect(isHandAtAnchor(v(0, 1.3, 0.15), hips, 'hips', body, false)).toBe(false);
+describe('stepDoubleFist', () => {
+  const timer = () => ({ since: 0, lastAt: 0, armed: true });
+
+  it('雙手握拳維持一段時間才切換一次，鬆開後才能再切換', () => {
+    const t = timer();
+    expect(stepDoubleFist(t, true, true, 1000)).toBe(false);
+    expect(stepDoubleFist(t, true, true, 1000 + DOUBLE_FIST_MS)).toBe(true);
+    // 一直握著不會再切換
+    expect(stepDoubleFist(t, true, true, 2000)).toBe(false);
+    expect(stepDoubleFist(t, true, true, 3000)).toBe(false);
+    // 鬆開再握，又可以切換
+    expect(stepDoubleFist(t, false, true, 3100)).toBe(false);
+    expect(stepDoubleFist(t, true, true, 3200)).toBe(false);
+    expect(stepDoubleFist(t, true, true, 3200 + DOUBLE_FIST_MS)).toBe(true);
   });
 
-  it('已經貼上時範圍放寬，手要明顯移開才拿回手上', () => {
-    const edge = v(0.17, 0.85, 0.1);
-    expect(isHandAtAnchor(edge, hips, 'hips', body, false)).toBe(false);
-    expect(isHandAtAnchor(edge, hips, 'hips', body, true)).toBe(true);
-    expect(isHandAtAnchor(v(0.3, 0.85, 0.1), hips, 'hips', body, true)).toBe(false);
+  it('看得到雙手卻沒握拳 → 計時歸零', () => {
+    const t = timer();
+    stepDoubleFist(t, true, true, 1000);
+    stepDoubleFist(t, false, true, 1100);
+    expect(stepDoubleFist(t, true, true, 1000 + DOUBLE_FIST_MS)).toBe(false);
   });
 
-  it('帽子：手要在頭頂上方', () => {
-    const head = v(0, 1.4, 0);
-    expect(isHandAtAnchor(v(0.05, 1.6, 0), head, 'head', body, false)).toBe(true);
-    expect(isHandAtAnchor(v(0.05, 1.3, 0.1), head, 'head', body, false)).toBe(false);
-  });
-
-  it('左右距離以角色的左右為準：轉 90 度時看 Z 軸', () => {
-    const turned = { left: v(0, 0, -1), sizeFactor: 1 };
-    expect(isHandAtAnchor(v(0.15, 0.85, 0.05), hips, 'hips', turned, false)).toBe(true);
-    expect(isHandAtAnchor(v(0, 0.85, 0.22), hips, 'hips', turned, false)).toBe(false);
-  });
-
-  it('小個子角色範圍跟著縮小', () => {
-    const small = { ...body, sizeFactor: 0.5 };
-    const smallHips = v(0, 0.425, 0);
-    expect(isHandAtAnchor(v(0.1, 0.425, 0.05), smallHips, 'hips', small, false)).toBe(false);
-    expect(isHandAtAnchor(v(0.05, 0.425, 0.05), smallHips, 'hips', small, false)).toBe(true);
+  it('手部資料短暫缺漏不會讓計時歸零', () => {
+    const t = timer();
+    stepDoubleFist(t, true, true, 1000);
+    stepDoubleFist(t, false, false, 1100);
+    expect(stepDoubleFist(t, true, true, 1000 + DOUBLE_FIST_MS)).toBe(true);
   });
 });
 
