@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SCENE_PRESETS, THEMES } from '../config/scenes.ts';
 import { estimateLineSeconds, formatClock, type DialogueTask } from '../types/dialogueTask.ts';
 import { useScriptStage } from '../hooks/useScriptStage.ts';
-import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices, type RoleVoice } from '../utils/scriptPlayback.ts';
+import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices, wornAt, type RoleVoice } from '../utils/scriptPlayback.ts';
 import { gestureById } from '../config/gestures.ts';
 import './ScriptSimulator.css';
 
@@ -45,7 +45,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const stage = useScriptStage(canvasRef, task.sceneId);
-  const { setSpeaker, playGesture, holdProp } = stage;
+  const { setSpeaker, playGesture, holdProp, setWorn } = stage;
   const cues = useMemo(() => flattenCues(task), [task]);
   const preset = SCENE_PRESETS[task.sceneId];
   const theme = useMemo(() => THEMES.find(t => t.scenes.some(s => s.id === task.sceneId)), [task.sceneId]);
@@ -161,7 +161,9 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     setSpeaker(cue.line.speakerSlotId);
     if (cue.line.gesture) playGesture(cue.line.speakerSlotId, cue.line.gesture, cue.line.gesture === 'point' ? cue.line.pointAt : undefined);
     // 台詞指定的展示物件（例如收據）由說話者拿在手上；沒有就放回原位
-    holdProp(cue.line.prop ? cue.line.speakerSlotId : null, cue.line.prop, cue.line.gesture);
+    // 試穿的台詞不拿在手上，直接比在身上；穿著的道具一直穿到這個步驟結束
+    holdProp(cue.line.prop && !cue.line.wear ? cue.line.speakerSlotId : null, cue.line.prop, cue.line.gesture);
+    setWorn(wornAt(cues, i, id => preset?.propSystem?.taskProps?.[id]?.bodyHold?.anchor === 'head'));
     const text = cue.line.en.trim();
     const estimateMs = (estimateLineSeconds(text) * 1000) / speed;
 
@@ -182,7 +184,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     window.speechSynthesis.speak(u);
     // 保險：部分瀏覽器偶爾不觸發 onend，超過估計時間兩倍就視為播完
     timersRef.current.push(window.setTimeout(finish, estimateMs * 2 + 3000));
-  }, [cues, roleVoices, speed, muted, setSpeaker, playGesture, holdProp, stopAudio]);
+  }, [cues, roleVoices, speed, muted, setSpeaker, playGesture, holdProp, setWorn, preset, stopAudio]);
   useEffect(() => { playCueRef.current = playCue; }, [playCue]);
 
   // 播放中推進時間軸（不超過這句的估計長度）

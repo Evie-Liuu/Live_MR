@@ -22,6 +22,34 @@ export function flattenCues(task: DialogueTask): ScriptCue[] {
   return cues;
 }
 
+export interface WornProp {
+  slotId: string;
+  propId: string;
+}
+
+/**
+ * 播到第 index 句時誰穿著（比在身上、戴著）哪些道具：從這個步驟第一句算起，
+ * 試穿的台詞讓說話者穿上；同一件被別人試穿或拿起就換人或脫下；同一人換穿同類（帽子與衣服分開算）就換掉舊的。
+ * isHeadProp：道具是戴在頭上的（帽子），可以跟衣服同時穿。
+ */
+export function wornAt(cues: readonly ScriptCue[], index: number, isHeadProp: (propId: string) => boolean): WornProp[] {
+  const cue = cues[index];
+  if (!cue) return [];
+  let start = index;
+  while (start > 0 && cues[start - 1].stepIndex === cue.stepIndex) start--;
+  let worn: WornProp[] = [];
+  for (let j = start; j <= index; j++) {
+    const { speakerSlotId: slotId, prop: propId, wear } = cues[j].line;
+    if (!propId) continue;
+    worn = worn.filter(w => w.propId !== propId);
+    if (!wear) continue;
+    const head = isHeadProp(propId);
+    worn = worn.filter(w => w.slotId !== slotId || isHeadProp(w.propId) !== head);
+    worn.push({ slotId, propId });
+  }
+  return worn;
+}
+
 /** 某步驟第一句的 cue 序號；該步驟沒有台詞則往後找，都沒有回 -1 */
 export function firstCueOfStep(cues: ScriptCue[], stepIndex: number): number {
   const found = cues.find(c => c.stepIndex >= stepIndex);

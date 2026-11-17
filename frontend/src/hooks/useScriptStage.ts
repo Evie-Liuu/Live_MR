@@ -18,6 +18,8 @@ import { loadStaticProps, disposeStaticProps, loadTaskProps, disposeTaskProps } 
 import { loadOccluderGlb, disposeOccluder } from '../utils/occluderLoader.ts';
 import { OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders.ts';
 import { attachPropToHand, returnPropToDisplay, rotatePropToward } from '../utils/propInteraction.ts';
+import { anchorBonePosition, placePropOnBody, readBodyFrame, type BodyFrame } from '../utils/bodyHold.ts';
+import type { WornProp } from '../utils/scriptPlayback.ts';
 import { hiddenMembers, readSavedSceneLayout, resolveGroupPlacements, type GroupTransform } from '../utils/savedSceneLayout.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
 import { VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
@@ -53,6 +55,8 @@ export interface ScriptStage {
    * slotId 為 null 時放回原位
    */
   holdProp: (slotId: string | null, propId?: string, gesture?: GestureId) => void;
+  /** 目前誰穿著（比在身上、戴著）哪些道具；不在清單裡的放回原位（正拿在手上的除外） */
+  setWorn: (worn: readonly WornProp[]) => void;
 }
 
 type HandBone = 'leftHand' | 'rightHand';
@@ -63,6 +67,12 @@ interface HeldProp {
   hand: HandBone;
   /** 已經到手上（之後直接貼住手，不再慢慢飛過去） */
   inHand: boolean;
+}
+
+/** 試穿時改過大小的道具慢慢轉回原本大小 */
+function restoreScale(obj: THREE.Object3D, scale: number | undefined, delta: number) {
+  const base = scale ?? 1;
+  if (obj.scale.x !== base) obj.scale.setScalar(THREE.MathUtils.lerp(obj.scale.x, base, Math.min(1, delta * 8)));
 }
 
 /** 動作裡手臂轉動幅度較大的那隻手；沒有手臂動作時用右手 */
@@ -151,6 +161,8 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     const inHand = prev?.slotId === avatar.slotId && prev.propId === propId && prev.hand === hand && prev.inHand;
     heldRef.current = { slotId: avatar.slotId, propId, hand, inHand };
   }, [clipFor]);
+  const wornRef = useRef<readonly WornProp[]>([]);
+  const setWorn = useCallback((worn: readonly WornProp[]) => { wornRef.current = worn; }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -289,6 +301,8 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     const displayOf = (id: string): GroupTransform => placements.get(`taskProp:${id}`)
       ?? { pos: taskPropCfg[id].displayPos, rot: taskPropCfg[id].rotation ?? [0, 0, 0] };
     const displayPos = new THREE.Vector3();
+    const anchorPos = new THREE.Vector3();
+    const bodyFrame: BodyFrame = { left: new THREE.Vector3(), forward: new THREE.Vector3(), sizeFactor: 1 };
     const propBox = new THREE.Box3();
     propCenterRef.current = (propId) => {
       const obj = taskPool?.get(propId);
@@ -313,12 +327,23 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
             if (obj.position.distanceTo(displayPos) < 0.25) held.inHand = true;
           }
           if (cfg?.heldRotation) rotatePropToward(obj, cfg.heldRotation, delta * 8);
+          else if (cfg?.bodyHold) rotatePropToward(obj, displayOf(id).rot, delta * 8);
+          restoreScale(obj, cfg?.scale, delta);
+          continue;
+        }
+        // 試穿中：比在身上或戴著（位置與大小依角色骨架算，見 utils/bodyHold.ts）
+        const wearer = cfg?.bodyHold && wornRef.current.find(w => w.propId === id);
+        const wearerAvatar = wearer ? avatars.find(a => a.slotId === wearer.slotId) : undefined;
+        if (cfg?.bodyHold && wearerAvatar
+          && readBodyFrame(wearerAvatar.vrm, bodyFrame) && anchorBonePosition(wearerAvatar.vrm, cfg.bodyHold.anchor, anchorPos)) {
+          placePropOnBody(obj, anchorPos, bodyFrame, cfg.bodyHold, cfg.scale ?? 1, delta * 8);
           continue;
         }
         const home = displayOf(id);
         displayPos.set(...home.pos);
         if (obj.position.distanceToSquared(displayPos) > 1e-8) returnPropToDisplay(obj, displayPos, delta);
-        if (cfg?.heldRotation) rotatePropToward(obj, home.rot, delta * 8);
+        if (cfg?.heldRotation || cfg?.bodyHold) rotatePropToward(obj, home.rot, delta * 8);
+        restoreScale(obj, cfg?.scale, delta);
       }
     };
 
@@ -377,5 +402,5 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   }, [canvasRef, sceneId]);
 
   // 模擬器開著時場景不會變（編輯器被蓋住），所以不處理 sceneId 中途變更時的狀態重設
-  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker, playGesture, holdProp };
+  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker, playGesture, holdProp, setWorn };
 }

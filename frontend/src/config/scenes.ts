@@ -455,8 +455,8 @@ export function propForTask(sceneId: string, taskId: string | undefined): string
     .find(([, cfg]) => cfg.taskId === taskId)?.[0];
 }
 
-/** 場景內可指定給台詞、讓發言者握拳拿起的道具 */
-export function grabbableProps(sceneId: string): { id: string; label: string }[] {
+/** 場景內可指定給台詞、讓發言者握拳拿起的道具；wearable＝可以試穿（比在身上、戴上） */
+export function grabbableProps(sceneId: string): { id: string; label: string; wearable: boolean }[] {
   return Object.entries(SCENE_PRESETS[sceneId]?.propSystem?.taskProps ?? {})
-    .flatMap(([id, cfg]) => (cfg.label ? [{ id, label: cfg.label }] : []));
+    .flatMap(([id, cfg]) => (cfg.label ? [{ id, label: cfg.label, wearable: !!cfg.bodyHold }] : []));
 }

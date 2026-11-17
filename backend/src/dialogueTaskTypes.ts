@@ -16,6 +16,8 @@ export interface DialogueLine {
   prop?: string
   /** 動作為「指向」時指著的展示物件（前端場景 taskProps 的 id） */
   pointAt?: string
+  /** 試穿：把 prop 比在身上或戴上 */
+  wear?: boolean
   /** 這句屬於某個角色的支線：演出人數版本刪掉那個角色時，這句一起刪 */
   branch?: string
 }

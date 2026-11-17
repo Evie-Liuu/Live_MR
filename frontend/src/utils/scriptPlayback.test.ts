@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices } from './scriptPlayback.ts';
+import { firstCueOfStep, flattenCues, genderFromVrmId, pickRoleVoices, wornAt } from './scriptPlayback.ts';
 import { gestureWeight, horizontalYaw, idleLoopSample, lookAngles, MAX_TORSO_YAW, mouthOpenness, splitTurn, wrapAngle } from './scriptedAvatar.ts';
 import type { DialogueTask } from '../types/dialogueTask.ts';
 
@@ -32,6 +32,38 @@ describe('flattenCues / firstCueOfStep', () => {
     expect(firstCueOfStep(cues, 0)).toBe(0);
     expect(firstCueOfStep(cues, 1)).toBe(2);
     expect(firstCueOfStep(cues, 3)).toBe(-1);
+  });
+});
+
+describe('wornAt', () => {
+  const line = (speakerSlotId: string, prop?: string, wear?: boolean) =>
+    ({ id: `${speakerSlotId}-${prop}`, speakerSlotId, en: 'x', zh: 'x', ...(prop ? { prop } : {}), ...(wear ? { wear } : {}) });
+  const step = (lines: ReturnType<typeof line>[]) =>
+    ({ id: 's', title: 't', purpose: '', lines, grammarPoints: [], grammarNote: '', teachingNotes: [] });
+  const isHead = (id: string) => id === 'hat';
+  const tryOn: DialogueTask = {
+    title: 't', sceneId: 'clothingStore_fitting', level: 'A1',
+    steps: [
+      step([line('a', 'jeans'), line('a', 'jeans', true), line('b'), line('a', 'dress', true), line('a', 'hat', true)]),
+      step([line('b', 'hat'), line('a')]),
+    ],
+  };
+  const cues = flattenCues(tryOn);
+
+  it('拿在手上不算穿；試穿後別人說話時仍穿著', () => {
+    expect(wornAt(cues, 0, isHead)).toEqual([]);
+    expect(wornAt(cues, 2, isHead)).toEqual([{ slotId: 'a', propId: 'jeans' }]);
+  });
+
+  it('同一人換穿衣服換掉舊的，帽子可以同時戴', () => {
+    expect(wornAt(cues, 3, isHead)).toEqual([{ slotId: 'a', propId: 'dress' }]);
+    expect(wornAt(cues, 4, isHead)).toEqual([{ slotId: 'a', propId: 'dress' }, { slotId: 'a', propId: 'hat' }]);
+  });
+
+  it('換步驟就脫下；被別人拿起也脫下', () => {
+    expect(wornAt(cues, 5, isHead)).toEqual([]);
+    const sameStep = flattenCues({ ...tryOn, steps: [step([line('a', 'hat', true), line('b', 'hat')])] });
+    expect(wornAt(sameStep, 1, isHead)).toEqual([]);
   });
 });
 

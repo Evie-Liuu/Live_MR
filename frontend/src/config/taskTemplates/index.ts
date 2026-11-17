@@ -60,6 +60,7 @@ export function toTemplateSource(task: DialogueTask, templateId: string): string
         ...(l.prop ? { prop: l.prop } : {}),
         ...(l.gesture === 'point' && l.pointAt ? { pointAt: l.pointAt } : {}),
         ...(l.branch ? { branch: l.branch } : {}),
+        ...(l.prop && l.wear ? { wear: true } : {}),
       })),
       grammarPoints: s.grammarPoints,
       grammarNote: s.grammarNote,

@@ -111,6 +111,7 @@ export function parseDialogueTask(v: unknown): DialogueTask | null {
         ...(isPropId(l.prop) ? { prop: l.prop } : {}),
         ...(l.gesture === 'point' && isPropId(l.pointAt) ? { pointAt: l.pointAt } : {}),
         ...(isId(l.branch) ? { branch: l.branch } : {}),
+        ...(l.wear === true && isPropId(l.prop) ? { wear: true } : {}),
       })),
       grammarPoints: s.grammarPoints, grammarNote: s.grammarNote, teachingNotes: s.teachingNotes,
       ...(s.checkpoints?.length ? {

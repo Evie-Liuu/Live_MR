@@ -264,6 +264,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
             ...l,
             speakerSlotId: nextSlots.some(sl => sl.id === l.speakerSlotId) ? l.speakerSlotId : nextSlots[0]?.id ?? '',
             prop: nextProps.some(p => p.id === l.prop) ? l.prop : undefined,
+            wear: l.wear && nextProps.some(p => p.id === l.prop && p.wearable) ? true : undefined,
             pointAt: nextProps.some(p => p.id === l.pointAt) ? l.pointAt : undefined,
             branch: nextSlots.some(sl => sl.id === l.branch) ? l.branch : undefined,
           })),
@@ -498,13 +499,20 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                               {sceneProps.length > 0 && (
                                 <select
                                   className={`te-gesture${line.prop ? ' has-gesture' : ''}`}
-                                  value={line.prop ?? ''}
+                                  value={line.prop ? `${line.wear ? WEAR_PREFIX : ''}${line.prop}` : ''}
                                   aria-label="道具互動"
-                                  title="上課輪到這句時，發言者舉手握拳就能拿起這個道具，張開手放下（模擬播放不會顯示）"
-                                  onChange={e => editLine(line.id, { prop: e.target.value || undefined })}
+                                  title="上課輪到這句時，發言者舉手握拳就能拿起這個道具，張開手放下；試穿的道具雙手握拳就比在身上。模擬播放時拿在手上，試穿則穿到這個步驟結束"
+                                  onChange={e => {
+                                    const v = e.target.value;
+                                    const wear = v.startsWith(WEAR_PREFIX);
+                                    editLine(line.id, { prop: (wear ? v.slice(WEAR_PREFIX.length) : v) || undefined, wear: wear || undefined });
+                                  }}
                                 >
                                   <option value="">無道具</option>
                                   {sceneProps.map(p => <option key={p.id} value={p.id}>✊ 拿起{p.label}</option>)}
+                                  {sceneProps.filter(p => p.wearable).map(p => (
+                                    <option key={`wear-${p.id}`} value={`${WEAR_PREFIX}${p.id}`}>👗 試穿{p.label}</option>
+                                  ))}
                                 </select>
                               )}
                               {(omittedSlots.some(id => id !== line.speakerSlotId) || mergedSlots.length > 0 || line.branch) && (
@@ -814,6 +822,8 @@ function ListEditor({ label, placeholder, items, onChange }: ListEditorProps) {
 /** 每個角色在某個併角方案下的台詞句數 */
 /** 演出人數版本的角色選單：刪掉這個角色 */
 const CAST_OMIT = '__omit__';
+/** 道具選單裡「試穿」選項的值前綴 */
+const WEAR_PREFIX = 'wear:';
 
 function castLineCounts(task: DialogueTask, merge: Record<string, string>, omit: readonly string[] = []): Map<string, number> {
   const counts = new Map<string, number>();
