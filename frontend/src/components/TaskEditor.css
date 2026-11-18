@@ -7,12 +7,34 @@
   --te-line: #E7E5E4;
   --te-card: #FFFFFF;
   --te-bg: #FBF8F4;
+  --te-shadow: 0 1px 2px rgba(120, 86, 50, .04), 0 6px 20px rgba(120, 86, 50, .06);
   min-height: 100vh;
   width: 100%;
   background: var(--te-bg);
   color: var(--te-ink);
   display: flex;
   flex-direction: column;
+  /* 全域字級是 18px，編輯器資訊密度高，改用較小但較粗的字（有 Noto Sans TC／蘋方就用，否則退回正黑體） */
+  font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei UI', 'Microsoft JhengHei', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* 劇本模擬器放在編輯器裡面，維持它原本的字型設定 */
+.te-screen .ss-screen {
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: .18px;
+}
+
+/* 寬螢幕：整個編輯器固定在視窗內，三欄各自捲動（標題列、分頁、底列不會被捲走） */
+@media (min-width: 1201px) {
+  .te-screen {
+    height: 100vh;
+    overflow: hidden;
+  }
 }
 
 .te-screen .material-symbols-outlined {
@@ -39,8 +61,10 @@
   gap: 16px;
   flex-wrap: wrap;
   padding: 12px 24px;
-  background: linear-gradient(180deg, #FFF7EC, #FFFBF6);
-  border-bottom: 1px solid #F3E8DA;
+  background:
+    radial-gradient(circle at 36% -40px, rgba(255, 196, 150, .45) 0 64px, transparent 65px),
+    radial-gradient(circle at 18px 100%, rgba(255, 214, 180, .35) 0 28px, transparent 29px),
+    linear-gradient(180deg, #FFF4E8, var(--te-bg));
 }
 
 .te-brand {
@@ -63,7 +87,7 @@
 }
 
 .te-brand-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: .02em;
   white-space: nowrap;
@@ -437,40 +461,100 @@
   flex: 1;
   display: grid;
   /* 右欄隨視窗縮窄，把空間留給中欄的台詞卡片 */
-  grid-template-columns: 264px minmax(0, 1fr) clamp(280px, 24vw, 340px);
-  gap: 20px;
-  padding: 20px 24px 32px;
+  grid-template-columns: 285px minmax(0, 1fr) clamp(280px, 24vw, 340px);
+  gap: 18px;
+  padding: 8px 20px 20px;
   align-items: start;
+}
+
+@media (min-width: 1201px) {
+  .te-body {
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .te-left,
+  .te-right {
+    min-height: 0;
+    overflow-y: auto;
+    /* 卡片陰影不要被捲動區切掉 */
+    padding: 2px 4px 4px;
+    margin: -2px -4px -4px;
+    scrollbar-width: thin;
+  }
+
+  .te-center {
+    min-height: 0;
+  }
+
+  .te-center .te-tab-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
 }
 
 .te-panel {
   background: var(--te-card);
-  border: 1px solid var(--te-line);
-  border-radius: 16px;
+  border: 1px solid #F1ECE6;
+  border-radius: 18px;
+  box-shadow: var(--te-shadow);
 }
 
 .te-left {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 84px;
 }
 
 .te-right {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 84px;
 }
 
 /* 左欄：任務資訊 */
 .te-info {
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.te-field-title {
+  gap: 10px;
+  text-align: left;
+}
+
+.te-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.te-panel-title .material-symbols-outlined {
+  font-size: 22px;
+  color: #57534E;
+}
+
+.te-panel-title .te-orange {
+  color: var(--te-orange);
+}
+
+.te-flow-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--te-orange);
+  box-sizing: border-box;
+  margin-left: -4px;
+}
+
+.te-source {
+  font-size: 12px;
+  color: var(--te-muted);
 }
 
 .te-field {
@@ -520,7 +604,7 @@
 
 /* 左欄：流程總覽 */
 .te-flow {
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -530,7 +614,7 @@
   margin: 0 0 2px;
   /* 全域 h2 用 --text-h，在 App.css 是白色 */
   color: var(--te-ink);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
 }
 
@@ -687,7 +771,7 @@
   flex: 1 1 160px;
   min-width: 120px;
   font: inherit;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--step-color);
   border: none;
@@ -829,7 +913,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .te-line {
@@ -840,8 +924,8 @@
 
 .te-avatar {
   flex: none;
-  width: 48px;
-  height: 48px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -879,8 +963,8 @@
   max-width: 100%;
   min-width: 0;
   font: inherit;
-  font-weight: 800;
-  font-size: 16px;
+  font-weight: 700;
+  font-size: 14px;
   color: var(--te-ink);
   border: 1px solid transparent;
   border-radius: 8px;
@@ -933,8 +1017,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 56px 12px 16px;
+  gap: 0;
+  padding: 10px 56px 10px 14px;
   border-radius: 14px;
   background: var(--bubble);
   border: 1px solid var(--bubble-border);
@@ -948,10 +1032,10 @@
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  padding: 4px 6px;
-  line-height: 1.6;
+  padding: 3px 6px;
+  line-height: 1.55;
   field-sizing: content;
-  min-height: 2.2em;
+  min-height: 2em;
 }
 
 .te-bubble textarea:hover {
@@ -964,14 +1048,15 @@
   border-color: var(--avatar);
 }
 
-.te-en {
-  font-weight: 600;
+/* 要比 .te-bubble textarea 的 font: inherit 更具體，字級才會生效 */
+.te-bubble .te-en {
+  font-weight: 500;
   font-size: 16px;
   color: #1E293B;
 }
 
-.te-zh {
-  font-size: 14px;
+.te-bubble .te-zh {
+  font-size: 15px;
   color: #57534E;
 }
 
@@ -1182,10 +1267,11 @@
   gap: 8px;
   width: 100%;
   box-sizing: border-box;
-  padding: 16px;
-  border: 1px solid var(--te-line);
-  border-radius: 16px;
+  padding: 16px 18px;
+  border: 1px solid #F1ECE6;
+  border-radius: 18px;
   background: var(--te-card);
+  box-shadow: var(--te-shadow);
   text-align: left;
   color: var(--te-ink);
   /* 連續長字（網址、沒有空白的英文）也要換行，不能撐破卡片 */
@@ -1200,8 +1286,8 @@ button.te-side-card:hover {
 }
 
 .te-side-warm {
-  background: #FFFBF5;
-  border-color: #F6E7D3;
+  background: #FFF7EE;
+  border-color: #F8E4CD;
 }
 
 .te-side-ai {
@@ -1221,7 +1307,7 @@ button.te-side-card:hover {
   align-items: center;
   gap: 6px;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .te-warn {
@@ -1303,6 +1389,11 @@ button.te-side-card:hover {
 @media (max-width: 1200px) {
   .te-body {
     grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .te-left {
+    position: sticky;
+    top: 84px;
   }
 
   .te-right {
@@ -1467,8 +1558,23 @@ button.te-side-card:hover {
 }
 
 .te-cast-summary-sizes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-weight: 700;
   color: #00695F;
+}
+
+.te-cast-summary-sizes .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.te-cast-summary-edit {
+  flex: none;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: #F5F3F0;
 }
 
 .te-cast-summary-edit {

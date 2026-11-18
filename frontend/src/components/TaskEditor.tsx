@@ -344,8 +344,10 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
         {/* ── 左欄：任務資訊 + 流程總覽 ─────────────────────────────────── */}
         <aside className="te-left">
           <section className="te-panel te-info">
-            <label className="te-field">
-              <span>任務名稱</span>
+            <label className="te-field te-field-title">
+              <span className="te-panel-title">
+                <span className="material-symbols-outlined" aria-hidden="true">stacks</span>任務名稱
+              </span>
               <input
                 value={task.title}
                 maxLength={100}
@@ -373,12 +375,15 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
             />
             <CastSummary task={task} onEdit={() => setTab('cast')} />
             {sourceTemplateName && (
-              <span className="te-field">來自模板：{sourceTemplateName}（v{task.sourceTemplate!.version}）</span>
+              <span className="te-source">來自模板：{sourceTemplateName}（v{task.sourceTemplate!.version}）</span>
             )}
           </section>
 
           <section className="te-panel te-flow">
-            <h2 className="te-panel-title">流程總覽</h2>
+            <h2 className="te-panel-title">
+              <span className="te-flow-dot" aria-hidden="true" />
+              <span className="material-symbols-outlined te-orange" aria-hidden="true">graphic_eq</span>流程總覽
+            </h2>
             <ol className="te-flow-list">
               {task.steps.map((s, i) => (
                 <li key={s.id} className="te-flow-item" style={{ ['--step-color' as string]: stepColor(i) }}>
@@ -954,7 +959,9 @@ function CastSummary({ task, onEdit }: { task: DialogueTask; onEdit: () => void 
     <div className="te-field te-cast-field">
       <span>演出人數</span>
       <button type="button" className="te-cast-summary" onClick={onEdit}>
-        <span className="te-cast-summary-sizes">{sizes.map(n => `${n} 人`).join('・')}</span>
+        <span className="te-cast-summary-sizes">
+          <span className="material-symbols-outlined" aria-hidden="true">person</span>{sizes.map(n => `${n} 人`).join('・')}
+        </span>
         <span className="te-cast-summary-edit">
           <span className="material-symbols-outlined" aria-hidden="true">edit</span>編輯
         </span>
