@@ -276,10 +276,12 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
 
   /** 換場景前檢查：劇本裡有新場景沒有的角色時，先跳視窗讓老師指定改給誰演 */
   const changeScene = (sceneId: string) => {
-    const nextSlotIds = (SCENES.find(s => s.id === sceneId)?.slots ?? []).map(s => s.id);
-    const missing = speakingSlots(task).filter(id => !nextSlotIds.includes(id));
-    if (missing.length === 0) applySceneChange(sceneId, {});
-    else setPendingScene(sceneId);
+    // 暫時跳過 SceneRoleModal：角色對不上也直接換場景（台詞說話者不動）
+    applySceneChange(sceneId, {});
+    // const nextSlotIds = (SCENES.find(s => s.id === sceneId)?.slots ?? []).map(s => s.id);
+    // const missing = speakingSlots(task).filter(id => !nextSlotIds.includes(id));
+    // if (missing.length === 0) applySceneChange(sceneId, {});
+    // else setPendingScene(sceneId);
   };
 
   return (
