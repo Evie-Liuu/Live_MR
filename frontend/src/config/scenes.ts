@@ -396,13 +396,60 @@ export const THEMES: ThemeConfig[] = [
         label: '教室',
         labelEn: 'Classroom',
         icon: 'display_group',
+        backgroundType: 'image',
+        backgroundValue: '/images/scene/classroom.png',
         allowedVrmIds: [
-
+          'student_male',
+          'student_female',
+          'clothingStoreStaff_female',
+          'clothingStoreStaff_male',
         ],
+        // 台灣學生 ×2、交換學生 ×2（位置暫時沿用收銀台）
         slots: [
-
+          {
+            id: 'student',
+            label: 'Student A',
+            icon: '🧑‍🎓',
+            position: [-1.4, 0.5, -1.5],
+            rotation: [0, Math.PI / 4, 0],
+            defaultVrmId: 'student_male',
+          },
+          {
+            id: 'exchange',
+            label: 'Exchange Student A',
+            icon: '✈️',
+            position: [2.0, 1.0, -1.5],
+            rotation: [0, -Math.PI / 4, 0],
+            defaultVrmId: 'student_female',
+          },
+          {
+            id: 'student2',
+            label: 'Student B',
+            icon: '🧑‍🎓',
+            position: [-2.4, 0.5, -1.5],
+            rotation: [0, Math.PI / 4, 0],
+            defaultVrmId: 'student_female',
+          },
+          {
+            id: 'exchange2',
+            label: 'Exchange Student B',
+            icon: '✈️',
+            position: [-0.5, 1.0, -3],
+            rotation: [0, -Math.PI / 8, 0],
+            defaultVrmId: 'student_male',
+          },
         ],
-        propSystem: {},
+        propSystem: {
+          policy: 'auto-swap',
+          staticProps: [],
+          taskProps: {
+            'pineapple_cake': {
+              label: '鳳梨酥', url: '/models/internationalSchool/objects/PineappleCake.glb', displayPos: [0.95, 1.56, -3.75], rotation: [Math.PI / 8, 0, Math.PI / 30], heldRotation: [Math.PI / 8, -Math.PI / 2, 0], heldFingerReach: 0.05,
+              // 大螢幕握拳：直立握在拳頭裡、印字面朝觀看者（不像模擬器那樣往指尖外推，否則會浮在拳頭上方）
+              // fistHold: { rotation: [Math.PI / 2, -Math.PI / 2, 0], offset: [0, 0, 0.03], fingerReach: 0 },
+            }
+          }
+        },
         groups: [
 
         ]

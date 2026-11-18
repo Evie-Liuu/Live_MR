@@ -4,6 +4,7 @@ import type { TaskTemplate } from './types.ts';
 import { clothingStoreShoppingTogether } from './clothingStore_shoppingTogether.ts';
 import { clothingStoreExchange } from './clothingStore_exchange.ts';
 import { clothingStoreTryOn } from './clothingStore_tryOn.ts';
+import { internationalSchoolNewClassmates } from './internationalSchool_newClassmates.ts';
 
 export type { TaskTemplate } from './types.ts';
 
@@ -12,6 +13,7 @@ export const TASK_TEMPLATES: readonly TaskTemplate[] = [
   clothingStoreShoppingTogether,
   clothingStoreExchange,
   clothingStoreTryOn,
+  internationalSchoolNewClassmates,
 ];
 
 /** 套用模板：深拷貝內容、換上新 id，並記錄來源模板。回傳的任務尚未存檔。 */
