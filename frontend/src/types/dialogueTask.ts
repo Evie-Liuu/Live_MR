@@ -141,6 +141,62 @@ export function lineKept(line: DialogueLine, omit: readonly string[] = [], merge
   return line.branch === undefined || (!omit.includes(line.branch) && !(line.branch in merge))
 }
 
+const ROLE_TOKEN = /\{([A-Za-z0-9_-]+)\}/g
+
+/**
+ * 換場景時把舊角色改給新場景的角色（roleMap：舊 id → 新 id，沒列的照舊）：
+ * 台詞的說話者、支線、互動點題目裡的角色代號、併角方案都一起換。
+ * 換完支線不在 validIds 的拿掉；併角方案換完有角色不在 validIds、或規則不成立（例如兩個角色被改成同一人）就拿掉。
+ */
+export function remapRoles(task: DialogueTask, roleMap: Record<string, string>, validIds: readonly string[]): DialogueTask {
+  const map = (id: string) => roleMap[id] ?? id
+  const text = (s: string) => s.replace(ROLE_TOKEN, (token, raw: string) => (raw in roleMap ? `{${roleMap[raw]}}` : token))
+  // 兩個以上角色改成同一人時，原本「某角色專屬」的支線意義已不同，拿掉支線（台詞照常保留）
+  const sources = new Map<string, Set<string>>()
+  for (const id of speakingSlots(task)) {
+    const to = map(id)
+    sources.set(to, (sources.get(to) ?? new Set()).add(id))
+  }
+  const collapsed = (id: string) => (sources.get(id)?.size ?? 0) > 1
+  const next: DialogueTask = {
+    ...task,
+    steps: task.steps.map(s => ({
+      ...s,
+      lines: s.lines.map(l => {
+        const branch = l.branch === undefined ? undefined : map(l.branch)
+        const keep = branch !== undefined && validIds.includes(branch) && !collapsed(branch)
+        return { ...l, speakerSlotId: map(l.speakerSlotId), branch: keep ? branch : undefined }
+      }),
+      ...(s.checkpoints ? {
+        checkpoints: s.checkpoints.map(c => ({
+          ...c,
+          question: text(c.question),
+          options: c.options.map(text),
+          ...(c.followUp !== undefined ? { followUp: text(c.followUp) } : {}),
+        })),
+      } : {}),
+    })),
+  }
+  const castOptions = (task.castOptions ?? []).flatMap(opt => {
+    const merge: Record<string, string> = {}
+    for (const [from, to] of Object.entries(opt.merge)) {
+      const f = map(from)
+      if (merge[f] !== undefined && merge[f] !== map(to)) return []
+      merge[f] = map(to)
+    }
+    const omit = [...new Set((opt.omit ?? []).map(map))]
+    const ids = [...Object.keys(merge), ...Object.values(merge), ...omit]
+    if (ids.some(id => !validIds.includes(id))) return []
+    if (Object.entries(merge).some(([f, t]) => f === t)) return []
+    const size = castSize(next, merge, omit)
+    if (size === null || size < 1) return []
+    return [omit.length ? { merge, omit } : { merge }]
+  })
+  if (castOptions.length) next.castOptions = castOptions
+  else delete next.castOptions
+  return next
+}
+
 export interface CastChoice {
   size: number
   merge: Record<string, string>

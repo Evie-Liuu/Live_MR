@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  applyCastMerge, castChoices, castSize, cloneStep, estimateLineSeconds, formatClock, newLine, newStep, speakingSlots, stepTimings,
+  applyCastMerge, castChoices, castSize, cloneStep, estimateLineSeconds, formatClock, newLine, newStep, remapRoles, speakingSlots, stepTimings,
   type DialogueTask,
 } from './dialogueTask.ts'
 
@@ -100,6 +100,38 @@ describe('併角方案', () => {
       { size: 2, merge: { staff: 'cashier' }, omit: ['customer2'] },
       { size: 4, merge: {}, omit: [] },
     ])
+  })
+
+  it('換場景改角色：說話者、支線、互動點代號、併角方案一起換', () => {
+    const t: DialogueTask = {
+      ...task,
+      steps: [{
+        ...task.steps[0],
+        lines: [...task.steps[0].lines, { ...line('cashier'), id: 'b', branch: 'customer2' }],
+        checkpoints: [{ id: 'cp', title: 'x', question: 'Who helps {customer2}? {cashier}', options: ['{cashier}', '{nobody}'], answerIndex: 0 }],
+      }],
+      castOptions: [{ merge: { staff: 'cashier' } }, { merge: { staff: 'cashier' }, omit: ['customer2'] }],
+    }
+    const out = remapRoles(t, { cashier: 'staff', staff: 'cashier' }, ['cashier', 'staff', 'customer', 'customer2'])
+    expect(out.steps[0].lines.map(l => l.speakerSlotId)).toEqual(['staff', 'customer', 'cashier', 'customer2', 'cashier', 'staff'])
+    expect(out.steps[0].lines[5].branch).toBe('customer2')
+    expect(out.steps[0].checkpoints?.[0].question).toBe('Who helps {customer2}? {staff}')
+    expect(out.steps[0].checkpoints?.[0].options).toEqual(['{staff}', '{nobody}'])
+    expect(out.castOptions).toEqual([{ merge: { cashier: 'staff' } }, { merge: { cashier: 'staff' }, omit: ['customer2'] }])
+    expect(t.steps[0].lines[0].speakerSlotId).toBe('cashier')
+  })
+
+  it('換場景改角色：兩個角色改成同一人，不成立的併角方案與支線拿掉', () => {
+    const t: DialogueTask = {
+      ...task,
+      steps: [{ ...task.steps[0], lines: [...task.steps[0].lines, { ...line('staff'), id: 'b', branch: 'staff' }] }],
+      castOptions: [{ merge: { staff: 'cashier' } }, { merge: { customer2: 'customer' } }],
+    }
+    const out = remapRoles(t, { staff: 'cashier' }, ['cashier', 'customer', 'customer2'])
+    expect(speakingSlots(out)).toEqual(['cashier', 'customer', 'customer2'])
+    expect(out.steps[0].lines[5].branch).toBeUndefined()
+    expect(out.castOptions).toEqual([{ merge: { customer2: 'customer' } }])
+    expect(remapRoles(t, { staff: 'cashier', customer2: 'customer' }, ['cashier', 'customer']).castOptions).toBeUndefined()
   })
 
   it('併角後台詞改由對應角色說，原任務不變', () => {

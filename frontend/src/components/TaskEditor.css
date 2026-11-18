@@ -358,6 +358,67 @@
   background: #00978C;
 }
 
+/* 換場景時的角色對應 */
+.te-role-map {
+  width: 100%;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.te-role-map li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--te-line);
+  border-radius: 12px;
+  text-align: left;
+}
+
+.te-role-map .material-symbols-outlined {
+  color: var(--te-muted);
+}
+
+.te-role-from {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.te-role-from small {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--te-muted);
+}
+
+.te-role-map select {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #E5DED5;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  color: var(--te-ink);
+}
+
+.te-role-note {
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+
 .te-modal-actions button:disabled {
   opacity: .6;
   cursor: not-allowed;

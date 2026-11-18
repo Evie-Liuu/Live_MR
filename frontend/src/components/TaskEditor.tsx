@@ -3,7 +3,7 @@ import { THEMES, grabbableProps } from '../config/scenes.ts';
 import { CEFR_LEVELS, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import {
   MAX_CAST_OPTIONS, MAX_CHECKPOINTS_PER_STEP, MAX_CHECKPOINT_OPTIONS, MAX_TAGS, MAX_TAG_LEN, MIN_CHECKPOINT_OPTIONS,
-  blankTask, castChoices, castSize, cleanCheckpoints, cloneStep, formatClock, lineKept, newCheckpoint, newLine, newStep, speakingSlots,
+  blankTask, castChoices, castSize, cleanCheckpoints, cloneStep, formatClock, lineKept, newCheckpoint, newLine, newStep, remapRoles, speakingSlots,
   splitTags, stepTimings,
   type AudienceCheckpoint, type CastOption, type DialogueLine, type DialogueStep, type DialogueTask, type DialogueTaskRecord,
 } from '../types/dialogueTask.ts';
@@ -78,6 +78,8 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
   const [savedFlash, setSavedFlash] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  /** 等老師確認角色對應的新場景 id */
+  const [pendingScene, setPendingScene] = useState<string | null>(null);
   const [speakingLineId, setSpeakingLineId] = useState<string | null>(null);
 
   const scene = SCENES.find(s => s.id === task.sceneId);
@@ -250,29 +252,34 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
     else onClose();
   };
 
-  const changeScene = (sceneId: string) => {
-    const nextSlots = SCENES.find(s => s.id === sceneId)?.slots ?? [];
+  /** 換場景：角色依 roleMap 改給新場景的角色（台詞、支線、互動點、併角方案一起換），新場景沒有的道具清掉 */
+  const applySceneChange = (sceneId: string, roleMap: Record<string, string>) => {
+    const nextSlotIds = (SCENES.find(s => s.id === sceneId)?.slots ?? []).map(s => s.id);
     const nextProps = grabbableProps(sceneId);
-    // 換場景時，舊角色對不上的台詞改指派給新場景的第一個角色；併角規則的角色 id 也對不上，一併清掉；新場景沒有的道具也清掉
     edit(t => {
-      const next: DialogueTask = {
-        ...t,
+      const remapped = remapRoles(t, roleMap, nextSlotIds);
+      return {
+        ...remapped,
         sceneId,
-        steps: t.steps.map(s => ({
+        steps: remapped.steps.map(s => ({
           ...s,
           lines: s.lines.map(l => ({
             ...l,
-            speakerSlotId: nextSlots.some(sl => sl.id === l.speakerSlotId) ? l.speakerSlotId : nextSlots[0]?.id ?? '',
             prop: nextProps.some(p => p.id === l.prop) ? l.prop : undefined,
             wear: l.wear && nextProps.some(p => p.id === l.prop && p.wearable) ? true : undefined,
             pointAt: nextProps.some(p => p.id === l.pointAt) ? l.pointAt : undefined,
-            branch: nextSlots.some(sl => sl.id === l.branch) ? l.branch : undefined,
           })),
         })),
       };
-      delete next.castOptions;
-      return next;
     });
+  };
+
+  /** 換場景前檢查：劇本裡有新場景沒有的角色時，先跳視窗讓老師指定改給誰演 */
+  const changeScene = (sceneId: string) => {
+    const nextSlotIds = (SCENES.find(s => s.id === sceneId)?.slots ?? []).map(s => s.id);
+    const missing = speakingSlots(task).filter(id => !nextSlotIds.includes(id));
+    if (missing.length === 0) applySceneChange(sceneId, {});
+    else setPendingScene(sceneId);
   };
 
   return (
@@ -320,6 +327,15 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
           onCancel={() => setConfirmClose(false)}
           onDiscard={onClose}
           onSaveAndLeave={async () => { if (await save()) onClose(); }}
+        />
+      )}
+      {pendingScene && (
+        <SceneRoleModal
+          task={task}
+          fromSlots={slots}
+          toSceneId={pendingScene}
+          onCancel={() => setPendingScene(null)}
+          onConfirm={roleMap => { applySceneChange(pendingScene, roleMap); setPendingScene(null); }}
         />
       )}
       {error && <div className="te-error" role="alert">{error}</div>}
@@ -770,6 +786,87 @@ function ConfirmLeaveModal({ saving, error, onCancel, onDiscard, onSaveAndLeave 
           <button className="te-modal-btn te-modal-discard" onClick={onDiscard} disabled={saving}>放棄變更並離開</button>
           <button className="te-modal-btn te-modal-save" onClick={onSaveAndLeave} disabled={saving}>
             <span className="material-symbols-outlined" aria-hidden="true">save</span>{saving ? '儲存中…' : '儲存並離開'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SceneRoleModalProps {
+  task: DialogueTask;
+  /** 目前場景的角色（顯示舊角色名稱用） */
+  fromSlots: SlotOption[];
+  toSceneId: string;
+  onCancel: () => void;
+  onConfirm: (roleMap: Record<string, string>) => void;
+}
+
+/** 換到角色對不上的場景時：列出新場景沒有的角色，讓老師指定改由新場景哪個角色演；Esc / 點背景 = 不換場景 */
+function SceneRoleModal({ task, fromSlots, toSceneId, onCancel, onConfirm }: SceneRoleModalProps) {
+  const toScene = SCENES.find(s => s.id === toSceneId);
+  const toSlots = useMemo(() => toScene?.slots ?? [], [toScene]);
+  const toIds = useMemo(() => toSlots.map(s => s.id), [toSlots]);
+  const speakers = useMemo(() => speakingSlots(task), [task]);
+  const missing = useMemo(() => speakers.filter(id => !toIds.includes(id)), [speakers, toIds]);
+  const lineCount = (id: string) => task.steps.reduce((n, s) => n + s.lines.filter(l => l.speakerSlotId === id).length, 0);
+  const fromLabel = (id: string) => fromSlots.find(s => s.id === id)?.label ?? id;
+
+  // 預設：依序改給新場景裡劇本還沒用到的角色，用完了再給第一個角色
+  const [roleMap, setRoleMap] = useState<Record<string, string>>(() => {
+    const free = toIds.filter(id => !speakers.includes(id));
+    return Object.fromEntries(missing.map((id, i) => [id, free[i] ?? toIds[0] ?? '']));
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  const resultSize = new Set(speakers.map(id => roleMap[id] ?? id)).size;
+  const droppedCast = (task.castOptions?.length ?? 0) - (remapRoles(task, roleMap, toIds).castOptions?.length ?? 0);
+  const ready = missing.every(id => toIds.includes(roleMap[id]));
+
+  return (
+    <div className="te-modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="te-modal" role="alertdialog" aria-modal="true" aria-labelledby="te-scene-title" aria-describedby="te-scene-desc">
+        <button type="button" className="te-modal-close" onClick={onCancel} aria-label="關閉" title="關閉">
+          <span className="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+        <span className="te-modal-icon material-symbols-outlined" aria-hidden="true">group</span>
+        <h2 id="te-scene-title" className="te-modal-title">新場景的角色對不上劇本</h2>
+        <p id="te-scene-desc" className="te-modal-desc">
+          劇本有 {speakers.length} 個角色，「{toScene?.label ?? toSceneId}」有 {toSlots.length} 個角色。
+          請指定下列角色的台詞改由誰說：
+        </p>
+        <ul className="te-role-map">
+          {missing.map(id => (
+            <li key={id}>
+              <span className="te-role-from">{fromLabel(id)}<small>{lineCount(id)} 句</small></span>
+              <span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+              <select
+                aria-label={`${fromLabel(id)} 改由誰說`}
+                value={roleMap[id]}
+                onChange={e => { const to = e.target.value; setRoleMap(m => ({ ...m, [id]: to })); }}
+              >
+                {toSlots.map(s => (
+                  <option key={s.id} value={s.id}>{s.label}{speakers.includes(s.id) ? '（劇本已有台詞）' : ''}</option>
+                ))}
+              </select>
+            </li>
+          ))}
+        </ul>
+        {resultSize < speakers.length && (
+          <p className="te-role-note">換完後演出人數由 {speakers.length} 人變成 {resultSize} 人，同一個角色會說原本兩個角色的台詞。</p>
+        )}
+        {droppedCast > 0 && (
+          <p className="te-role-note">有 {droppedCast} 個演出人數方案在新場景不成立，會被移除，請到「角色配置」重新設定。</p>
+        )}
+        <div className="te-modal-actions">
+          <button className="te-modal-btn te-modal-cancel" onClick={onCancel} autoFocus>取消</button>
+          <button className="te-modal-btn te-modal-save" onClick={() => onConfirm(roleMap)} disabled={!ready}>
+            更新
           </button>
         </div>
       </div>
