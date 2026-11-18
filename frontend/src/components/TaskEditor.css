@@ -461,7 +461,7 @@
   flex: 1;
   display: grid;
   /* 右欄隨視窗縮窄，把空間留給中欄的台詞卡片 */
-  grid-template-columns: 285px minmax(0, 1fr) clamp(280px, 24vw, 340px);
+  grid-template-columns: 290px minmax(0, 1fr) clamp(280px, 24vw, 340px);
   gap: 18px;
   padding: 8px 20px 20px;
   align-items: start;
@@ -599,7 +599,7 @@
 }
 
 .te-field-level {
-  flex: 0 0 76px;
+  flex: 0 0 100px;
 }
 
 /* 左欄：流程總覽 */

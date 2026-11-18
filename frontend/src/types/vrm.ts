@@ -205,6 +205,8 @@ export interface SceneVariant {
   label: string;
   labelEn?: string;
   icon?: string;
+  backgroundType?: 'image' | 'video' | 'camera' | 'color' | 'none';
+  backgroundValue?: string;
   /** Fixed participant positions for THIS scene variant */
   slots?: SceneSlot[];
   /** Restricted VRM model IDs for this variant (overrides Theme-level if set) */

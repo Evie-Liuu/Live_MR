@@ -23,6 +23,8 @@ export const THEMES: ThemeConfig[] = [
         labelEn: 'Cashier',
         // icon: '🏪',
         icon: 'point_of_sale',
+        backgroundType: 'video',
+        backgroundValue: '/video/clothingStore.mp4',
         allowedVrmIds: [
           // 'default',
           'student_male',
@@ -250,6 +252,8 @@ export const THEMES: ThemeConfig[] = [
         label: '試衣間',
         labelEn: 'Fitting Room',
         icon: '🪞',
+        backgroundType: 'video',
+        backgroundValue: '/video/clothingStore.mp4',
         allowedVrmIds: [
           // 'default',
           'student_male',
@@ -380,7 +384,31 @@ export const THEMES: ThemeConfig[] = [
       },
     ],
   },
+  // ── 國際校園 ──────────────────────────────────────────────────────────────
+  {
+    id: 'internationalSchool',
+    label: '國際學校',
+    icon: 'school',
+    scenes: [
+      {
+        // ── Scene 1：教室 ───────────────────────────────────────────────
+        id: 'internationalSchool_classroom',
+        label: '教室',
+        labelEn: 'Classroom',
+        icon: 'display_group',
+        allowedVrmIds: [
 
+        ],
+        slots: [
+
+        ],
+        propSystem: {},
+        groups: [
+
+        ]
+      },
+    ]
+  },
   // ─── 更多主題可繼續在此新增 ──────────────────────────────────────────────
 ];
 
@@ -431,6 +459,8 @@ function buildScenePresets(): Record<string, SceneConfig> {
         id: variant.id,
         label: `${theme.label} · ${variant.label}`,
         labelEn: variant.labelEn,
+        backgroundType: variant.backgroundType,
+        backgroundValue: variant.backgroundValue,
         slots: variant.slots,
         allowedVrmIds: variant.allowedVrmIds,
         modules: variant.modules,
