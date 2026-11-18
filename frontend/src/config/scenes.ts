@@ -259,6 +259,14 @@ export const THEMES: ThemeConfig[] = [
         ],
         slots: [
           {
+            id: 'staff',
+            label: 'Staff',
+            icon: '🏪',
+            position: [-0.5, 1.0, -3],
+            rotation: [0, -Math.PI / 8, 0],
+            defaultVrmId: 'clothingStoreStaff_female',
+          },
+          {
             id: 'customer',
             label: 'Customer A',
             icon: '👗',
@@ -273,14 +281,6 @@ export const THEMES: ThemeConfig[] = [
             position: [-2.4, 0.5, -1.5],
             rotation: [0, Math.PI / 4, 0],
             defaultVrmId: 'student_male',
-          },
-          {
-            id: 'staff',
-            label: 'Staff',
-            icon: '🏪',
-            position: [-0.5, 1.0, -3],
-            rotation: [0, -Math.PI / 8, 0],
-            defaultVrmId: 'clothingStoreStaff_female',
           },
         ],
         modules: [
@@ -353,7 +353,6 @@ export const THEMES: ThemeConfig[] = [
             id: 'cashier_side',
             label: '收銀區',
             members: [
-              { kind: 'slot', id: 'cashier' },
               { kind: 'slot', id: 'staff' },
               { kind: 'staticProp', id: 'cashier_counter' },
               { kind: 'taskProp', id: 'tshirt_red' },

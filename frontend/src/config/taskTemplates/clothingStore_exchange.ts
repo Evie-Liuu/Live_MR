@@ -25,10 +25,10 @@ export const clothingStoreExchange: TaskTemplate = {
         title: '打招呼與說明問題',
         purpose: '能表達退換貨需求，並說明遇到的問題',
         lines: [
-          { id: 'step1_1', speakerSlotId: 'customer', en: "Hello. I'd like to exchange this T-shirt.", zh: '你好，我想換這件 T 恤。', gesture: 'handOver' },
+          { id: 'step1_1', speakerSlotId: 'customer', en: "Hello. I'd like to exchange this T-shirt.", zh: '你好，我想換這件 T 恤。', gesture: 'hold', prop: 'tshirt_blue' },
           { id: 'step1_2', speakerSlotId: 'cashier', en: "Hello! Sure. What's the problem?", zh: '你好！當然可以。請問有什麼問題呢？', gesture: 'nod' },
           { id: 'step1_3', speakerSlotId: 'customer', en: "It's too big for me.", zh: '這件對我來說太大了。', gesture: 'point', pointAt: 'tshirt_blue' },
-          { id: 'step1_4', speakerSlotId: 'cashier', en: 'I see. Would you like a smaller size?', zh: '我明白了。你想換小一號嗎？', prop: 'tshirt_blue' },
+          { id: 'step1_4', speakerSlotId: 'cashier', en: 'I see. Would you like a smaller size?', zh: '我明白了。你想換小一號嗎？', gesture: 'hold', prop: 'tshirt_blue' },
         ],
         grammarPoints: ["I'd like to exchange this T-shirt.", "What's the problem?", "It's too big for me.", 'Would you like a smaller size?'],
         grammarNote: [
@@ -56,11 +56,11 @@ export const clothingStoreExchange: TaskTemplate = {
         purpose: '能詢問商品尺寸、提供收據，並確認是否有合適的替換商品',
         lines: [
           { id: 'step2_1', speakerSlotId: 'customer', en: 'Yes, please. Do you have a small one?', zh: '是的，麻煩你。有小號的嗎？', gesture: 'nod' },
-          { id: 'step2_2', speakerSlotId: 'staff', en: 'Let me check. Do you have the receipt?', zh: '我確認一下。你有收據嗎？', prop: 'tshirt_blue' },
+          { id: 'step2_2', speakerSlotId: 'staff', en: 'Let me check. Do you have the receipt?', zh: '我確認一下。你有收據嗎？', gesture: 'hold', prop: 'tshirt_blue' },
           { id: 'step2_3', speakerSlotId: 'customer', en: 'Yes, here it is.', zh: '有，在這裡。', gesture: 'handOver', prop: 'receipt' },
           { id: 'step2_4', speakerSlotId: 'staff', en: 'Thank you. Let me check the size.', zh: '謝謝。我確認一下尺寸。' },
           { id: 'step2_5', speakerSlotId: 'cashier', en: 'The T-shirt looks fine.', zh: '這件 T 恤看起來沒有問題。' },
-          { id: 'step2_6', speakerSlotId: 'customer2', en: 'Excuse me. Can I exchange my T-shirt, too?', zh: '不好意思，我也可以換我的 T 恤嗎？' },
+          { id: 'step2_6', speakerSlotId: 'customer2', en: 'Excuse me. Can I exchange my T-shirt, too?', zh: '不好意思，我也可以換我的 T 恤嗎？', gesture: 'hold', prop: 'tshirt_red' },
           { id: 'step2_7', speakerSlotId: 'cashier', en: "Of course. What's the problem with yours?", zh: '當然可以。你的 T 恤有什麼問題呢？', branch: 'customer2' },
           { id: 'step2_8', speakerSlotId: 'customer2', en: 'I got the wrong color.', zh: '我拿錯顏色了。', gesture: 'point', pointAt: 'tshirt_red' },
         ],
