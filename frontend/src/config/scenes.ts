@@ -1,4 +1,4 @@
-import type { SceneConfig, ThemeConfig } from '../types/vrm';
+﻿import type { SceneConfig, ThemeConfig } from '../types/vrm';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Teaching Hierarchy
@@ -74,7 +74,7 @@ export const THEMES: ThemeConfig[] = [
             tasks: [
               { id: 'ask_price_1', label: 'Ask for the price of a blue T-shirt.' },
               { id: 'ask_price_2', label: 'Ask for the price of a black jacket.' },
-              { id: 'ask_price_3', label: 'Ask for the price of the red skirt.' },
+              { id: 'ask_price_3', label: 'Ask for the price of the purple skirt.' },
               { id: 'ask_price_4', label: 'Ask how much the white shirt is.' },
               { id: 'ask_price_5', label: 'Ask how much the pants are.' },
               { id: 'ask_price_6', label: 'Ask for the total price of two items.' },
@@ -128,7 +128,7 @@ export const THEMES: ThemeConfig[] = [
               { id: 'ask_sale_3', label: 'Ask whether the jacket is cheaper today.' },
               { id: 'ask_sale_4', label: 'Ask whether there is a special offer.' },
               { id: 'ask_sale_5', label: 'Ask whether this is the sale price.' },
-              { id: 'ask_sale_6', label: 'Ask whether the red skirt is discounted.' },
+              { id: 'ask_sale_6', label: 'Ask whether the purple skirt is discounted.' },
               { id: 'ask_sale_7', label: 'Ask whether there is a student discount.' },
               { id: 'ask_sale_8', label: 'Ask whether buying two items gives a discount.' },
               { id: 'ask_sale_9', label: 'Ask whether there is a coupon for this item.' },
@@ -187,8 +187,8 @@ export const THEMES: ThemeConfig[] = [
             'tshirt_blue': { label: '櫃檯的藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 2], heldRotation: [0, 0, 0] },
 
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'dress_red': {
-              taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+            'skirt_purple': {
+              taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
               bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 }
             },
@@ -236,7 +236,7 @@ export const THEMES: ThemeConfig[] = [
               { kind: 'taskProp', id: 'tshirt_blue_small' },
               { kind: 'taskProp', id: 'tshirt_blue_static' },
               { kind: 'taskProp', id: 'jacket_black' },
-              { kind: 'taskProp', id: 'dress_red' },
+              { kind: 'taskProp', id: 'skirt_purple' },
               { kind: 'taskProp', id: 'shirt_white' },
               { kind: 'taskProp', id: 'pants_jeans' },
               { kind: 'taskProp', id: 'hat' },
@@ -293,7 +293,7 @@ export const THEMES: ThemeConfig[] = [
             label: 'Try On Items',
             icon: '👗',
             tasks: [
-              { id: 'try_on_1', label: 'Ask if you can try on the red dress.' },
+              { id: 'try_on_1', label: 'Ask if you can try on the purple skirt.' },
               { id: 'try_on_2', label: 'Tell the staff the item does not fit.' },
               { id: 'try_on_3', label: 'Ask for a different colour to try.' },
             ],
@@ -326,8 +326,8 @@ export const THEMES: ThemeConfig[] = [
             'tshirt_blue': { label: '櫃檯的藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 2], heldRotation: [0, 0, 0] },
 
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
-            'dress_red': {
-              taskId: 'ask_price_3', label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+            'skirt_purple': {
+              taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
               bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 }
             },
@@ -374,7 +374,7 @@ export const THEMES: ThemeConfig[] = [
               { kind: 'taskProp', id: 'tshirt_blue_small' },
               { kind: 'taskProp', id: 'tshirt_blue_static' },
               { kind: 'taskProp', id: 'jacket_black' },
-              { kind: 'taskProp', id: 'dress_red' },
+              { kind: 'taskProp', id: 'skirt_purple' },
               { kind: 'taskProp', id: 'shirt_white' },
               { kind: 'taskProp', id: 'pants_jeans' },
               { kind: 'taskProp', id: 'hat' },
