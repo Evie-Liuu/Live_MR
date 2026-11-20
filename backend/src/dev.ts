@@ -8,6 +8,7 @@ import { RoomAdminService } from './roomAdmin.js'
 import { openDatabase } from './db/connection.js'
 import { LessonPlanRepo } from './db/lessonPlanRepo.js'
 import { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
+import { SpeechFeedbackRepo } from './db/speechFeedbackRepo.js'
 
 // 對應 scripts/dev-livekit.ts 起的 dev 用 LiveKit（僅 localhost，devkey/devsecret 為固定值）。
 process.env.LIVEKIT_URL = 'ws://127.0.0.1:7880'
@@ -34,14 +35,18 @@ process.env.TEST_ACCOUNTS_FILE ||= path.resolve(process.cwd(), '../data/test-acc
 const dbPath = process.env.LIVEMR_DB_PATH || path.resolve(process.cwd(), '../data/livemr.sqlite')
 let lessonPlanRepo: LessonPlanRepo | null = null
 let dialogueTaskRepo: DialogueTaskRepo | null = null
+let speechFeedbackRepo: SpeechFeedbackRepo | null = null
 try {
   const db = openDatabase(dbPath)
   lessonPlanRepo = new LessonPlanRepo(db)
   dialogueTaskRepo = new DialogueTaskRepo(db)
+  speechFeedbackRepo = new SpeechFeedbackRepo(db)
 } catch (err) { console.error('[db] failed to open', dbPath, err) }
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
-app.use('/api', createRouter(store, { recordingStore, roomAdmin }, { repo: lessonPlanRepo }, { repo: dialogueTaskRepo }))
+app.use('/api', createRouter(
+  store, { recordingStore, roomAdmin }, { repo: lessonPlanRepo }, { repo: dialogueTaskRepo }, { repo: speechFeedbackRepo },
+))
 
 const CLEANUP_INTERVAL = 5 * 60 * 1000
 const ROOM_TTL = 2 * 60 * 60 * 1000

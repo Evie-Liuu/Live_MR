@@ -14,6 +14,7 @@ import { RoomAdminService } from './roomAdmin.js'
 import { openDatabase } from './db/connection.js'
 import { LessonPlanRepo } from './db/lessonPlanRepo.js'
 import { DialogueTaskRepo } from './db/dialogueTaskRepo.js'
+import { SpeechFeedbackRepo } from './db/speechFeedbackRepo.js'
 import { detectLanIp } from './launcher/network.js'
 import { ensureCert } from './launcher/certs.js'
 import { trustCaLocally, trustCaForOpenSsl } from './launcher/trustStore.js'
@@ -117,17 +118,19 @@ async function main(): Promise<void> {
   // 教案資料庫：開啟失敗只停用教案端點（503），其他功能照常
   let lessonPlanRepo: LessonPlanRepo | null = null
   let dialogueTaskRepo: DialogueTaskRepo | null = null
+  let speechFeedbackRepo: SpeechFeedbackRepo | null = null
   try {
     const db = openDatabase(path.join(DATA_DIR, 'livemr.sqlite'))
     lessonPlanRepo = new LessonPlanRepo(db)
     dialogueTaskRepo = new DialogueTaskRepo(db)
+    speechFeedbackRepo = new SpeechFeedbackRepo(db)
     console.log(`[db] lesson plans at ${path.join(DATA_DIR, 'livemr.sqlite')}`)
   } catch (err) {
     console.error('[db] failed to open lesson plan database, lesson plan endpoints disabled:', err instanceof Error ? err.message : String(err))
   }
 
   app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
-  app.use('/api', createRouter(store, { recordingStore, roomAdmin }, { repo: lessonPlanRepo }, { repo: dialogueTaskRepo }))
+  app.use('/api', createRouter(store, { recordingStore, roomAdmin }, { repo: lessonPlanRepo }, { repo: dialogueTaskRepo }, { repo: speechFeedbackRepo }))
 
   const livekitProxy = createProxyMiddleware({
     target: `http://127.0.0.1:${LIVEKIT_PORT}`,

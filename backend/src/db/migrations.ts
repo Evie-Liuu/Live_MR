@@ -41,4 +41,31 @@ export const MIGRATIONS: ReadonlyArray<string> = [
   );
   CREATE INDEX idx_dialogue_tasks_teacher ON dialogue_tasks (teacher_uid, updated_at DESC);
   `,
+  `
+  CREATE TABLE speech_feedback (
+    id             TEXT PRIMARY KEY,
+    room_id        TEXT NOT NULL,
+    student_id     TEXT NOT NULL,
+    student_name   TEXT NOT NULL,
+    task_title     TEXT NOT NULL,
+    step_index     INTEGER NOT NULL,
+    line_index     INTEGER NOT NULL,
+    line_en        TEXT NOT NULL,
+    transcript     TEXT NOT NULL,
+    language       TEXT NOT NULL,
+    severity       TEXT NOT NULL,
+    issues_json    TEXT NOT NULL,
+    missing_json   TEXT NOT NULL,
+    wrong_json     TEXT NOT NULL,
+    audio_seconds  REAL NOT NULL,
+    model          TEXT NOT NULL,
+    prompt_tokens  INTEGER NOT NULL,
+    audio_tokens   INTEGER NOT NULL,
+    output_tokens  INTEGER NOT NULL,
+    cost_usd       REAL NOT NULL,
+    created_at     TEXT NOT NULL
+  );
+  CREATE INDEX idx_speech_feedback_room ON speech_feedback (room_id, created_at);
+  CREATE INDEX idx_speech_feedback_student ON speech_feedback (student_name, created_at);
+  `,
 ]

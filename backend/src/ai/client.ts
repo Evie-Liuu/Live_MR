@@ -59,6 +59,16 @@ export interface TokenUsage {
   prompt: number
   output: number
   total: number
+  /** prompt 裡屬於音訊的 token（音訊單價較高）；模型沒回報時省略 */
+  audioPrompt?: number
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function audioPromptTokens(um: any): number | undefined {
+  const details = um?.promptTokensDetails
+  if (!Array.isArray(details)) return undefined
+  const audio = details.find((d: { modality?: string }) => d?.modality === 'AUDIO')
+  return typeof audio?.tokenCount === 'number' ? audio.tokenCount : undefined
 }
 
 /** 模型回傳文字無法被 parse 成預期形狀；視為該模型失敗、換下一個模型。 */
@@ -85,6 +95,8 @@ export interface GeminiCallOptions<T> {
   timeoutMs?: number
   /** 把模型文字轉成結果；拋錯視為該模型失敗 */
   parse: (text: string) => T
+  /** 依序嘗試的模型；未給用 GEMINI_MODEL（MODELS） */
+  models?: readonly string[]
 }
 
 export interface GeminiCallResult<T> {
@@ -99,7 +111,7 @@ export async function callGemini<T>(opts: GeminiCallOptions<T>): Promise<GeminiC
   opts.signal?.addEventListener('abort', () => controller.abort())
   try {
     let lastErr: unknown = new Error('No models configured')
-    for (const model of MODELS) {
+    for (const model of opts.models ?? MODELS) {
       try {
         const thinkingBudget = thinkingBudgetFor(model, opts.thinkingBudget)
         const config: Record<string, unknown> = {
@@ -125,7 +137,13 @@ export async function callGemini<T>(opts: GeminiCallOptions<T>): Promise<GeminiC
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const um = (res as any).usageMetadata
         const usage: TokenUsage | undefined = um
-          ? { prompt: um.promptTokenCount ?? 0, output: um.candidatesTokenCount ?? 0, total: um.totalTokenCount ?? 0 }
+          ? {
+              prompt: um.promptTokenCount ?? 0,
+              // 推理 token 也按輸出計費
+              output: (um.candidatesTokenCount ?? 0) + (um.thoughtsTokenCount ?? 0),
+              total: um.totalTokenCount ?? 0,
+              ...(audioPromptTokens(um) !== undefined ? { audioPrompt: audioPromptTokens(um) } : {}),
+            }
           : undefined
         let data: T
         try {

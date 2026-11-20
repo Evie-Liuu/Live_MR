@@ -9,6 +9,7 @@ import { mergeRecording } from './merge.js'
 import { generateHint as generateAIHint, generateHints as generateAIHints } from './ai/hints.js'
 import { createLessonPlanRouter, type LessonPlanRouteDeps } from './lessonPlanRoutes.js'
 import { createDialogueTaskRouter, type DialogueTaskRouteDeps } from './dialogueTaskRoutes.js'
+import { createSpeechRouter, type SpeechRouteDeps } from './speechRoutes.js'
 import { authenticateTestAccount, isTestStudentName, loadTestAccounts, testAccountsEnabled } from './testAccounts.js'
 import { GUEST_NAME_MAX_TRIES, guestJoinEnabled, guestNameCandidate, isReservedName, normalizeGuestName } from './guestJoin.js'
 
@@ -60,10 +61,12 @@ interface RecordingDeps {
 
 export function createRouter(
   store: RoomStore, recording?: RecordingDeps, lessonPlans?: LessonPlanRouteDeps, dialogueTasks?: DialogueTaskRouteDeps,
+  speech?: Omit<SpeechRouteDeps, 'store'>,
 ): Router {
   const router = Router()
   router.use('/lesson-plans', createLessonPlanRouter(lessonPlans ?? { repo: null }))
   router.use('/dialogue-tasks', createDialogueTaskRouter(dialogueTasks ?? { repo: null }))
+  router.use(createSpeechRouter({ store, repo: null, ...speech }))
 
   // Per-room event log + waiters for long polling
   interface QueuedEvent { id: number; type: string; [key: string]: unknown }
