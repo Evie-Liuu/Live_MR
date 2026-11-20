@@ -10,7 +10,7 @@ export const internationalSchoolNewClassmates: TaskTemplate = {
   icon: 'school',
   color: 'teal',
   task: {
-    title: 'Meet Your New Classmates 認識新同學',
+    title: '認識新同學',
     sceneId: 'internationalSchool_classroom',
     level: 'A1-A2',
     // 3 人（Alex、Mia、Jamie）：Leo 的台詞由 Mia 說，Leo 自我介紹與聊多倫多的支線刪掉

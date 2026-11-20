@@ -402,7 +402,7 @@ export const THEMES: ThemeConfig[] = [
           'student_male',
           'student_female',
           'clothingStoreStaff_female',
-          'clothingStoreStaff_male',
+          'student_male2',
         ],
         // 台灣學生 ×2、交換學生 ×2（位置暫時沿用收銀台）
         slots: [
@@ -420,7 +420,7 @@ export const THEMES: ThemeConfig[] = [
             icon: '✈️',
             position: [2.0, 1.0, -1.5],
             rotation: [0, -Math.PI / 4, 0],
-            defaultVrmId: 'student_female',
+            defaultVrmId: 'clothingStoreStaff_female',
           },
           {
             id: 'student2',
@@ -436,7 +436,7 @@ export const THEMES: ThemeConfig[] = [
             icon: '✈️',
             position: [-0.5, 1.0, -3],
             rotation: [0, -Math.PI / 8, 0],
-            defaultVrmId: 'student_male',
+            defaultVrmId: 'student_male2',
           },
         ],
         propSystem: {

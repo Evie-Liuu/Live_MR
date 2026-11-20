@@ -52,6 +52,11 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     url: '/models/ClothingStoreStaff_Male.vrm',
     bodyType: 'adult',
   },
+  student_male2: {
+    id: 'student_male2',
+    label: '男學生2',
+    url: '/models/Student_Male2.vrm',
+  },
 } as const;
 
 /** Default VRM source ID used when no preference is set */
