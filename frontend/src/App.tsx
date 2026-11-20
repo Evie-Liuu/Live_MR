@@ -12,6 +12,7 @@ import './App.css';
 const BigScreen = lazy(() => import('./components/BigScreen.tsx'));
 const HostSession = lazy(() => import('./components/HostSession.tsx'));
 const ShareScreen = lazy(() => import('./components/ShareScreen.tsx'));
+const SpeechSimulator = lazy(() => import('./components/SpeechSimulator.tsx'));
 const HostLobby = lazy(() => import('./components/HostLobby.tsx'));
 const StudentHome = lazy(() => import('./components/StudentHome.tsx'));
 const StudentWaiting = lazy(() => import('./components/StudentWaiting.tsx'));
@@ -74,6 +75,8 @@ function teacherUidOf(user: AuthUser): string {
 const screenParam = new URLSearchParams(window.location.search).get('screen');
 const isBigScreen = screenParam === 'bigscreen';
 const isShareScreen = screenParam === 'share';
+/** 模擬學生回答：測試 AI 口說輔助（老師首頁開新分頁進入） */
+const isSpeechSim = screenParam === 'speech-sim';
 
 function App() {
   const [state, setState] = useState<AppState>(getInitialState);
@@ -379,6 +382,7 @@ function App() {
 function Root() {
   if (isBigScreen) return <Suspense fallback={<AppSpinner />}><BigScreen /></Suspense>;
   if (isShareScreen) return <Suspense fallback={<AppSpinner />}><ShareScreen /></Suspense>;
+  if (isSpeechSim) return <Suspense fallback={<AppSpinner />}><SpeechSimulator /></Suspense>;
   return <App />;
 }
 

@@ -184,6 +184,10 @@ export default function TeacherHome({ teacherName, teacherUid, onPrep, onStart, 
             </button>
           </div>
         </div>
+        <a className="th-sim-link" href="/?screen=speech-sim" target="_blank" rel="noopener">
+          <span className="material-symbols-outlined" aria-hidden="true">record_voice_over</span>
+          模擬學生回答：試用 AI 口說輔助
+        </a>
       </main>
     </div>
   );

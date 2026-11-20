@@ -1,0 +1,342 @@
+/* 模擬學生回答（?screen=speech-sim） */
+.ssim {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 20px 24px 28px;
+  background: #F7F4F0;
+  color: #2A2620;
+  font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei UI', 'Microsoft JhengHei', system-ui, sans-serif;
+  font-size: 15px;
+  text-align: left;
+}
+
+/* 全站 h1–h3 預設是白字（深色背景頁），這頁改回深色 */
+.ssim h1,
+.ssim h2,
+.ssim h3 { color: #2A2620; }
+
+.ssim-top h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.ssim-top p {
+  margin: 4px 0 0;
+  color: #6B645B;
+  font-size: 14px;
+}
+
+.ssim-body {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 320px;
+  gap: 18px;
+  margin-top: 16px;
+  align-items: start;
+}
+
+.ssim-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #F1ECE6;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(72, 38, 7, 0.06);
+}
+
+.ssim-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #6B645B;
+}
+
+.ssim-field select {
+  padding: 8px 10px;
+  border: 1px solid #E3DBD1;
+  border-radius: 10px;
+  background: #fff;
+  color: #2A2620;
+  font: inherit;
+  font-size: 14px;
+}
+
+.ssim-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ssim .ssim-steps button,
+.ssim .ssim-chip {
+  padding: 4px 12px;
+  border: 1px solid #E3DBD1;
+  border-radius: 999px;
+  background: #fff;
+  color: #4A443C;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ssim .ssim-steps button.is-on,
+.ssim .ssim-chip.is-on {
+  border-color: #F76E12;
+  background: #F76E12;
+  color: #fff;
+}
+
+.ssim .ssim-chip--ghost { color: #8A8F99; }
+
+.ssim-step-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ssim-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(100vh - 330px);
+  min-height: 200px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ssim .ssim-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #F1ECE6;
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ssim .ssim-line:hover { border-color: color-mix(in srgb, var(--role-color) 40%, #fff); }
+
+.ssim .ssim-line.is-on {
+  border-color: var(--role-color);
+  background: color-mix(in srgb, var(--role-color) 8%, #fff);
+}
+
+.ssim-line-who {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--role-color);
+}
+
+.ssim-line-en {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 中：iPad 4:3 外框；transform 讓裡面 position: fixed 的學生畫面以外框為範圍 */
+.ssim-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ssim-ipad {
+  position: relative;
+  width: 100%;
+  max-width: 820px;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto;
+  border: 12px solid #1F1F22;
+  border-radius: 28px;
+  background: #333;
+  overflow: hidden;
+  transform: translateZ(0);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.ssim-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ssim .ssim-rec {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 280px;
+  height: 52px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 999px;
+  background: #F76E12;
+  color: #fff;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(247, 110, 18, 0.3);
+}
+
+.ssim .ssim-rec:disabled { opacity: 0.6; cursor: default; }
+
+.ssim .ssim-rec.is-recording {
+  background: #D92D20;
+  box-shadow: 0 0 0 6px rgba(217, 45, 32, 0.15);
+}
+
+.ssim-rec .material-symbols-outlined { font-size: 24px; }
+
+.ssim-error {
+  margin: 0;
+  color: #B42318;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ssim-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ssim-row-label {
+  margin-right: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #6B645B;
+}
+
+/* 右：判斷結果 */
+.ssim-result h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.ssim-result h3 {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ssim-empty,
+.ssim-note {
+  margin: 0;
+  color: #6B645B;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.ssim-sev {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.ssim-sev small {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ssim-sev--ok { background: #E8F7EE; color: #136C3A; }
+.ssim-sev--minor { background: #FFF1DB; color: #8A4B08; }
+.ssim-sev--severe { background: #FDE8E8; color: #9B1C1C; }
+
+.ssim-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 10px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.ssim-dl dt {
+  font-weight: 800;
+  color: #6B645B;
+}
+
+.ssim-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ssim-dl--usage {
+  padding-top: 8px;
+  border-top: 1px solid #F1ECE6;
+  font-size: 13px;
+}
+
+.ssim-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ssim-history li {
+  display: grid;
+  grid-template-columns: 10px 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.ssim-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ssim-dot--ok { background: #1F9D55; }
+.ssim-dot--minor { background: #D97706; }
+.ssim-dot--severe { background: #D92D20; }
+
+.ssim-history-line {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ssim-history-meta {
+  grid-column: 2;
+  color: #6B645B;
+  font-size: 12px;
+}
+
+@media (max-width: 1200px) {
+  .ssim-body { grid-template-columns: 260px minmax(0, 1fr); }
+  .ssim-result { grid-column: 1 / -1; }
+}
+
+@media (max-width: 760px) {
+  .ssim { padding: 16px; }
+  .ssim-body { grid-template-columns: minmax(0, 1fr); }
+  .ssim-lines { max-height: 260px; }
+  .ssim .ssim-rec { min-width: 0; width: 100%; }
+}

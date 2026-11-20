@@ -493,3 +493,24 @@
     height: 160px;
   }
 }
+
+/* 模擬學生回答（測試 AI 口說輔助）：開新分頁 */
+.th-sim-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 22px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  color: #6B645B;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.th-sim-link:hover {
+  background: rgba(247, 110, 18, 0.08);
+  color: #F76E12;
+}
+
+.th-sim-link .material-symbols-outlined { font-size: 20px; }
