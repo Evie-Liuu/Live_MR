@@ -346,6 +346,121 @@
   font-weight: 800;
 }
 
+/* ── AI 口說輔助：嚴重錯誤的提示、沒回應時的選項 ──────────────── */
+.sto-assist {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(640px, 100%);
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: #fff;
+  color: color-mix(in srgb, var(--turn-color) 75%, #000);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: sto-fade-in 0.3s ease-out;
+}
+
+/* 提示卡或選項出現時收起麥克風圖示與「輪到你了」、上方提示縮小，把空間讓給提示（iPad 橫放 4:3 放不下全部） */
+.sto-assist ~ .sto-mic,
+.sto-assist ~ .sto-own-transcript,
+.sto-center:has(.sto-assist) .sto-your-turn {
+  display: none;
+}
+
+.sto-center:has(.sto-assist) { gap: 10px; }
+.sto-center:has(.sto-assist) .sto-hint { gap: 8px; }
+.sto-center:has(.sto-assist) .sto-hint-zh,
+.sto-center:has(.sto-assist) .sto-line-en { font-size: clamp(20px, 3vw, 28px); }
+.sto-center:has(.sto-assist) .sto-chip { font-size: clamp(16px, 2.4vw, 22px); padding: 3px 12px; }
+
+.sto-assist-title {
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.sto-assist-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(20px, 3vw, 26px);
+  font-weight: 800;
+}
+
+.sto-assist-pair s {
+  color: #8a8f99;
+  font-weight: 700;
+}
+
+.sto-assist-pair .material-symbols-outlined { font-size: 22px; }
+
+.sto-assist-frame {
+  font-size: clamp(22px, 3.4vw, 30px);
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.sto-assist-blank {
+  display: inline-block;
+  width: 1.4em;
+  height: 0.12em;
+  margin: 0 0.16em;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.45;
+  vertical-align: -0.1em;
+}
+
+.sto-assist--choice { gap: 8px; }
+
+.sto .sto-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 14px;
+  border: 2px solid color-mix(in srgb, var(--turn-color) 30%, #fff);
+  border-radius: 12px;
+  background: #fff;
+  color: inherit;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sto .sto-choice.is-right {
+  border-color: #1f9d55;
+  background: #e8f7ee;
+  color: #136c3a;
+}
+
+.sto .sto-choice.is-wrong {
+  border-color: #d97706;
+  background: #fff6e8;
+  color: #92500a;
+}
+
+.sto-choice-note {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sto-assist-pending {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sto-assist { animation: none; }
+}
+
 /* 這句要拿起的道具 */
 .sto-prop-cue {
   padding: 6px 14px;

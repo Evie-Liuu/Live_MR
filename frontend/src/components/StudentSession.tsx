@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client';
 import { DisconnectReason } from '@livekit/protocol';
 import { usePoseDetection } from '../hooks/usePoseDetection';
@@ -116,7 +116,12 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
   const [myIdentity, setMyIdentity] = useState<string | null>(null);
   /** LiveKit 偵測到在出聲的人與音量（含自己） */
   const [activeSpeakers, setActiveSpeakers] = useState<Map<string, number>>(new Map());
-  const scriptTurn = useScriptTurnStudent(roomRef, myIdentity, !!myIdentity && activeSpeakers.has(myIdentity));
+  const getTurnMicTrack = useCallback(
+    () => roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone)?.track?.mediaStreamTrack ?? null,
+    [],
+  );
+  const speechAssistCtx = useMemo(() => ({ roomId, name, getMicTrack: getTurnMicTrack }), [roomId, name, getTurnMicTrack]);
+  const scriptTurn = useScriptTurnStudent(roomRef, myIdentity, !!myIdentity && activeSpeakers.has(myIdentity), speechAssistCtx);
   const scriptTurnDataRef = useRef(scriptTurn.handleData);
   useEffect(() => { scriptTurnDataRef.current = scriptTurn.handleData; }, [scriptTurn.handleData]);
   const [aiHint, setAiHint] = useState<AIHintPayload | null>(null);
@@ -723,6 +728,9 @@ export default function StudentSession({ roomId, token, name, onExit }: StudentS
           doneSent={scriptTurn.doneSent}
           hintLevel={scriptTurn.hintLevel}
           onDone={scriptTurn.sendDone}
+          assistFeedback={scriptTurn.assistFeedback}
+          assistPending={scriptTurn.assistPending}
+          noResponse={scriptTurn.noResponse}
           isNext={!!myIdentity && scriptTurn.turn?.next?.identity === myIdentity && scriptTurn.turn.speaker.identity !== myIdentity}
         />
       )}

@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { ScriptTurn, TurnRole } from '../utils/scriptTurn.ts';
+import { choiceOptions, type AssistFeedback } from '../utils/speechAssist.ts';
 import { HINT_LABELS, shownHintLevel, type HintLevel } from '../utils/turnHints.ts';
 import TurnHintBody from './TurnHintBody.tsx';
 import './ScriptTurnOverlay.css';
@@ -20,6 +22,66 @@ interface ScriptTurnOverlayProps {
   hintLevel: HintLevel;
   /** 自己是下一位（聆聽時提早準備） */
   isNext: boolean;
+  /** AI 口說輔助：嚴重錯誤時的提示 */
+  assistFeedback?: AssistFeedback | null;
+  /** AI 正在判斷 */
+  assistPending?: boolean;
+  /** 完全沒有回應：顯示選項 */
+  noResponse?: boolean;
+}
+
+/** AI 判斷出嚴重問題時的提示卡：說中文 → 鼓勵用英文＋句型開頭；說錯字 → 正確的字；沒說完 → 接著說的句型 */
+function AssistCard({ feedback }: { feedback: AssistFeedback }) {
+  if (feedback.kind === 'wrongWord') {
+    return (
+      <div className="sto-assist" role="status">
+        <span className="sto-assist-title">換這個字試試</span>
+        {feedback.pairs.map(p => (
+          <div key={`${p.said}>${p.expected}`} className="sto-assist-pair">
+            <s>{p.said}</s>
+            <span className="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+            <b>{p.expected}</b>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="sto-assist" role="status">
+      <span className="sto-assist-title">{feedback.kind === 'chinese' ? '試著用英文說說看，可以這樣開頭' : '接著說下去'}</span>
+      <div className="sto-assist-frame">
+        {feedback.shown.join(' ')}
+        {Array.from({ length: feedback.blanks }, (_, i) => <span key={i} className="sto-assist-blank" />)}
+      </div>
+    </div>
+  );
+}
+
+/** 完全沒有回應：主動問一句，給 2–3 個選項；點對了顯示「就是這句」，點錯輕輕提醒 */
+function ChoiceCard({ turn }: { turn: ScriptTurn }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const { options, answer } = choiceOptions(turn.line.en, turn.choices, turn.seq);
+  if (options.length < 2) return null;
+  return (
+    <div className="sto-assist sto-assist--choice" role="group" aria-label="選一句說說看">
+      <span className="sto-assist-title">你想說的是哪一句？選一句說說看</span>
+      {options.map((o, i) => (
+        <button
+          type="button"
+          key={o}
+          className={`sto-choice${picked === i ? (i === answer ? ' is-right' : ' is-wrong') : ''}`}
+          onClick={() => setPicked(i)}
+        >
+          {o}
+          {picked === i && (
+            <span className="material-symbols-outlined" aria-hidden="true">{i === answer ? 'check_circle' : 'refresh'}</span>
+          )}
+        </button>
+      ))}
+      {picked !== null && picked !== answer && <span className="sto-choice-note">再想想看，這句是別人的台詞喔</span>}
+      {picked === answer && <span className="sto-choice-note">就是這句！大聲說出來吧</span>}
+    </div>
+  );
 }
 
 function speak(text: string) {
@@ -80,6 +142,12 @@ export default function ScriptTurnOverlay(props: ScriptTurnOverlayProps) {
         <div className="sto-center">
           <div id="sto-speak-title" className="sto-your-turn">輪到你了</div>
           <TurnHint turn={turn} level={props.hintLevel} />
+          {props.assistFeedback ? (
+            <AssistCard feedback={props.assistFeedback} />
+          ) : props.noResponse ? (
+            <ChoiceCard key={turn.seq} turn={turn} />
+          ) : null}
+          {props.assistPending && <span className="sto-assist-pending">AI 聽聽看…</span>}
           {turn.prop && <div className="sto-prop-cue">✊ 舉起手握拳，拿起{turn.prop.label}</div>}
           <div className={`sto-mic${props.speakerTalking ? ' is-live' : ''}`} aria-hidden="true">
             <span className="sto-mic-ring" style={{ transform: `scale(${scale})` }} />

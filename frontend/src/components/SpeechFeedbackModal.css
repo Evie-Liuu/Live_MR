@@ -1,0 +1,223 @@
+/* 老師端：本堂課的 AI 口說紀錄 */
+.sfm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(20, 22, 28, 0.45);
+}
+
+.sfm {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  max-height: min(86vh, 900px);
+  border-radius: 18px;
+  background: #fff;
+  color: #2a2620;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
+  text-align: left;
+  overflow: hidden;
+}
+
+.sfm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+}
+
+.sfm-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.sfm .sfm-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #6b645b;
+  cursor: pointer;
+}
+
+.sfm .sfm-close:hover { background: #f3efea; }
+
+.sfm-empty {
+  margin: 0;
+  padding: 24px 20px 32px;
+  color: #6b645b;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.sfm-usage {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 4px 20px 12px;
+}
+
+.sfm-usage div {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f7f4f0;
+}
+
+.sfm-usage dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b645b;
+}
+
+.sfm-usage dd {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.sfm-usage small {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b645b;
+}
+
+.sfm-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 0 20px 10px;
+  border-bottom: 1px solid #eee7df;
+}
+
+.sfm-tabs button {
+  padding: 6px 14px;
+  border: 1px solid #e3dbd1;
+  border-radius: 999px;
+  background: #fff;
+  color: #4a443c;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sfm-tabs button.is-on {
+  border-color: #2a2620;
+  background: #2a2620;
+  color: #fff;
+}
+
+.sfm-body {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 20px 20px;
+  overflow-y: auto;
+}
+
+.sfm-student {
+  padding: 12px 0;
+  border-bottom: 1px solid #f1ece6;
+}
+
+.sfm-student-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font-size: 15px;
+}
+
+.sfm-student-head span {
+  font-size: 13px;
+  color: #6b645b;
+}
+
+.sfm-issues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sfm-issue {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #f3efea;
+}
+
+.sfm-issue--chinese { background: #fde8e8; color: #9b1c1c; }
+.sfm-issue--incomplete { background: #fff1db; color: #8a4b08; }
+.sfm-issue--wrongWord { background: #e8eefc; color: #1e40af; }
+.sfm-issue--noResponse { background: #ececec; color: #4b4b4b; }
+.sfm-issue--none { background: #e8f7ee; color: #136c3a; }
+
+.sfm-words {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #4a443c;
+}
+
+.sfm-lines {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sfm-line {
+  padding: 10px 12px;
+  border: 1px solid #f1ece6;
+  border-radius: 12px;
+}
+
+.sfm-line-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 14px;
+}
+
+.sfm-line-head span { color: #6b645b; font-size: 13px; }
+
+.sfm-line-head .sfm-sev {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sfm-sev--ok { background: #e8f7ee; color: #136c3a !important; }
+.sfm-sev--minor { background: #fff1db; color: #8a4b08 !important; }
+.sfm-sev--severe { background: #fde8e8; color: #9b1c1c !important; }
+
+.sfm-line-en {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sfm-line-said {
+  margin-top: 2px;
+  font-size: 14px;
+  font-style: italic;
+  color: #4a443c;
+}
+
+.sfm-line-issues {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #6b645b;
+}

@@ -1,5 +1,6 @@
 import type { ScriptTurn, TurnPerson } from '../utils/scriptTurn.ts';
 import { HINT_LABELS, type HintLevel, type TurnHintMode } from '../utils/turnHints.ts';
+import { ISSUE_LABELS, SEVERITY_LABELS, type TurnJudgment } from '../types/speechAssist.ts';
 import './ScriptTurnHostPanel.css';
 
 /** 發言者目前的狀態（老師端提示要不要代讀或略過） */
@@ -34,6 +35,44 @@ interface ScriptTurnHostPanelProps {
   onJump: (lineIndex: number) => void;
   onNextStep: () => void;
   onEnd: () => void;
+  /** AI 口說輔助（學生停住時送錄音判斷） */
+  speechAssist: boolean;
+  onSpeechAssistChange: (on: boolean) => void;
+  /** 目前這一句最新的 AI 判斷；null＝還沒有 */
+  judgment: TurnJudgment | null;
+  /** 打開本堂課的口說紀錄 */
+  onOpenSpeechReport: () => void;
+}
+
+/** AI 口說輔助開關與紀錄入口 */
+function SpeechAssistToggle({ on, onChange, onOpenReport }: { on: boolean; onChange: (on: boolean) => void; onOpenReport: () => void }) {
+  return (
+    <div className="stp-mode stp-assist" role="group" aria-label="AI 口說輔助">
+      <label className="stp-auto" title="學生停住或說完時，把這一句的錄音送 AI 判斷：說中文、沒說完、說錯字。嚴重時才在學生 iPad 上提示，沒回應時給選項">
+        <input type="checkbox" checked={on} onChange={e => onChange(e.target.checked)} />
+        🎙AI 口說輔助
+      </label>
+      <button type="button" className="stp-mode-btn" onClick={onOpenReport} title="本堂課的口說紀錄與 AI 用量">
+        紀錄
+      </button>
+    </div>
+  );
+}
+
+/** 發言者這一句的 AI 判斷結果 */
+function JudgmentBadge({ judgment }: { judgment: TurnJudgment }) {
+  const detail = [
+    ...judgment.wrong.map(w => `${w.said}→${w.expected}`),
+    ...(judgment.missing.length > 0 ? [`漏了 ${judgment.missing.join(', ')}`] : []),
+  ].join('；');
+  return (
+    <div className={`stp-judge stp-judge--${judgment.severity}`}>
+      <span className="stp-judge-sev">AI・{SEVERITY_LABELS[judgment.severity]}</span>
+      {judgment.issues.length > 0 && <span className="stp-judge-issues">{judgment.issues.map(i => ISSUE_LABELS[i]).join('、')}</span>}
+      {judgment.transcript && <span className="stp-judge-said">“{judgment.transcript}”</span>}
+      {detail && <span className="stp-judge-detail">{detail}</span>}
+    </div>
+  );
 }
 
 const HINT_STEPS: HintLevel[] = [0, 1, 2, 3];
@@ -88,6 +127,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
           <span className="stp-hint">{lines.length} 句</span>
         </div>
         <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} auto={props.hintAuto} onAutoChange={props.onHintAutoChange} />
+        <SpeechAssistToggle on={props.speechAssist} onChange={props.onSpeechAssistChange} onOpenReport={props.onOpenSpeechReport} />
         <button
           type="button"
           className="stp-btn stp-btn--primary stp-start"
@@ -120,6 +160,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
         </span>
       </div>
       <HintModeToggle mode={props.hintMode} onChange={props.onHintModeChange} auto={props.hintAuto} onAutoChange={props.onHintAutoChange} />
+      <SpeechAssistToggle on={props.speechAssist} onChange={props.onSpeechAssistChange} onOpenReport={props.onOpenSpeechReport} />
 
       {!stepEnd && current && (
         <div className={`stp-now${warn ? ' is-warn' : ''}`} style={{ ['--role-color' as string]: turn.speaker.color }}>
@@ -131,6 +172,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
           <div className="stp-now-en">{current.en}</div>
           {turn.prop && <div className="stp-prop-cue">✊ 握拳拿起{turn.prop.label}</div>}
           {transcript && <div className="stp-transcript">“{transcript}”</div>}
+          {props.judgment && <JudgmentBadge judgment={props.judgment} />}
         </div>
       )}
       {!stepEnd && warn && (

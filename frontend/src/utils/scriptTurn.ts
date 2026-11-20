@@ -9,6 +9,7 @@ import type { DialogueLine } from '../types/dialogueTask.ts';
 import { grabbableProps } from '../config/scenes.ts';
 import { ROLE_COLORS } from './nameplates.ts';
 import type { TurnHintMode } from './turnHints.ts';
+import { distractorLines } from './speechAssist.ts';
 import { currentStepIndex, isLessonDone, lessonTask, type HostLessonState } from './lessonSession.ts';
 
 /** 大屏重開時讀取目前這一輪 */
@@ -53,6 +54,15 @@ export interface ScriptTurn {
   hintMode: TurnHintMode;
   /** 分級提示依沉默時間自動升級；false＝只由老師手動給 */
   hintAuto: boolean;
+  /** AI 口說輔助（停住時送錄音判斷、沒回應時給選項）；見 utils/speechAssist.ts */
+  speechAssist: boolean;
+  /** 任務名稱與程度（口說判斷與紀錄用） */
+  taskTitle: string;
+  level: string;
+  /** 前一句的英文（判斷語境用）；第一句為 null */
+  prevLine: string | null;
+  /** 沒有回應時的選項干擾句（同一步的其他台詞） */
+  choices: string[];
 }
 
 export interface TurnCast {
@@ -146,6 +156,11 @@ export function resolveTurn(lesson: HostLessonState, turn: ScriptTurnState, cast
     nextLine: nextLine?.en ?? null,
     hintMode: lesson.turnHintMode ?? 'tiered',
     hintAuto: lesson.turnHintAuto === true,
+    speechAssist: lesson.turnSpeechAssist === true,
+    taskTitle: lessonTask(lesson).title,
+    level: lessonTask(lesson).level,
+    prevLine: lines[lineIndex - 1]?.en ?? null,
+    choices: distractorLines(lines.map(l => l.en), lineIndex),
   };
 }
 

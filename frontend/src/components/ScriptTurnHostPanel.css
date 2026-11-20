@@ -403,3 +403,28 @@
   font-weight: 700;
   color: #5B3FD6;
 }
+
+/* AI 口說輔助：開關列與這一句的判斷結果 */
+.stp-assist { margin-top: 4px; }
+.stp-assist .stp-auto { flex: 1; color: #8a6a4a; }
+
+.stp-judge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.stp-judge--ok { background: #E8F7EE; color: #136C3A; }
+.stp-judge--minor { background: #FFF1DB; color: #8A4B08; }
+.stp-judge--severe { background: #FDE8E8; color: #9B1C1C; }
+
+.stp-judge-sev { font-weight: 900; }
+.stp-judge-issues { font-weight: 700; }
+.stp-judge-said { flex-basis: 100%; font-style: italic; color: #482607; }
+.stp-judge-detail { flex-basis: 100%; }

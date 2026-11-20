@@ -48,6 +48,8 @@ import LessonTaskDrawer from './LessonTaskDrawer.tsx';
 import CheckpointHostPanel, { type AiCheckpointKind } from './CheckpointHostPanel.tsx';
 import AiAssistantPanel, { type InteractionPhase } from './AiAssistantPanel.tsx';
 import ScriptTurnHostPanel, { type SpeakerStatus } from './ScriptTurnHostPanel.tsx';
+import SpeechFeedbackModal from './SpeechFeedbackModal.tsx';
+import { isTurnJudgment, type TurnJudgment } from '../types/speechAssist.ts';
 import CustomSelect from './CustomSelect.tsx';
 import ClassNavigator from './ClassNavigator.tsx';
 import { classNavState } from '../utils/classNavigator.ts';
@@ -589,6 +591,9 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   const [turnTranscript, setTurnTranscript] = useState<{ seq: number; text: string } | null>(null);
   /** 發言者 iPad 回報的提示等級（seq 對應目前這一輪） */
   const [turnHint, setTurnHint] = useState<{ seq: number; level: TurnHintLevel; by: 'auto' | 'teacher' } | null>(null);
+  /** 發言者 iPad 轉送的 AI 口說判斷（seq 對應目前這一輪） */
+  const [turnJudge, setTurnJudge] = useState<{ seq: number; judgment: TurnJudgment } | null>(null);
+  const [showSpeechReport, setShowSpeechReport] = useState(false);
   /** 結束演練後保留最後的 seq，重新開始時接著加，舊的「說完了」不會誤觸 */
   const lastTurnSeqRef = useRef(0);
 
@@ -1995,6 +2000,13 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
               }
               return;
             }
+            if (parsed.type === 'turn-judge') {
+              const t = scriptTurnRef.current;
+              if (t && t.seq === parsed.seq && t.speaker.identity === participant.identity && isTurnJudgment(parsed.judgment)) {
+                setTurnJudge({ seq: t.seq, judgment: parsed.judgment });
+              }
+              return;
+            }
             if (parsed.type === 'turn-transcript') {
               const t = scriptTurnRef.current;
               if (t && t.seq === parsed.seq && t.speaker.identity === participant.identity && typeof parsed.text === 'string') {
@@ -2452,6 +2464,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   useEffect(() => { setTurnTranscript(null); }, [scriptTurnSeq]);
   const liveTurnTranscript = turnTranscript && turnTranscript.seq === scriptTurnSeq ? turnTranscript.text : '';
   const liveTurnHint = turnHint && turnHint.seq === scriptTurnSeq ? turnHint : null;
+  const liveTurnJudge = turnJudge && turnJudge.seq === scriptTurnSeq ? turnJudge.judgment : null;
   /**
    * 老師手動指定提示等級：大屏跟著顯示；發言者是學生時也送到他的 iPad
    * （老師演出、角色未指派或學生離線時只顯示在大屏）。
@@ -2483,6 +2496,15 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
       const next = { ...prev };
       if (auto) next.turnHintAuto = true;
       else delete next.turnHintAuto;
+      return next;
+    });
+  }, []);
+  const setTurnSpeechAssist = useCallback((on: boolean) => {
+    setLesson(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      if (on) next.turnSpeechAssist = true;
+      else delete next.turnSpeechAssist;
       return next;
     });
   }, []);
@@ -3550,7 +3572,14 @@ ${done ? '點擊取消完成' : current ? '點擊標記此步驟完成' : '請�
                   onJump={i => updateTurn((l, t) => jumpTurn(l, t, i))}
                   onNextStep={nextStepScriptTurn}
                   onEnd={endScriptTurn}
+                  speechAssist={lesson.turnSpeechAssist === true}
+                  onSpeechAssistChange={setTurnSpeechAssist}
+                  judgment={liveTurnJudge}
+                  onOpenSpeechReport={() => setShowSpeechReport(true)}
                 />
+                {showSpeechReport && (
+                  <SpeechFeedbackModal roomId={roomId} hostToken={hostToken} onClose={() => setShowSpeechReport(false)} />
+                )}
                 <CheckpointHostPanel
                   steps={lesson.record.task.steps}
                   currentIndex={currentStepIndex(lesson)}

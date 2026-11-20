@@ -31,6 +31,8 @@ export interface HostLessonState {
   turnHintMode?: TurnHintMode;
   /** 分級提示是否依沉默時間自動升級；未設定＝不自動（老師手動點選） */
   turnHintAuto?: boolean;
+  /** AI 口說輔助（學生停住時送錄音給 AI 判斷）；未設定＝關閉 */
+  turnSpeechAssist?: boolean;
   /** AI 出的台下互動題（步驟 id → 題目），只在這堂課用；老師按「存入任務」才寫回任務 */
   aiCheckpoints?: Record<string, AudienceCheckpoint[]>;
 }
@@ -198,6 +200,7 @@ export function loadHostLesson(): HostLessonState | null {
       ...(turn ? { turn } : {}),
       ...(parsed.turnHintMode === 'full' ? { turnHintMode: 'full' as const } : {}),
       ...(parsed.turnHintAuto === true ? { turnHintAuto: true } : {}),
+      ...(parsed.turnSpeechAssist === true ? { turnSpeechAssist: true } : {}),
       ...(isCheckpointMap(parsed.aiCheckpoints) ? { aiCheckpoints: parsed.aiCheckpoints } : {}),
     };
   } catch {

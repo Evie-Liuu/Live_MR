@@ -4,6 +4,11 @@ import { SCRIPT_TURN_STALE_MS, TURN_TRANSCRIPT_THROTTLE_MS } from '../config/con
 import { turnRoleOf, type ScriptTurn, type TurnRole } from '../utils/scriptTurn.ts';
 import { MAX_HINT_LEVEL, nextHintLevel, type HintLevel } from '../utils/turnHints.ts';
 import { turnSttEnabled, useTurnTranscript } from './useTurnTranscript.ts';
+import { useTurnAudioClip } from './useTurnAudioClip.ts';
+import { requestSpeechJudge, type TurnJudgment } from '../types/speechAssist.ts';
+import {
+  MIN_CLIP_SECONDS, assistFeedback, isNoResponse, shouldJudgeOnDone, shouldJudgeOnPause, type AssistFeedback,
+} from '../utils/speechAssist.ts';
 
 /** 「我說完了」沒換句時的重送間隔與次數 */
 const DONE_RETRY_MS = 3000;
@@ -25,6 +30,18 @@ export interface ScriptTurnStudent {
   hintLevel: HintLevel;
   /** 收到 data 訊息：是逐句演練的訊息就處理並回 true */
   handleData: (msg: { type?: string; turn?: ScriptTurn | null; seq?: number; text?: string; level?: number }, from: string) => boolean;
+  /** AI 口說輔助：嚴重錯誤時的提示（正確、輕微為 null） */
+  assistFeedback: AssistFeedback | null;
+  /** AI 正在判斷 */
+  assistPending: boolean;
+  /** 完全沒有回應：顯示選項 */
+  noResponse: boolean;
+}
+
+export interface SpeechAssistContext {
+  roomId: string;
+  name: string;
+  getMicTrack: () => MediaStreamTrack | null;
 }
 
 /**
@@ -38,6 +55,7 @@ export function useScriptTurnStudent(
   roomRef: RefObject<Room | null>,
   identity: string | null,
   selfTalking: boolean,
+  assistCtx: SpeechAssistContext,
 ): ScriptTurnStudent {
   const [turn, setTurn] = useState<ScriptTurn | null>(null);
   const turnRef = useRef(turn);
@@ -149,10 +167,77 @@ export function useScriptTurnStudent(
     } catch { /* ignore */ }
   }, [roomRef]);
 
+  // ── AI 口說輔助 ──────────────────────────────────────────────
+  // 輪到自己且老師開啟時錄音；開口後停住送判斷（嚴重才提示），按「我說完了」再判斷一次（只記錄）；
+  // 一直沒出聲就給選項。判斷結果轉給老師端顯示。
+  const assistOn = speakingSeq !== null && turn?.speechAssist === true;
+  const assistCtxRef = useRef(assistCtx);
+  useEffect(() => { assistCtxRef.current = assistCtx; }, [assistCtx]);
+  const { clip } = useTurnAudioClip(assistOn, speakingSeq, assistCtx.getMicTrack);
+  const [judged, setJudged] = useState<{ seq: number; judgment: TurnJudgment } | null>(null);
+  const [pendingSeq, setPendingSeq] = useState<number | null>(null);
+  const [noResponseSeq, setNoResponseSeq] = useState<number | null>(null);
+  const judgeStateRef = useRef({ seq: -1, judges: 0, judgedVoiceAt: 0, pending: false, turnAt: 0 });
+  useEffect(() => {
+    judgeStateRef.current = { seq: speakingSeq ?? -1, judges: 0, judgedVoiceAt: 0, pending: false, turnAt: Date.now() };
+  }, [speakingSeq]);
+
+  const runJudge = useCallback((show: boolean) => {
+    const t = turnRef.current;
+    const st = judgeStateRef.current;
+    if (!t || st.seq !== t.seq || !identity) return;
+    const audio = clip();
+    if (!audio || audio.seconds < MIN_CLIP_SECONDS) return;
+    st.judges += 1;
+    st.judgedVoiceAt = lastVoiceAtRef.current;
+    st.pending = true;
+    const seq = t.seq;
+    if (show) setPendingSeq(seq);
+    const ctx = assistCtxRef.current;
+    requestSpeechJudge(ctx.roomId, {
+      studentId: identity,
+      studentName: ctx.name,
+      taskTitle: t.taskTitle,
+      stepIndex: t.stepIndex,
+      lineIndex: t.lineIndex,
+      line: t.line,
+      prevLine: t.prevLine,
+      level: t.level,
+      audio: { data: audio.data, mimeType: 'audio/wav' },
+      audioSeconds: Math.round(audio.seconds * 10) / 10,
+    }).then(judgment => {
+      publish({ type: 'turn-judge', seq, judgment }, true, hostRef.current ? [hostRef.current] : undefined);
+      // 只有還停在同一句時才更新學生畫面
+      if (show && turnRef.current?.seq === seq) setJudged({ seq, judgment });
+    }).catch(() => { /* 判斷失敗：不打擾學生，分級提示照常運作 */ }).finally(() => {
+      if (judgeStateRef.current.seq === seq) judgeStateRef.current.pending = false;
+      setPendingSeq(p => (p === seq ? null : p));
+    });
+  }, [clip, identity, publish]);
+
+  useEffect(() => {
+    if (!assistOn || speakingSeq === null) return;
+    const timer = window.setInterval(() => {
+      const st = judgeStateRef.current;
+      const now = Date.now();
+      if (selfTalkingRef.current) lastVoiceAtRef.current = now;
+      const lastVoiceAt = lastVoiceAtRef.current;
+      if (isNoResponse({ now, turnAt: st.turnAt, lastVoiceAt })) setNoResponseSeq(speakingSeq);
+      if (shouldJudgeOnPause({ now, lastVoiceAt, judgedVoiceAt: st.judgedVoiceAt, judges: st.judges, pending: st.pending })) {
+        runJudge(true);
+      }
+    }, 500);
+    return () => window.clearInterval(timer);
+  }, [assistOn, speakingSeq, runJudge]);
+
   const sendDone = useCallback(() => {
     const t = turnRef.current;
     if (!t || t.status !== 'running') return;
     const seq = t.seq;
+    const st = judgeStateRef.current;
+    if (t.speechAssist && shouldJudgeOnDone({ lastVoiceAt: lastVoiceAtRef.current, judgedVoiceAt: st.judgedVoiceAt, judges: st.judges, pending: st.pending })) {
+      runJudge(false);
+    }
     setDoneSeq(seq);
     const send = (attempt: number) => {
       // 已換句（或演練結束）就不用再送
@@ -161,7 +246,7 @@ export function useScriptTurnStudent(
       if (attempt < DONE_MAX_RETRIES) window.setTimeout(() => send(attempt + 1), DONE_RETRY_MS);
     };
     send(0);
-  }, [publish]);
+  }, [publish, runJudge]);
 
   // 自動提示：沒開口 4 秒、開口後停住 2.5 秒就升一級；老師關掉自動或按了「我說完了」就停
   const doneSentNow = doneSeq !== null && doneSeq === speakingSeq;
@@ -213,5 +298,8 @@ export function useScriptTurnStudent(
     sendDone,
     hintLevel,
     handleData,
+    assistFeedback: assistOn && turn && judged && judged.seq === speakingSeq ? assistFeedback(judged.judgment, turn.line) : null,
+    assistPending: assistOn && pendingSeq === speakingSeq,
+    noResponse: assistOn && noResponseSeq === speakingSeq && !(judged && judged.seq === speakingSeq),
   };
 }
