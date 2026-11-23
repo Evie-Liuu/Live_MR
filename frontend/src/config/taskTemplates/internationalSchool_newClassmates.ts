@@ -22,7 +22,7 @@ export const internationalSchoolNewClassmates: TaskTemplate = {
     steps: [
       {
         id: 'step1',
-        title: 'First Meeting 初次見面',
+        title: '初次見面',
         purpose: '能打招呼、介紹自己、詢問姓名與對方來自哪裡',
         lines: [
           { id: 'step1_1', speakerSlotId: 'student', en: "Hi! I'm Alex. What's your name?", zh: '嗨！我是 Alex。你叫什麼名字？', gesture: 'wave' },
@@ -62,7 +62,7 @@ export const internationalSchoolNewClassmates: TaskTemplate = {
       },
       {
         id: 'step2',
-        title: 'Getting to Know Each Other 認識彼此',
+        title: '認識彼此',
         purpose: '能詢問城市特色與喜好，並邀請對方一起參觀學校',
         lines: [
           { id: 'step2_1', speakerSlotId: 'student2', en: 'Is Los Angeles a sunny city, Mia?', zh: 'Mia，洛杉磯是個陽光充足的城市嗎？' },
@@ -101,7 +101,7 @@ export const internationalSchoolNewClassmates: TaskTemplate = {
       },
       {
         id: 'step3',
-        title: 'Sharing Taiwanese Culture 分享台灣特色',
+        title: '分享台灣特色',
         purpose: '能詢問最喜歡的事物、表達想嘗試，並禮貌地邀請、道謝與回應',
         lines: [
           { id: 'step3_1', speakerSlotId: 'exchange', en: "What's your favorite Taiwanese food, Alex?", zh: 'Alex，你最喜歡的台灣食物是什麼？' },
