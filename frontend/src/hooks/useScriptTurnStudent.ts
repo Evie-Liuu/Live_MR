@@ -5,6 +5,7 @@ import { turnRoleOf, type ScriptTurn, type TurnRole } from '../utils/scriptTurn.
 import { MAX_HINT_LEVEL, nextHintLevel, type HintLevel } from '../utils/turnHints.ts';
 import { turnSttEnabled, useTurnTranscript } from './useTurnTranscript.ts';
 import { useTurnAudioClip } from './useTurnAudioClip.ts';
+import { MIN_VOICED_SECONDS } from '../utils/wav.ts';
 import { requestSpeechJudge, type TurnJudgment } from '../types/speechAssist.ts';
 import {
   MIN_CLIP_SECONDS, assistFeedback, isNoResponse, shouldJudgeOnDone, shouldJudgeOnPause, type AssistFeedback,
@@ -188,6 +189,12 @@ export function useScriptTurnStudent(
     if (!t || st.seq !== t.seq || !identity) return;
     const audio = clip();
     if (!audio || audio.seconds < MIN_CLIP_SECONDS) return;
+    // 錄音裡沒有說話聲（或 iPad 錄到的全是靜音）：不送 AI，避免模型把台詞當成聽到的內容判「正確」；
+    // 記下這次的發言時間，免得每 0.5 秒重試
+    if (audio.voicedSeconds < MIN_VOICED_SECONDS) {
+      st.judgedVoiceAt = lastVoiceAtRef.current;
+      return;
+    }
     st.judges += 1;
     st.judgedVoiceAt = lastVoiceAtRef.current;
     st.pending = true;

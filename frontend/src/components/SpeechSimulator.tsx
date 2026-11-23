@@ -7,6 +7,7 @@ import { ROLE_COLORS } from '../utils/nameplates.ts';
 import { HINT_LABELS, type HintLevel } from '../utils/turnHints.ts';
 import { MIN_CLIP_SECONDS, assistFeedback, distractorLines } from '../utils/speechAssist.ts';
 import { useTurnAudioClip } from '../hooks/useTurnAudioClip.ts';
+import { MIN_VOICED_SECONDS, VOICE_RMS } from '../utils/wav.ts';
 import {
   ISSUE_LABELS, SEVERITY_LABELS, requestSpeechJudgePreview, type SpeechJudgePreview, type TurnJudgment,
 } from '../types/speechAssist.ts';
@@ -35,6 +36,9 @@ interface HistoryItem extends SpeechJudgePreview {
   lineEn: string;
   seconds: number;
 }
+
+/** 錄音裡沒有說話聲：本機直接判「沒有回應」，不送 AI */
+const SILENT_JUDGMENT: TurnJudgment = { transcript: '', language: 'silent', missing: [], wrong: [], issues: ['noResponse'], severity: 'severe' };
 
 function formatUsd(usd: number): string {
   return `US$${usd.toFixed(usd < 0.01 ? 5 : 3)}`;
@@ -78,13 +82,16 @@ export default function SpeechSimulator() {
   const [take, setTake] = useState(0);
   const [startedAt, setStartedAt] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  /** 即時音量（RMS），錄音時顯示音量條 */
+  const [micLevel, setMicLevel] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
   const getTrack = useCallback(() => trackRef.current, []);
-  const { clip } = useTurnAudioClip(recording, take, getTrack);
+  const { clip, level: readLevel } = useTurnAudioClip(recording, take, getTrack);
 
   const [judging, setJudging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ judgment: TurnJudgment; preview: SpeechJudgePreview | null } | null>(null);
+  /** note：沒有呼叫 AI 時的說明（不用 AI 預覽、或錄音沒有聲音） */
+  const [result, setResult] = useState<{ judgment: TurnJudgment; preview: SpeechJudgePreview | null; note?: string } | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
   // 換句：清掉畫面上的結果
@@ -100,9 +107,12 @@ export default function SpeechSimulator() {
 
   useEffect(() => {
     if (!recording) return;
-    const timer = window.setInterval(() => setElapsed((Date.now() - startedAt) / 1000), 200);
-    return () => window.clearInterval(timer);
-  }, [recording, startedAt]);
+    const timer = window.setInterval(() => {
+      setElapsed((Date.now() - startedAt) / 1000);
+      setMicLevel(readLevel());
+    }, 150);
+    return () => { window.clearInterval(timer); setMicLevel(0); };
+  }, [recording, startedAt, readLevel]);
 
   useEffect(() => () => { trackRef.current?.stop(); }, []);
 
@@ -130,7 +140,19 @@ export default function SpeechSimulator() {
     setRecording(false);
     const audio = clip();
     if (!audio || audio.seconds < MIN_CLIP_SECONDS) {
-      setError('錄音太短，請再說一次');
+      setError(audio ? '錄音太短，請再說一次' : '沒有錄到任何音訊：這台裝置的錄音沒有啟動，請重新整理頁面後再試');
+      return;
+    }
+    if (audio.peak === 0) {
+      setError('錄到的全是靜音：麥克風沒有把聲音送進來。請確認瀏覽器的麥克風權限，或重新整理頁面後再試');
+      return;
+    }
+    if (audio.voicedSeconds < MIN_VOICED_SECONDS) {
+      setResult({
+        judgment: SILENT_JUDGMENT,
+        preview: null,
+        note: `錄音裡沒有偵測到說話聲（最大音量 ${(audio.peak * 100).toFixed(1)}%），所以沒有送 AI。上課時也一樣：沒開口不會送 AI 判斷。`,
+      });
       return;
     }
     setJudging(true);
@@ -239,7 +261,7 @@ export default function SpeechSimulator() {
               transcript=""
               sttEnabled={false}
               speakerTalking={recording}
-              myLevel={0}
+              myLevel={micLevel}
               doneSent={judging}
               onDone={() => { void stopAndJudge(); }}
               hintLevel={hintLevel}
@@ -261,6 +283,17 @@ export default function SpeechSimulator() {
                 <span className="material-symbols-outlined" aria-hidden="true">mic</span>
                 {judging ? 'AI 判斷中…' : '開始回答（錄音）'}
               </button>
+            )}
+            {recording && (
+              <div className="ssim-meter" aria-label="麥克風音量">
+                <span className="ssim-meter-label">{micLevel >= VOICE_RMS ? '有聲音' : '聽不到聲音'}</span>
+                <span className="ssim-meter-track">
+                  <span
+                    className={`ssim-meter-fill${micLevel >= VOICE_RMS ? ' is-voice' : ''}`}
+                    style={{ width: `${Math.min(100, Math.sqrt(micLevel / 0.2) * 100)}%` }}
+                  />
+                </span>
+              </div>
             )}
             {(micError || error) && <p className="ssim-error" role="alert">{micError ?? error}</p>}
 
@@ -316,7 +349,7 @@ export default function SpeechSimulator() {
                   <dt>費用</dt><dd>{formatUsd(result.preview.costUsd)}</dd>
                 </dl>
               ) : (
-                <p className="ssim-note">這是「不用 AI 預覽」的範例結果，沒有呼叫 AI。</p>
+                <p className="ssim-note">{result.note ?? '這是「不用 AI 預覽」的範例結果，沒有呼叫 AI。'}</p>
               )}
             </>
           )}

@@ -69,3 +69,41 @@ export function joinTail(chunks: readonly Float32Array[], maxSamples: number): F
   }
   return out;
 }
+
+/** 一個音框（20 ms）的音量（RMS）達到這個值才算有聲音；開了降噪的安靜環境約 0.001–0.005，說話約 0.03 以上 */
+export const VOICE_RMS = 0.01;
+/** 有聲音的音框加起來至少這麼多秒，才算學生有開口（低於這個值不送 AI，避免模型把台詞當成聽到的內容） */
+export const MIN_VOICED_SECONDS = 0.3;
+
+export interface AudioLevelStats {
+  /** 最大振幅（0 表示錄到的全是 0：麥克風沒有把聲音送進來） */
+  peak: number;
+  /** 有聲音的音框總秒數 */
+  voicedSeconds: number;
+}
+
+export function audioLevelStats(samples: Float32Array, sampleRate: number): AudioLevelStats {
+  const frame = Math.max(1, Math.round(sampleRate * 0.02));
+  let peak = 0;
+  let voicedFrames = 0;
+  for (let start = 0; start < samples.length; start += frame) {
+    const end = Math.min(samples.length, start + frame);
+    let sum = 0;
+    for (let i = start; i < end; i++) {
+      const v = samples[i];
+      sum += v * v;
+      const a = Math.abs(v);
+      if (a > peak) peak = a;
+    }
+    if (Math.sqrt(sum / (end - start)) >= VOICE_RMS) voicedFrames += 1;
+  }
+  return { peak, voicedSeconds: (voicedFrames * frame) / sampleRate };
+}
+
+/** 一段 PCM 的 RMS 音量（即時音量條用） */
+export function rmsOf(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+  return Math.sqrt(sum / samples.length);
+}

@@ -1,4 +1,5 @@
 import { callGemini, type TokenUsage } from './client.js'
+import { MIN_VOICED_SECONDS, wavLevel } from './audioLevel.js'
 
 /**
  * 登台展演的 AI 口說判斷：學生停住或按「我說完了」時，把這一句的錄音連同台詞送 Gemini，
@@ -95,6 +96,7 @@ export function buildJudgeInstruction(input: Pick<TurnJudgeInput, 'line' | 'prev
     '',
     'Listen to the audio and reply with JSON:',
     '- transcript: exactly what the student said. Write Chinese words in Traditional Chinese characters, English in English. Empty if nothing audible.',
+    '  Never copy the target line into the transcript: if you cannot hear the student say it, do not write it.',
     '- language: "en" if the student spoke English, "zh" if mostly Chinese, "mixed" if Chinese words replaced part of the English line, "silent" if there is no speech.',
     '- meaningConveyed: true if a listener would understand the meaning of the target line from what was said in English.',
     `- missing: key words of the target line the student did not say (at most ${MAX_MISSING}, as written in the target line). Ignore small function words unless the meaning changes.`,
@@ -146,7 +148,19 @@ export function normalizeJudgment(raw: unknown): TurnJudgment {
   return { transcript, language, missing, wrong, issues, severity }
 }
 
+/** 不呼叫模型時回報的模型名稱（錄音裡沒有說話聲） */
+export const SILENCE_MODEL = 'silence-check'
+
 export async function judgeTurn(input: TurnJudgeInput): Promise<TurnJudgeResult> {
+  // 錄音裡沒有說話聲：直接判「沒有回應」，不送模型（模型聽到靜音可能照著台詞寫出逐字稿、判成正確）
+  const level = input.audio.mimeType === 'audio/wav' ? wavLevel(input.audio.data) : null
+  if (level && level.voicedSeconds < MIN_VOICED_SECONDS) {
+    return {
+      judgment: { transcript: '', language: 'silent', missing: [], wrong: [], issues: ['noResponse'], severity: 'severe' },
+      model: SILENCE_MODEL,
+      usage: { prompt: 0, output: 0, total: 0, audioPrompt: 0 },
+    }
+  }
   const { data, model, usage } = await callGemini({
     tag: '[ai/speech-judge]',
     models: input.models ?? JUDGE_MODELS,

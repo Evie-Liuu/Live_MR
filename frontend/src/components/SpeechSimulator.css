@@ -201,6 +201,44 @@
 
 .ssim-rec .material-symbols-outlined { font-size: 24px; }
 
+/* 錄音時的即時音量：在 iPad 上一眼看出麥克風有沒有把聲音送進來 */
+.ssim-meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(280px, 100%);
+}
+
+.ssim-meter-label {
+  flex: none;
+  width: 6em;
+  font-size: 13px;
+  font-weight: 800;
+  color: #6B645B;
+}
+
+.ssim-meter-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: #ECE6DF;
+  overflow: hidden;
+}
+
+.ssim-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #B8AFA4;
+  transition: width 120ms ease-out;
+}
+
+.ssim-meter-fill.is-voice { background: #1F9D55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ssim-meter-fill { transition: none; }
+}
+
 .ssim-error {
   margin: 0;
   color: #B42318;
