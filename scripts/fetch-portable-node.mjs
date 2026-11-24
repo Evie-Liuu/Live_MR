@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
 const CACHE_DIR = path.join(ROOT, '.build-cache')
 
-const NODE_VERSION = '22.18.0'
+const NODE_VERSION = '22.23.5'
 const DIST_NAME = `node-v${NODE_VERSION}-win-x64`
 const URL = `https://nodejs.org/dist/v${NODE_VERSION}/${DIST_NAME}.zip`
 
