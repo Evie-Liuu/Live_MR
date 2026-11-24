@@ -73,11 +73,18 @@ export function resolveGroupPlacements(
     for (const m of g.members) {
       const base = memberBase(m, preset);
       if (!base) continue;
-      const from = m.kind === 'slot' ? { pos: [base.pos[0], slotY, base.pos[2]] as Vec3, rot: base.rot } : base;
+      const from = m.kind === 'slot'
+        ? { pos: [base.pos[0], slotFloorY(preset.slots?.find(s => s.id === m.id), slotY), base.pos[2]] as Vec3, rot: base.rot }
+        : base;
       out.set(memberKey(m), applyGroupTransform(from, pivot, t));
     }
   }
   return out;
+}
+
+/** 角色貼地時的高度：地面高度加上 slot 的 heightOffset */
+export function slotFloorY(slot: { heightOffset?: number } | undefined, floorY: number): number {
+  return floorY + (slot?.heightOffset ?? 0);
 }
 
 /** 被隱藏的群組裡的所有成員（key 見 memberKey） */

@@ -43,6 +43,7 @@ import {
   IDENTITY_TRANSFORM,
   type Vec3,
 } from '../utils/groupTransform';
+import { slotFloorY } from '../utils/savedSceneLayout';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
 import {
@@ -440,7 +441,7 @@ export function useBigScreenScene(
       // slot.position.y 在真實參與者流程中會被 pose 拉回地面;placeholder 沒有 pose
       // driver,直接用會懸浮。把 y 壓到 0(腳貼地),x/z 沿用 slot 定義。
       const spawnOverride = {
-        position: [slot.position[0], PLACEHOLDER_Y, slot.position[2]] as [number, number, number],
+        position: [slot.position[0], slotFloorY(slot, PLACEHOLDER_Y), slot.position[2]] as [number, number, number],
         rotation: slot.rotation,
         scale: presetRef.current.avatarDefaults?.scale,
       };
@@ -695,7 +696,8 @@ export function useBigScreenScene(
         if (m.kind === 'slot' && base) {
           const ph = avatarsRef.current.get(`${PLACEHOLDER_PREFIX}${m.id}`);
           if (ph) {
-            const phT = applyGroupTransform({ pos: [base.pos[0], PLACEHOLDER_Y, base.pos[2]], rot: base.rot }, pivot, t);
+            const phY = slotFloorY(preset.slots?.find(s => s.id === m.id), PLACEHOLDER_Y);
+            const phT = applyGroupTransform({ pos: [base.pos[0], phY, base.pos[2]], rot: base.rot }, pivot, t);
             ph.vrm.scene.position.set(phT.pos[0], phT.pos[1], phT.pos[2]);
             ph.vrm.scene.rotation.set(phT.rot[0], phT.rot[1], phT.rot[2]);
           }

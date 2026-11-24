@@ -41,6 +41,13 @@ describe('resolveGroupPlacements', () => {
     expect(p.get('slot:a')?.pos).toEqual([1, -0.5, -1]);
   });
 
+  it('adds the slot heightOffset to the floor height', () => {
+    const raised = { ...preset, slots: [{ id: 'a', label: 'A', position: [1, 9, 0], heightOffset: 0.2 }, { id: 'b', label: 'B', position: [3, 0, 0] }] } as unknown as SceneConfig;
+    const p = resolveGroupPlacements(raised, {}, -0.5);
+    expect(p.get('slot:a')?.pos[1]).toBeCloseTo(-0.3);
+    expect(p.get('slot:b')?.pos[1]).toBeCloseTo(-0.5);
+  });
+
   it('rotates around the group centre', () => {
     const p = resolveGroupPlacements(preset, { g: { pos: [0, 0, 0], rot: [0, Math.PI, 0] } }, 0);
     const [x, , z] = p.get('slot:a')!.pos;

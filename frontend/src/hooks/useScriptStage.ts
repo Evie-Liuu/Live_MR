@@ -21,7 +21,8 @@ import { attachPropToHand, returnPropToDisplay, rotatePropToward } from '../util
 import { anchorBonePosition, placePropOnBody, readBodyFrame, type BodyFrame } from '../utils/bodyHold.ts';
 import type { WornProp } from '../utils/scriptPlayback.ts';
 import { applyOutfit, hasOutfitStyle } from '../utils/vrmOutfit.ts';
-import { hiddenMembers, readSavedSceneLayout, resolveGroupPlacements, type GroupTransform } from '../utils/savedSceneLayout.ts';
+import { loadCurtain, type Curtain } from '../utils/curtainAnimation.ts';
+import { hiddenMembers, readSavedSceneLayout, resolveGroupPlacements, slotFloorY, type GroupTransform } from '../utils/savedSceneLayout.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
 import { VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
 import { GESTURES, type GestureId } from '../config/gestures.ts';
@@ -215,12 +216,22 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
 
     // 靜態道具（收銀台、衣架）與展示物件（衣服等）；缺檔由 propLoader 吞掉
     let staticPool: Map<string, THREE.Group> | null = null;
+    let curtain: Curtain | null = null;
     let taskPool: Map<string, THREE.Group> | null = null;
     loadStaticProps(preset.propSystem?.staticProps ?? [], scene)
       .then(pool => {
         if (disposed) { disposeStaticProps(pool, scene); return; }
         staticPool = pool;
         for (const [id, obj] of pool) place(obj, `staticProp:${id}`);
+        // 試衣間的簾子（編輯模式藏起來的就不用）
+        const room = (preset.propSystem?.staticProps ?? [])
+          .find(p => p.fittingRoom && pool.has(p.id) && !hidden.has(`staticProp:${p.id}`));
+        if (room?.fittingRoom) {
+          void loadCurtain(pool.get(room.id)!, room.fittingRoom.openAnimationUrl, room.fittingRoom.speed).then(c => {
+            if (disposed) c?.dispose();
+            else curtain = c;
+          });
+        }
       })
       .catch(err => console.warn('[ScriptStage] static props load error:', err));
     loadTaskProps(preset.propSystem?.taskProps ?? {}, scene)
@@ -267,7 +278,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
           url,
           scene,
           spawn: {
-            position: placed?.pos ?? [slot.position[0], FLOOR_Y, slot.position[2]],
+            position: placed?.pos ?? [slot.position[0], slotFloorY(slot, FLOOR_Y), slot.position[2]],
             rotation: placed?.rot ?? slot.rotation,
             scale: preset.avatarDefaults?.scale,
           },
@@ -314,31 +325,45 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       }
       return taskPropCfg[propId] ? new THREE.Vector3(...displayOf(propId).pos) : null;
     };
-    // 模型內建的衣服（見 utils/vrmOutfit.ts）：穿著清單或角色數變了才重設，角色晚載入也會補上
-    let appliedWorn: readonly WornProp[] | null = null;
-    let appliedAvatarCount = 0;
+    // 模型內建的衣服（見 utils/vrmOutfit.ts）：實際要換的衣服（角色載入了、模型有這個款式）變了才換；
+    // 有試衣間簾子就先拉上、拉上後才換、換好再拉開，換裝過程中仍維持舊的穿著
     const outfitOf = (w: WornProp) => {
       const outfit = taskPropCfg[w.propId]?.outfit;
       const avatar = outfit && avatars.find(a => a.slotId === w.slotId);
       return outfit && avatar && hasOutfitStyle(avatar.vrm.scene, outfit) ? outfit : null;
     };
-    const updateOutfits = () => {
-      const worn = wornRef.current;
-      if (worn === appliedWorn && avatars.length === appliedAvatarCount) return;
+    const outfitKey = (worn: readonly WornProp[]) => worn
+      .flatMap(w => { const o = outfitOf(w); return o ? [`${w.slotId}:${o.part}:${o.style}`.toLowerCase()] : []; })
+      .sort().join('|');
+    let appliedWorn: readonly WornProp[] = [];
+    let appliedKey = '';
+    const applyWorn = (worn: readonly WornProp[]) => {
       appliedWorn = worn;
-      appliedAvatarCount = avatars.length;
+      appliedKey = outfitKey(worn);
       for (const a of avatars) {
         applyOutfit(a.vrm.scene, worn.filter(w => w.slotId === a.slotId).flatMap(w => outfitOf(w) ?? []));
       }
     };
+    const updateOutfits = (delta: number) => {
+      curtain?.update(delta);
+      const worn = wornRef.current;
+      if (outfitKey(worn) === appliedKey) {
+        appliedWorn = worn;
+        if (curtain?.state === 'closed') curtain.open();
+        return;
+      }
+      if (!curtain) applyWorn(worn);
+      else if (curtain.state === 'closed') { applyWorn(worn); curtain.open(); }
+      else curtain.close();
+    };
     const updateProps = (delta: number) => {
-      updateOutfits();
+      updateOutfits(delta);
       if (!taskPool) return;
       const held = heldRef.current;
       for (const [id, obj] of taskPool) {
         const cfg = taskPropCfg[id];
         // 穿在模型身上（顯示內建的衣服）時展示的道具藏起來，留在原位；脫下就出現
-        const wornAsOutfit = wornRef.current.find(w => w.propId === id && outfitOf(w));
+        const wornAsOutfit = appliedWorn.find(w => w.propId === id && outfitOf(w));
         obj.visible = !wornAsOutfit && !hidden.has(`taskProp:${id}`);
         if (wornAsOutfit && held?.propId !== id) continue;
         const holder = held?.propId === id ? avatars.find(a => a.slotId === held.slotId) : undefined;
@@ -355,7 +380,8 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
           continue;
         }
         // 試穿中：比在身上或戴著（位置與大小依角色骨架算，見 utils/bodyHold.ts）
-        const wearer = cfg?.bodyHold && wornRef.current.find(w => w.propId === id);
+        // 模型有這件衣服的話等簾子拉上再換（上面處理），這裡只處理比在身上的
+        const wearer = cfg?.bodyHold && wornRef.current.find(w => w.propId === id && !outfitOf(w));
         const wearerAvatar = wearer ? avatars.find(a => a.slotId === wearer.slotId) : undefined;
         if (cfg?.bodyHold && wearerAvatar
           && readBodyFrame(wearerAvatar.vrm, bodyFrame) && anchorBonePosition(wearerAvatar.vrm, cfg.bodyHold.anchor, anchorPos)) {
@@ -414,6 +440,7 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       propCenterRef.current = () => null;
       cancelAnimationFrame(raf);
       observer.disconnect();
+      curtain?.dispose();
       for (const a of avatars) { scene.remove(a.vrm.scene); VRMUtils.deepDispose(a.vrm.scene); }
       if (staticPool) disposeStaticProps(staticPool, scene);
       if (taskPool) disposeTaskProps(taskPool, scene);

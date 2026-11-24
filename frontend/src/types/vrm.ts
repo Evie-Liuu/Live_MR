@@ -37,6 +37,11 @@ export interface SceneSlot {
   position: [x: number, y: number, z: number];  // world-space position on BigScreen
   rotation?: [x: number, y: number, z: number]; // euler rotation (radians); y used to face partner
   defaultVrmId?: string;                         // suggested VRM for this slot
+  /**
+   * 角色站的高度相對地面的位移（公尺，正數往上，例如站在台階上）。position 的 y 不會用到：
+   * 模擬器與編輯模式角色固定貼地，這個值加在貼地高度上。上課有學生時不套用（高度由姿勢追蹤決定）
+   */
+  heightOffset?: number;
 }
 
 /** Camera preset: where the Three.js PerspectiveCamera sits */
@@ -124,6 +129,11 @@ export interface PropConfig {
   position: [x: number, y: number, z: number];
   rotation?: [x: number, y: number, z: number];  // Euler radians
   scale?: number;                                 // uniform scale, default 1.0
+  /**
+   * 這個道具是試衣間：試穿換成模型內建的衣服時（TaskPropConfig.outfit），先拉上簾子、換好再拉開。
+   * 模型要綁好簾子骨架；openAnimationUrl 是拉開簾子的動畫 GLB（倒著播就是拉上），speed 是播放倍速（預設 1）。
+   */
+  fittingRoom?: { openAnimationUrl: string; speed?: number };
 }
 
 /** 道具貼在身上的位置；見 TaskPropConfig.bodyHold */

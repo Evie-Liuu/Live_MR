@@ -174,8 +174,8 @@ export const THEMES: ThemeConfig[] = [
           policy: 'auto-swap',
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
-            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI / 30, Math.PI / 30, 0], scale: 1.2 },
-            { id: 'rack', label: "衣架", url: '/models/clothingStore/objects/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
+            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/occluders/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI / 30, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'rack', label: "衣架", url: '/models/clothingStore/occluders/Rack.glb', position: [-3, 0, -3], scale: 0.95 },
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
@@ -188,7 +188,7 @@ export const THEMES: ThemeConfig[] = [
 
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-3.0, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'skirt_purple': {
-              taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+              taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Skirt_Purple.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
               bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 },
               outfit: { part: 'Bottom', style: 'Skirt' }
@@ -277,7 +277,8 @@ export const THEMES: ThemeConfig[] = [
             id: 'customer',
             label: 'Customer A',
             icon: '👗',
-            position: [-2.4, 0.5, -1.5],
+            position: [-2.8, 0.5, -1.9],
+            heightOffset: 0.18,
             rotation: [0, Math.PI / 4, 0],
             defaultVrmId: 'student_female_outfit',
           },
@@ -285,7 +286,7 @@ export const THEMES: ThemeConfig[] = [
             id: 'customer2',
             label: 'Customer B',
             icon: '🛍️',
-            position: [-1.4, 0.5, -1.5],
+            position: [-1.4, 0.5, -1.8],
             rotation: [0, 0, 0],
             defaultVrmId: 'student_male',
           },
@@ -316,9 +317,13 @@ export const THEMES: ThemeConfig[] = [
           policy: 'auto-swap',
           staticProps: [
             // Placeholder — replace url with actual GLB path when asset is ready
-            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI / 30, Math.PI / 30, 0], scale: 1.2 },
-            { id: 'rack', label: "衣架", url: '/models/clothingStore/objects/Rack.glb', position: [-1, 0, -3.3], scale: 0.95 },
-            { id: 'fitting_room', label: "試衣間", url: '/models/clothingStore/objects/FittingRoom.glb', position: [-3.3, 0, -2.0], rotation: [0, Math.PI / 8, 0], scale: 2.0 },
+            { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/occluders/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI / 30, Math.PI / 30, 0], scale: 1.2 },
+            { id: 'rack', label: "衣架", url: '/models/clothingStore/occluders/Rack.glb', position: [-1, 0, -3.3], scale: 0.95 },
+            {
+              id: 'fitting_room', label: "試衣間", url: '/models/clothingStore/occluders/FittingRoom_Rigged.glb', position: [-2.6, -0.4, -1.3], rotation: [0, Math.PI / 4, 0], scale: 2.0,
+              // 換裝時拉上簾子、換好再拉開
+              fittingRoom: { openAnimationUrl: '/animations/occluders/FittingRoom_Opening_Animation.glb' }
+            },
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
@@ -330,8 +335,9 @@ export const THEMES: ThemeConfig[] = [
             'tshirt_blue': { label: '櫃檯的藍色 T 恤', url: '/models/clothingStore/objects/Tshirt_Blue.glb', displayPos: [0.3, 1.46, -3.0], rotation: [Math.PI / 30 - Math.PI / 2, 0, Math.PI / 2], heldRotation: [0, 0, 0] },
 
             'jacket_black': { taskId: 'ask_price_2', label: '黑色外套', url: '/models/clothingStore/objects/Jacket_Black.glb', displayPos: [-1.0, 2.1, -3.3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
+            'dress_red': { label: '紅色洋裝', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-1.55, 2.1, -3.3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'skirt_purple': {
-              taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-1.6, 2.1, -3.3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
+              taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Skirt_Purple.glb', displayPos: [-1.75, 2.1, -3.3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
               bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 },
               outfit: { part: 'Bottom', style: 'Skirt' }
