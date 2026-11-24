@@ -190,18 +190,21 @@ export const THEMES: ThemeConfig[] = [
             'skirt_purple': {
               taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-3.6, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
-              bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 }
+              bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 },
+              outfit: { part: 'Bottom', style: 'Skirt' }
             },
             'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-2.7, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'pants_jeans': {
               taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-3.3, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在腰前：褲頭對齊腰部，褲管拖到腳邊（配合「有點太長」）
-              bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 }
+              bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 },
+              outfit: { part: 'Bottom', style: 'Jeans' }
             },
             'hat': {
               label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-3.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就戴上（模型原點偏一側，往右補回來）
-              bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 }
+              bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 },
+              outfit: { part: 'Head', style: 'Hat' }
             },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
@@ -315,7 +318,7 @@ export const THEMES: ThemeConfig[] = [
             // Placeholder — replace url with actual GLB path when asset is ready
             { id: 'cashier_counter', label: "收銀台", url: '/models/clothingStore/objects/ClothingStore_Counter.glb', position: [1.8, -0.2, -1], rotation: [Math.PI / 30, Math.PI / 30, 0], scale: 1.2 },
             { id: 'rack', label: "衣架", url: '/models/clothingStore/objects/Rack.glb', position: [-1, 0, -3.3], scale: 0.95 },
-            { id: 'fitting_room', label: "試衣間", url: '/models/clothingStore/objects/FittingRoom.glb', position: [-3.3, 0, -2.5], rotation: [0, Math.PI / 8, 0], scale: 2.0 },
+            { id: 'fitting_room', label: "試衣間", url: '/models/clothingStore/objects/FittingRoom.glb', position: [-3.3, 0, -2.0], rotation: [0, Math.PI / 8, 0], scale: 2.0 },
           ],
           taskProps: {
             // Placeholder entries — replace urls with actual GLB paths when assets are ready
@@ -330,18 +333,21 @@ export const THEMES: ThemeConfig[] = [
             'skirt_purple': {
               taskId: 'ask_price_3', label: '紫色短裙', url: '/models/clothingStore/objects/Dress_Red.glb', displayPos: [-1.6, 2.1, -3.3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在胸前：衣架掛鉤在下巴附近，洋裝從肩膀垂到膝蓋
-              bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 }
+              bodyHold: { anchor: 'chest', offset: [0, 0.36, 0.12], scale: 0.83 },
+              outfit: { part: 'Bottom', style: 'Skirt' }
             },
             'shirt_white': { taskId: 'ask_price_4', label: '白色襯衫', url: '/models/clothingStore/objects/Shirt_White.glb', displayPos: [-0.7, 2.1, -3.3], rotation: [0, Math.PI / 2, 0], scale: 1.2 },
             'pants_jeans': {
               taskId: 'ask_price_5', label: '牛仔褲', url: '/models/clothingStore/objects/Pants_Jeans.glb', displayPos: [-1.3, 2.1, -3.3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就比在腰前：褲頭對齊腰部，褲管拖到腳邊（配合「有點太長」）
-              bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 }
+              bodyHold: { anchor: 'hips', offset: [0, 0.24, 0.12], scale: 0.7 },
+              outfit: { part: 'Bottom', style: 'Jeans' }
             },
             'hat': {
               label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-1.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.8,
               // 上課拿著雙手握拳就戴上（模型原點偏一側，往右補回來）
-              bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 }
+              bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 },
+              outfit: { part: 'Head', style: 'Hat' }
             },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
@@ -536,5 +542,5 @@ export function propForTask(sceneId: string, taskId: string | undefined): string
 /** 場景內可指定給台詞、讓發言者握拳拿起的道具；wearable＝可以試穿（比在身上、戴上） */
 export function grabbableProps(sceneId: string): { id: string; label: string; wearable: boolean }[] {
   return Object.entries(SCENE_PRESETS[sceneId]?.propSystem?.taskProps ?? {})
-    .flatMap(([id, cfg]) => (cfg.label ? [{ id, label: cfg.label, wearable: !!cfg.bodyHold }] : []));
+    .flatMap(([id, cfg]) => (cfg.label ? [{ id, label: cfg.label, wearable: !!(cfg.bodyHold || cfg.outfit) }] : []));
 }

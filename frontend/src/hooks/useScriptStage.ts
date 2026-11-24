@@ -20,6 +20,7 @@ import { OCCLUDER_LIBRARY_BY_ID } from '../config/sceneOccluders.ts';
 import { attachPropToHand, returnPropToDisplay, rotatePropToward } from '../utils/propInteraction.ts';
 import { anchorBonePosition, placePropOnBody, readBodyFrame, type BodyFrame } from '../utils/bodyHold.ts';
 import type { WornProp } from '../utils/scriptPlayback.ts';
+import { applyOutfit, hasOutfitStyle } from '../utils/vrmOutfit.ts';
 import { hiddenMembers, readSavedSceneLayout, resolveGroupPlacements, type GroupTransform } from '../utils/savedSceneLayout.ts';
 import { createAvatarAnimator, type AvatarAnimator } from '../utils/scriptedAvatar.ts';
 import { VRMLookAtQuaternionProxy, createVRMAnimationClip, type VRMAnimation } from '@pixiv/three-vrm-animation';
@@ -313,11 +314,33 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       }
       return taskPropCfg[propId] ? new THREE.Vector3(...displayOf(propId).pos) : null;
     };
+    // 模型內建的衣服（見 utils/vrmOutfit.ts）：穿著清單或角色數變了才重設，角色晚載入也會補上
+    let appliedWorn: readonly WornProp[] | null = null;
+    let appliedAvatarCount = 0;
+    const outfitOf = (w: WornProp) => {
+      const outfit = taskPropCfg[w.propId]?.outfit;
+      const avatar = outfit && avatars.find(a => a.slotId === w.slotId);
+      return outfit && avatar && hasOutfitStyle(avatar.vrm.scene, outfit) ? outfit : null;
+    };
+    const updateOutfits = () => {
+      const worn = wornRef.current;
+      if (worn === appliedWorn && avatars.length === appliedAvatarCount) return;
+      appliedWorn = worn;
+      appliedAvatarCount = avatars.length;
+      for (const a of avatars) {
+        applyOutfit(a.vrm.scene, worn.filter(w => w.slotId === a.slotId).flatMap(w => outfitOf(w) ?? []));
+      }
+    };
     const updateProps = (delta: number) => {
+      updateOutfits();
       if (!taskPool) return;
       const held = heldRef.current;
       for (const [id, obj] of taskPool) {
         const cfg = taskPropCfg[id];
+        // 穿在模型身上（顯示內建的衣服）時展示的道具藏起來，留在原位；脫下就出現
+        const wornAsOutfit = wornRef.current.find(w => w.propId === id && outfitOf(w));
+        obj.visible = !wornAsOutfit && !hidden.has(`taskProp:${id}`);
+        if (wornAsOutfit && held?.propId !== id) continue;
         const holder = held?.propId === id ? avatars.find(a => a.slotId === held.slotId) : undefined;
         if (held && holder) {
           // attachPropToHand 用真人的左右（鏡像）：VRM 左手＝真人右手

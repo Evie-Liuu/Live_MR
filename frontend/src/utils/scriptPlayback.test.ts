@@ -40,7 +40,7 @@ describe('wornAt', () => {
     ({ id: `${speakerSlotId}-${prop}`, speakerSlotId, en: 'x', zh: 'x', ...(prop ? { prop } : {}), ...(wear ? { wear } : {}) });
   const step = (lines: ReturnType<typeof line>[]) =>
     ({ id: 's', title: 't', purpose: '', lines, grammarPoints: [], grammarNote: '', teachingNotes: [] });
-  const isHead = (id: string) => id === 'hat';
+  const isHead = (id: string) => (id === 'hat' ? 'head' : 'body');
   const tryOn: DialogueTask = {
     title: 't', sceneId: 'clothingStore_fitting', level: 'A1',
     steps: [

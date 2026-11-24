@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRMLoaderPlugin, VRM, VRMUtils } from '@pixiv/three-vrm';
 import type { AvatarSpawnConfig } from '../types/vrm';
+import { applyOutfit } from './vrmOutfit';
 
 /**
  * Configure spring bone parameters for better hair physics.
@@ -126,6 +127,9 @@ export function loadVrm({
             mesh.frustumCulled = false;
           }
         });
+
+        // 換裝部件依名稱的初始狀態顯示或隱藏（[層級]_[部位]_[款式]_[hide|show]，見 vrmOutfit.ts）
+        applyOutfit(vrm.scene, []);
 
         // Configure spring bones for better hair physics
         configureSpringBones(vrm);

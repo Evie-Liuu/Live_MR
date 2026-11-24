@@ -29,10 +29,10 @@ export interface WornProp {
 
 /**
  * 播到第 index 句時誰穿著（比在身上、戴著）哪些道具：從這個步驟第一句算起，
- * 試穿的台詞讓說話者穿上；同一件被別人試穿或拿起就換人或脫下；同一人換穿同類（帽子與衣服分開算）就換掉舊的。
- * isHeadProp：道具是戴在頭上的（帽子），可以跟衣服同時穿。
+ * 試穿的台詞讓說話者穿上；同一件被別人試穿或拿起就換人或脫下；同一人換穿同部位的就換掉舊的。
+ * wearPart：道具穿在哪個部位（例如帽子 head、下身 bottom）；不同部位可以同時穿。
  */
-export function wornAt(cues: readonly ScriptCue[], index: number, isHeadProp: (propId: string) => boolean): WornProp[] {
+export function wornAt(cues: readonly ScriptCue[], index: number, wearPart: (propId: string) => string): WornProp[] {
   const cue = cues[index];
   if (!cue) return [];
   let start = index;
@@ -43,8 +43,8 @@ export function wornAt(cues: readonly ScriptCue[], index: number, isHeadProp: (p
     if (!propId) continue;
     worn = worn.filter(w => w.propId !== propId);
     if (!wear) continue;
-    const head = isHeadProp(propId);
-    worn = worn.filter(w => w.slotId !== slotId || isHeadProp(w.propId) !== head);
+    const part = wearPart(propId);
+    worn = worn.filter(w => w.slotId !== slotId || wearPart(w.propId) !== part);
     worn.push({ slotId, propId });
   }
   return worn;
