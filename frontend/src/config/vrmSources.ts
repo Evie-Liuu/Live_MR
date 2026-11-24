@@ -35,6 +35,11 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     label: '女學生',
     url: '/models/Student_Female1.vrm',
   },
+  student_female_outfit: {
+    id: 'student_female_outfit',
+    label: '女學生',
+    url: '/models/Student_Female1_Outfit.vrm',
+  },
   student_male: {
     id: 'student_male',
     label: '男學生',
@@ -52,10 +57,15 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     url: '/models/ClothingStoreStaff_Male.vrm',
     bodyType: 'adult',
   },
-  student_male2: {
-    id: 'student_male2',
-    label: '男學生2',
-    url: '/models/Student_Male2.vrm',
+  exchange_student_male: {
+    id: 'exchange_student_male',
+    label: '男交換生',
+    url: '/models/ExchangeStudent_Male1.vrm',
+  },
+  exchange_student_female: {
+    id: 'exchange_student_female',
+    label: '女交換生',
+    url: '/models/ExchangeStudent_Female1.vrm',
   },
 } as const;
 
