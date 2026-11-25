@@ -19,7 +19,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 const SRC = path.resolve(__dirname, '../../frontend/public/voice/Teacher_chat_test.mp3')
 const TMP = path.resolve(__dirname, '../../recordings/_fmt_check')
-const MODEL = process.env.SPIKE_MODEL || 'gemini-2.5-flash-lite'
+const MODEL = process.env.SPIKE_MODEL || 'gemini-3.1-flash-lite'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) { console.error('GEMINI_API_KEY 未設定'); process.exit(1) }

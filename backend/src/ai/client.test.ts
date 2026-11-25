@@ -114,6 +114,15 @@ describe('callGemini', () => {
     expect(thinkingBudgetFor('gemini-2.5-flash', 0)).toBe(0)
   })
 
+  it('asks 3.x models for minimal thinking instead of budget 0', async () => {
+    const { thinkingConfigFor } = await import('./client.js')
+    expect(thinkingConfigFor('gemini-3.5-flash-lite', 0)).toEqual({ thinkingLevel: 'MINIMAL' })
+    expect(thinkingConfigFor('gemini-3.1-flash-lite', 0)).toEqual({ thinkingLevel: 'MINIMAL' })
+    expect(thinkingConfigFor('gemini-3.5-flash', 512)).toEqual({ thinkingBudget: 512 })
+    expect(thinkingConfigFor('gemini-flash-lite-latest', 0)).toBeUndefined()
+    expect(thinkingConfigFor('gemini-2.5-flash', 0)).toEqual({ thinkingBudget: 0 })
+  })
+
   it('falls back to the next model when a model is retired (404)', async () => {
     generateContentMock
       .mockRejectedValueOnce(new Error('{"error":{"code":404,"message":"This model is no longer available.","status":"NOT_FOUND"}}'))

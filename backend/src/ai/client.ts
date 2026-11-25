@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai'
 
-const DEFAULT_MODELS = 'gemini-2.5-flash,gemini-2.5-flash-lite,gemini-flash-lite-latest'
+// 2.5 系列對 2026-11 之後建立的金鑰會回 404，預設改用 3.x；gemini-flash-latest 實測常逾時，不放進預設
+const DEFAULT_MODELS = 'gemini-3.5-flash,gemini-3.1-flash-lite,gemini-3.5-flash-lite'
 export const MODELS = (process.env.GEMINI_MODEL || DEFAULT_MODELS)
   .split(',')
   .map(m => m.trim())
@@ -27,6 +28,19 @@ export function thinkingBudgetFor(model: string, requested: number): number | un
     return requested
   }
   return requested > 0 ? requested : undefined
+}
+
+/**
+ * 實際送出的 thinkingConfig；undefined 表示不送（用模型預設）。
+ * 3.x 不能用 thinkingBudget 0 關閉推理（3.5 Flash-Lite 會回 400），預設推理又會吃掉 maxOutputTokens
+ * 讓回答被截斷（實測 3.5 Flash 在 200 token 上限裡推理就用掉 188），所以要求 0 時改送 thinkingLevel MINIMAL
+ * （3.5 Flash、3.1／3.5 Flash-Lite 實測推理 token 都是 0）。-latest 別名不確定指向哪一代，維持模型預設
+ */
+export function thinkingConfigFor(model: string, requested: number): Record<string, unknown> | undefined {
+  const thinkingBudget = thinkingBudgetFor(model, requested)
+  if (thinkingBudget !== undefined) return { thinkingBudget }
+  if (requested <= 0 && /^gemini-3/.test(model)) return { thinkingLevel: 'MINIMAL' }
+  return undefined
 }
 
 let client: GoogleGenAI | null = null
@@ -87,7 +101,7 @@ export interface GeminiCallOptions<T> {
   systemInstruction?: string
   temperature: number
   maxOutputTokens: number
-  /** 期望的推理預算；實際送出的值依模型調整，見 thinkingBudgetFor */
+  /** 期望的推理預算；實際送出的值依模型調整，見 thinkingConfigFor */
   thinkingBudget: number
   /** 有給就強制 JSON 輸出 */
   responseSchema?: Record<string, unknown>
@@ -113,13 +127,13 @@ export async function callGemini<T>(opts: GeminiCallOptions<T>): Promise<GeminiC
     let lastErr: unknown = new Error('No models configured')
     for (const model of opts.models ?? MODELS) {
       try {
-        const thinkingBudget = thinkingBudgetFor(model, opts.thinkingBudget)
+        const thinkingConfig = thinkingConfigFor(model, opts.thinkingBudget)
         const config: Record<string, unknown> = {
           temperature: opts.temperature,
           maxOutputTokens: opts.maxOutputTokens,
           abortSignal: controller.signal,
         }
-        if (thinkingBudget !== undefined) config.thinkingConfig = { thinkingBudget }
+        if (thinkingConfig) config.thinkingConfig = thinkingConfig
         if (opts.responseSchema) {
           config.responseMimeType = 'application/json'
           config.responseSchema = opts.responseSchema

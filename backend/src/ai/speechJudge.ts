@@ -9,8 +9,11 @@ import { MIN_VOICED_SECONDS, wavLevel } from './audioLevel.js'
  * 由 normalizeJudgment 的固定規則決定，避免模型每次判得不一樣。
  */
 
-/** 預設用最便宜的 Flash-Lite，失敗再退到 Flash；GEMINI_JUDGE_MODEL 可覆寫（逗號分隔） */
-export const JUDGE_MODELS = (process.env.GEMINI_JUDGE_MODEL || 'gemini-2.5-flash-lite,gemini-2.5-flash')
+/**
+ * 預設用 3.1 Flash-Lite（短錄音最便宜），失敗再退到 3.5 Flash-Lite；GEMINI_JUDGE_MODEL 可覆寫（逗號分隔）。
+ * 2.5 系列對 2026-11 之後建立的金鑰會回 404（no longer available to new users），不再當預設
+ */
+export const JUDGE_MODELS = (process.env.GEMINI_JUDGE_MODEL || 'gemini-3.1-flash-lite,gemini-3.5-flash-lite')
   .split(',')
   .map(m => m.trim())
   .filter(Boolean)

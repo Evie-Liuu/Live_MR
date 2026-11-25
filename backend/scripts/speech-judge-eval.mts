@@ -20,7 +20,7 @@ const { judgeTurn } = await import('../src/ai/speechJudge.js')
 const { estimateCostUsd } = await import('../src/ai/pricing.js')
 
 const OUT = path.resolve(__dirname, '../../recordings/_speech_eval')
-const MODELS = (process.argv[2] || 'gemini-2.5-flash-lite,gemini-2.5-flash').split(',').map(s => s.trim()).filter(Boolean)
+const MODELS = (process.argv[2] || 'gemini-3.1-flash-lite,gemini-3.5-flash-lite').split(',').map(s => s.trim()).filter(Boolean)
 const RATE = 16000
 
 type Part = { en: string } | { zh: string } | { silence: number }

@@ -25,7 +25,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') })
 
 const AUDIO_PATH = path.resolve(__dirname, '../../frontend/public/voice/Teacher_chat_test.mp3')
 // 與 prod GEMINI_MODEL 第一順位一致；可用 SPIKE_MODEL 覆寫做交叉比較。
-const MODEL = process.env.SPIKE_MODEL || 'gemini-2.5-flash-lite'
+const MODEL = process.env.SPIKE_MODEL || 'gemini-3.1-flash-lite'
 
 const apiKey = process.env.GEMINI_API_KEY
 if (!apiKey) { console.error('GEMINI_API_KEY 未設定'); process.exit(1) }
