@@ -59,6 +59,11 @@ export interface ScriptStage {
   holdProp: (slotId: string | null, propId?: string, gesture?: GestureId) => void;
   /** 目前誰穿著（比在身上、戴著）哪些道具；不在清單裡的放回原位（正拿在手上的除外） */
   setWorn: (worn: readonly WornProp[]) => void;
+  /**
+   * 等 setWorn 指定的穿著真的換好：有試衣間簾子時等「拉上 → 換裝 → 拉開」做完；
+   * 不需要換裝（或模型沒有內建衣服）就在下一格畫面完成
+   */
+  waitOutfitSettled: () => Promise<void>;
 }
 
 type HandBone = 'leftHand' | 'rightHand';
@@ -164,6 +169,9 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
     heldRef.current = { slotId: avatar.slotId, propId, hand, inHand };
   }, [clipFor]);
   const wornRef = useRef<readonly WornProp[]>([]);
+  /** 等換裝完成的人；渲染迴圈發現穿著已經換好、簾子拉開（或沒有簾子）時通知 */
+  const outfitWaitersRef = useRef<(() => void)[]>([]);
+  const waitOutfitSettled = useCallback(() => new Promise<void>(resolve => { outfitWaitersRef.current.push(resolve); }), []);
   const setWorn = useCallback((worn: readonly WornProp[]) => { wornRef.current = worn; }, []);
 
   useEffect(() => {
@@ -350,6 +358,11 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       if (outfitKey(worn) === appliedKey) {
         appliedWorn = worn;
         if (curtain?.state === 'closed') curtain.open();
+        if ((!curtain || curtain.state === 'open') && outfitWaitersRef.current.length) {
+          const waiters = outfitWaitersRef.current;
+          outfitWaitersRef.current = [];
+          for (const w of waiters) w();
+        }
         return;
       }
       if (!curtain) applyWorn(worn);
@@ -441,6 +454,10 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       cancelAnimationFrame(raf);
       observer.disconnect();
       curtain?.dispose();
+      // 舞台關掉時不要讓等換裝的人一直等
+      const waiters = outfitWaitersRef.current;
+      outfitWaitersRef.current = [];
+      for (const w of waiters) w();
       for (const a of avatars) { scene.remove(a.vrm.scene); VRMUtils.deepDispose(a.vrm.scene); }
       if (staticPool) disposeStaticProps(staticPool, scene);
       if (taskPool) disposeTaskProps(taskPool, scene);
@@ -452,5 +469,5 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   }, [canvasRef, sceneId]);
 
   // 模擬器開著時場景不會變（編輯器被蓋住），所以不處理 sceneId 中途變更時的狀態重設
-  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker, playGesture, holdProp, setWorn };
+  return { ready, progress, error: SCENE_PRESETS[sceneId] ? error : '找不到此任務的場景', setSpeaker, playGesture, holdProp, setWorn, waitOutfitSettled };
 }

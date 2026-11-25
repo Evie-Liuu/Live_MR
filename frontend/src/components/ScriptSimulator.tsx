@@ -20,6 +20,8 @@ type PanelTab = 'script' | 'grammar' | 'notes';
 const SPEEDS = [0.75, 1, 1.25] as const;
 /** 句與句之間的停頓（毫秒，會依速度縮放） */
 const LINE_GAP_MS = 700;
+/** 換裝（拉簾子、換衣服、拉開）最多等多久才開口；簾子一趟約 2 秒 */
+const OUTFIT_WAIT_MAX_MS = 10000;
 /** 與任務編輯器相同的角色輪替色 */
 const SPEAKER_COLORS = ['#2BB5A8', '#8B6FD9', '#F59E0B', '#3B82F6'];
 /** 播放中更新時間軸的間隔（毫秒） */
@@ -46,7 +48,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const stage = useScriptStage(canvasRef, task.sceneId);
-  const { setSpeaker, playGesture, holdProp, setWorn } = stage;
+  const { setSpeaker, playGesture, holdProp, setWorn, waitOutfitSettled } = stage;
   const cues = useMemo(() => flattenCues(task), [task]);
   const preset = SCENE_PRESETS[task.sceneId];
   const theme = useMemo(() => THEMES.find(t => t.scenes.some(s => s.id === task.sceneId)), [task.sceneId]);
@@ -159,33 +161,51 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
       timersRef.current.push(next);
     };
 
-    setSpeaker(cue.line.speakerSlotId);
-    if (cue.line.gesture) playGesture(cue.line.speakerSlotId, cue.line.gesture, cue.line.gesture === 'point' ? cue.line.pointAt : undefined);
     // 台詞指定的展示物件（例如收據）由說話者拿在手上；沒有就放回原位
     // 試穿的台詞不拿在手上，直接比在身上；穿著的道具一直穿到這個步驟結束
     holdProp(cue.line.prop && !cue.line.wear ? cue.line.speakerSlotId : null, cue.line.prop, cue.line.gesture);
-    setWorn(wornAt(cues, i, id => wearPartOf(preset?.propSystem?.taskProps?.[id])));
-    const text = cue.line.en.trim();
-    const estimateMs = (estimateLineSeconds(text) * 1000) / speed;
+    const wearPart = (id: string) => wearPartOf(preset?.propSystem?.taskProps?.[id]);
+    const worn = wornAt(cues, i, wearPart);
+    setWorn(worn);
+    // 這句換了穿著（試穿、換步驟脫下）：等換裝做完（拉簾子、換衣服、拉開）才開口；
+    // 保險：最多等 OUTFIT_WAIT_MAX_MS，避免分頁在背景時畫面停住而卡住
+    const outfitChanged = JSON.stringify(worn) !== JSON.stringify(i > 0 ? wornAt(cues, i - 1, wearPart) : []);
+    if (!outfitChanged) { speakCue(); return; }
+    let started = false;
+    const start = () => {
+      if (started || token !== tokenRef.current) return;
+      started = true;
+      cueStartedAtRef.current = performance.now();
+      speakCue();
+    };
+    void waitOutfitSettled().then(start);
+    timersRef.current.push(window.setTimeout(start, OUTFIT_WAIT_MAX_MS));
 
-    if (!text || !canSpeak()) {
-      // 沒有英文台詞或瀏覽器不支援語音：照估計時間播放動作與字幕
-      timersRef.current.push(window.setTimeout(finish, estimateMs));
-      return;
+    function speakCue() {
+      setSpeaker(cue.line.speakerSlotId);
+      if (cue.line.gesture) playGesture(cue.line.speakerSlotId, cue.line.gesture, cue.line.gesture === 'point' ? cue.line.pointAt : undefined);
+      const text = cue.line.en.trim();
+      const estimateMs = (estimateLineSeconds(text) * 1000) / speed;
+
+      if (!text || !canSpeak()) {
+        // 沒有英文台詞或瀏覽器不支援語音：照估計時間播放動作與字幕
+        timersRef.current.push(window.setTimeout(finish, estimateMs));
+        return;
+      }
+      const u = new SpeechSynthesisUtterance(text);
+      const rv = roleVoices[cue.line.speakerSlotId];
+      if (rv?.voice) u.voice = rv.voice;
+      u.lang = rv?.voice?.lang ?? 'en-US';
+      u.pitch = rv?.pitch ?? 1;
+      u.rate = 0.9 * speed;
+      u.volume = muted ? 0 : 1;
+      u.onend = finish;
+      u.onerror = finish;
+      window.speechSynthesis.speak(u);
+      // 保險：部分瀏覽器偶爾不觸發 onend，超過估計時間兩倍就視為播完
+      timersRef.current.push(window.setTimeout(finish, estimateMs * 2 + 3000));
     }
-    const u = new SpeechSynthesisUtterance(text);
-    const rv = roleVoices[cue.line.speakerSlotId];
-    if (rv?.voice) u.voice = rv.voice;
-    u.lang = rv?.voice?.lang ?? 'en-US';
-    u.pitch = rv?.pitch ?? 1;
-    u.rate = 0.9 * speed;
-    u.volume = muted ? 0 : 1;
-    u.onend = finish;
-    u.onerror = finish;
-    window.speechSynthesis.speak(u);
-    // 保險：部分瀏覽器偶爾不觸發 onend，超過估計時間兩倍就視為播完
-    timersRef.current.push(window.setTimeout(finish, estimateMs * 2 + 3000));
-  }, [cues, roleVoices, speed, muted, setSpeaker, playGesture, holdProp, setWorn, preset, stopAudio]);
+  }, [cues, roleVoices, speed, muted, setSpeaker, playGesture, holdProp, setWorn, waitOutfitSettled, preset, stopAudio]);
   useEffect(() => { playCueRef.current = playCue; }, [playCue]);
 
   // 播放中推進時間軸（不超過這句的估計長度）
