@@ -322,7 +322,7 @@ export const THEMES: ThemeConfig[] = [
             {
               id: 'fitting_room', label: "試衣間", url: '/models/clothingStore/occluders/FittingRoom_Rigged.glb', position: [-2.8, -0.4, -2.0], rotation: [0, Math.PI / 3.8, 0], scale: 2.0,
               // 換裝時拉上簾子、換好再拉開
-              fittingRoom: { openAnimationUrl: '/animations/occluders/FittingRoom_Opening_Animation.glb' }
+              fittingRoom: { openAnimationUrl: '/animations/occluders/FittingRoom_Opening_Animation.glb', speed: 1.5 }
             },
           ],
           taskProps: {
