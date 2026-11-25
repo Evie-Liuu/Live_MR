@@ -121,8 +121,11 @@ export async function requestSpeechJudgePreview(
     signal,
   });
   if (res.status === 429) throw new Error('太頻繁了，請稍等一分鐘再試');
-  if (res.status === 503) throw new Error('伺服器沒有設定 AI 金鑰');
-  if (!res.ok) throw new Error(`AI 判斷失敗（${res.status}）`);
+  if (!res.ok) {
+    // 後端會附上失敗原因（金鑰被停用、模型不能用、額度用完…）
+    const reason = await res.json().then((b: { reason?: unknown }) => (typeof b.reason === 'string' ? b.reason : null), () => null);
+    throw new Error(reason ? `AI 判斷失敗：${reason}` : res.status === 503 ? '伺服器沒有設定 AI 金鑰' : `AI 判斷失敗（${res.status}）`);
+  }
   return (await res.json()) as SpeechJudgePreview;
 }
 

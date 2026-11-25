@@ -40,6 +40,20 @@ function index(v: unknown): number | null {
  *   POST /speech-judge/preview           模擬學生回答頁：試用判斷，不需課堂、不存紀錄
  *   GET  /rooms/:roomId/speech-feedback  老師查本堂課的紀錄、每位學生的統計與 AI 用量（需 hostToken）
  */
+/**
+ * AI 判斷失敗的原因（給老師看的中文，不含金鑰或原始回應）：
+ * 依 Gemini 回傳的錯誤碼與訊息分類，認不出來就回一般說法
+ */
+export function judgeFailureReason(msg: string): string {
+  if (msg.includes('GEMINI_API_KEY')) return '伺服器沒有設定 AI 金鑰'
+  if (/leaked|API key not valid|API_KEY_INVALID|PERMISSION_DENIED|"code":\s*40[13]\b/i.test(msg)) return 'AI 金鑰無效或已被停用，請換一把新的金鑰'
+  if (/no longer available|NOT_FOUND|"code":\s*404\b/i.test(msg)) return '設定的 AI 模型已經不能使用，請更新模型設定'
+  if (/RESOURCE_EXHAUSTED|quota|"code":\s*429\b/i.test(msg)) return 'AI 用量超過金鑰的額度上限，請稍後再試或改用付費層金鑰'
+  if (/UNAVAILABLE|high demand|overloaded|"code":\s*503\b/i.test(msg)) return 'AI 服務暫時忙碌，請稍後再試'
+  if (/fetch failed|ECONN|ETIMEDOUT|ENOTFOUND|timeout|abort/i.test(msg)) return '伺服器連不到 AI 服務，請檢查網路'
+  return 'AI 判斷失敗，請稍後再試'
+}
+
 export function createSpeechRouter(deps: SpeechRouteDeps): Router {
   const router = Router()
   const judge = deps.judge ?? judgeTurn
@@ -93,7 +107,8 @@ export function createSpeechRouter(deps: SpeechRouteDeps): Router {
   const sendJudgeError = (res: Response, err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[speech-judge] error:', msg)
-    res.status(msg.includes('GEMINI_API_KEY') ? 503 : 502).json({ error: msg.includes('GEMINI_API_KEY') ? 'AI not configured' : 'AI judge failed' })
+    if (msg.includes('GEMINI_API_KEY')) { res.status(503).json({ error: 'AI not configured', reason: judgeFailureReason(msg) }); return }
+    res.status(502).json({ error: 'AI judge failed', reason: judgeFailureReason(msg) })
   }
 
   /**

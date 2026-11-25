@@ -4,7 +4,7 @@ import express from 'express'
 import { RoomStore } from './rooms.js'
 import { openDatabase } from './db/connection.js'
 import { SpeechFeedbackRepo } from './db/speechFeedbackRepo.js'
-import { createSpeechRouter, type SpeechRouteDeps } from './speechRoutes.js'
+import { createSpeechRouter, judgeFailureReason, type SpeechRouteDeps } from './speechRoutes.js'
 import type { TurnJudgment } from './ai/speechJudge.js'
 
 const severe: TurnJudgment = {
@@ -82,6 +82,17 @@ describe('speech routes', () => {
     const app = createApp()
     expect((await request(app).post(`/api/rooms/${roomId}/speech-judge`).send(body())).status).toBe(502)
     expect((await request(app).post(`/api/rooms/${roomId}/speech-judge`).send(body())).status).toBe(503)
+  })
+
+  it('失敗時附上給老師看的原因（金鑰停用、模型下架、額度、忙碌）', async () => {
+    judge.mockRejectedValueOnce(new Error('{"error":{"code":403,"message":"Your API key was reported as leaked.","status":"PERMISSION_DENIED"}}'))
+    const res = await request(createApp()).post(`/api/rooms/${roomId}/speech-judge`).send(body())
+    expect(res.status).toBe(502)
+    expect(res.body.reason).toContain('金鑰無效')
+    expect(judgeFailureReason('{"error":{"code":404,"message":"This model models/gemini-2.5-flash is no longer available to new users."}}')).toContain('模型')
+    expect(judgeFailureReason('{"error":{"code":429,"status":"RESOURCE_EXHAUSTED"}}')).toContain('額度')
+    expect(judgeFailureReason('{"error":{"code":503,"message":"high demand","status":"UNAVAILABLE"}}')).toContain('忙碌')
+    expect(judgeFailureReason('boom')).toBe('AI 判斷失敗，請稍後再試')
   })
 
   it('試用判斷：不需課堂、不存紀錄、回傳用量；全部共用次數上限', async () => {
