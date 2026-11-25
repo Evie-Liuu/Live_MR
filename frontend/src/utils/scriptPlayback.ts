@@ -28,23 +28,19 @@ export interface WornProp {
 }
 
 /**
- * 播到第 index 句時誰穿著（比在身上、戴著）哪些道具：從這個步驟第一句算起，
- * 試穿的台詞讓說話者穿上；同一件被別人試穿或拿起就換人或脫下；同一人換穿同部位的就換掉舊的。
- * wearPart：道具穿在哪個部位（例如帽子 head、下身 bottom）；不同部位可以同時穿。
+ * 播到第 index 句時誰穿著（換上、比在身上、戴著）哪些道具：從劇本第一句算起，換步驟也不會脫下，
+ * 一直穿到有替換的服裝為止——同一人換穿同部位的別件就換掉舊的；同一件被別人試穿就換到那個人身上。
+ * 只是拿起來（沒有試穿）不會脫下。
+ * wearPart：道具穿在哪個部位（例如帽子 acc、下身 bottom）；不同部位可以同時穿。
  */
 export function wornAt(cues: readonly ScriptCue[], index: number, wearPart: (propId: string) => string): WornProp[] {
-  const cue = cues[index];
-  if (!cue) return [];
-  let start = index;
-  while (start > 0 && cues[start - 1].stepIndex === cue.stepIndex) start--;
+  if (!cues[index]) return [];
   let worn: WornProp[] = [];
-  for (let j = start; j <= index; j++) {
+  for (let j = 0; j <= index; j++) {
     const { speakerSlotId: slotId, prop: propId, wear } = cues[j].line;
-    if (!propId) continue;
-    worn = worn.filter(w => w.propId !== propId);
-    if (!wear) continue;
+    if (!propId || !wear) continue;
     const part = wearPart(propId);
-    worn = worn.filter(w => w.slotId !== slotId || wearPart(w.propId) !== part);
+    worn = worn.filter(w => w.propId !== propId && (w.slotId !== slotId || wearPart(w.propId) !== part));
     worn.push({ slotId, propId });
   }
   return worn;

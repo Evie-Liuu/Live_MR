@@ -60,10 +60,14 @@ describe('wornAt', () => {
     expect(wornAt(cues, 4, isHead)).toEqual([{ slotId: 'a', propId: 'dress' }, { slotId: 'a', propId: 'hat' }]);
   });
 
-  it('換步驟就脫下；被別人拿起也脫下', () => {
-    expect(wornAt(cues, 5, isHead)).toEqual([]);
-    const sameStep = flattenCues({ ...tryOn, steps: [step([line('a', 'hat', true), line('b', 'hat')])] });
-    expect(wornAt(sameStep, 1, isHead)).toEqual([]);
+  it('換步驟也繼續穿著；只是被別人拿起不會脫下', () => {
+    expect(wornAt(cues, 5, isHead)).toEqual([{ slotId: 'a', propId: 'dress' }, { slotId: 'a', propId: 'hat' }]);
+    expect(wornAt(cues, 6, isHead)).toEqual([{ slotId: 'a', propId: 'dress' }, { slotId: 'a', propId: 'hat' }]);
+  });
+
+  it('同一件被別人試穿就換到那個人身上', () => {
+    const swap = flattenCues({ ...tryOn, steps: [step([line('a', 'hat', true), line('b', 'hat', true)])] });
+    expect(wornAt(swap, 1, isHead)).toEqual([{ slotId: 'b', propId: 'hat' }]);
   });
 });
 
