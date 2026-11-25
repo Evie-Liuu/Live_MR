@@ -303,7 +303,7 @@ function CameraDevicePicker({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         style={{
-          background: 'rgba(255,255,255,0.08)',
+          background: '#1a1a2e',
           color: '#fff',
           border: '1px solid rgba(255,255,255,0.18)',
           borderRadius: 6,
@@ -312,9 +312,9 @@ function CameraDevicePicker({
           maxWidth: 240,
         }}
       >
-        <option value="">預設相機</option>
+        <option value="" style={{ background: '#1a1a2e', color: '#fff' }}>預設相機</option>
         {devices.map((d, i) => (
-          <option key={d.deviceId || i} value={d.deviceId}>
+          <option key={d.deviceId || i} value={d.deviceId} style={{ background: '#1a1a2e', color: '#fff' }}>
             {d.label || `Camera ${i + 1}`}
           </option>
         ))}
