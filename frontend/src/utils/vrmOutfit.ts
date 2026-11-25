@@ -9,7 +9,7 @@ import type * as THREE from 'three';
 
 export interface OutfitPartNode {
   layer: string;
-  /** 部位，例如 Top / Bottom / Head / Feet（小寫存放） */
+  /** 部位，例如 Top / Bottom / Acc（配件）（小寫存放） */
   part: string;
   /** 款式，例如 Skirt / Jeans / Hat（小寫存放） */
   style: string;

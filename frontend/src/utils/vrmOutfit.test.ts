@@ -37,6 +37,19 @@ describe('vrmOutfit', () => {
     expect([m.pants.visible, m.skirt.visible, m.hat.visible]).toEqual([true, false, false]);
   });
 
+  it('綁在骨頭底下的配件（帽子掛在 Head 骨頭）也抓得到', () => {
+    const root = new THREE.Group();
+    const head = new THREE.Bone(); head.name = 'mixamorigHead';
+    const neck = new THREE.Bone(); neck.name = 'mixamorigNeck';
+    root.add(neck); neck.add(head);
+    const hat = new THREE.Mesh(); hat.name = 'Outfit_Acc_Hat_hide'; head.add(hat);
+    applyOutfit(root, []);
+    expect(hat.visible).toBe(false);
+    expect(hasOutfitStyle(root, { part: 'Acc', style: 'Hat' })).toBe(true);
+    applyOutfit(root, [{ part: 'Acc', style: 'Hat' }]);
+    expect(hat.visible).toBe(true);
+  });
+
   it('模型沒有的款式略過，不影響該部位', () => {
     const m = model();
     expect(hasOutfitStyle(m.root, { part: 'Bottom', style: 'Shorts' })).toBe(false);

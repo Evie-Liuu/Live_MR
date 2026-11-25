@@ -204,7 +204,7 @@ export const THEMES: ThemeConfig[] = [
               label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-3.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.2,
               // 上課拿著雙手握拳就戴上（模型原點偏一側，往右補回來）
               bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 },
-              outfit: { part: 'Head', style: 'Hat' }
+              outfit: { part: 'Acc', style: 'Hat' }
             },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的
@@ -353,7 +353,7 @@ export const THEMES: ThemeConfig[] = [
               label: '帽子', url: '/models/clothingStore/objects/Hat.glb', displayPos: [-1.9, 2.1, -3], rotation: [0, Math.PI / 2, 0], scale: 1.8,
               // 上課拿著雙手握拳就戴上（模型原點偏一側，往右補回來）
               bodyHold: { anchor: 'head', offset: [0.086, 0.17, 0], scale: 0.85 },
-              outfit: { part: 'Head', style: 'Hat' }
+              outfit: { part: 'Acc', style: 'Hat' }
             },
             // 稍微朝鏡頭傾斜才看得到（平放時幾乎是一條線）；拿起來時平放捏在指尖遞出去（不穿進手掌），
             // 一樣稍微朝鏡頭傾斜，文字上緣朝外、對觀看者是正的

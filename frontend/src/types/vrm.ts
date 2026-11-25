@@ -183,7 +183,7 @@ export interface TaskPropConfig {
   /**
    * 試穿時改成顯示角色模型內建的衣服（見 utils/vrmOutfit.ts）：模型裡有 [層級]_[部位]_[款式]_[初始狀態]
    * 命名的物件（例如 Outfit_Bottom_Skirt_hide）時，試穿就顯示那個款式、隱藏同部位的其他款式，展示的道具藏起來；
-   * 模型沒有這個款式就照 bodyHold 比在身上。同一人同部位只能穿一件（帽子 Head 跟下身 Bottom 可以同時穿）。
+   * 模型沒有這個款式就照 bodyHold 比在身上。同一人同部位只能穿一件（配件 Acc 的帽子跟下身 Bottom 可以同時穿）。
    */
   outfit?: { part: string; style: string };
   scale?: number;
