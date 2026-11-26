@@ -277,7 +277,7 @@ export const THEMES: ThemeConfig[] = [
             id: 'customer',
             label: 'Customer A',
             icon: '👗',
-            position: [-3.0, 0.5, -2.5],
+            position: [-3.1, 0.78, -2.5],
             heightOffset: 0.18,
             rotation: [0, Math.PI / 4, 0],
             defaultVrmId: 'student_female_outfit',

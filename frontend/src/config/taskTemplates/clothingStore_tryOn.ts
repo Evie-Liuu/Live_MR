@@ -25,13 +25,13 @@ export const clothingStoreTryOn: TaskTemplate = {
         purpose: '能詢問是否可以試穿、徵求朋友意見，並描述尺寸問題',
         lines: [
           { id: 'step1_1', speakerSlotId: 'customer', en: 'Can I try these jeans on?', zh: '我可以試穿這條牛仔褲嗎？', gesture: 'hold', prop: 'pants_jeans' },
-          { id: 'step1_2', speakerSlotId: 'staff', en: 'Sure! The fitting room is over there.', zh: '當然可以！試衣間在那邊。', gesture: 'point' },
+          { id: 'step1_2', speakerSlotId: 'staff', en: 'Sure! You can use the fitting room right here.', zh: '當然可以！你可以直接使用這裡的試衣間。', gesture: 'point' },
           { id: 'step1_3', speakerSlotId: 'customer', en: 'What do you think?', zh: '你覺得怎麼樣？', prop: 'pants_jeans', wear: true },
           { id: 'step1_4', speakerSlotId: 'customer2', en: 'They look nice on you!', zh: '你穿起來很好看！', gesture: 'nod' },
           { id: 'step1_5', speakerSlotId: 'customer', en: "Thanks! But they're a little too long.", zh: '謝謝！不過褲子有點太長了。' },
         ],
         grammarPoints: [
-          'Can I try these jeans on?', 'The fitting room is over there.', 'What do you think?',
+          'Can I try these jeans on?', 'What do you think?',
           'They look nice on you!', "They're a little too long.",
         ],
         grammarNote: [
@@ -67,7 +67,7 @@ export const clothingStoreTryOn: TaskTemplate = {
           { id: 'step2_5', speakerSlotId: 'customer', en: 'Thanks! I really like this skirt.', zh: '謝謝！我真的很喜歡這件短裙。', gesture: 'happy' },
           { id: 'step2_6', speakerSlotId: 'customer2', en: 'I like the purple skirt better than the jeans.', zh: '比起那條牛仔褲，我更喜歡這件紫色短裙。' },
           { id: 'step2_7', speakerSlotId: 'customer', en: 'Really? Why do you think so?', zh: '真的嗎？你為什麼這麼覺得？' },
-          { id: 'step2_8', speakerSlotId: 'customer2', en: 'The color looks great on you.', zh: '這個顏色很適合你。', gesture: 'point', pointAt: 'skirt_purple' },
+          { id: 'step2_8', speakerSlotId: 'customer2', en: 'The color looks great on you.', zh: '這個顏色很適合你。', gesture: 'nod' },
         ],
         grammarPoints: [
           'Can I try this purple skirt on, too?', 'How does this skirt look?', 'It looks great on you!', 'I really like this skirt.',
