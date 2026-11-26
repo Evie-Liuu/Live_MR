@@ -860,6 +860,8 @@ export default function BigScreen() {
     slotAssignments,
     currentPropId: turnProp?.id ?? propForTask(sceneId, currentTaskId),
     propGrabberIdentity: turnProp ? scriptTurn?.speaker.identity ?? null : undefined,
+    // 登台展演：這句沒標試穿就只能拿著，雙手握拳不會換上身
+    propWearable: turnProp ? turnProp.wear : undefined,
     // 登台展演：只有發言者跟姿勢，其他人播待機動作
     poseOnlyIdentity: turnIdentity,
     // 任務前（暖身）：已指派的靜態角色播待機動作

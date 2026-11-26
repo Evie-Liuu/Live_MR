@@ -33,13 +33,20 @@ const cast: TurnCast = {
 
 describe('scriptTurn', () => {
   it('帶出這句的道具；場景沒有的道具視為沒有', () => {
-    const withProp = (prop: string): HostLessonState => {
+    const withProp = (prop: string, wear?: boolean): HostLessonState => {
       const [step, ...rest] = record.task.steps;
       const [first, ...others] = step.lines;
-      return lesson({ record: { ...record, task: { ...record.task, steps: [{ ...step, lines: [{ ...first, prop }, ...others] }, ...rest] } } });
+      return lesson({ record: { ...record, task: { ...record.task, steps: [{ ...step, lines: [{ ...first, prop, wear }, ...others] }, ...rest] } } });
     };
     const l = withProp('tshirt_red');
-    expect(resolveTurn(l, startTurn(l), cast)?.prop).toEqual({ id: 'tshirt_red', label: '櫃檯的紅色 T 恤', wearable: false });
+    expect(resolveTurn(l, startTurn(l), cast)?.prop).toEqual({ id: 'tshirt_red', label: '櫃檯的紅色 T 恤', wear: false });
+    // 只有標了 wear、道具也能穿的台詞才能試穿；沒標的只能拿著
+    const hold = withProp('pants_jeans');
+    expect(resolveTurn(hold, startTurn(hold), cast)?.prop?.wear).toBe(false);
+    const tryOn = withProp('pants_jeans', true);
+    expect(resolveTurn(tryOn, startTurn(tryOn), cast)?.prop?.wear).toBe(true);
+    const notWearable = withProp('tshirt_red', true);
+    expect(resolveTurn(notWearable, startTurn(notWearable), cast)?.prop?.wear).toBe(false);
     const missing = withProp('no_such_prop');
     expect(resolveTurn(missing, startTurn(missing), cast)?.prop).toBeNull();
     expect(resolveTurn(lesson(), startTurn(lesson()), cast)?.prop).toBeNull();

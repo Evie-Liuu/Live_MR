@@ -17,6 +17,11 @@ export const BIGSCREEN_TURN_STORAGE_KEY = 'bigscreen-script-turn';
 /** 大屏重開時讀取目前的提示等級 */
 export const BIGSCREEN_TURN_HINT_STORAGE_KEY = 'bigscreen-turn-hint';
 
+function turnProp(sceneId: string, line: { prop?: string; wear?: boolean }): ScriptTurn['prop'] {
+  const p = grabbableProps(sceneId).find(g => g.id === line.prop);
+  return p ? { id: p.id, label: p.label, wear: line.wear === true && p.wearable } : null;
+}
+
 export interface ScriptTurnState {
   /** 目前步驟內的台詞序號（跳過英文空白的台詞後，0 起算） */
   lineIndex: number;
@@ -46,8 +51,11 @@ export interface ScriptTurn {
   /** 下一句的發言者；本步最後一句時為 null */
   next: TurnPerson | null;
   line: { en: string; zh: string };
-  /** 這句發言者可握拳拿起的道具；沒有或場景找不到時為 null */
-  prop: { id: string; label: string } | null;
+  /**
+   * 這句發言者可握拳拿起的道具；沒有或場景找不到時為 null。
+   * wear＝這句要試穿（台詞標了 wear、道具也能穿）：雙手握拳才換上身；否則只能拿著
+   */
+  prop: { id: string; label: string; wear: boolean } | null;
   /** 下一句的英文（給下一位先準備） */
   nextLine: string | null;
   /** 發言者畫面的台詞提示方式 */
@@ -152,7 +160,7 @@ export function resolveTurn(lesson: HostLessonState, turn: ScriptTurnState, cast
     speaker: person(line.speakerSlotId, cast),
     next: nextLine ? person(nextLine.speakerSlotId, cast) : null,
     line: { en: line.en, zh: line.zh },
-    prop: grabbableProps(lessonTask(lesson).sceneId).find(p => p.id === line.prop) ?? null,
+    prop: turnProp(lessonTask(lesson).sceneId, line),
     nextLine: nextLine?.en ?? null,
     hintMode: lesson.turnHintMode ?? 'tiered',
     hintAuto: lesson.turnHintAuto === true,

@@ -185,6 +185,8 @@ interface UseBigScreenSceneOptions {
    * undefined＝不限制，誰都可以拿。
    */
   propGrabberIdentity?: string | null;
+  /** false＝這句只能拿著道具，雙手握拳不會試穿（換上身或貼在身上）；undefined＝不限制 */
+  propWearable?: boolean;
   /**
    * 只有這位的姿勢會驅動角色（登台展演的發言者），其他人播待機動作；null＝全部播待機；
    * undefined＝不限制，所有人都跟自己的姿勢。
@@ -258,7 +260,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, poseOnlyIdentity, placeholderIdle, onStats, onScenePropsReady, renderFpsLimit, paused, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, propWearable, poseOnlyIdentity, placeholderIdle, onStats, onScenePropsReady, renderFpsLimit, paused, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -537,6 +539,8 @@ export function useBigScreenScene(
   currentPropIdRef.current = currentPropId;
   const propGrabberIdentityRef = useRef(propGrabberIdentity);
   propGrabberIdentityRef.current = propGrabberIdentity;
+  const propWearableRef = useRef(propWearable);
+  propWearableRef.current = propWearable;
   const poseOnlyIdentityRef = useRef(poseOnlyIdentity);
   poseOnlyIdentityRef.current = poseOnlyIdentity;
   const placeholderIdleRef = useRef(placeholderIdle);
@@ -1112,7 +1116,7 @@ export function useBigScreenScene(
             const bodyCfg = propCfg?.bodyHold;
             // 模型有這件衣服的部件：雙手握拳就換上身上的部件，否則照舊貼在身上
             const canWear = !!propCfg?.outfit && hasOutfitStyle(slot.vrm.scene, propCfg.outfit);
-            if ((bodyCfg || canWear) && !inCooldown) {
+            if ((bodyCfg || canWear) && !inCooldown && propWearableRef.current !== false) {
               const otherHand = ia.lockHand === 'right' ? leftHand : rightHand;
               const holdSeen = !!hLandmarks && hLandmarks.length >= 21;
               const otherSeen = !!otherHand && otherHand.length >= 21;

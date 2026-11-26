@@ -148,7 +148,7 @@ export default function ScriptTurnOverlay(props: ScriptTurnOverlayProps) {
             <ChoiceCard key={turn.seq} turn={turn} />
           ) : null}
           {props.assistPending && <span className="sto-assist-pending">AI 聽聽看…</span>}
-          {turn.prop && <div className="sto-prop-cue">✊ 舉起手握拳，拿起{turn.prop.label}</div>}
+          {turn.prop && <div className="sto-prop-cue">✊ 舉起手握拳，拿起{turn.prop.label}{turn.prop.wear && '；拿著後雙手握拳就能試穿'}</div>}
           <div className={`sto-mic${props.speakerTalking ? ' is-live' : ''}`} aria-hidden="true">
             <span className="sto-mic-ring" style={{ transform: `scale(${scale})` }} />
             <span className="material-symbols-outlined sto-mic-icon">mic</span>
