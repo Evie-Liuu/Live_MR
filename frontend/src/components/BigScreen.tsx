@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { slotSpawnPosition } from '../utils/savedSceneLayout';
 import { useBigScreenScene, PLACEHOLDER_PREFIX } from '../hooks/useBigScreenScene.ts';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID, propForTask } from '../config/scenes.ts';
 import { useBigScreenEditor } from '../hooks/useBigScreenEditor';
@@ -2359,7 +2360,7 @@ export default function BigScreen() {
             );
             const vrmUrl = resolveVrmUrl(msg.identity, liveUrls, roles, teacherVrmId);
             const spawn = {
-              position: sceneSlot.position,
+              position: slotSpawnPosition(sceneSlot),
               rotation: sceneSlot.rotation,
               scale: preset.avatarDefaults?.scale,
             };

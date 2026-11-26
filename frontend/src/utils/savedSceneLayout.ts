@@ -87,6 +87,11 @@ export function slotFloorY(slot: { heightOffset?: number } | undefined, floorY: 
   return floorY + (slot?.heightOffset ?? 0);
 }
 
+/** 真實參與者（有影像追蹤）的生成位置：slot.position 的高度再加上 heightOffset */
+export function slotSpawnPosition(slot: { position: [number, number, number]; heightOffset?: number }): [number, number, number] {
+  return [slot.position[0], slot.position[1] + (slot.heightOffset ?? 0), slot.position[2]];
+}
+
 /** 被隱藏的群組裡的所有成員（key 見 memberKey） */
 export function hiddenMembers(preset: SceneConfig, groupHidden: Record<string, true>): Set<string> {
   const out = new Set<string>();

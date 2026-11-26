@@ -43,7 +43,7 @@ import {
   IDENTITY_TRANSFORM,
   type Vec3,
 } from '../utils/groupTransform';
-import { slotFloorY } from '../utils/savedSceneLayout';
+import { slotFloorY, slotSpawnPosition } from '../utils/savedSceneLayout';
 import { SCENE_PRESETS, DEFAULT_SCENE_ID } from '../config/scenes';
 import { VRM_SOURCES, DEFAULT_VRM_SOURCE_ID } from '../config/vrmSources';
 import {
@@ -579,8 +579,7 @@ export function useBigScreenScene(
       if (ref.kind === 'slot') {
         const s = preset.slots?.find(x => x.id === ref.id);
         if (!s) return null;
-        // 真實參與者的高度：slot.position.y 再加上 heightOffset
-        return { pos: [s.position[0], s.position[1] + (s.heightOffset ?? 0), s.position[2]], rot: s.rotation ?? [0, 0, 0] };
+        return { pos: slotSpawnPosition(s), rot: s.rotation ?? [0, 0, 0] };
       }
       if (ref.kind === 'staticProp') {
         const p = preset.propSystem?.staticProps?.find(x => x.id === ref.id);
@@ -1545,7 +1544,7 @@ export function useBigScreenScene(
             const sceneSlot = preset.slots.find(s => s.id === slotId);
             if (sceneSlot) {
               slotSpawn = {
-                position: [sceneSlot.position[0], sceneSlot.position[1] + (sceneSlot.heightOffset ?? 0), sceneSlot.position[2]],
+                position: slotSpawnPosition(sceneSlot),
                 rotation: sceneSlot.rotation,
                 scale: preset.avatarDefaults?.scale,
               };
