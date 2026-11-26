@@ -8955,6 +8955,27 @@ button:disabled {
   vertical-align: -0.1em;
 }
 
+.bs-turn-wear {
+  order: 3;
+  grid-column: 1;
+  justify-self: start;
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 16px 4px 10px;
+  border-radius: 999px;
+  background: #E3F4F1;
+  border: 2px solid #136B6D;
+  color: #0E4F51;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.bs-turn-wear .material-symbols-outlined {
+  font-size: 22px;
+}
+
 .bs-turn-text--live {
   font-style: italic;
   color: #6b5a4a;

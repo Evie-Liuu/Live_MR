@@ -862,6 +862,8 @@ export default function BigScreen() {
     propGrabberIdentity: turnProp ? scriptTurn?.speaker.identity ?? null : undefined,
     // 登台展演：這句沒標試穿就只能拿著，雙手握拳不會換上身
     propWearable: turnProp ? turnProp.wear : undefined,
+    // 拿起的道具留在手上，換句才放回
+    propTurnKey: scriptTurn?.status === 'running' ? `${scriptTurn.stepIndex}:${scriptTurn.lineIndex}` : undefined,
     // 登台展演：只有發言者跟姿勢，其他人播待機動作
     poseOnlyIdentity: turnIdentity,
     // 任務前（暖身）：已指派的靜態角色播待機動作
@@ -2869,6 +2871,13 @@ export default function BigScreen() {
                   {turn && turn.status === 'running' && !lesson.lines && turnTranscript && (
                     <span className="bs-turn-text bs-turn-text--live">{turnTranscript}</span>
                   )}
+                  {/* 這句要試穿：拿著衣服雙手握拳就能穿上 */}
+                  {/* {turn && turn.status === 'running' && turn.prop?.wear && (
+                    <span className="bs-turn-wear">
+                      <span className="material-symbols-outlined" aria-hidden="true">checkroom</span>
+                      拿起{turn.prop.label}後雙手握拳可穿上
+                    </span>
+                  )} */}
                 </div>
                 {/* {!lesson.allDone && lesson.roles.length > 0 && (
                   <div className="bs-lesson-roles">

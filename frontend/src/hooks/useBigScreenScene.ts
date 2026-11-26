@@ -56,7 +56,6 @@ import {
 import { anchorBonePosition, placePropOnBody, readBodyFrame, resetDoubleFist, stepDoubleFist, type BodyFrame, type DoubleFistTimer } from '../utils/bodyHold';
 import {
   detectFist,
-  detectOpenHand,
   isHandRaised,
   isHandNearProp,
   shouldResetFistTimer,
@@ -94,6 +93,8 @@ interface AvatarSlot {
     lockHand: 'left' | 'right' | null;
     /** Last task ID seen — detects task changes */
     lastTaskId: string | undefined;
+    /** 上一幀的 propTurnKey：換句時拿著的道具放回 */
+    lastTurnKey: string | undefined;
     /**
      * Task ID of the prop currently being lerped back to displayPos after a
      * task switch (may differ from lastTaskId / currentPropId).
@@ -187,6 +188,8 @@ interface UseBigScreenSceneOptions {
   propGrabberIdentity?: string | null;
   /** false＝這句只能拿著道具，雙手握拳不會試穿（換上身或貼在身上）；undefined＝不限制 */
   propWearable?: boolean;
+  /** 目前這句（登台展演）；換句時拿著的道具放回。沒有逐句時只在換道具（換任務）時放回 */
+  propTurnKey?: string;
   /**
    * 只有這位的姿勢會驅動角色（登台展演的發言者），其他人播待機動作；null＝全部播待機；
    * undefined＝不限制，所有人都跟自己的姿勢。
@@ -260,7 +263,7 @@ export function useBigScreenScene(
   canvasRef: RefObject<HTMLCanvasElement | null>,
   options: UseBigScreenSceneOptions = {},
 ) {
-  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, propWearable, poseOnlyIdentity, placeholderIdle, onStats, onScenePropsReady, renderFpsLimit, paused, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
+  const { sceneId = DEFAULT_SCENE_ID, vrmSourceId = DEFAULT_VRM_SOURCE_ID, slotAssignments, currentPropId, propGrabberIdentity, propWearable, propTurnKey, poseOnlyIdentity, placeholderIdle, onStats, onScenePropsReady, renderFpsLimit, paused, isRecording, onPostRenderRef, groupTransforms, speakingIdentities, onSpeakerAnchors, onAvatarAnchors, occluderInstances, editorPlaceholderSlots, hiddenGroups, editorGizmoEnabled, onGizmoDragEnd, onGizmoDragStart, onOccluderRoots, onGizmoHandle } = options;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -541,6 +544,8 @@ export function useBigScreenScene(
   propGrabberIdentityRef.current = propGrabberIdentity;
   const propWearableRef = useRef(propWearable);
   propWearableRef.current = propWearable;
+  const propTurnKeyRef = useRef(propTurnKey);
+  propTurnKeyRef.current = propTurnKey;
   const poseOnlyIdentityRef = useRef(poseOnlyIdentity);
   poseOnlyIdentityRef.current = poseOnlyIdentity;
   const placeholderIdleRef = useRef(placeholderIdle);
@@ -955,7 +960,8 @@ export function useBigScreenScene(
           const ia = slot.interaction;
 
           // ── Task change detection ──────────────────────────────────────────
-          if (ia.lastTaskId !== taskId) {
+          // 換句也算：拿著的道具放回，下一句要重新拿
+          if (ia.lastTaskId !== taskId || ia.lastTurnKey !== propTurnKeyRef.current) {
             const oldTaskId = ia.lastTaskId;
             if (oldTaskId) {
               const oldProp = taskPropPoolRef.current.get(oldTaskId);
@@ -986,6 +992,7 @@ export function useBigScreenScene(
             ia.grabFistFirstAt = 0;
             ia.grabCooldownUntil = 0;
             ia.lastTaskId = taskId;
+            ia.lastTurnKey = propTurnKeyRef.current;
           }
 
           // ── Cross-task returning: runs BEFORE the prop-guard so the old prop
@@ -1155,29 +1162,8 @@ export function useBigScreenScene(
               restorePropScale(prop, taskId, delta * 10);
             }
 
-            if (ia.onBody) {
-              // 貼在身上：放開手、手出鏡都不會掉，換到下一句時才放回
-              ia.handLostAt = 0;
-            } else if (!hLandmarks || hLandmarks.length < 21) {
-              // Grace period: 500 ms before forcing a release on landmark loss
-              if (!inCooldown) {
-                if (ia.handLostAt === 0) ia.handLostAt = now;
-                if (now - ia.handLostAt > 500) {
-                  heldByIdentityRef.current.delete(taskId);
-                  ia.propState = 'returning';
-                  ia.lockHand = null;
-                  ia.grabCooldownUntil = 0;
-                }
-              }
-            } else {
-              ia.handLostAt = 0;
-              if (!inCooldown && detectOpenHand(hLandmarks)) {
-                heldByIdentityRef.current.delete(taskId);
-                ia.propState = 'returning';
-                ia.lockHand = null;
-                ia.grabCooldownUntil = 0;
-              }
-            }
+            // 拿起後放開手、手出鏡都不會掉，換句或換道具（換任務）時才放回
+            ia.handLostAt = 0;
 
             // ── returning (same task): lerp back to displayPos ────────────────
           } else if (ia.propState === 'returning') {
@@ -1488,6 +1474,7 @@ export function useBigScreenScene(
               propState: 'displayed',
               lockHand: null,
               lastTaskId: undefined,
+              lastTurnKey: undefined,
               returningTaskId: undefined,
               handLostAt: 0,
               grabFistFirstAt: 0,

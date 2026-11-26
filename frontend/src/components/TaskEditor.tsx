@@ -524,7 +524,7 @@ export default function TaskEditor({ teacherUid, institutionId, initial, initial
                                   className={`te-gesture${line.prop ? ' has-gesture' : ''}`}
                                   value={line.prop ? `${line.wear ? WEAR_PREFIX : ''}${line.prop}` : ''}
                                   aria-label="道具互動"
-                                  title="上課輪到這句時，發言者舉手握拳就能拿起這個道具，張開手放下；試穿的道具雙手握拳就比在身上。模擬播放時拿在手上，試穿則穿到這個步驟結束"
+                                  title="上課輪到這句時，發言者舉手握拳就能拿起這個道具，拿起後一直留在手上，換句才放回；試穿的道具雙手握拳就比在身上。模擬播放時拿在手上，試穿則穿到這個步驟結束"
                                   onChange={e => {
                                     const v = e.target.value;
                                     const wear = v.startsWith(WEAR_PREFIX);
