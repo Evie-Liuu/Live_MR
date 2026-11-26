@@ -4,7 +4,7 @@
  * 動作檔（.vrma）依體型挑選：動作檔記錄的是關節角度，大人手臂比小孩長很多，
  * 同一組角度套到大人身上，手會伸過頭（例如揮手打到臉）。
  *
- * 規則：大人模型先找 `<名稱>.adult.vrma`，沒有就退回 `<名稱>.vrma`。
+ * 規則：大人模型先找 `<名稱>.adult.vrma`、女學生（含交換生）先找 `<名稱>_f.vrma`，沒有就退回 `<名稱>.vrma`。
  * 所以只要把大人版動作檔放進 public/animations 就會自動生效，不用改程式；
  * 目前的動作檔是用小孩骨架做的，小孩模型直接用原檔。
  */
@@ -20,7 +20,9 @@ export const DEFAULT_BODY_TYPE: BodyType = 'child';
 
 /** 這個體型要優先找的動作檔網址；小孩直接用原檔 */
 export function variantUrl(url: string, bodyType: BodyType): string {
-  return bodyType === 'adult' ? url.replace(/\.vrma$/i, '.adult.vrma') : url;
+  if (bodyType === 'adult') return url.replace(/\.vrma$/i, '.adult.vrma');
+  if (bodyType === 'girl') return url.replace(/\.vrma$/i, '_f.vrma');
+  return url;
 }
 
 /** 依模型網址查體型；不在模型清單（或沒標記）的當作小孩 */

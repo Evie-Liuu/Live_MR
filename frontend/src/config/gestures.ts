@@ -8,6 +8,7 @@
  * 大人與小孩手臂比例不同，同一個動作檔套到另一種體型手的位置會跑掉（例如揮手打到臉）。
  * 大人版放成 <名稱>.adult.vrma（例如 wave.adult.vrma），vrmSources 標記 bodyType: 'adult'
  * 的模型會自動優先使用，沒有大人版就用原檔（見 utils/animationLibrary.ts）。
+ * 女學生（含交換生，vrmSources 標記 bodyType: 'girl'）同理優先用 <名稱>_f.vrma（例如 happy_f.vrma）。
  */
 
 /** 待機循環動作：不是可排進台詞的手勢，不列入 GESTURES；檔案不存在時用程式待機姿勢 */

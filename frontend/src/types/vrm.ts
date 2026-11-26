@@ -246,8 +246,8 @@ export interface ThemeConfig {
 // ─── VRM Source Configuration ─────────────────────────────────────────────────
 
 /** A single VRM model source entry */
-/** 體型：決定動作檔用哪個版本（大人先找 <名稱>.adult.vrma） */
-export type BodyType = 'child' | 'adult';
+/** 體型：決定動作檔用哪個版本（大人先找 <名稱>.adult.vrma；女學生先找 <名稱>_f.vrma） */
+export type BodyType = 'child' | 'girl' | 'adult';
 
 export interface VrmSource {
   id: string;

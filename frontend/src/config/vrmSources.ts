@@ -12,6 +12,7 @@ import type { VrmSource } from '../types/vrm';
  *  3. It will be visible in the model-source picker automatically
  *
  * bodyType：大人模型標 'adult'，動作會優先用 public/animations/<名稱>.adult.vrma；
+ * 女學生（含交換生）標 'girl'，優先用 <名稱>_f.vrma（例如 happy_f.vrma）；
  * 沒標記的當作小孩，直接用 <名稱>.vrma。
  */
 export const VRM_SOURCES: Record<string, VrmSource> = {
@@ -34,11 +35,13 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     id: 'student_female',
     label: '女學生',
     url: '/models/Student_Female1.vrm',
+    bodyType: 'girl',
   },
   student_female_outfit: {
     id: 'student_female_outfit',
     label: '女學生',
     url: '/models/Student_Female1_Outfit.vrm',
+    bodyType: 'girl',
   },
   student_male: {
     id: 'student_male',
@@ -66,6 +69,7 @@ export const VRM_SOURCES: Record<string, VrmSource> = {
     id: 'exchange_student_female',
     label: '女交換生',
     url: '/models/ExchangeStudent_Female1.vrm',
+    // bodyType: 'girl', // 拍手用原 happy.vrma 動作較合理
   },
 } as const;
 

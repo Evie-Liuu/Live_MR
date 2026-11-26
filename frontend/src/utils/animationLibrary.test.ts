@@ -11,12 +11,14 @@ describe('variantUrl', () => {
 
   it('keeps the original file for children', () => {
     expect(variantUrl('/animations/wave.vrma', 'child')).toBe('/animations/wave.vrma');
+    expect(variantUrl('/animations/happy.vrma', 'girl')).toBe('/animations/happy_f.vrma');
   });
 });
 
 describe('bodyTypeOfVrmUrl', () => {
   it('reads the body type tagged on the model', () => {
     expect(bodyTypeOfVrmUrl('/models/ClothingStoreStaff_Male.vrm')).toBe('adult');
+    expect(bodyTypeOfVrmUrl('/models/ExchangeStudent_Female1.vrm')).toBe('girl');
   });
 
   it('treats untagged or unknown models as children', () => {
