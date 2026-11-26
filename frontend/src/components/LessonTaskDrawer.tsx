@@ -9,7 +9,6 @@ import { stepTimings } from '../types/dialogueTask.ts';
 import { getDialogueTask, listDialogueTasks, dialogueTaskErrorText } from '../utils/dialogueTaskClient.ts';
 import { CEFR_LEVELS, levelLabel, normalizeLevel, type CefrLevel } from '../types/lessonPlan.ts';
 import { THEMES } from '../config/scenes.ts';
-import { LESSON_PHASES, phaseContent } from '../config/lessonPhases.ts';
 import ScriptSimulator from './ScriptSimulator.tsx';
 import './LessonTaskDrawer.css';
 
@@ -114,17 +113,14 @@ export default function LessonTaskDrawer({
         {/* ── 左側：課程清單 ─────────────────────────────────────────── */}
         <aside className="ltd-side" aria-label="課程清單">
           <p className="ltd-scene">
-            <span className="material-symbols-outlined" aria-hidden="true">storefront</span>
+            {/* <span className="material-symbols-outlined" aria-hidden="true">storefront</span> */}
             目前場景：<strong>{sceneLabel}</strong>
           </p>
           {listError && <div className="ltd-error" role="alert">{listError}</div>}
           {onOpenPrep && teacherUid && (
-            <button type="button" className="ltd-prep-link" onClick={() => onOpenPrep()}>
+            <button type="button" className="ltd-prep-link" onClick={() => onOpenPrep()} title="新增或修改任務，課堂會保持進行">
               <span className="material-symbols-outlined" aria-hidden="true">edit_note</span>
-              <span className="ltd-prep-link-text">
-                <strong>前往備課中心</strong>
-                <small>新增或修改任務，課堂會保持進行</small>
-              </span>
+              前往備課中心
               <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>
             </button>
           )}
@@ -195,16 +191,9 @@ export default function LessonTaskDrawer({
                           onClick={() => setPickedId(t.id)}
                           aria-pressed={isSelected}
                         >
-                          <span className="ltd-item-icon material-symbols-outlined" aria-hidden="true">forum</span>
                           <span className="ltd-item-text">
                             <span className="ltd-item-title">{t.title || '未命名任務'}</span>
-                            <span className="ltd-item-tags">
-                              <span className={`ltd-item-tag ltd-tag--${level}`}>{levelLabel(level, true)}</span>
-                              <span className="ltd-item-tag">{t.stepCount} 步驟</span>
-                              {(t.tags ?? []).slice(0, 3).map(tag => (
-                                <span key={tag} className="ltd-item-tag ltd-item-tag--topic">#{tag}</span>
-                              ))}
-                            </span>
+                            <span className="ltd-item-meta">{levelLabel(level, true)} · {t.stepCount} 步驟</span>
                           </span>
                           {isActive && <span className="ltd-live">上課中</span>}
                         </button>
@@ -282,8 +271,6 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
     + Math.max(0, task.steps.length - 1) * STEP_GAP_SEC;
   const minutes = Math.max(1, Math.round(totalSec / 60));
   const lineCount = task.steps.reduce((n, s) => n + s.lines.length, 0);
-  const pre = phaseContent(task, 'pre');
-  const post = phaseContent(task, 'post');
   /** 模擬播放從第幾步開始；null＝沒在播 */
   const [simStep, setSimStep] = useState<number | null>(null);
   const canSimulate = lineCount > 0;
@@ -293,71 +280,34 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
       <div className="ltd-preview-scroll">
         {/* 標題與基本資訊 */}
         <header className="ltd-hero">
-          <span className="ltd-hero-icon material-symbols-outlined" aria-hidden="true">forum</span>
           <div className="ltd-hero-text">
             <h3 className="ltd-hero-title">{task.title || '未命名任務'}</h3>
-            <div className="ltd-chips">
-              <span className="ltd-chip ltd-chip--level">{levelLabel(task.level)}</span>
-              <span className="ltd-chip"><span className="material-symbols-outlined" aria-hidden="true">format_list_numbered</span>{task.steps.length} 個步驟</span>
-              <span className="ltd-chip"><span className="material-symbols-outlined" aria-hidden="true">chat</span>{lineCount} 句台詞</span>
-              <span className="ltd-chip"><span className="material-symbols-outlined" aria-hidden="true">schedule</span>對話約 {minutes} 分鐘</span>
-            </div>
-            {(task.tags ?? []).length > 0 && (
-              <div className="ltd-chips">
-                {(task.tags ?? []).map(tag => <span key={tag} className="ltd-item-tag ltd-item-tag--topic">#{tag}</span>)}
-              </div>
+            <p className="ltd-hero-meta">
+              {levelLabel(task.level)} · {task.steps.length} 個步驟 · {lineCount} 句台詞 · 約 {minutes} 分鐘
+            </p>
+            {roles.length > 0 && (
+              <p className="ltd-hero-roles">
+                {roles.map(r => <span key={r.id}><span aria-hidden="true">{r.icon}</span> {r.label}</span>)}
+              </p>
             )}
-            <p className="ltd-hero-updated">最後更新：{new Date(record.updatedAt).toLocaleDateString()}</p>
           </div>
           <div className="ltd-hero-actions">
             {canSimulate && (
-              <button type="button" className="ltd-edit ltd-sim" onClick={() => setSimStep(0)} title="用 3D 場景與語音預覽整段對話">
+              <button type="button" className="ltd-text-btn" onClick={() => setSimStep(0)} title="用 3D 場景與語音預覽整段對話">
                 <span className="material-symbols-outlined" aria-hidden="true">smart_display</span>模擬播放
               </button>
             )}
             {onEdit && (
-              <button type="button" className="ltd-edit" onClick={onEdit} title="到備課中心編輯此任務，課堂會保持進行">
-                <span className="material-symbols-outlined" aria-hidden="true">edit</span>編輯任務
+              <button type="button" className="ltd-text-btn" onClick={onEdit} title="到備課中心編輯此任務，課堂會保持進行">
+                <span className="material-symbols-outlined" aria-hidden="true">edit</span>編輯
               </button>
             )}
           </div>
         </header>
 
-        {roles.length > 0 && (
-          <div className="ltd-section">
-            <h4 className="ltd-section-title">角色</h4>
-            <div className="ltd-roles">
-              {roles.map((r) => (
-                <span key={r.id} className="ltd-role-wrap">
-                  {/* {i > 0 && <span className="ltd-role-arrow" aria-hidden="true">⇄</span>} */}
-                  <span className="ltd-role"><span aria-hidden="true">{r.icon}</span>{r.label}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 課程流程：任務前 → 任務中 → 任務後 */}
-        <div className="ltd-section">
-          <h4 className="ltd-section-title">課程流程</h4>
-          <ol className="ltd-flow">
-            {LESSON_PHASES.map(p => (
-              <li key={p.id} className={`ltd-flow-item ltd-flow-item--${p.id}`}>
-                <span className="ltd-flow-label">{p.label}</span>
-                <span className="ltd-flow-sub">{p.sub}</span>
-                <span className="ltd-flow-desc">
-                  {p.id === 'pre' && (pre.questions[0]?.en ?? '觀察場景')}
-                  {p.id === 'during' && `${task.steps.length} 個步驟的情境對話`}
-                  {p.id === 'post' && (post.questions[0]?.en ?? '討論回顧')}
-                </span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
         {/* 任務中的步驟 */}
         <div className="ltd-section">
-          <h4 className="ltd-section-title">對話步驟<span className="ltd-section-hint">點步驟可展開台詞</span></h4>
+          <h4 className="ltd-section-title">對話步驟</h4>
           <ol className="ltd-steps">
             {task.steps.map((step, si) => (
               <li key={step.id} className="ltd-step">
@@ -365,7 +315,6 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
                   <summary className="ltd-step-head">
                     <span className="ltd-step-num">{si + 1}</span>
                     <span className="ltd-step-title">{step.title || '未命名步驟'}</span>
-                    {step.purpose && <span className="ltd-step-purpose">{step.purpose}</span>}
                     <span className="ltd-step-count">{step.lines.length} 句</span>
                     {step.lines.length > 0 && (
                       <button
@@ -393,11 +342,6 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
                     ))}
                   </ul>
                 </details>
-                {step.grammarPoints.filter(Boolean).length > 0 && (
-                  <div className="ltd-grammar">
-                    {step.grammarPoints.filter(Boolean).map(g => <span key={g} className="ltd-grammar-chip">{g}</span>)}
-                  </div>
-                )}
               </li>
             ))}
           </ol>
@@ -423,7 +367,7 @@ function TaskPreview({ record, isActive, hasOtherActive, onStart, onEnd, onEdit 
               </span>
             )}
             <button className="ltd-start" onClick={onStart} disabled={task.steps.length === 0}>
-              <span className="material-symbols-outlined" aria-hidden="true">play_arrow</span>開始課程
+              <span className="ltd-start-icon" aria-hidden="true"><span className="material-symbols-outlined">play_arrow</span></span>開始課程
             </button>
           </>
         )}
