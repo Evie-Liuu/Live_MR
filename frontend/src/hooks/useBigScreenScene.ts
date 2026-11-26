@@ -63,6 +63,7 @@ import {
 } from '../utils/gestureDetector';
 import { isPerfEnabled, perfCount, perfGauge, perfValue } from '../utils/perfRecorder';
 import type { StatsSnapshot } from '../components/StatsPanel';
+import { loadCurtain, type Curtain } from '../utils/curtainAnimation';
 
 // ─── Internal avatar slot ────────────────────────────────────────────────────
 
@@ -578,7 +579,8 @@ export function useBigScreenScene(
       if (ref.kind === 'slot') {
         const s = preset.slots?.find(x => x.id === ref.id);
         if (!s) return null;
-        return { pos: s.position, rot: s.rotation ?? [0, 0, 0] };
+        // 真實參與者的高度：slot.position.y 再加上 heightOffset
+        return { pos: [s.position[0], s.position[1] + (s.heightOffset ?? 0), s.position[2]], rot: s.rotation ?? [0, 0, 0] };
       }
       if (ref.kind === 'staticProp') {
         const p = preset.propSystem?.staticProps?.find(x => x.id === ref.id);
@@ -781,12 +783,23 @@ export function useBigScreenScene(
 
     // Pre-load scene props (per-asset errors are swallowed inside propLoader)
     let propsCancelled = false;
+    // 試衣間簾子：大屏不換裝，載入打開動畫後停在拉開的樣子（模型原本是拉上的）
+    const curtains: Curtain[] = [];
     const notifyPropsReady = () => { if (!propsCancelled) onScenePropsReadyRef.current?.(); };
     if (preset.propSystem) {
       const staticP = loadStaticProps(preset.propSystem.staticProps ?? [], scene)
         .then((pool) => {
           if (propsCancelled) { disposeStaticProps(pool, scene); return; }
           staticPropPoolRef.current = pool;
+          for (const cfg of preset.propSystem?.staticProps ?? []) {
+            const obj = cfg.fittingRoom && pool.get(cfg.id);
+            if (!obj) continue;
+            void loadCurtain(obj, cfg.fittingRoom!.openAnimationUrl).then(c => {
+              if (!c) return;
+              if (propsCancelled) c.dispose();
+              else curtains.push(c);
+            });
+          }
         })
         .catch((err) => console.warn('[BigScreenScene] staticProps load error:', err));
 
@@ -1261,6 +1274,7 @@ export function useBigScreenScene(
       orderRef.current = [];
       slotPinnedRef.current.clear();
       spawnOverridesRef.current.clear();
+      for (const c of curtains) c.dispose();
       disposeStaticProps(staticPropPoolRef.current, scene);
       disposeTaskProps(taskPropPoolRef.current, scene);
       // 釋放所有遮罩物件
@@ -1531,7 +1545,7 @@ export function useBigScreenScene(
             const sceneSlot = preset.slots.find(s => s.id === slotId);
             if (sceneSlot) {
               slotSpawn = {
-                position: sceneSlot.position,
+                position: [sceneSlot.position[0], sceneSlot.position[1] + (sceneSlot.heightOffset ?? 0), sceneSlot.position[2]],
                 rotation: sceneSlot.rotation,
                 scale: preset.avatarDefaults?.scale,
               };
