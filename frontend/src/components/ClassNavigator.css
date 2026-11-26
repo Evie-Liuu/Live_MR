@@ -143,10 +143,4 @@
   .cnav-stage--todo {
     display: none;
   }
-
-  /* 頂列放不下：導航鈕只留圖示，開關狀態看顏色 */
-  .hs-action-nav .hs-action-label,
-  .hs-action-nav .hs-badge-btn {
-    display: none;
-  }
 }

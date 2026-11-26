@@ -391,6 +391,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   const [showSettlement, setShowSettlement] = useState(false);
   const [settlementTab, setSettlementTab] = useState<'tasks' | 'steps'>('tasks');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   // QR Code share modal (now opened in separate window)
   const openShareWindow = useCallback(() => {
     const url = `${window.location.origin}/?screen=share&roomId=${roomId}`;
@@ -2614,6 +2615,21 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
   // SceneConfig has no icon — look it up from THEMES SceneVariant
   const currentSceneVariant = THEMES.flatMap(t => t.scenes).find(s => s.id === selectedSceneId);
 
+  // 側欄步驟號碼：場景 → 任務 → 角色，已完成打勾，第一個還沒完成的是「目前」
+  const setupDone = [true, !!lesson, castSlots.length > 0 && castSlots.every(slot => slotAssignments[slot.id])];
+  const setupCurrent = setupDone.slice(0, hasSlots ? 3 : 2).indexOf(false);
+  const stepNum = (i: number) => {
+    // const state = setupDone[i] ? 'is-done' : i === setupCurrent ? 'is-current' : 'is-pending';
+    const label = `步驟 ${i + 1}，${setupDone[i] ? '已完成' : i === setupCurrent ? '進行中' : '尚未開始'}`;
+    return (
+      // <span className={`hs-card-icon hs-step-num ${state}`} role="img" aria-label={label}>
+      <span className={`hs-card-icon hs-step-num is-pending`} role="img" aria-label={label}>
+        {String(i + 1).padStart(2, '0')}
+        {/* {setupDone[i] && <span className="hs-step-num-check material-symbols-outlined" aria-hidden="true">check</span>} */}
+      </span>
+    );
+  };
+
   // Index of first non-completed task (highlighted in banner)
   const currentTaskIndex = selectedTasks.findIndex(t => !t.completed);
 
@@ -2804,17 +2820,6 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
             <RecordingPanel isRecording={isRecording} bigScreenEditing={bigScreenEditing} onStart={start} onStop={stop} />
           }
 
-          <button
-            className={`hs-action-btn hs-action-nav ${showClassNav ? 'hs-action--on' : 'hs-action--off'}`}
-            onClick={toggleClassNav}
-            aria-pressed={showClassNav}
-            title={showClassNav ? '關閉課堂引導' : '開啟課堂引導'}
-          >
-            <span className="material-symbols-outlined">assistant_direction</span>
-            <span className="hs-action-label">課堂引導</span>
-            <span className={`hs-badge-btn ${showClassNav ? 'hs-badge--on' : 'hs-badge--off'}`}>{showClassNav ? 'ON' : 'OFF'}</span>
-          </button>
-
           {SHOW_FACE_BUTTON &&
             <button
               className={`hs-action-btn ${faceEnabled ? 'hs-action--on' : 'hs-action--off'}`}
@@ -2823,51 +2828,87 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
             >
               <span className="material-symbols-outlined">ar_on_you</span>
               <span className="hs-action-label">臉部</span>
-              <span className={`hs-badge-btn ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
+              <span className={`hs-badge-btn hs-badge-dot ${faceEnabled ? 'hs-badge--on' : 'hs-badge--off'}`}>{faceEnabled ? 'ON' : 'OFF'}</span>
             </button>
           }
 
-          {/* <button
-            className={`hs-action-btn ${lowPowerMode ? 'hs-action--on' : 'hs-action--off'}`}
-            onClick={() => setLowPowerMode(v => !v)}
-            title={lowPowerMode ? '關閉省電模式（臉部/手部 15 FPS）' : '開啟省電模式（臉部/手部降至 7.5 FPS）'}
-          >
-            <span className="material-symbols-outlined">battery_saver</span>
-            <span className="hs-action-label">省電</span>
-            <span className={`hs-badge-btn ${lowPowerMode ? 'hs-badge--on' : 'hs-badge--off'}`}>{lowPowerMode ? 'ON' : 'OFF'}</span>
-          </button> */}
+          {/* 設定：課堂引導、影像版面、大屏預覽 */}
+          <div className="hs-user-menu-wrap">
+            <button
+              className={`hs-action-btn ${showSettingsMenu ? 'hs-action--menu-open' : ''}`}
+              onClick={() => setShowSettingsMenu(v => !v)}
+              aria-haspopup="menu"
+              aria-expanded={showSettingsMenu}
+              title="設定"
+            >
+              <span className="material-symbols-outlined">tune</span>
+              <span className="hs-action-label">設定</span>
+              <span
+                className="material-symbols-outlined hs-user-arrow"
+                style={{ transition: 'transform 0.2s', transform: showSettingsMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              >
+                keyboard_arrow_down
+              </span>
+            </button>
 
-          <button
-            className="hs-action-btn hs-action--on"
-            onClick={toggleVideoLayout}
-            disabled={showBigScreenPreview}
-            title={showBigScreenPreview
-              ? '大屏預覽開著時，影像區固定為精簡列'
-              : videoLayout === 'featured' ? '目前：放大自己的畫面。點一下改成每人一樣大' : '目前：每人一樣大。點一下改成放大自己的畫面'}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
-              {videoLayout === 'featured' ? 'view_quilt' : 'grid_view'}
-            </span>
-            <span className="hs-action-label">版面</span>
-            <span className="hs-badge-btn hs-badge--on">
-              {videoLayout === 'featured' ? '放大' : '等大'}
-            </span>
-          </button>
+            {showSettingsMenu && (
+              <>
+                <div className="hs-user-menu-backdrop" onClick={() => setShowSettingsMenu(false)} />
+                <div className="hs-user-dropdown hs-settings-dropdown" role="menu" aria-label="設定">
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={showClassNav}
+                    className="hs-settings-item"
+                    onClick={toggleClassNav}
+                  >
+                    <span className="material-symbols-outlined hs-settings-icon">assistant_direction</span>
+                    <span className="hs-settings-text">
+                      <span className="hs-settings-label">課堂引導</span>
+                      {/* <span className="hs-settings-desc">提示每個階段下一步要做什麼</span> */}
+                    </span>
+                    <span className={`hs-switch${showClassNav ? ' is-on' : ''}`} aria-hidden="true" />
+                  </button>
 
-          <button
-            className={`hs-action-btn hs-action-preview ${showBigScreenPreview ? 'hs-action--on' : 'hs-action--off'}`}
-            onClick={toggleBigScreenPreview}
-            title={showBigScreenPreview ? '關閉大屏預覽' : '開啟大屏預覽'}
-          >
-            {/* <span className="hs-action-icon">🖥️</span> */}
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
-              preview
-            </span>
-            <span className="hs-action-label">預覽</span>
-            <span className={`hs-badge-btn ${showBigScreenPreview ? 'hs-badge--on' : 'hs-badge--off'}`}>
-              {showBigScreenPreview ? 'ON' : 'OFF'}
-            </span>
-          </button>
+                  <button
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={showBigScreenPreview}
+                    className="hs-settings-item"
+                    onClick={toggleBigScreenPreview}
+                  >
+                    <span className="material-symbols-outlined hs-settings-icon">preview</span>
+                    <span className="hs-settings-text">
+                      <span className="hs-settings-label">大屏預覽</span>
+                      {/* <span className="hs-settings-desc">在影像區旁邊顯示大屏畫面</span> */}
+                    </span>
+                    <span className={`hs-switch${showBigScreenPreview ? ' is-on' : ''}`} aria-hidden="true" />
+                  </button>
+
+                  <div className="hs-user-divider" />
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="hs-settings-item"
+                    onClick={toggleVideoLayout}
+                    disabled={showBigScreenPreview}
+                  >
+                    <span className="material-symbols-outlined hs-settings-icon">
+                      {videoLayout === 'featured' ? 'view_quilt' : 'grid_view'}
+                    </span>
+                    <span className="hs-settings-text">
+                      <span className="hs-settings-label">影像版面</span>
+                      <span className="hs-settings-desc">
+                        {/* {showBigScreenPreview ? '大屏預覽開著時固定為精簡列' : '切換放大自己／每人等大'} */}
+                      </span>
+                    </span>
+                    <span className="hs-settings-value">{videoLayout === 'featured' ? '放大' : '等大'}</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           {user && (
             <div className="hs-user-menu-wrap" style={{ position: 'relative' }}>
@@ -3116,7 +3157,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
           {/* Scene card */}
           <div className={`hs-card hs-card--scene ${showScenePanel ? 'hs-card--open' : ''}`} onClick={openScene}>
             <div className="hs-card-header">
-              <span className="hs-card-icon">🎬</span>
+              {stepNum(0)}
               <span className="hs-card-title">場景</span>
               <span className="hs-badge hs-badge--info" >{showScenePanel ? '▲' : '▼'}</span>
               {/* <span className="hs-card-arrow">{showScenePanel ? '▲' : '▼'}</span> */}
@@ -3158,7 +3199,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
           {/* Lesson card：導師任務管理 */}
           <div className={`hs-card hs-card--lesson ${showLessonPanel ? 'hs-card--open' : ''}`} onClick={openLesson}>
             <div className="hs-card-header">
-              <span className="hs-card-icon">📋</span>
+              {stepNum(1)}
               <span className="hs-card-title">任務</span>
               <span className="hs-badge hs-badge--lesson">{lesson ? `${lesson.doneCount}/${lesson.record.task.steps.length}` : '0/0'}</span>
             </div>
@@ -3219,7 +3260,7 @@ export default function HostSession({ roomId, livekitToken, hostToken, planId, t
           {hasSlots && (
             <div data-tour="role-card" className={`hs-card hs-card--character ${showSlotPanel ? 'hs-card--open' : ''}`} onClick={openSlot}>
               <div className="hs-card-header">
-                <span className="hs-card-icon">🎭</span>
+                {stepNum(2)}
                 <span className="hs-card-title">角色</span>
                 <span className="hs-badge hs-badge--info">
                   {castSlots.filter(slot => slotAssignments[slot.id]).length}/{castSlots.length}
