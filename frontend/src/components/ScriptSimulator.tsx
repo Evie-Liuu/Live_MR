@@ -107,7 +107,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
   const chapterBtnRef = useRef<HTMLButtonElement>(null);
   const chapterMenuRef = useRef<HTMLDivElement>(null);
   /** playCue 播完要接下一句，透過 ref 呼叫最新版本 */
-  const playCueRef = useRef<(i: number) => void>(() => { });
+  const playCueRef = useRef<(i: number, fromPrev?: boolean) => void>(() => { });
 
   // 瀏覽器的聲音清單是非同步載入的
   useEffect(() => {
@@ -136,8 +136,12 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
   // 關閉模擬器時停止語音
   useEffect(() => () => stopAudio(), [stopAudio]);
 
-  /** 播放第 i 句；播完自動接下一句 */
-  const playCue = useCallback((i: number) => {
+  /**
+   * 播放第 i 句；播完自動接下一句。
+   * fromPrev：從上一句自動接過來（換裝播簾子動畫、等換好才開口）；
+   * 其他情況（跳句、回到第一句、暫停後繼續）穿著直接切換，不播換裝動畫
+   */
+  const playCue = useCallback((i: number, fromPrev = false) => {
     stopAudio();
     const cue = cues[i];
     if (!cue) { setStatus('ended'); return; }
@@ -154,7 +158,7 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
       setSpeaker(null);
       const next = window.setTimeout(() => {
         if (token !== tokenRef.current) return;
-        if (i + 1 < cues.length) playCueRef.current(i + 1);
+        if (i + 1 < cues.length) playCueRef.current(i + 1, true);
         else if (loopRef.current) playCueRef.current(0);
         else setStatus('ended');
       }, LINE_GAP_MS / speed);
@@ -162,14 +166,14 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
     };
 
     // 台詞指定的展示物件（例如收據）由說話者拿在手上；沒有就放回原位
-    // 試穿的台詞不拿在手上，直接比在身上；穿著的道具一直穿到這個步驟結束
+    // 試穿的台詞不拿在手上，直接換上；穿著一直保持到換上替換的服裝
     holdProp(cue.line.prop && !cue.line.wear ? cue.line.speakerSlotId : null, cue.line.prop, cue.line.gesture);
     const wearPart = (id: string) => wearPartOf(preset?.propSystem?.taskProps?.[id]);
     const worn = wornAt(cues, i, wearPart);
-    setWorn(worn);
-    // 這句換了穿著（試穿、換步驟脫下）：等換裝做完（拉簾子、換衣服、拉開）才開口；
+    setWorn(worn, { instant: !fromPrev });
+    // 接著上一句播、這句換了穿著：等換裝做完（拉簾子、換衣服、拉開）才開口；
     // 保險：最多等 OUTFIT_WAIT_MAX_MS，避免分頁在背景時畫面停住而卡住
-    const outfitChanged = JSON.stringify(worn) !== JSON.stringify(i > 0 ? wornAt(cues, i - 1, wearPart) : []);
+    const outfitChanged = fromPrev && JSON.stringify(worn) !== JSON.stringify(i > 0 ? wornAt(cues, i - 1, wearPart) : []);
     if (!outfitChanged) { speakCue(); return; }
     let started = false;
     const start = () => {
@@ -251,7 +255,11 @@ export default function ScriptSimulator({ task, startStepIndex = 0, onClose }: S
   const jump = (i: number) => {
     const target = Math.max(0, Math.min(cues.length - 1, i));
     if (status === 'playing') playCue(target);
-    else { stopAudio(); setIndex(target); setStatus('idle'); setCueElapsed(0); }
+    else {
+      stopAudio(); setIndex(target); setStatus('idle'); setCueElapsed(0);
+      // 沒在播放時跳句：穿著直接換成那一句的樣子
+      setWorn(wornAt(cues, target, id => wearPartOf(preset?.propSystem?.taskProps?.[id])), { instant: true });
+    }
   };
   /** 拖曳進度條：跳到該時間點所在的那一句 */
   const seek = (sec: number) => {

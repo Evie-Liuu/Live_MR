@@ -12,6 +12,8 @@ export interface Curtain {
   readonly state: CurtainState;
   open(): void;
   close(): void;
+  /** 不播動畫，直接停在拉開的樣子 */
+  snapOpen(): void;
   update(delta: number): void;
   dispose(): void;
 }
@@ -58,6 +60,12 @@ export async function loadCurtain(target: THREE.Object3D, animationUrl: string, 
     open() { if (action.timeScale <= 0 || action.paused) { if (action.time < clip.duration - EPS) run(1); } },
     close() { if (action.timeScale >= 0 || action.paused) { if (action.time > EPS) run(-1); } },
     update(delta) { mixer.update(delta); },
+    snapOpen() {
+      action.time = clip.duration;
+      action.timeScale = speed;
+      action.paused = true;
+      mixer.update(0);
+    },
     dispose() { mixer.stopAllAction(); mixer.uncacheRoot(target); },
   };
 }

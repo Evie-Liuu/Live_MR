@@ -58,7 +58,8 @@ export interface ScriptStage {
    */
   holdProp: (slotId: string | null, propId?: string, gesture?: GestureId) => void;
   /** 目前誰穿著（比在身上、戴著）哪些道具；不在清單裡的放回原位（正拿在手上的除外） */
-  setWorn: (worn: readonly WornProp[]) => void;
+  /** instant：直接換好、不拉簾子（跳句、回到第一句時用） */
+  setWorn: (worn: readonly WornProp[], opts?: { instant?: boolean }) => void;
   /**
    * 等 setWorn 指定的穿著真的換好：有試衣間簾子時等「拉上 → 換裝 → 拉開」做完；
    * 不需要換裝（或模型沒有內建衣服）就在下一格畫面完成
@@ -172,7 +173,11 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
   /** 等換裝完成的人；渲染迴圈發現穿著已經換好、簾子拉開（或沒有簾子）時通知 */
   const outfitWaitersRef = useRef<(() => void)[]>([]);
   const waitOutfitSettled = useCallback(() => new Promise<void>(resolve => { outfitWaitersRef.current.push(resolve); }), []);
-  const setWorn = useCallback((worn: readonly WornProp[]) => { wornRef.current = worn; }, []);
+  const instantWornRef = useRef(false);
+  const setWorn = useCallback((worn: readonly WornProp[], opts?: { instant?: boolean }) => {
+    wornRef.current = worn;
+    instantWornRef.current = opts?.instant === true;
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -357,7 +362,9 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
       const worn = wornRef.current;
       if (outfitKey(worn) === appliedKey) {
         appliedWorn = worn;
-        if (curtain?.state === 'closed') curtain.open();
+        // 跳句時簾子若還在動（上一句換裝到一半），直接停在拉開的樣子
+        if (instantWornRef.current && curtain && curtain.state !== 'open') curtain.snapOpen();
+        else if (curtain?.state === 'closed') curtain.open();
         if ((!curtain || curtain.state === 'open') && outfitWaitersRef.current.length) {
           const waiters = outfitWaitersRef.current;
           outfitWaitersRef.current = [];
@@ -365,7 +372,11 @@ export function useScriptStage(canvasRef: RefObject<HTMLCanvasElement | null>, s
         }
         return;
       }
-      if (!curtain) applyWorn(worn);
+      if (instantWornRef.current) {
+        // 跳句：直接換好，簾子停在拉開的樣子
+        applyWorn(worn);
+        curtain?.snapOpen();
+      } else if (!curtain) applyWorn(worn);
       else if (curtain.state === 'closed') { applyWorn(worn); curtain.open(); }
       else curtain.close();
     };
