@@ -64,6 +64,7 @@ import {
 import { isPerfEnabled, perfCount, perfGauge, perfValue } from '../utils/perfRecorder';
 import type { StatsSnapshot } from '../components/StatsPanel';
 import { loadCurtain, type Curtain } from '../utils/curtainAnimation';
+import { applyOutfit, hasOutfitStyle } from '../utils/vrmOutfit';
 
 // ─── Internal avatar slot ────────────────────────────────────────────────────
 
@@ -112,6 +113,11 @@ interface AvatarSlot {
     bodyFist: DoubleFistTimer;
     /** 上次從身上拿回手上的時間，之後短暫用平滑移動回到手上 */
     bodyLeftAt: number;
+    /**
+     * 換上的模型內建衣服：部位 → 道具 id（道具有 outfit、模型也有那個部件時，雙手握拳就換上，道具本身藏起來）。
+     * 一直穿著，直到同部位換上別件、或同一件被別人穿走。沒有對應部件的模型照舊把道具貼在身上。
+     */
+    worn: Map<string, string>;
   };
   /** Pre-allocated output for projectToUV — avoids per-frame {x,y} allocation */
   _propUV: { x: number; y: number };
@@ -637,11 +643,56 @@ export function useBigScreenScene(
           if (obj) obj.visible = !isHidden;
         } else {
           const obj = taskPropPoolRef.current.get(m.id);
-          if (obj) obj.visible = !isHidden;
+          if (obj) obj.visible = !isHidden && !wornByRef.current.has(m.id);
         }
       }
     }
   }, []);
+
+  /** 穿在身上的衣服道具：道具 id → 穿著的人（identity）。穿著時道具藏起來、不能拿 */
+  const wornByRef = useRef<Map<string, string>>(new Map());
+
+  /** 依 worn 重新套用這個人身上的內建衣服 */
+  const applyWornOutfits = useCallback((slot: AvatarSlot) => {
+    const cfgs = presetRef.current.propSystem?.taskProps ?? {};
+    const outfits = [...slot.interaction.worn.values()].flatMap(id => cfgs[id]?.outfit ?? []);
+    applyOutfit(slot.vrm.scene, outfits);
+  }, []);
+
+  /** 脫下的衣服道具回到展示位置並重新顯示 */
+  const returnWornProp = useCallback((propId: string) => {
+    wornByRef.current.delete(propId);
+    const prop = taskPropPoolRef.current.get(propId);
+    if (!prop) return;
+    const dp = effectiveDisplayPosRef.current.get(propId) ?? presetRef.current.propSystem?.taskProps?.[propId]?.displayPos;
+    if (dp) prop.position.set(...dp);
+    restorePropRotation(prop, propId, 1);
+    restorePropScale(prop, propId, 1);
+    prop.visible = true;
+    applyAllGroupVisibility(); // 群組被隱藏的話維持隱藏
+  }, [applyAllGroupVisibility, restorePropRotation, restorePropScale]);
+
+  /** 換上衣服道具：同部位原本那件脫下；同一件別人穿著就從那人身上脫下 */
+  const wearOutfitProp = useCallback((identity: string, slot: AvatarSlot, propId: string) => {
+    const outfit = presetRef.current.propSystem?.taskProps?.[propId]?.outfit;
+    if (!outfit) return;
+    const prevWearer = wornByRef.current.get(propId);
+    if (prevWearer && prevWearer !== identity) {
+      const other = avatarsRef.current.get(prevWearer);
+      if (other) {
+        for (const [part, id] of other.interaction.worn) if (id === propId) other.interaction.worn.delete(part);
+        applyWornOutfits(other);
+      }
+    }
+    const part = outfit.part.toLowerCase();
+    const replaced = slot.interaction.worn.get(part);
+    if (replaced && replaced !== propId) returnWornProp(replaced);
+    slot.interaction.worn.set(part, propId);
+    wornByRef.current.set(propId, identity);
+    applyWornOutfits(slot);
+    const prop = taskPropPoolRef.current.get(propId);
+    if (prop) prop.visible = false;
+  }, [applyWornOutfits, returnWornProp]);
 
   // hiddenGroups 變動時自動 re-apply。avatar/prop pool 變動時也應 re-apply,
   // 在各自的 load callback 末端順手呼叫一次(見 ensureAvatar、staticProps/taskProps load)。
@@ -958,6 +1009,8 @@ export function useBigScreenScene(
           }
 
           if (!taskId || !prop) continue; // no prop for this task — skip
+          // 穿在某人身上的衣服道具藏起來，不能拿也不發亮
+          if (ia.propState === 'displayed' && wornByRef.current.has(taskId)) continue;
 
           // 限定發言者時，其他人不能拿也不觸發發亮；已經拿著的人照常跟手、放下
           const grabber = propGrabberIdentityRef.current;
@@ -1057,12 +1110,25 @@ export function useBigScreenScene(
 
             // 雙手握拳一下 → 道具貼到身上（貼在哪由 bodyHold 決定，不用對準位置）；再雙手握拳一下 → 拿回手上
             const bodyCfg = propCfg?.bodyHold;
-            if (bodyCfg && !inCooldown) {
+            // 模型有這件衣服的部件：雙手握拳就換上身上的部件，否則照舊貼在身上
+            const canWear = !!propCfg?.outfit && hasOutfitStyle(slot.vrm.scene, propCfg.outfit);
+            if ((bodyCfg || canWear) && !inCooldown) {
               const otherHand = ia.lockHand === 'right' ? leftHand : rightHand;
               const holdSeen = !!hLandmarks && hLandmarks.length >= 21;
               const otherSeen = !!otherHand && otherHand.length >= 21;
               const doubleFist = holdSeen && otherSeen && detectFist(hLandmarks) && detectFist(otherHand);
               if (stepDoubleFist(ia.bodyFist, doubleFist, holdSeen && otherSeen, now)) {
+                if (canWear) {
+                  // 換上身上的部件：道具藏起來、放開，一直穿到換上替換的衣服
+                  wearOutfitProp(identity, slot, taskId);
+                  heldByIdentityRef.current.delete(taskId);
+                  ia.propState = 'displayed';
+                  ia.lockHand = null;
+                  ia.grabCooldownUntil = 0;
+                  ia.onBody = false;
+                  resetDoubleFist(ia.bodyFist);
+                  continue;
+                }
                 if (ia.onBody) ia.bodyLeftAt = now;
                 ia.onBody = !ia.onBody;
               }
@@ -1276,6 +1342,7 @@ export function useBigScreenScene(
       for (const c of curtains) c.dispose();
       disposeStaticProps(staticPropPoolRef.current, scene);
       disposeTaskProps(taskPropPoolRef.current, scene);
+      wornByRef.current.clear();
       // 釋放所有遮罩物件
       for (const group of occluderPoolRef.current.values()) {
         disposeOccluder(group, scene);
@@ -1425,6 +1492,7 @@ export function useBigScreenScene(
               onBody: false,
               bodyFist: { since: 0, lastAt: 0, armed: true },
               bodyLeftAt: 0,
+              worn: new Map(),
             },
             _propUV: { x: 0, y: 0 },
           };
@@ -1461,6 +1529,11 @@ export function useBigScreenScene(
    */
   const settlePropsOf = useCallback((identity: string, slot: AvatarSlot) => {
     const taskIds = new Set<string>();
+    // 離開時穿著的衣服道具回到展示位置
+    for (const propId of slot.interaction.worn.values()) {
+      if (wornByRef.current.get(propId) === identity) returnWornProp(propId);
+    }
+    slot.interaction.worn.clear();
     for (const [taskId, holder] of heldByIdentityRef.current) {
       if (holder !== identity) continue;
       heldByIdentityRef.current.delete(taskId);
@@ -1479,7 +1552,7 @@ export function useBigScreenScene(
       restorePropRotation(prop, taskId, 1);
       restorePropScale(prop, taskId, 1);
     }
-  }, [restorePropRotation, restorePropScale]);
+  }, [restorePropRotation, restorePropScale, returnWornProp]);
 
   /** Swap the VRM model for a specific identity. Removes old avatar and reloads with new URL. */
   const swapAvatar = useCallback(
