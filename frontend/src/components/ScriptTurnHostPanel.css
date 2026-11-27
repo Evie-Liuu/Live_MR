@@ -119,6 +119,10 @@
 }
 
 .stp-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   font-size: 13px;
   font-weight: 800;
   color: var(--stp-text);
@@ -150,13 +154,13 @@
   bottom: 0;
   background-color: #D3CCC4;
   border-radius: 999px;
-  transition: background-color 0.25s ease;
+  transition: background-color 0.25s ease, box-shadow 0.25s ease;
   display: flex;
   align-items: center;
 }
 
-.stp-ios-switch input:checked + .stp-switch-track {
-  background-color: #D3CCC4; /* 圖中開關軌道皆為細緻米灰色 */
+.stp-ios-switch input:checked+.stp-switch-track {
+  background-color: var(--stp-teal, #00A99D);
 }
 
 .stp-switch-thumb {
@@ -168,7 +172,7 @@
   background-color: #FFFFFF;
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
-  transition: transform 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+  transition: transform 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2), color 0.2s ease;
   display: grid;
   place-items: center;
   font-size: 10px;
@@ -177,9 +181,9 @@
   line-height: 1;
 }
 
-.stp-ios-switch input:checked + .stp-switch-track .stp-switch-thumb {
+.stp-ios-switch input:checked+.stp-switch-track .stp-switch-thumb {
   transform: translateX(16px);
-  color: #554D46;
+  color: var(--stp-teal, #00A99D);
 }
 
 /* ── Current Speaker & Line (當前台詞區) ────────────────────────── */
@@ -219,8 +223,15 @@
 }
 
 @keyframes stp-pulse {
-  from { transform: scale(0.85); opacity: 0.7; }
-  to { transform: scale(1.25); opacity: 1; }
+  from {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+
+  to {
+    transform: scale(1.25);
+    opacity: 1;
+  }
 }
 
 .stp-speaker-name {
@@ -397,7 +408,7 @@
   padding-bottom: 4px;
 }
 
-.stp-all > summary {
+.stp-all>summary {
   font-size: 13px;
   font-weight: 800;
   color: var(--stp-text);
@@ -409,7 +420,7 @@
   gap: 6px;
 }
 
-.stp-all > summary::before {
+.stp-all>summary::before {
   content: '▶';
   font-size: 10px;
   transition: transform 0.2s;
@@ -417,7 +428,7 @@
   color: var(--stp-text);
 }
 
-.stp-all[open] > summary::before {
+.stp-all[open]>summary::before {
   transform: rotate(90deg);
 }
 
@@ -484,16 +495,19 @@
 .stp-icon-btn {
   width: 44px;
   height: 44px;
+  padding: 0;
   border-radius: 50%;
   border: 1.5px solid #DED8D0;
   background: #FFFFFF;
   color: var(--stp-text);
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   box-shadow: var(--stp-shadow-sm);
   transition: background 0.15s, border-color 0.15s;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .stp-icon-btn:hover:not(:disabled) {
@@ -507,8 +521,15 @@
 }
 
 .stp-icon-btn .material-symbols-outlined {
-  font-size: 20px;
-  display: block;
+  font-size: 22px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  width: 22px;
+  height: 22px;
 }
 
 /* 下一句主按鈕 */
@@ -555,6 +576,7 @@
   font-weight: 800;
   padding: 10px 4px;
   flex-shrink: 0;
+  text-decoration: underline;
 }
 
 .stp-btn--text:hover:not(:disabled) {
@@ -591,10 +613,35 @@
   font-size: 12px;
 }
 
-.stp-judge--ok { background: #EAF7EE; color: #166534; }
-.stp-judge--minor { background: #FFF4E5; color: #9A5A08; }
-.stp-judge--severe { background: #FDE8E8; color: #9B1C1C; }
-.stp-judge-sev { font-weight: 800; }
-.stp-judge-issues { font-weight: 700; }
-.stp-judge-said { flex-basis: 100%; font-style: italic; color: var(--stp-text-muted); }
-.stp-judge-detail { flex-basis: 100%; }
+.stp-judge--ok {
+  background: #EAF7EE;
+  color: #166534;
+}
+
+.stp-judge--minor {
+  background: #FFF4E5;
+  color: #9A5A08;
+}
+
+.stp-judge--severe {
+  background: #FDE8E8;
+  color: #9B1C1C;
+}
+
+.stp-judge-sev {
+  font-weight: 800;
+}
+
+.stp-judge-issues {
+  font-weight: 700;
+}
+
+.stp-judge-said {
+  flex-basis: 100%;
+  font-style: italic;
+  color: var(--stp-text-muted);
+}
+
+.stp-judge-detail {
+  flex-basis: 100%;
+}

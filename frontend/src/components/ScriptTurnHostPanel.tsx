@@ -106,7 +106,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
         {/* 雙開關列 */}
         <div className="stp-toggles-row">
           <div className="stp-toggle-item">
-            <span className="stp-toggle-label">💡 台詞提示</span>
+            <span className="stp-toggle-label"><span className="material-symbols-outlined" style={{ fontSize: '20px' }}>wb_incandescent</span> 台詞提示</span>
             <label className="stp-ios-switch" title="點擊切換台詞提示模式">
               <input
                 type="checkbox"
@@ -114,22 +114,22 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
                 onChange={e => props.onHintModeChange(e.target.checked ? 'tiered' : 'full')}
               />
               <span className="stp-switch-track">
-                <span className="stp-switch-thumb">✓</span>
+                <span className="stp-switch-thumb"></span>
               </span>
             </label>
           </div>
           <div className="stp-toggle-item">
             <span className="stp-toggle-label" onClick={props.onOpenSpeechReport} title="查看紀錄" style={{ cursor: 'pointer' }}>
-              🎙 口說輔助
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>mobile_speaker</span> 口說輔助
             </span>
-            <label className="stp-ios-switch" title="AI 口說輔助開關">
+            <label className="stp-ios-switch">
               <input
                 type="checkbox"
                 checked={props.speechAssist}
                 onChange={e => props.onSpeechAssistChange(e.target.checked)}
               />
               <span className="stp-switch-track">
-                <span className="stp-switch-thumb">✓</span>
+                <span className="stp-switch-thumb"></span>
               </span>
             </label>
           </div>
@@ -174,21 +174,21 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
       {/* 雙開關列 */}
       <div className="stp-toggles-row">
         <div className="stp-toggle-item">
-          <span className="stp-toggle-label">💡 台詞提示</span>
-          <label className="stp-ios-switch" title="點擊切換台詞提示">
+          <span className="stp-toggle-label"><span className="material-symbols-outlined" style={{ fontSize: '20px' }}>wb_incandescent</span> 台詞提示</span>
+          <label className="stp-ios-switch">
             <input
               type="checkbox"
               checked={props.hintMode === 'tiered'}
               onChange={e => props.onHintModeChange(e.target.checked ? 'tiered' : 'full')}
             />
             <span className="stp-switch-track">
-              <span className="stp-switch-thumb">✓</span>
+              <span className="stp-switch-thumb"></span>
             </span>
           </label>
         </div>
         <div className="stp-toggle-item">
           <span className="stp-toggle-label" onClick={props.onOpenSpeechReport} title="點擊查看紀錄" style={{ cursor: 'pointer' }}>
-            🎙 口說輔助
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>mobile_speaker</span> 口說輔助
           </span>
           <label className="stp-ios-switch" title="AI 口說輔助開關">
             <input
@@ -197,7 +197,7 @@ export default function ScriptTurnHostPanel(props: ScriptTurnHostPanelProps) {
               onChange={e => props.onSpeechAssistChange(e.target.checked)}
             />
             <span className="stp-switch-track">
-              <span className="stp-switch-thumb">✓</span>
+              <span className="stp-switch-thumb"></span>
             </span>
           </label>
         </div>
