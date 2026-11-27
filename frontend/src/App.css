@@ -6632,29 +6632,29 @@ button:disabled {
    ──────────────────────────────────────────────────────────────────────── */
 /* 任務中右側展演控制欄 */
 .hs-stage-console {
-  width: 360px;
+  width: 388px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  gap: 12px;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  /* 一整塊白底：登台展演與台下互動用細線分隔，不再各自一張框線卡片 */
-  background: #fff;
-  border-radius: 18px;
-  box-shadow: 0 2px 12px rgba(72, 38, 7, 0.1);
+  background: transparent;
+  padding: 0 4px 12px 0;
   /* 底部讓出「開啟大屏」浮動按鈕的位置 */
   margin-bottom: 72px;
 }
 
-.hs-stage-console > .stp,
+.hs-stage-console > .stp {
+  margin-top: 0;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(72, 38, 7, 0.05);
+}
+
 .hs-stage-console > .cph {
   margin-top: 0;
   flex-shrink: 0;
-}
-
-.hs-stage-console > .stp + .cph {
-  border-top: 1px solid #F1ECE6;
 }
 
 .hs-lesson-console-note {

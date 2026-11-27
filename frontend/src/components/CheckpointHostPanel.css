@@ -1,86 +1,320 @@
-/* 導師任務卡：台下互動控制 */
-.cph {
-  margin-top: 12px;
-  padding: 14px 16px;
-  background: #fff;
-  color: #482607;
-  text-align: left;
-  cursor: default;
+/* ─── CheckpointHostPanel — Minimalist Modern UI Redesign ─────────────────── */
+
+:root {
+  --cph-surface: #FFFFFF;
+  --cph-border: #F1ECE6;
+  --cph-text: #2C1C11;
+  --cph-text-muted: #8A7B6B;
+  --cph-teal: #00A99D;
+  --cph-teal-dark: #0D6A68;
+  --cph-teal-light: #E6F6F4;
+  --cph-purple: #765CE2;
+  --cph-purple-light: #F2EEFF;
+  --cph-accent: #F76E12;
+  --cph-accent-light: #FFF1E6;
+  --cph-warn: #C05621;
+  --cph-radius-card: 20px;
+  --cph-radius-sm: 12px;
+  --cph-shadow-card: 0 4px 16px rgba(72, 38, 7, 0.06);
 }
 
+/* ── Panel Shell (獨立白色大圓角浮動卡片) ────────────────────────── */
+.cph {
+  margin-top: 14px;
+  padding: 18px 20px 18px;
+  background: var(--cph-surface);
+  color: var(--cph-text);
+  border-radius: var(--cph-radius-card);
+  box-shadow: var(--cph-shadow-card);
+  text-align: left;
+  cursor: default;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  user-select: none;
+}
+
+/* ── Header Row ────────────────────────────────────────────────── */
 .cph-head {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 900;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .cph-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #136B6D;
+  font-size: 21px;
+  font-weight: 900;
+  color: var(--cph-teal-dark);
+  letter-spacing: -0.4px;
 }
 
-.cph-status {
-  flex-shrink: 0;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: #C05621;
-  background: #FFF1E6;
-}
-
-.cph-status--closed { color: #6b6b6b; background: #F3F4F4; }
-.cph-status--revealed { color: #00857B; background: #E6F6F4; }
-
-.cph-count {
-  flex-shrink: 0;
+.cph-count-label {
   font-size: 14px;
-  color: #F76E12;
+  font-weight: 700;
+  color: var(--cph-text);
 }
 
-.cph-question {
-  margin: 8px 0;
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.cph-bars,
+/* ── Questions List ────────────────────────────────────────────── */
 .cph-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.cph-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+/* Left circular avatar placeholder */
+.cph-item-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #F4EFEA;
+  flex-shrink: 0;
+}
+
+.cph-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cph-item-kind-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cph-text);
+  letter-spacing: 0.2px;
+}
+
+.cph-item-q {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--cph-text);
+  overflow-wrap: anywhere;
+}
+
+.cph-item-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cph-text-muted);
+  margin-top: 2px;
+}
+
+.cph-item-opts .is-answer {
+  color: var(--cph-teal-dark);
+}
+
+.cph-item-warn {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--cph-warn);
+}
+
+/* ── Publish Button (發布) ─────────────────────────────────────── */
+.cph-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.cph-publish-btn {
+  background: var(--cph-teal);
+  color: #FFFFFF;
+  padding: 6px 18px;
+  box-shadow: 0 2px 6px rgba(0, 169, 157, 0.25);
+  flex-shrink: 0;
+}
+
+.cph-publish-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* Tools for AI item */
+.cph-item-tools {
+  display: flex;
+  gap: 2px;
+  margin-right: 4px;
+}
+
+.cph-icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--cph-text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cph-icon-btn:hover:not(:disabled) {
+  background: #F4EFEA;
+}
+
+.cph-icon-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+/* ── Bottom Bar: Kinds & AI 快速出題 ────────────────────────────── */
+.cph-ai-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cph-border);
+}
+
+.cph-ai-kinds {
+  display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.cph-ai-kind {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cph-text);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cph-ai-kind.is-active {
+  background: #EDE8E0;
+  color: var(--cph-text);
+}
+
+.cph-ai-kind:hover:not(.is-active) {
+  color: var(--cph-teal);
+}
+
+/* ✦ AI 快速出題 漸層按鈕 */
+.cph-ai-fast-btn {
+  background: linear-gradient(135deg, #00A99D 0%, #765CE2 100%);
+  color: #FFFFFF;
+  padding: 7px 18px;
+  gap: 5px;
+  font-size: 13.5px;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(118, 92, 226, 0.32);
+}
+
+.cph-ai-fast-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.cph-ai-fast-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.cph-ai-fast-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.cph-ai-error {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #D64545;
+}
+
+/* ── Active Poll Styles (作答中 / 公布中) ────────────────────────── */
+.cph--active-poll .cph-status {
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--cph-accent-light);
+  color: var(--cph-warn);
+}
+
+.cph--active-poll .cph-status--closed {
+  background: #EFEFEF;
+  color: #6B6B6B;
+}
+
+.cph--active-poll .cph-status--revealed {
+  background: var(--cph-teal-light);
+  color: var(--cph-teal-dark);
+}
+
+.cph--active-poll .cph-count {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--cph-accent);
+}
+
+.cph-question {
+  margin: 10px 0 12px;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: var(--cph-text);
+}
+
+.cph-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .cph-bar {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) 70px 24px;
+  grid-template-columns: 28px minmax(0, 1fr) 60px 24px;
   align-items: center;
-  gap: 6px;
-  font-size: 14px;
+  gap: 8px;
+  font-size: 13.5px;
   font-weight: 700;
 }
 
 .cph-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--cph-accent-light);
+  color: var(--cph-accent);
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #FFF1E6;
-  color: #F76E12;
+  font-size: 13px;
   font-weight: 900;
 }
 
 .cph-bar.is-answer .cph-mark {
-  background: #00A99D;
-  color: #fff;
+  background: var(--cph-teal);
+  color: #FFFFFF;
 }
 
 .cph-opt {
@@ -90,85 +324,86 @@
 }
 
 .cph-track {
-  height: 10px;
+  height: 8px;
   border-radius: 999px;
-  background: #F1F1F1;
+  background: #EFEBE5;
   overflow: hidden;
 }
 
 .cph-fill {
   display: block;
   height: 100%;
-  background: #F76E12;
-  transition: width 0.3s;
+  background: var(--cph-accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
-.cph-bar.is-answer .cph-fill { background: #00A99D; }
+.cph-bar.is-answer .cph-fill {
+  background: var(--cph-teal);
+}
 
 .cph-num {
   text-align: right;
+  font-size: 13px;
+  color: var(--cph-text-muted);
 }
 
 .cph-follow {
-  margin-top: 8px;
-  font-size: 13px;
-  color: #136B6D;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--cph-teal-light);
+  font-size: 12.5px;
   font-weight: 700;
+  color: var(--cph-teal-dark);
 }
 
-/* 操作區：上排題目顯示切換，下排主要操作；寬度不夠時按鈕縮小、文字不換行也不超出 */
 .cph-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cph-border);
 }
 
 .cph-seg {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: auto 1fr 1fr;
   align-items: center;
   gap: 4px;
   padding: 3px;
   border-radius: 999px;
-  background: #F3F4F4;
+  background: #EFEBE5;
 }
 
 .cph-seg-label {
-  padding: 0 6px 0 8px;
+  padding: 0 8px;
   font-size: 12px;
   font-weight: 800;
-  color: #8a6a4a;
+  color: var(--cph-text-muted);
 }
 
 .cph-seg-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-width: 0;
-  padding: 4px 6px;
+  gap: 4px;
+  padding: 4px 8px;
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: #6b6b6b;
+  color: var(--cph-text-muted);
   font-size: 12px;
   font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
-}
-
-.cph-seg-btn .material-symbols-outlined {
-  flex-shrink: 0;
-  font-size: 15px;
+  transition: all 0.15s;
 }
 
 .cph-seg-btn.is-active {
-  background: #fff;
-  color: #C05621;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  background: #FFFFFF;
+  color: var(--cph-warn);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .cph-actions-main {
@@ -177,223 +412,17 @@
 }
 
 .cph-actions-main .cph-btn {
-  flex: 1 1 0;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 取消：次要操作，比主要按鈕窄 */
-.cph-actions-main .cph-btn--ghost {
-  flex: 0 1 auto;
-}
-
-.cph-default-hint {
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: #8a6a4a;
-}
-
-.cph-btn {
-  flex-shrink: 0;
-  border: none;
-  border-radius: 999px;
-  padding: 6px 14px;
-  background: #E6F6F4;
-  color: #136B6D;
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+  flex: 1;
 }
 
 .cph-btn--primary {
-  background: #00A99D;
-  color: #fff;
+  background: var(--cph-teal);
+  color: #FFFFFF;
+  padding: 8px 16px;
 }
 
 .cph-btn--ghost {
   background: transparent;
-  color: #6b6b6b;
-}
-
-.cph-btn:hover:not(:disabled) { filter: brightness(0.97); }
-.cph-btn--ghost:hover:not(:disabled) { background: #F3F4F4; filter: none; }
-
-.cph-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.cph-item-step {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #95CC4D;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.cph-item-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.cph-item-kind {
-  font-size: 12px;
-  font-weight: 800;
-  color: #F76E12;
-}
-
-.cph-item-q {
-  font-size: 14px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.2;
-  /* white-space: nowrap; */
-}
-
-/* 代換角色名字後選項重複的提醒 */
-.cph-item-warn {
-  font-size: 12px;
-  font-weight: 700;
-  color: #C05621;
-}
-
-/* AI 依劇本出題 */
-.cph-item-step--ai {
-  background: #7C5CDB;
-  font-size: 10px;
-}
-
-.cph-item-opts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 10px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #6b6b6b;
-}
-
-.cph-item-opts .is-answer { color: #00897B; }
-
-/* AI 題：存入任務／移除放在卡片右上角，發布按鈕移到右下 */
-.cph-item--ai {
-  position: relative;
-  align-items: flex-end;
-  min-height: 58px;
-}
-
-.cph-item--ai .cph-item-step { align-self: center; }
-
-.cph-item-tools {
-  position: absolute;
-  top: -2px;
-  right: 0;
-  display: flex;
-  gap: 2px;
-}
-
-.cph .cph-icon-btn {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: #8a6a4a;
-  cursor: pointer;
-}
-
-.cph .cph-icon-btn:hover:not(:disabled) { background: #F3F4F4; }
-.cph .cph-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.cph .cph-icon-btn .material-symbols-outlined { font-size: 18px; }
-
-.cph-ai {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #F1ECE6;
-}
-
-.cph-ai-kinds {
-  display: flex;
-  gap: 2px;
-}
-
-.cph .cph-ai-kind {
-  white-space: nowrap;
-  padding: 2px 8px;
-  border: none;
-  border-radius: 999px;
-  background: transparent;
-  color: #8a6a4a;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.cph .cph-ai-kind.is-active {
-  background: #F1ECFF;
-  color: #5B3DB8;
-}
-
-.cph .cph-ai-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  padding: 4px 12px;
-  background: #F1ECFF;
-  color: #5B3DB8;
-  font-size: 13px;
-}
-
-.cph .cph-ai-btn:disabled { opacity: 0.6; cursor: wait; }
-.cph .cph-ai-btn .material-symbols-outlined { font-size: 16px; }
-
-.cph-ai-error {
-  margin-top: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #D64545;
-}
-
-/* 收合時只留一行標題 */
-.cph .cph-toggle {
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-weight: 900;
-  text-align: left;
-  cursor: pointer;
-}
-
-.cph.is-collapsed {
-  padding: 12px 16px;
-}
-
-.cph-chevron {
-  flex-shrink: 0;
-  font-size: 20px;
-  color: #136B6D;
+  color: var(--cph-text-muted);
+  padding: 8px 12px;
 }

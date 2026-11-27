@@ -139,9 +139,9 @@ function person(slotId: string, cast: TurnCast): TurnPerson {
   };
 }
 
-/** 目前步驟每句的發言者與英文（老師端台詞清單） */
-export function stepCastLines(lesson: HostLessonState, cast: TurnCast): { id: string; en: string; speaker: TurnPerson }[] {
-  return stepLines(lesson).map(l => ({ id: l.id, en: l.en, speaker: person(l.speakerSlotId, cast) }));
+/** 目前步驟每句的發言者與中英文（老師端台詞清單） */
+export function stepCastLines(lesson: HostLessonState, cast: TurnCast): { id: string; en: string; zh?: string; speaker: TurnPerson }[] {
+  return stepLines(lesson).map(l => ({ id: l.id, en: l.en, zh: l.zh, speaker: person(l.speakerSlotId, cast) }));
 }
 
 /** 推導這一輪；步驟沒有台詞時回 null */

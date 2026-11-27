@@ -1,425 +1,600 @@
-/* 導師任務卡：逐句演練控制（與 .cph 台下互動同一套卡片樣式） */
-.stp {
-  margin-top: 12px;
-  padding: 14px 16px;
-  background: #fff;
-  color: #482607;
-  text-align: left;
-  cursor: default;
+/* ─── ScriptTurnHostPanel — Minimalist Modern UI Redesign ─────────────────── */
+
+:root {
+  --stp-bg: #FAF7F3;
+  --stp-surface: #FFFFFF;
+  --stp-border: #ECE7E1;
+  --stp-text: #2C1C11;
+  --stp-text-muted: #8A7B6B;
+  --stp-accent: #F76E12;
+  --stp-accent-hover: #FA8132;
+  --stp-accent-light: #FFF1E6;
+  --stp-accent-mid: #FFE5D3;
+  --stp-teal: #00A99D;
+  --stp-teal-light: #E6F6F4;
+  --stp-warn-text: #9E4514;
+  --stp-warn-bg: #FFF1E8;
+  --stp-err: #D64545;
+  --stp-green: #2E7D32;
+  --stp-purple: #5B3FD6;
+  --stp-shadow-sm: 0 1px 4px rgba(72, 38, 7, 0.05);
+  --stp-shadow-md: 0 3px 12px rgba(247, 110, 18, 0.28);
+  --stp-radius-panel: 24px;
+  --stp-radius-card: 16px;
 }
 
+/* ── Panel Shell ───────────────────────────────────────────────── */
+.stp {
+  padding: 16px 20px 20px;
+  background: var(--stp-bg);
+  color: var(--stp-text);
+  text-align: left;
+  cursor: default;
+  border-radius: var(--stp-radius-panel);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  user-select: none;
+}
+
+/* ── Super Header (MR 雙語角 + <) ────────────────────────────────── */
+.stp-super-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.stp-super-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--stp-text);
+  letter-spacing: -0.2px;
+}
+
+.stp-super-icon {
+  font-size: 20px;
+  color: var(--stp-text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.stp-super-icon:hover {
+  color: var(--stp-text);
+}
+
+/* ── Main Header (登台展演 + 1/6 句) ────────────────────────────── */
 .stp-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 900;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .stp-title {
-  flex: 1;
-  min-width: 0;
-  color: #C05621;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--stp-accent);
+  letter-spacing: -0.5px;
 }
 
-.stp-hint {
-  font-size: 12px;
-  font-weight: 700;
-  color: #8a6a4a;
-}
-
+.stp-hint,
 .stp-state {
-  flex-shrink: 0;
-  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 14px;
   border-radius: 999px;
-  font-size: 12px;
+  background: var(--stp-accent-light);
   color: #C05621;
-  background: #FFF1E6;
-}
-
-.stp-state--paused { color: #6b6b6b; background: #F3F4F4; }
-.stp-state--stepEnd { color: #00857B; background: #E6F6F4; }
-
-.stp-lines {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.stp .stp-line {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  width: 100%;
-  padding: 5px 8px 5px 10px;
-  border: none;
-  border-left: 3px solid var(--role-color);
-  border-radius: 0 8px 8px 0;
-  background: transparent;
-  color: #482607;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.stp .stp-line:hover { background: rgba(72, 38, 7, 0.04); }
-
-.stp .stp-line.is-current {
-  background: #FFF4EB;
-}
-
-.stp .stp-line.is-done { opacity: 0.5; }
-
-.stp-line-who {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
-  color: var(--role-color);
+  letter-spacing: 0.3px;
 }
 
-.stp-line-en {
-  font-size: 14px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.stp-state--paused {
+  color: #6B6B6B;
+  background: #EFEFEF;
+}
+
+.stp-state--stepEnd {
+  color: var(--stp-teal);
+  background: var(--stp-teal-light);
+}
+
+/* ── Toggles Row (💡 台詞提示  🎙 口說輔助) ───────────────────────── */
+.stp-toggles-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--stp-border);
+  margin-bottom: 14px;
+}
+
+.stp-toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.stp-toggle-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--stp-text);
   white-space: nowrap;
 }
 
-/* 目前這一句：完整顯示，不截斷 */
-.stp-now {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 0 12px 12px 0;
-  border-left: 3px solid var(--role-color);
-  background: #FAF7F3;
+/* iOS-style Switch */
+.stp-ios-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.stp-now.is-warn { border-left-color: #D64545; background: #FDF2F2; }
+.stp-ios-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
 
-.stp-now-en {
+.stp-switch-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #D3CCC4;
+  border-radius: 999px;
+  transition: background-color 0.25s ease;
+  display: flex;
+  align-items: center;
+}
+
+.stp-ios-switch input:checked + .stp-switch-track {
+  background-color: #D3CCC4; /* 圖中開關軌道皆為細緻米灰色 */
+}
+
+.stp-switch-thumb {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 18px;
+  height: 18px;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  transition: transform 0.25s cubic-bezier(0.2, 0.85, 0.32, 1.2);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 900;
+  color: #8C847C;
+  line-height: 1;
+}
+
+.stp-ios-switch input:checked + .stp-switch-track .stp-switch-thumb {
+  transform: translateX(16px);
+  color: #554D46;
+}
+
+/* ── Current Speaker & Line (當前台詞區) ────────────────────────── */
+.stp-now {
   margin-top: 4px;
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
+  padding: 4px 0 0;
 }
 
 .stp-speaker {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 800;
+  margin-bottom: 8px;
 }
 
-/* 下一句預覽 */
-.stp-next-line {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #8a6a4a;
-}
-
-.stp-next-label { flex-shrink: 0; }
-
-.stp-next-who {
+.stp-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #C4BCB4;
   flex-shrink: 0;
-  font-weight: 800;
-  color: var(--role-color);
 }
 
-.stp-next-en {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.stp-dot--online,
+.stp-dot--teacher {
+  background: #95CC4D;
 }
 
-/* 全部台詞（收合） */
-.stp-all {
-  margin-top: 8px;
+.stp-dot--speaking {
+  background: var(--stp-green);
+  animation: stp-pulse 0.8s ease-in-out infinite alternate;
 }
 
-.stp-all > summary {
-  font-size: 12px;
-  font-weight: 800;
-  color: #8a6a4a;
-  cursor: pointer;
+.stp-dot--offline,
+.stp-dot--unassigned {
+  background: #D9D2CA;
 }
 
-.stp-all[open] .stp-line-en {
-  white-space: normal;
+@keyframes stp-pulse {
+  from { transform: scale(0.85); opacity: 0.7; }
+  to { transform: scale(1.25); opacity: 1; }
 }
 
 .stp-speaker-name {
-  flex: 1;
-  min-width: 0;
-  color: var(--role-color);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--stp-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .stp-speaker-status {
-  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #EFEBE5;
+  color: var(--stp-text-muted);
   font-size: 12px;
-  color: #6b6b6b;
+  font-weight: 800;
 }
 
-.stp-speaker.is-warn .stp-speaker-status { color: #D64545; }
+.stp-now-en-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 2px;
+}
 
-.stp-dot {
+.stp-now-en {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.38;
+  color: var(--stp-text);
+  overflow-wrap: anywhere;
+}
+
+.stp-tts-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-top: 2px;
+  cursor: pointer;
+  color: var(--stp-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #BDBDBD;
+  opacity: 0.85;
+  transition: opacity 0.15s, transform 0.1s;
 }
 
-.stp-dot--online,
-.stp-dot--teacher { background: #95CC4D; }
-.stp-dot--speaking { background: #2E7D32; animation: stp-pulse 0.8s ease-in-out infinite alternate; }
-.stp-dot--offline,
-.stp-dot--unassigned { background: #D64545; }
-
-@keyframes stp-pulse {
-  from { transform: scale(0.8); opacity: 0.6; }
-  to { transform: scale(1.3); opacity: 1; }
+.stp-tts-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
 }
 
-.stp-note {
+.stp-tts-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.stp-now-zh {
+  margin-top: 4px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #635345;
+  line-height: 1.4;
+}
+
+.stp-prop-cue {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  color: #C05621;
+  color: var(--stp-purple);
 }
 
 .stp-transcript {
   margin-top: 6px;
-  overflow-wrap: anywhere;
-  padding: 2px 0 2px 10px;
-  border-left: 2px solid #E5E0DA;
-  font-size: 13px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--stp-border);
+  font-size: 12.5px;
   font-style: italic;
-  color: #482607;
+  color: var(--stp-text-muted);
+  overflow-wrap: anywhere;
 }
 
-/* 控制鈕固定在側欄底部，捲動時也按得到 */
-.stp-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+/* ── Warning Note Box (橘色提示框) ─────────────────────────────── */
+.stp-note {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--stp-warn-bg);
+  color: var(--stp-warn-text);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.48;
+}
+
+/* ── Big Screen Hints Bar (大屏提示：意思 開頭 重組 完整) ────────── */
+.stp-hints-bar {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 12px -16px -14px;
-  padding: 10px 16px 14px;
-  background: #fff;
-  box-shadow: 0 -1px 0 #F1ECE6;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.stp .stp-btn {
+.stp-hints-title {
+  color: var(--stp-text);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.stp-hint-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stp-hint-opt {
+  background: transparent;
+  border: none;
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--stp-text);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stp-hint-opt.is-selected {
+  background: var(--stp-accent-mid);
+  color: #C05621;
+}
+
+.stp-hint-opt:hover:not(.is-selected) {
+  color: var(--stp-accent);
+}
+
+/* ── Next Line Preview (下一句) ────────────────────────────────── */
+.stp-next-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--stp-text-muted);
+}
+
+.stp-next-label {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.stp-next-who {
+  font-weight: 800;
+  color: #8C5329;
+  flex-shrink: 0;
+}
+
+.stp-next-en {
+  color: var(--stp-text);
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── All Lines Collapsible (全部台詞) ──────────────────────────── */
+.stp-all {
+  margin-top: 12px;
+  padding-bottom: 4px;
+}
+
+.stp-all > summary {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--stp-text);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stp-all > summary::before {
+  content: '▶';
+  font-size: 10px;
+  transition: transform 0.2s;
+  display: inline-block;
+  color: var(--stp-text);
+}
+
+.stp-all[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.stp-lines {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.stp-line {
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-left: 3px solid var(--role-color, #CCC);
+  border-radius: 0 8px 8px 0;
+  background: transparent;
+  color: var(--stp-text);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background 0.12s;
+}
+
+.stp-line:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.stp-line.is-current {
+  background: var(--stp-accent-light);
+}
+
+.stp-line.is-done {
+  opacity: 0.45;
+}
+
+.stp-line-who {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--role-color, #8C5329);
+}
+
+.stp-line-en {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── Actions Row (圓形按鈕 + 下一句 ▷ + 結束展演) ─────────────────── */
+.stp-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--stp-border);
+}
+
+.stp-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid #DED8D0;
+  background: #FFFFFF;
+  color: var(--stp-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--stp-shadow-sm);
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.stp-icon-btn:hover:not(:disabled) {
+  background: #F4EFEA;
+  border-color: #CEC7BE;
+}
+
+.stp-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stp-icon-btn .material-symbols-outlined {
+  font-size: 20px;
+  display: block;
+}
+
+/* 下一句主按鈕 */
+.stp-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-width: 0;
   border: none;
   border-radius: 999px;
-  padding: 6px 10px;
-  background: #FFF1E6;
-  color: #C05621;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 800;
+  cursor: pointer;
   white-space: nowrap;
-  cursor: pointer;
+  transition: all 0.15s;
 }
 
-.stp .stp-btn .material-symbols-outlined { font-size: 18px; }
-
-.stp .stp-btn:hover:not(:disabled) { filter: brightness(0.97); }
-
-.stp .stp-btn--primary {
-  background: #F76E12;
-  color: #fff;
-}
-
-.stp .stp-btn--ghost {
-  background: transparent;
-  color: #6b6b6b;
-}
-
-.stp .stp-btn--ghost:hover:not(:disabled) { background: #F3F4F4; filter: none; }
-
-.stp .stp-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.stp .stp-start {
-  width: 100%;
-  margin-top: 8px;
-}
-
-.stp .stp-next { flex: 1 1 0; }
-
-.stp .stp-actions .stp-btn--primary:only-child,
-.stp .stp-actions .stp-btn--ghost + .stp-btn--primary { flex: 1 1 0; }
-
-.stp .stp-icon-btn {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: #F3F4F4;
-  color: #482607;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.stp .stp-icon-btn .material-symbols-outlined {
-  display: block;
-  font-size: 20px;
-  line-height: 1;
-}
-
-.stp .stp-icon-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* 台詞提示方式 */
-.stp-mode {
-  display: flex;
-  align-items: center;
+.stp-btn--primary {
+  background: var(--stp-accent);
+  color: #FFFFFF;
+  padding: 10px 24px;
+  box-shadow: var(--stp-shadow-md);
   gap: 4px;
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 800;
 }
 
-.stp-mode-label {
-  flex: 1;
-  color: #8a6a4a;
+.stp-btn--primary:hover:not(:disabled) {
+  background: var(--stp-accent-hover);
+  transform: translateY(-1px);
 }
 
-.stp .stp-mode-btn {
-  padding: 2px 10px;
-  border: none;
-  border-radius: 999px;
+.stp-arrow-icon {
+  font-size: 22px;
+  margin-right: -4px;
+}
+
+.stp-next {
+  flex: 1 1 0;
+}
+
+/* 結束展演 (純文字按鈕) */
+.stp-btn--text {
   background: transparent;
-  color: #8a6a4a;
-  font-size: 12px;
+  color: var(--stp-text-muted);
+  font-size: 13.5px;
   font-weight: 800;
-  cursor: pointer;
+  padding: 10px 4px;
+  flex-shrink: 0;
 }
 
-.stp .stp-mode-btn.is-on {
-  background: #FFF1E6;
-  color: #C05621;
+.stp-btn--text:hover:not(:disabled) {
+  color: var(--stp-text);
 }
 
-/* 發言者 iPad 目前的提示等級 */
-.stp-hints {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 800;
+.stp-btn--ghost {
+  background: transparent;
+  color: var(--stp-text-muted);
+  padding: 8px 14px;
 }
 
-.stp-hints-label { color: #8a6a4a; }
-
-.stp-hint-steps {
-  display: flex;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.stp-btn--ghost:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
 }
 
-.stp .stp-hint-step {
-  padding: 3px 8px;
-  border: none;
-  border-radius: 6px;
-  background: #F3F4F4;
-  color: #9a9a9a;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
+/* Start button */
+.stp-start {
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px 20px;
+  gap: 8px;
 }
 
-.stp .stp-hint-step:hover { background: #FFE9D8; }
-
-.stp .stp-hint-step.is-on {
-  background: #FFE2CC;
-  color: #C05621;
-}
-
-.stp .stp-hint-step.is-current {
-  background: #F76E12;
-  color: #fff;
-}
-
-.stp-hints-by { color: #6b6b6b; }
-
-.stp-auto {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-right: 6px;
-  color: #6b6b6b;
-  cursor: pointer;
-}
-
-.stp-auto input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: #F76E12;
-}
-
-/* 這句要拿起的道具 */
-.stp-prop-cue {
-  margin-top: 4px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #5B3FD6;
-}
-
-/* AI 口說輔助：開關列與這一句的判斷結果 */
-.stp-assist { margin-top: 4px; }
-.stp-assist .stp-auto { flex: 1; color: #8a6a4a; }
-
+/* AI Judgment Badge */
 .stp-judge {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 8px;
-  margin-top: 6px;
-  padding: 6px 8px;
+  gap: 4px 8px;
+  margin-top: 8px;
+  padding: 6px 10px;
   border-radius: 8px;
   font-size: 12px;
-  overflow-wrap: anywhere;
 }
 
-.stp-judge--ok { background: #E8F7EE; color: #136C3A; }
-.stp-judge--minor { background: #FFF1DB; color: #8A4B08; }
+.stp-judge--ok { background: #EAF7EE; color: #166534; }
+.stp-judge--minor { background: #FFF4E5; color: #9A5A08; }
 .stp-judge--severe { background: #FDE8E8; color: #9B1C1C; }
-
-.stp-judge-sev { font-weight: 900; }
+.stp-judge-sev { font-weight: 800; }
 .stp-judge-issues { font-weight: 700; }
-.stp-judge-said { flex-basis: 100%; font-style: italic; color: #482607; }
+.stp-judge-said { flex-basis: 100%; font-style: italic; color: var(--stp-text-muted); }
 .stp-judge-detail { flex-basis: 100%; }
