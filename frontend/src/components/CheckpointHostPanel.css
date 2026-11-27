@@ -1,10 +1,8 @@
 /* 導師任務卡：台下互動控制 */
 .cph {
   margin-top: 12px;
-  padding: 12px;
-  border-radius: 16px;
+  padding: 14px 16px;
   background: #fff;
-  border: 3px solid #00A99D;
   color: #482607;
   text-align: left;
   cursor: default;
@@ -30,13 +28,13 @@
   flex-shrink: 0;
   padding: 2px 10px;
   border-radius: 999px;
-  font-size: 13px;
-  color: #fff;
-  background: #F76E12;
+  font-size: 12px;
+  color: #C05621;
+  background: #FFF1E6;
 }
 
-.cph-status--closed { background: #8a8a8a; }
-.cph-status--revealed { background: #00A99D; }
+.cph-status--closed { color: #6b6b6b; background: #F3F4F4; }
+.cph-status--revealed { color: #00857B; background: #E6F6F4; }
 
 .cph-count {
   flex-shrink: 0;
@@ -200,10 +198,10 @@
 
 .cph-btn {
   flex-shrink: 0;
-  border: 2px solid #00A99D;
+  border: none;
   border-radius: 999px;
-  padding: 4px 14px;
-  background: #fff;
+  padding: 6px 14px;
+  background: #E6F6F4;
   color: #136B6D;
   font-size: 14px;
   font-weight: 800;
@@ -216,9 +214,12 @@
 }
 
 .cph-btn--ghost {
-  border-color: #CFCFCF;
+  background: transparent;
   color: #6b6b6b;
 }
+
+.cph-btn:hover:not(:disabled) { filter: brightness(0.97); }
+.cph-btn--ghost:hover:not(:disabled) { background: #F3F4F4; filter: none; }
 
 .cph-item {
   display: flex;
@@ -326,9 +327,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed #E0D6CC;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #F1ECE6;
 }
 
 .cph-ai-kinds {
@@ -339,9 +340,9 @@
 .cph .cph-ai-kind {
   white-space: nowrap;
   padding: 2px 8px;
-  border: 1px solid #E0D6CC;
+  border: none;
   border-radius: 999px;
-  background: #fff;
+  background: transparent;
   color: #8a6a4a;
   font-size: 12px;
   font-weight: 800;
@@ -349,7 +350,6 @@
 }
 
 .cph .cph-ai-kind.is-active {
-  border-color: #7C5CDB;
   background: #F1ECFF;
   color: #5B3DB8;
 }
@@ -360,7 +360,7 @@
   gap: 4px;
   margin-left: auto;
   padding: 4px 12px;
-  border-color: #7C5CDB;
+  background: #F1ECFF;
   color: #5B3DB8;
   font-size: 13px;
 }
@@ -389,7 +389,7 @@
 }
 
 .cph.is-collapsed {
-  padding: 8px 12px;
+  padding: 12px 16px;
 }
 
 .cph-chevron {

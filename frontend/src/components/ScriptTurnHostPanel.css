@@ -1,10 +1,8 @@
 /* 導師任務卡：逐句演練控制（與 .cph 台下互動同一套卡片樣式） */
 .stp {
   margin-top: 12px;
-  padding: 12px;
-  border-radius: 16px;
-  background: #FDF1D3;
-  border: 3px solid #F76E12;
+  padding: 14px 16px;
+  background: #fff;
   color: #482607;
   text-align: left;
   cursor: default;
@@ -33,13 +31,13 @@
   flex-shrink: 0;
   padding: 2px 10px;
   border-radius: 999px;
-  font-size: 13px;
-  color: #fff;
-  background: #F76E12;
+  font-size: 12px;
+  color: #C05621;
+  background: #FFF1E6;
 }
 
-.stp-state--paused { background: #8a8a8a; }
-.stp-state--stepEnd { background: #00A99D; }
+.stp-state--paused { color: #6b6b6b; background: #F3F4F4; }
+.stp-state--stepEnd { color: #00857B; background: #E6F6F4; }
 
 .stp-lines {
   list-style: none;
@@ -59,20 +57,19 @@
   width: 100%;
   padding: 5px 8px 5px 10px;
   border: none;
-  border-left: 4px solid var(--role-color);
-  border-radius: 8px;
-  background: #FAFAFA;
+  border-left: 3px solid var(--role-color);
+  border-radius: 0 8px 8px 0;
+  background: transparent;
   color: #482607;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.stp .stp-line:hover { background: #FFF6EE; }
+.stp .stp-line:hover { background: rgba(72, 38, 7, 0.04); }
 
 .stp .stp-line.is-current {
-  background: #FFF1E6;
-  box-shadow: inset 0 0 0 2px var(--role-color);
+  background: #FFF4EB;
 }
 
 .stp .stp-line.is-done { opacity: 0.5; }
@@ -93,15 +90,14 @@
 
 /* 目前這一句：完整顯示，不截斷 */
 .stp-now {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border-left: 5px solid var(--role-color);
-  background: #fff;
-  box-shadow: inset 0 0 0 2px var(--role-color);
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 0 12px 12px 0;
+  border-left: 3px solid var(--role-color);
+  background: #FAF7F3;
 }
 
-.stp-now.is-warn { box-shadow: inset 0 0 0 2px #D64545; }
+.stp-now.is-warn { border-left-color: #D64545; background: #FDF2F2; }
 
 .stp-now-en {
   margin-top: 4px;
@@ -207,9 +203,8 @@
 .stp-transcript {
   margin-top: 6px;
   overflow-wrap: anywhere;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: #F3F4F4;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid #E5E0DA;
   font-size: 13px;
   font-style: italic;
   color: #482607;
@@ -223,11 +218,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 10px -12px -12px;
-  padding: 10px 12px 12px;
-  border-radius: 0 0 13px 13px;
-  background: #FDF1D3;
-  box-shadow: 0 -6px 10px -8px rgba(72, 38, 7, 0.35);
+  margin: 12px -16px -14px;
+  padding: 10px 16px 14px;
+  background: #fff;
+  box-shadow: 0 -1px 0 #F1ECE6;
 }
 
 .stp .stp-btn {
@@ -236,10 +230,10 @@
   justify-content: center;
   gap: 4px;
   min-width: 0;
-  border: 2px solid #F76E12;
+  border: none;
   border-radius: 999px;
-  padding: 4px 8px;
-  background: #fff;
+  padding: 6px 10px;
+  background: #FFF1E6;
   color: #C05621;
   font-size: 14px;
   font-weight: 800;
@@ -249,17 +243,19 @@
 
 .stp .stp-btn .material-symbols-outlined { font-size: 18px; }
 
+.stp .stp-btn:hover:not(:disabled) { filter: brightness(0.97); }
+
 .stp .stp-btn--primary {
   background: #F76E12;
   color: #fff;
-  border: none !important;
-  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.15);
 }
 
 .stp .stp-btn--ghost {
-  border-color: #CFCFCF;
+  background: transparent;
   color: #6b6b6b;
 }
+
+.stp .stp-btn--ghost:hover:not(:disabled) { background: #F3F4F4; filter: none; }
 
 .stp .stp-btn:disabled {
   opacity: 0.45;
@@ -283,9 +279,9 @@
   width: 32px;
   height: 32px;
   padding: 0;
-  border: 2px solid #E0E0E0;
+  border: none;
   border-radius: 50%;
-  background: #fff;
+  background: #F3F4F4;
   color: #482607;
   font-size: 16px;
   cursor: pointer;
@@ -318,10 +314,10 @@
 }
 
 .stp .stp-mode-btn {
-  padding: 0px 10px;
-  border: 1px solid #E0D6CC;
+  padding: 2px 10px;
+  border: none;
   border-radius: 999px;
-  background: #fff;
+  background: transparent;
   color: #8a6a4a;
   font-size: 12px;
   font-weight: 800;
@@ -329,7 +325,6 @@
 }
 
 .stp .stp-mode-btn.is-on {
-  border-color: #F76E12;
   background: #FFF1E6;
   color: #C05621;
 }
@@ -366,7 +361,7 @@
   cursor: pointer;
 }
 
-.stp .stp-hint-step:hover { box-shadow: inset 0 0 0 2px #F76E12; }
+.stp .stp-hint-step:hover { background: #FFE9D8; }
 
 .stp .stp-hint-step.is-on {
   background: #FFE2CC;

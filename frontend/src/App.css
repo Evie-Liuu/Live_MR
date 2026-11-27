@@ -6636,11 +6636,13 @@ button:disabled {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-height: 0;
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding-right: 2px;
+  /* 一整塊白底：登台展演與台下互動用細線分隔，不再各自一張框線卡片 */
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 2px 12px rgba(72, 38, 7, 0.1);
   /* 底部讓出「開啟大屏」浮動按鈕的位置 */
   margin-bottom: 72px;
 }
@@ -6649,6 +6651,10 @@ button:disabled {
 .hs-stage-console > .cph {
   margin-top: 0;
   flex-shrink: 0;
+}
+
+.hs-stage-console > .stp + .cph {
+  border-top: 1px solid #F1ECE6;
 }
 
 .hs-lesson-console-note {
